@@ -102,7 +102,7 @@ function makeObj(type) {
 }
 function makeBox() {
   // the crash: a burnt-out convoy truck somewhere out there, its load strewn round it; the box is in one of the piles
-  const [x, y] = freeSpot(650, 1150),
+  const [x, y] = freeSpot(650, 1150, true),
     a = Math.atan2(y - GS.P.y, x - GS.P.x);
   GS.obj = {
     type: 'box',

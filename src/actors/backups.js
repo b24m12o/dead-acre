@@ -1,11 +1,11 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
-import { TAU, angDiff, clamp, d2, damp, lerp, pick, rand } from '../core/util.js';
+import { TAU, angDiff, d2, damp, lerp, pick, rand } from '../core/util.js';
 import { TS } from '../core/settings.js';
 import { ui } from '../render/gl.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
-import { MW, TILE, WH, WW, isWall } from '../world/map.js';
+import { MH, MW, TILE, WH, WW, isWall } from '../world/map.js';
 import { N8, collide, flow, los, query, solidPt } from '../world/nav.js';
 import { budKey, playR, playS, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
@@ -440,24 +440,45 @@ export function regroupSpot(p, i) {
   }
   return null;
 }
-export function freeSpot(minD, maxD) {
-  for (let k = 0; k < 80; k++) {
+// an open, reachable spot minD to maxD from you. away: also out of sight when it is chosen, so it never pops up
+// on screen. A spot that would fall off the map is tried again elsewhere rather than pushed back in (which could
+// land it right next to you); if no throw lands, the best open tile in range is taken from a full scan
+export function freeSpot(minD, maxD, away = false) {
+  const open = (tx, ty) => {
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (isWall(tx + i, ty + j)) return false;
+      return flow[ty * MW + tx] < 65535;
+    },
+    seen = (x, y) =>
+      Math.abs(x - cam.x - viewW / 2) < viewW / 2 + 90 && Math.abs(y - cam.y - viewH / 2) < viewH / 2 + 90,
+    lo = 4 * TILE;
+  for (let k = 0; k < 120; k++) {
     const a = rand(0, TAU),
       d = rand(minD, maxD),
-      x = clamp(GS.P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
-      y = clamp(GS.P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
+      x = GS.P.x + Math.cos(a) * d,
+      y = GS.P.y + Math.sin(a) * d;
+    if (x < lo || y < lo || x > WW - lo || y > WH - lo) continue;
     const tx = Math.floor(x / TILE),
-      ty = Math.floor(y / TILE);
-    let ok = true;
-    for (let j = -1; j <= 1 && ok; j++)
-      for (let i = -1; i <= 1; i++)
-        if (isWall(tx + i, ty + j)) {
-          ok = false;
-          break;
-        }
-    if (ok && flow[ty * MW + tx] < 65535) return [(tx + 0.5) * TILE, (ty + 0.5) * TILE];
+      ty = Math.floor(y / TILE),
+      cx = (tx + 0.5) * TILE,
+      cy = (ty + 0.5) * TILE;
+    if (open(tx, ty) && !(away && seen(cx, cy))) return [cx, cy];
   }
-  return [GS.P.x + rand(-120, 120), GS.P.y + rand(-120, 120)];
+  let best = null,
+    bs = -1e9;
+  for (let ty = 4; ty < MH - 4; ty++)
+    for (let tx = 4; tx < MW - 4; tx++) {
+      const cx = (tx + 0.5) * TILE,
+        cy = (ty + 0.5) * TILE,
+        d = Math.hypot(cx - GS.P.x, cy - GS.P.y);
+      if (!open(tx, ty)) continue;
+      const sc =
+        -Math.max(0, minD - d) - Math.max(0, d - maxD) - (away && seen(cx, cy) ? 2000 : 0) + Math.random() * 40;
+      if (sc > bs) {
+        bs = sc;
+        best = [cx, cy];
+      }
+    }
+  return best || [GS.P.x + rand(-120, 120), GS.P.y + rand(-120, 120)];
 }
 export const NPC_TINTS = [
   [1, 1, 1],

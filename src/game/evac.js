@@ -238,13 +238,15 @@ export function updateEvac(dt) {
       banner('Wheels down', 'Chopper down · get in', false);
       shake(0.15);
     }
-    if (d2(GS.P.x, GS.P.y, e.x, e.y) < 80 * 80) {
+    const pd = d2(GS.P.x, GS.P.y, e.x, e.y);
+    if (pd < 80 * 80) {
       e.hold += dt;
+      e.outT = 0;
       const late = GS.buddies.find(b => !(b.down > 0) && d2(b.x, b.y, e.x, e.y) < 500 * 500);
       if (late && e.hold >= 2.4 && (e.waitT = (e.waitT || 0) + dt) < 8) e.hold = 2.4; // the pilot holds for a teammate on the way
       e.waiting = late && e.hold >= 2.4 && e.waitT < 8 ? late.nm : null;
       if (e.hold >= 2.5) winRun();
-    } else e.hold = Math.max(0, e.hold - dt * 0.6);
+    } else if ((e.outT = (e.outT || 0) + dt) > 1.2 || pd > 150 * 150) e.hold = Math.max(0, e.hold - dt * 0.6); // shoved just outside by the horde, the count waits a moment for you to step back in; walk away and it runs down
   }
 }
 let heliNodes = null;
