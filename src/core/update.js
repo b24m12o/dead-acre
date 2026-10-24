@@ -493,8 +493,8 @@ export function update(dt) {
           push = rr2 - d,
           nx = (a.x - b.x) / d,
           ny = (a.y - b.y) / d,
-          wa = a.type === 'queen' || a.type === 'flower' || a.type === 'egg' ? 0 : 1,
-          wb = b.type === 'queen' || b.type === 'flower' || b.type === 'egg' ? 0 : 1,
+          wa = a.type === 'queen' || a.type === 'flower' || a.type === 'egg' ? 0 : 1 / (a.r * a.r),
+          wb = b.type === 'queen' || b.type === 'flower' || b.type === 'egg' ? 0 : 1 / (b.r * b.r), // the lighter body gives way: a walker is shoved aside by a brute, not the other way round
           tot = wa + wb || 1;
         a.x += (nx * push * wa) / tot;
         a.y += (ny * push * wa) / tot;

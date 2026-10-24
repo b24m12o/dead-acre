@@ -770,7 +770,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   if (e.type === 'beetle' || big) {
     shake(big ? 0.8 : 0.3);
     GS.hitstop = Math.max(GS.hitstop, big ? 0.3 : 0.05);
-    distort(ex, ey, big ? 0.05 : 0.02, big ? 1.1 : 0.6, big ? 1.1 : 0.45);
+    distort(ex, ey, big ? 0.026 : 0.02, big ? 1.1 : 0.6, big ? 0.8 : 0.45); // a boss's last breath ripples the air; stronger, it read as a target painted on its back
   } else shake(overkill ? 0.1 : 0.05);
   if (big) {
     GS.boss = GS.enemies.find(o => o !== e && !o.dead && o.type === 'queen') || null;

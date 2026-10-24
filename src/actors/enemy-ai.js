@@ -5,7 +5,7 @@ import { saveMeta } from '../core/settings.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { MH, MW, TILE, WH, WW, cars, isWall, ttype } from '../world/map.js';
-import { N8, collide, flow, los, steer } from '../world/nav.js';
+import { GIANT_STOP, N8, collide, flow, los, steer } from '../world/nav.js';
 import { updateLegs } from './legs.js';
 import { sfx } from '../audio/sfx.js';
 import { S, cam } from '../game/state.js';
@@ -706,6 +706,7 @@ export function updateEnemy(e, dt, p) {
     e.x = clamp(e.x, 2.5 * TILE, WW - 2.5 * TILE);
     e.y = clamp(e.y, 2.5 * TILE, WH - 2.5 * TILE);
   } else {
+    if (e.big && !e.fly && e.st !== 'jump') hitWall = collide(e, 30, GIANT_STOP); // a giant shoulders through fences and hedges, but not through a building
     e.x = clamp(e.x, 3 * TILE + e.r * (e.big ? 0.6 : 0), WW - 3 * TILE - e.r * (e.big ? 0.6 : 0));
     e.y = clamp(e.y, 3 * TILE + e.r * (e.big ? 0.6 : 0), WH - 3 * TILE - e.r * (e.big ? 0.6 : 0));
   }

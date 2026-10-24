@@ -49,8 +49,8 @@ function unstick(o) {
   if (o.kx !== undefined) o.kx = o.ky = 0;
   return true;
 }
-export function collide(o) {
-  const r = o.cr || o.r;
+// pushes o out of walls. r: its radius against walls (default its crowd radius); only: which tile kinds stop it
+export function collide(o, r = o.cr || o.r, only = null) {
   let hit = false;
   {
     const cx = Math.floor(o.x / TILE),
@@ -66,6 +66,7 @@ export function collide(o) {
       if (!isWall(tx, ty)) continue;
       const inside = tx >= 0 && ty >= 0 && tx < MW && ty < MH,
         t = inside ? ttype[ty * MW + tx] : 1;
+      if (only && !only(t)) continue;
       if (t !== 1) {
         const cx = (tx + 0.5) * TILE,
           cy = (ty + 0.5) * TILE,
@@ -140,7 +141,7 @@ let flowAt;
 let dens, heap;
 // crowd-aware flow field: Dijkstra from the target where a tile costs more the more zombies already stand in it,
 // so a crowd spills into side streets and alleys and comes at you from several sides instead of in one queue
-export function dijk(out, seeds, crowd) {
+export function dijk(out, seeds, crowd, blk = grid) {
   out.fill(65535);
   let n = 0;
   const push = k => {
@@ -204,7 +205,7 @@ export function dijk(out, seeds, crowd) {
               : cy < MH - 1
                 ? c + MW
                 : -1;
-      if (nb < 0 || grid[nb]) continue;
+      if (nb < 0 || blk[nb]) continue;
       const nd = dc + 2 + (crowd ? Math.min(6, dens[nb] * 2) : 0);
       if (nd < out[nb]) {
         out[nb] = nd;
@@ -225,13 +226,61 @@ export function buildFlow(px, py) {
       if (t >= 0 && t < MW * MH && dens[t] < 250) dens[t]++;
     }
   dijk(flow, [st], true);
+  if (GS.enemies.some(e => e.big && !e.dead)) {
+    // the giants' own map: they wade through fences, graves and hedges but go round buildings, and need a street's width to do it
+    gblk.fill(0);
+    for (let y = 0; y < MH; y++)
+      for (let x = 0; x < MW; x++) {
+        const i = y * MW + x;
+        if (!grid[i] || !GIANT_STOP(ttype[i])) continue;
+        for (let j = -1; j <= 1; j++)
+          for (let k = -1; k <= 1; k++) {
+            const xx = x + k,
+              yy = y + j;
+            if (xx >= 0 && yy >= 0 && xx < MW && yy < MH) gblk[yy * MW + xx] = 1;
+          }
+      }
+    gblk[st] = 0;
+    dijk(flowBig, [st], false, gblk);
+  }
 }
+// the walls that stop a giant: buildings and the edge of the map
+export const GIANT_STOP = t => t === 1 || t === 5;
+export let flowBig, gblk;
 export let N8;
 export function steer(e, tx, ty, fld, inView) {
   const dx = tx - e.x,
     dy = ty - e.y,
     d = Math.hypot(dx, dy) || 1;
-  if (e.fly || e.big || inView) return [dx / d, dy / d, d];
+  if (e.fly || inView) return [dx / d, dy / d, d];
+  if (e.big) {
+    if (!(GS.time < (e.gLosT || 0))) {
+      e.gLosT = GS.time + 0.25;
+      e.gLos = los(e.x, e.y, tx, ty);
+    }
+    if (e.gLos || fld) return [dx / d, dy / d, d];
+    const cx = Math.floor(e.x / TILE),
+      cy = Math.floor(e.y / TILE);
+    let best = flowBig[cy * MW + cx],
+      bx = cx,
+      by = cy;
+    for (const [ox, oy] of N8) {
+      const nx = cx + ox,
+        ny = cy + oy;
+      if (nx < 0 || ny < 0 || nx >= MW || ny >= MH || gblk[ny * MW + nx]) continue;
+      const v = flowBig[ny * MW + nx] + (ox && oy ? 0.8 : 0);
+      if (v < best) {
+        best = v;
+        bx = nx;
+        by = ny;
+      }
+    }
+    if (bx === cx && by === cy) return [dx / d, dy / d, d];
+    const gx = (bx + 0.5) * TILE - e.x,
+      gy = (by + 0.5) * TILE - e.y,
+      g = Math.hypot(gx, gy) || 1;
+    return [gx / g, gy / g, d];
+  } // a giant walks straight at you when it can see you, and round the block when it can't
   if ((fld ? d < 150 : e.los && d < 520) && !(GS.time < (e.flowT || 0)))
     return d < e.r * 2 + 24 ? [dx / d, dy / d, d] : crowdDir(e, dx, dy, d, tx, ty);
   const F = fld || flow,
@@ -320,6 +369,8 @@ export function query(x, y, r, cb) {
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
   flow = new Uint16Array(MW * MH);
+  flowBig = new Uint16Array(MW * MH);
+  gblk = new Uint8Array(MW * MH);
   GS.flowTile = -1;
   flowAt = -9;
   dens = new Uint8Array(MW * MH);

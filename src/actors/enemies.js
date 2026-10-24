@@ -65,7 +65,7 @@ export function makeEnemy(type, x, y) {
     dead: false,
     wob: 0,
   };
-  if (type !== 'queen') e.cr = Math.min(e.r, 15);
+  if (type !== 'queen') e.cr = Math.min(e.r, type === 'beetle' ? 19 : type === 'hopper' ? 18 : 15); // against walls: the big ones keep more of their bulk out of them, and still fit a one-tile gap
 
   if (INF(5)) e.sp *= 1.1;
   if (INF(9)) e.dmg *= 1.25;

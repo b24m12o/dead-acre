@@ -285,13 +285,20 @@ export function drawBody(e, fl, _f, em, skin, shirt) {
   if (e.half) {
     const [wx, wy] = W(-3, 0),
       gw = cr ? 1 : 0.25;
-    for (let i = 0; i < 3; i++) {
-      const sw = Math.sin(GS.time * 3 + i * 2 + (e.id || 0)) * 4 * gw,
-        [gx, gy] = W(-18 - i * 5, (i - 1) * 5 + sw);
-      lineQ(wx, wy, gx, gy, (5.2 - i * 0.9) * kem, 0.55 - i * 0.07, 0.14, 0.16, 1, 0, 0, 0, fl);
+    quad(R.drop, wx - 3, wy, 0, 2.8 * kem, 2.2 * kem, 0.12, 0.02, 0.02, 1, 0, 0, 0, 0);
+    for (let i = 0; i < 2; i++) {
+      // gut dragging flat behind it, dark with old blood, swinging a little as the body hauls itself along
+      let [px, py] = W(-5, i ? 2 : -1.5);
+      for (let k = 1; k <= 2; k++) {
+        const sw = Math.sin(GS.time * 2.6 + k * 1.3 + i * 2.1 + (e.id || 0)) * 1.6 * gw,
+          [qx, qy] = W(-5 - k * 4.2, (i ? 2 : -1.5) + (i ? 1 : -1) * k * 1.2 + sw);
+        lineQ(px, py, qx, qy, (3.2 - k * 0.5) * kem, 0.24, 0.07, 0.07, 1, 0, 0, 0, fl);
+        lineQ(px, py, qx, qy, 0.9 * kem, 0.45, 0.22, 0.2, 0.35, 0, 0, 0, fl); // a wet sheen along it
+        px = qx;
+        py = qy;
+      }
     }
-    quad(R.drop, wx, wy, 0, 1.9 * kem, 1.9 * kem, 0.26, 0.02, 0.02, 1, 0, 0, 0, 0);
-  } // cut through at the waist, its insides trailing
+  } // cut through at the waist, its insides dragging behind
   else if (e.crawl)
     for (let i = 0; i < 2; i++) {
       const sd = i ? 1 : -1,

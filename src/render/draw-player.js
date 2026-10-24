@@ -35,7 +35,7 @@ export function lampK(L) {
 
 export const HLOOK = { ranger: 0, breacher: 1, grenadier: 2 };
 const HSTYLE = [
-  { sleeve: [0.42, 0.46, 0.3], pants: [0.32, 0.34, 0.24], hand: 'h_glove', pack: 'h_pack' },
+  { sleeve: [0.31, 0.31, 0.28], pants: [0.25, 0.25, 0.23], hand: 'h_glove', pack: 'h_pack' }, // a worn field jacket: greys and browns, so lamplight doesn't turn it lime
   { sleeve: [0.8, 0.72, 0.54], pants: [0.24, 0.31, 0.48], hand: 'h_glove2', pack: null },
   { sleeve: [0.66, 0.2, 0.16], pants: [0.16, 0.17, 0.22], hand: 'h_hand', pack: 'h_bag' },
 ];
@@ -331,7 +331,7 @@ export function drawRanger(p) {
       shy,
       ex,
       ey,
-      7.8,
+      9.6,
       st.sleeve[0] * ot[0],
       st.sleeve[1] * ot[1],
       st.sleeve[2] * ot[2],
@@ -347,8 +347,8 @@ export function drawRanger(p) {
       ex,
       ey,
       Math.atan2(ey - shy, ex - shx),
-      0.95,
-      0.95,
+      1.12,
+      1.12,
       st.sleeve[0] * 0.9 * ot[0],
       st.sleeve[1] * 0.9 * ot[1],
       st.sleeve[2] * 0.9 * ot[2],
@@ -363,7 +363,7 @@ export function drawRanger(p) {
       ey,
       hx,
       hy,
-      5.6,
+      7,
       st.sleeve[0] * 0.92 * ot[0],
       st.sleeve[1] * 0.92 * ot[1],
       st.sleeve[2] * 0.92 * ot[2],

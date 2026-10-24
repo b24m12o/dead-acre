@@ -679,8 +679,8 @@ export function drawEnemy(e) {
           const [hx, hy] = W(hipX, sd * 5.5),
             [fx, fy] = W(footX, footY),
             [kx, ky] = W(hipX + (footX - hipX) * 0.5 + (front ? -1.5 : 2.2) * (0.5 + lift), sd * (8.4 - lift)); // the elbow tucks back, the hock juts back
-          lineQ(hx, hy, kx, ky, (front ? 3.8 : 4.8) * em, 0.3, 0.24, 0.19, 1, 0, 0, 0, fl);
-          lineQ(kx, ky, fx, fy, 2.4 * em, 0.24, 0.19, 0.15, 1, 0, 0, 0, fl);
+          lineQ(hx, hy, kx, ky, (front ? 4.8 : 6.4) * em, 0.3, 0.24, 0.19, 1, 0, 0, 0, fl, R.z_upper);
+          lineQ(kx, ky, fx, fy, 3.0 * em, 0.24, 0.19, 0.15, 1, 0, 0, 0, fl, R.z_fore); // muscled thighs and lean lower legs, shaded round
         }
       const [t0x, t0y] = W(-19, 0),
         [t1x, t1y] = W(-30, dead ? 3 : Math.sin(GS.time * 9 + e.id) * 5); // a dead dog's tail lies still
@@ -692,7 +692,7 @@ export function drawEnemy(e) {
         e.y - e.z,
         ta + gal * 0.05,
         em * (1 + lunge * 0.12 + sq + gal * 0.03 * mv),
-        em * (1 - lunge * 0.06) * 0.86, // a lean, deep-chested dog, not a sausage: the back flexes with each bound
+        em * (1 - lunge * 0.06) * 0.98, // a lean, deep-chested dog, not a sausage: the back flexes with each bound
         1,
         1,
         1,
