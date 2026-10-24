@@ -4,6 +4,7 @@ import { $ } from '../core/errors.js';
 import { gl, progFinish, program } from './gl.js';
 import { AS } from './atlas.js';
 import { SBV, gunHD } from '../audio/audio.js';
+import { MSN, loadMusic } from '../audio/music.js';
 export const FS_VS = `#version 300 es
 out vec2 vUv; void main(){ vec2 p=vec2((gl_VertexID<<1)&2, gl_VertexID&2); vUv=p; gl_Position=vec4(p*2.0-1.0,0.0,1.0); }`;
 /* ---------- the 3D bake: body parts are modelled as signed-distance shapes and photographed straight down on the graphics card at load.
@@ -227,6 +228,14 @@ export async function assetsPrep() {
         .catch(e =>
           console.warn('Dead Acre: full-quality gun sounds unavailable, using the built-in ones', e)
         ); /* the recorded gun set, swapped in as it arrives */
+    if (j.mus)
+      get(j.mus.file, 'arrayBuffer', 120000)
+        .then(mb => {
+          GS.MUSHD = j.mus.list.map(([n, o, l, ...x]) => [n, mb.slice(o, o + l), ...x]);
+          ASSETS.mus = true;
+          loadMusic();
+        })
+        .catch(e => console.warn('Dead Acre: the recorded band is unavailable, playing the synth one', e));
     get(j.vox.file, 'arrayBuffer', 90000)
       .then(vb => {
         GS.VOX = j.vox.list.map(([id, t, d, o, n, w]) => [id, t, d, vb.slice(o, o + n), w || 'R']);
@@ -527,5 +536,6 @@ export function init() {
       BAKE.diag && BAKE.diag.on ? BAKE.diag.n + ' parts' : 'painted (' + ((BAKE.diag && BAKE.diag.why) || 'none') + ')',
     voices: GS.VOX.length,
     guns: Object.keys(SBV).length,
+    band: MSN(),
   }); /* type DA_STATUS() in the browser console to see where the art and voices came from */
 }

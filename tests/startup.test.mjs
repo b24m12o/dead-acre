@@ -28,17 +28,25 @@ export async function run(b) {
     for (let i = 0; i < 120; i++) {
       await pg.waitForTimeout(1000);
       st = await pg.evaluate('typeof DA_STATUS === "function" ? DA_STATUS() : null');
-      if (st && st.voices && st.guns >= guns && (await pg.evaluate('document.body.dataset.st')) === 'play') break;
+      if (
+        st &&
+        st.voices &&
+        st.guns >= guns &&
+        st.band >= pack.mus.list.length &&
+        (await pg.evaluate('document.body.dataset.st')) === 'play'
+      )
+        break;
     }
     check(st, 'DA_STATUS never appeared');
     check(st.pack === pack.v, `pack ${st.pack}, expected ${pack.v}`);
     check(parseInt(st.art) >= Object.keys(pack.bake.pos).length - 5, `art: ${st.art}`);
     check(st.voices === pack.vox.list.length, `voices ${st.voices} of ${pack.vox.list.length}`);
     check(st.guns === guns, `recorded sounds ${st.guns} of ${guns}`);
+    check(st.band === pack.mus.list.length, `band samples ${st.band} of ${pack.mus.list.length}`);
     check((await pg.evaluate('document.body.dataset.st')) === 'play', 'never reached play');
     check(!errs.length, 'page errors: ' + errs.join(' | '));
     await pg.close();
-    return `pack ${st.pack}, ${st.art}, ${st.voices} voices, ${st.guns} sounds`;
+    return `pack ${st.pack}, ${st.art}, ${st.voices} voices, ${st.guns} sounds, ${st.band} band samples`;
   } finally {
     cdn.close();
     site.close();

@@ -12,6 +12,114 @@ function tempoOf(L) {
   if (L !== 'boss') return TEMPO[L];
   return TEMPO.boss * (BOSS_TEMPO[MUS.bt] || 1) * (1 + 0.04 * (MUS.bph || 0));
 }
+/* ---- the recorded band (tools/music/build.py): a real guitar through a modelled amp, a bass, a rock kit, strings,
+   piano and glockenspiel, all CC0. They arrive with the asset pack; until then (or without it) the synth band plays ---- */
+let MS = null, // name -> { b: buffer, o: where its attack starts, lp: [loop start, end] }
+  MSP = null, // pitched instruments: prefix -> sorted notes
+  msDone = false;
+export const MSN = () => (MS ? Object.keys(MS).length : 0);
+export function loadMusic() {
+  if (!AC || !GS.MUSHD || msDone) return;
+  msDone = true;
+  const ms = {},
+    list = GS.MUSHD;
+  let left = list.length;
+  for (const [nm, data, ...x] of list) {
+    const b = typeof data === 'string' ? Uint8Array.from(atob(data), c => c.charCodeAt(0)).buffer : data.slice(0);
+    AC.decodeAudioData(b)
+      .then(buf => {
+        // find the attack: the decoder may add a little silence of its own in front
+        let pk = 0,
+          i = 0;
+        const n = Math.min(buf.length, Math.floor(buf.sampleRate * 0.2)),
+          chs = [...Array(buf.numberOfChannels).keys()].map(c => buf.getChannelData(c));
+        for (const d of chs) for (let k = 0; k < buf.length; k++) pk = Math.max(pk, Math.abs(d[k]));
+        const th = pk * 0.03;
+        if (!x.length) for (; i < n; i++) if (chs.some(d => Math.abs(d[i]) > th)) break;
+        ms[nm] = { b: buf, o: x.length ? 0 : Math.max(0, i / buf.sampleRate - 0.004), lp: x.length ? x : null };
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (--left) return;
+        MSP = {};
+        for (const nm in ms) {
+          const m = /^(go|gp|l|b|p|n|e)(\d+)$/.exec(nm);
+          if (m) (MSP[m[1]] = MSP[m[1]] || []).push(+m[2]);
+        }
+        for (const k in MSP) MSP[k].sort((a, b) => a - b);
+        if (ms.go40 && ms.k0 && ms.s0) MS = ms; // the band plays only once its core is in
+      });
+  }
+}
+const take = k => {
+  const v = [];
+  for (let i = 0; MS[k + i]; i++) v.push(k + i);
+  return v.length ? v[randi(0, v.length - 1)] : null;
+}; // one of a drum's takes, so no two hits sound the same
+function nearest(pre, m) {
+  const v = MSP[pre];
+  if (!v) return null;
+  let best = v[0];
+  for (const k of v) if (Math.abs(k - m) < Math.abs(best - m)) best = k;
+  return best;
+}
+// plays a sample at time t. dur: hold for that long, then release over rel (0: let it ring out). Returns its gain
+function sp(nm, t, vol, { rate = 1, dur = 0, rel = 0.08, rev = 0, dly = 0, att = 0, loop = false, det = 0 } = {}) {
+  const s = MS[nm];
+  if (!s) return null;
+  const src = AC.createBufferSource(),
+    g = AC.createGain();
+  src.buffer = s.b;
+  src.playbackRate.value = rate;
+  if (loop && s.lp) {
+    src.loop = true;
+    src.loopStart = s.lp[0];
+    src.loopEnd = s.lp[1];
+  }
+  if (att) {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + att);
+  } else g.gain.setValueAtTime(vol, t);
+  let end = t + (s.b.duration - s.o) / rate;
+  if (dur) {
+    const h = Math.max(t + att + 0.005, t + dur);
+    g.gain.setValueAtTime(vol, h);
+    g.gain.exponentialRampToValueAtTime(0.0001, h + rel);
+    end = loop ? h + rel : Math.min(end, h + rel);
+  }
+  if (det) {
+    const lfo = AC.createOscillator(),
+      lg = AC.createGain();
+    lfo.frequency.value = 5.4;
+    lg.gain.setValueAtTime(0, t);
+    lg.gain.linearRampToValueAtTime(det, t + Math.min(0.5, dur * 0.6)); // the vibrato comes in once the note has spoken
+    lfo.connect(lg);
+    lg.connect(src.detune);
+    lfo.start(t);
+    lfo.stop(end + 0.05);
+  }
+  src.connect(g);
+  g.connect(musBus);
+  for (const [bus, k] of [
+    [revIn, rev],
+    [dlyIn, dly],
+  ])
+    if (k) {
+      const r = AC.createGain();
+      r.gain.value = k;
+      g.connect(r);
+      r.connect(bus);
+    }
+  src.start(t, s.o);
+  src.stop(end + 0.05);
+  return g;
+}
+// a pitched sample: the nearest recorded note, played faster or slower to land on m
+function spN(pre, m, t, vol, o = {}) {
+  const k = nearest(pre, m);
+  return k == null ? null : sp(pre + k, t, vol, { ...o, rate: Math.pow(2, (m - k) / 12) });
+}
+const hum = () => (Math.random() - 0.5) * 0.006; // a drummer is never quite on the grid
 let gtrIn = null;
 function ensureGtr() {
   if (gtrIn) return;
@@ -52,6 +160,13 @@ function ensureGtr() {
   send.connect(revIn);
 }
 export function mGtr(fret, t, dur, palm, vol = 1) {
+  if (MS) {
+    const root = 40 + fret;
+    if (palm) spN('gp', root, t, 0.34 * vol, { dur: Math.min(dur, 0.4), rel: 0.05 });
+    else spN('go', root, t, 0.3 * vol, { dur, rel: 0.12, rev: 0.12 });
+    spN('b', root - 12, t, 0.3 * vol, { dur: palm ? dur * 0.9 : dur, rel: palm ? 0.04 : 0.1 }); // the bass locks to the guitar
+    return;
+  }
   ensureGtr();
   const root = 40 + fret,
     g = AC.createGain(),
@@ -109,6 +224,10 @@ function vEnv(g, t, a, peak, d, sus, rel, end) {
   g.gain.exponentialRampToValueAtTime(0.0001, end + rel);
 }
 function mPad(notes, t, dur, vol) {
+  if (MS) {
+    for (const m of notes) spN('p', m, t, vol * 5.4, { dur, att: 1.6, rel: 1.8, rev: 0.45, loop: true });
+    return;
+  } // a string section, swelling in and out
   for (const m of notes)
     for (const det of [-9, 9]) {
       const o = AC.createOscillator(),
@@ -131,6 +250,11 @@ function mPad(notes, t, dur, vol) {
     }
 }
 function mBell(m, t, vol) {
+  if (MS) {
+    if (m >= 76) spN('e', m, t, vol * 4.2, { rev: 0.4, dly: 0.5 });
+    else spN('n', m, t, vol * 4.6, { rev: 0.45, dly: 0.4 });
+    return;
+  } // a glockenspiel, or the top of the piano below its range
   const o = AC.createOscillator(),
     o2 = AC.createOscillator(),
     g = AC.createGain();
@@ -152,6 +276,10 @@ function mBell(m, t, vol) {
   o2.stop(t + 2.3);
 }
 function mKick(t, vol) {
+  if (MS) {
+    sp(take(vol > 0.5 ? 'k' : 'kq'), t + hum() * 0.5, vol * 1.05 * (0.94 + Math.random() * 0.12));
+    return;
+  }
   const o = AC.createOscillator(),
     g = AC.createGain();
   o.type = 'sine';
@@ -166,6 +294,12 @@ function mKick(t, vol) {
   noise(0.012, vol * 0.5, 4000, 2000, 'highpass', 0, musBus, t);
 }
 function mSnare(t, vol) {
+  if (MS) {
+    sp(take(vol >= 0.38 ? 's' : vol >= 0.26 ? 'sc' : 'scq'), t + hum(), vol * 1.25 * (0.92 + Math.random() * 0.16), {
+      rev: 0.16,
+    });
+    return;
+  } // the backbeat is a rimshot; fills and ghost notes are softer hits on the head
   noise(0.2, vol, 2200, 900, 'bandpass', 0, musBus, t);
   noise(0.25, vol * 0.5, 5000, 3000, 'highpass', 0, revIn, t);
   const o = AC.createOscillator(),
@@ -182,9 +316,25 @@ function mSnare(t, vol) {
   o.stop(t + 0.14);
 }
 function mHat(t, vol, open) {
+  if (MS) {
+    sp(
+      take(open ? 'ho' : vol > 0.06 ? 'h' : 'hq'),
+      t + hum(),
+      vol * (open ? 3.4 : 4.4) * (0.85 + Math.random() * 0.3),
+      {
+        dur: open ? 0.5 : 0,
+        rel: 0.2,
+      }
+    );
+    return;
+  }
   noise(open ? 0.16 : 0.035, vol, 9000, 7000, 'highpass', 0, musBus, t);
 }
 function mCrash(t, vol) {
+  if (MS) {
+    sp(take('c'), t, vol * 3.6, { rev: 0.2 });
+    return;
+  }
   noise(1.6, vol, 7000, 3500, 'highpass', 0, musBus, t);
   noise(1.6, vol * 0.6, 6000, 3000, 'highpass', 0, revIn, t);
 }
@@ -324,7 +474,15 @@ function makeLead(kind) {
   }
   return L;
 }
+function mTom(t, vol, low) {
+  if (MS) sp(take(low ? 'tl' : 't'), t + hum(), vol, { rev: 0.2 });
+  else mSnare(t, vol * 0.6);
+}
 function mLead2(m, t, dur, vol) {
+  if (MS) {
+    spN('l', m, t, vol * 2.6, { dur, rel: 0.12, rev: 0.22, dly: 0.18, det: dur > 0.25 ? 16 : 0 });
+    return;
+  } // the lead guitar, singing: vibrato on the held notes
   // sustained, vibrato-ed lead through the amp
   ensureGtr();
   const o = AC.createOscillator(),
@@ -354,6 +512,10 @@ function mLead2(m, t, dur, vol) {
   }
 }
 function mPluck(m, t, vol) {
+  if (MS) {
+    spN('n', m, t, vol * 4.4, { rev: 0.45, dly: 0.35 });
+    return;
+  } // a piano, far off down the street
   const o = AC.createOscillator(),
     f = AC.createBiquadFilter(),
     g = AC.createGain();
@@ -414,7 +576,18 @@ function playStep(st, t) {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 75, 0, 0, 0, 0, 0, 0, 0, 71, 0, 0, 0, 0, 0, 0, 0,
     ];
     if (bells[st] && MUS.loop % 2 === 1) mBell(bells[st] + [0, 0, 5, 3][MUS.loop % 4], t, 0.05);
-    if (MUS.loop % 2 === 0 && s === 0) mGtr([0, 1, 0, 6][bar] + [0, 0, 5, 3][MUS.loop % 4], t, spb * 15, false, 0.35);
+    if (MUS.loop % 2 === 0 && s === 0) {
+      const f = [0, 1, 0, 6][bar] + [0, 0, 5, 3][MUS.loop % 4];
+      if (MS)
+        for (const [iv, d] of [
+          [0, 0],
+          [7, 0.03],
+          [12, 0.06],
+          [15, 0.09],
+        ])
+          mPluck(52 + f + iv, t + d, 0.03);
+      else mGtr(f, t, spb * 15, false, 0.35);
+    } // a slow piano chord a bar: the quiet before
     return;
   }
   if (st === 0 || !MUS.sec || MUS.sec.L !== L) nextSection(L);
@@ -508,7 +681,11 @@ function playStep(st, t) {
       if (s % 4 === 0) mHat(t, 0.05, s === 12);
       break;
   }
-  if (fill) mSnare(t, 0.22 + (s - 12) * 0.06);
+  if (fill) {
+    const v = 0.22 + (s - 12) * 0.06;
+    if (MS && bar === 3 && MUS.loop % 2 === 1 && s < 15) mTom(t, 0.5 + v, s > 13);
+    else mSnare(t, v);
+  } // every other turnaround rolls round the toms
   if (L === 'fight' && !sparse && (MUS.heat || 0) > 0.82 && s % 2 === 1 && D !== 'blast' && D !== 'none')
     mHat(t, 0.035); // and the hats double up
   if (st === 0 && MUS.sting) {

@@ -3,7 +3,7 @@ import { GS } from '../core/gs.js';
 import { clamp, rand, randi } from '../core/util.js';
 import { opt, store } from '../core/settings.js';
 import { viewW } from '../render/sprites.js';
-import { mGtr, mtof, startMusic } from './music.js';
+import { loadMusic, mGtr, mtof, startMusic } from './music.js';
 import { sightClear } from '../world/vision.js';
 import { RD_MUS } from './radio.js';
 /* =====================================================================
@@ -107,6 +107,7 @@ export function initAudio() {
     wg.connect(sfxBus);
     src.start();
     loadGunSounds();
+    loadMusic();
     startMusic();
   } catch (err) {
     AC = null;
@@ -114,6 +115,7 @@ export function initAudio() {
 }
 // the recorded sounds: built into the one-file version, or loaded from assets/
 GS.GUNHD = (window.__DA_DATA && window.__DA_DATA.gun) || null;
+GS.MUSHD = (window.__DA_DATA && window.__DA_DATA.mus) || null; // the band's instruments (music.js)
 let GUNVAR;
 // recorded sounds, all CC0: full-quality guns (The Free Firearm Sound Library: 2-4 stereo takes per gun near and at mid distance, each gun's own reload, bolt, lever, pump and dry fire), zombie voices (80 CC0 creature SFX, pitched down), impacts and footsteps (Kenney Impact Sounds), ricochets (Warfork), your backups' call-outs (Kenney Voiceover Pack). Names ending in a digit are takes of one sound
 let SB;

@@ -26,7 +26,8 @@ const css = strip(rd('css/style.css')),
 // the one-file version: the asset pack goes in as window.__DA_DATA, read by the game as it loads
 const pack = JSON.parse(rd('assets/pack.json'));
 const vox = readFileSync(join(ROOT, 'assets', pack.vox.file)),
-  gun = readFileSync(join(ROOT, 'assets', pack.gun.file));
+  gun = readFileSync(join(ROOT, 'assets', pack.gun.file)),
+  mus = readFileSync(join(ROOT, 'assets', pack.mus.file));
 const data = {
   bake: {
     key: pack.bake.key,
@@ -37,6 +38,7 @@ const data = {
   },
   vox: pack.vox.list.map(([id, t, d, o, n, w]) => [id, t, d, vox.subarray(o, o + n).toString('base64'), w]),
   gun: pack.gun.list.map(([n, o, l]) => [n, gun.subarray(o, o + l).toString('base64')]),
+  mus: pack.mus.list.map(([n, o, l, ...x]) => [n, mus.subarray(o, o + l).toString('base64'), ...x]),
 };
 const cssFull = css.replace(
   /url\(\.\.\/assets\/fonts\/([\w.-]+)\)/g,
