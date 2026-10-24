@@ -1,0 +1,38 @@
+# Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE.
+# On every push and pull request: the source must be formatted and lint-clean, dist/ must match a fresh
+# build, and the quick tests (startup from one script tag, radio voices, every boss) must pass.
+name: check
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      campaign:
+        description: Also run the long campaign test (about 30 minutes)
+        type: boolean
+        default: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Formatting
+        run: npx prettier --check "src/**/*.js" "tools/**/*.mjs" "tests/**/*.mjs"
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: dist matches the source
+        run: git diff --exit-code -- dist index.html
+      - name: Tests
+        run: npm test
+      - name: Campaign
+        if: ${{ inputs.campaign }}
+        run: npm run test:campaign

@@ -33,7 +33,8 @@ src/            the game, in the order listed in src/order.json
   head.html     the page head (title, meta)
 css/style.css   styles (fonts in assets/fonts)
 assets/         art, voices and recorded sounds (pack.json lists them), fonts
-tools/          the build, and the scripts that make the assets
+tools/          the build, lint, fingerprint, and the scripts that make the assets
+tests/          the tests and the bot that plays the campaign test
 dist/           built files: game.js and style.css (do not edit; run the build)
 index.html      a page that plays dist/game.js
 ```
@@ -47,6 +48,18 @@ npm run build
 
 This writes `dist/game.js`, `dist/style.css`, `index.html`, and `build/dead-acre.html`
 (everything in one file, assets embedded).
+
+## Check
+
+```sh
+npm run format      # Prettier
+npm run lint        # ESLint over the whole program, findings reported at their src/ file and line
+npm test            # startup from one script tag, every radio line voiced, every boss (about 2 minutes)
+npm run test:campaign   # a bot plays all fifteen nights (about 30 minutes)
+npm run fingerprint # a hash of the program itself: unchanged by formatting or comments
+```
+
+GitHub runs formatting, lint, the build (dist/ must match it) and the quick tests on every push.
 
 The parts in `src/` share one scope and are joined in the listed order; the build checks nothing
 else. Keep each file's copyright line at the top.

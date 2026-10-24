@@ -21,10 +21,17 @@ const config = [
   },
 ];
 const msgs = linter.verify(script, config, { filename: 'game.js' });
-let errors = 0, warnings = 0; const byRule = {};
+let errors = 0,
+  warnings = 0;
+const byRule = {};
 for (const m of msgs) {
-  const w = whereIs(map, m.line); m.severity === 2 ? errors++ : warnings++; byRule[m.ruleId] = (byRule[m.ruleId] || 0) + 1;
-  if (!process.argv.includes('--summary')) console.log(`${w.file}:${w.line}:${m.column}  ${m.severity === 2 ? 'error' : 'warn '}  ${m.message}  (${m.ruleId})`);
+  const w = whereIs(map, m.line);
+  m.severity === 2 ? errors++ : warnings++;
+  byRule[m.ruleId] = (byRule[m.ruleId] || 0) + 1;
+  if (!process.argv.includes('--summary'))
+    console.log(
+      `${w.file}:${w.line}:${m.column}  ${m.severity === 2 ? 'error' : 'warn '}  ${m.message}  (${m.ruleId})`
+    );
 }
 console.log(`\n${errors} errors, ${warnings} warnings`, byRule);
 process.exit(errors ? 1 : 0);
