@@ -259,15 +259,38 @@ export function drawDecor(d) {
   if (k === 'tlight') {
     const h = 64,
       ax = d.x + Math.cos(d.a) * 46;
-    drawPole(d.x, d.y, h, 4);
     if (GS.SHMODE) {
+      drawPole(d.x, d.y, h, 4);
       setH(h);
       lineQ(d.x, d.y, ax, d.y, 3, 1, 1, 1, 1, 0, 0, 0, 0, R.pixel);
       quad(R.p_tl, ax, d.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
       return;
     }
-    lineQ(d.x, d.y - h, ax, d.y - h, 3, 0.16, 0.16, 0.18, 1, 0, 0, 0, 0, R.pixel);
     const s = tlightState(d);
+    if (drawProp('o_tl', d.x, d.y, d.a)) {
+      if (s >= 0) {
+        const col = s === 2 ? [0.3, 2.6, 0.8] : s === 1 ? [2.8, 2.0, 0.3] : [2.8, 0.35, 0.25];
+        quad(
+          R.pixel,
+          ax,
+          d.y - 51.6 + (s === 2 ? 6 : s === 1 ? 0 : -6),
+          0,
+          0.9,
+          0.9,
+          0,
+          0,
+          0,
+          1,
+          col[0],
+          col[1],
+          col[2],
+          1
+        );
+      }
+      return;
+    } // the lit lamp, over the dark lens in the 3D head: red on top, amber, green at the bottom
+    drawPole(d.x, d.y, h, 4);
+    lineQ(d.x, d.y - h, ax, d.y - h, 3, 0.16, 0.16, 0.18, 1, 0, 0, 0, 0, R.pixel);
     quad(R.p_tl, ax, d.y - h + 6, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
     if (s >= 0) {
       const col = s === 2 ? [0.3, 2.6, 0.8] : s === 1 ? [2.8, 2.0, 0.3] : [2.8, 0.35, 0.25],
@@ -287,6 +310,12 @@ export function drawDecor(d) {
     return;
   }
   if (k === 'bus') {
+    if (!GS.SHMODE && drawProp('o_shelter', d.x, d.y)) {
+      quad(R.pixel, d.x - 6, d.y - 4, 0, 16.5, 7, 0.55, 0.66, 0.72, 0.2, 0.04, 0.05, 0.06, 0);
+      quad(R.pixel, d.x - 20, d.y - 10, -0.5, 1.2, 5.5, 1, 1, 1, 0.08, 0.05, 0.05, 0.05, 0); // a reflection across the glass
+      quad(R.pixel, d.x + 33, d.y - 4.2, 0, 2.5, 6.5, 1, 0.97, 0.9, 0.1, 0.55, 0.52, 0.45, 0);
+      return;
+    } // the back wall's glass, and the advert lit from inside
     for (const ox of [-34, 34]) drawPole(d.x + ox, d.y + 10, 34, 3);
     if (GS.SHMODE) {
       setH(36);
@@ -306,6 +335,7 @@ export function drawDecor(d) {
     return;
   }
   if (GS.SHMODE) {
+    if (D.o && propShadow(D.o, d.x, d.y, d.a)) return;
     setH(D.n * D.step);
     quad(reg, d.x, d.y, d.a, K, K, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
@@ -319,13 +349,21 @@ export function drawDecor(d) {
 }
 // draws a street prop from its 3D picture, if it has one: the one for the nearest heading, its foot on the spot
 // (a picture's centre sits half the object's height up). False when there is no picture, to draw the slices instead
-export function drawProp(name, x, y, a = 0) {
+export function drawProp(name, x, y, a = 0, k = 1) {
   const t = O_TURNS[name],
     r = R[t ? name + (((Math.round((a / TAU) * t) % t) + t) % t) : name];
   if (!r || !r.bk) return false;
-  const z = O_SIZES[t ? name + 0 : name][2];
+  const [, , z, ox = 0] = O_SIZES[t ? name + 0 : name];
   setH(z);
-  quad(r, x, y - z / 2, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+  quad(r, x + ox * Math.cos(a), y - z / 2, 0, 1, 1, k, k, k, 1, 0, 0, 0, 0);
+  return true;
+}
+// a prop's shadow, from its outline seen straight down (turned to its heading), cast from its full height
+export function propShadow(name, x, y, a = 0) {
+  const r = R[name + '_t'];
+  if (!r || !r.bk) return false;
+  setH(O_SIZES[name + '_t'][2]);
+  quad(r, x, y, a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
   return true;
 }
 export function decorShot(b) {
@@ -501,21 +539,27 @@ export function drawHouseRoofs() {
       sp = (fx, fy) => [x0 + fx * (x1 - x0), y0 + fy * (y1 - y0) - RH]; // the things that stick out of a roof, placed the same way every night
     if (!flat && o.style !== 'chapel') {
       const [cx, cy] = rx ? sp(0.25 + h * 0.5, 0.36) : sp(0.36, 0.25 + h * 0.5);
-      setH(14);
-      quad(R.r_chim, cx, cy - 6, 0, 1.2, 1.2, 1.35, 1.3, 1.25, 1, 0, 0, 0, 0);
+      if (!drawProp('o_chim', cx, cy + 2, 0, 1.3)) {
+        setH(14);
+        quad(R.r_chim, cx, cy - 6, 0, 1.2, 1.2, 1.35, 1.3, 1.25, 1, 0, 0, 0, 0);
+      }
     }
     for (let i = 0; i < 2; i++) {
       const a = hsh(o.x + i * 17, o.y * 3 + i);
       if (a < 0.6) {
         const [vx, vy] = sp(0.15 + a * 1.1, rx ? 0.7 : 0.3 + a * 0.5);
-        setH(3);
-        quad(R.r_vent, vx, vy, 0, 1.15, 1.15, 1.4, 1.4, 1.4, 1, 0, 0, 0, 0);
+        if (!drawProp('o_vent', vx, vy + 1, 0, 1.35)) {
+          setH(3);
+          quad(R.r_vent, vx, vy, 0, 1.15, 1.15, 1.4, 1.4, 1.4, 1, 0, 0, 0, 0);
+        }
       }
     }
     if (!flat && h > 0.68) {
       const [dx, dy] = sp(0.8, 0.28);
-      setH(6);
-      quad(R.r_dish, dx, dy, h * 6, 1.1, 1.1, 1.3, 1.3, 1.3, 1, 0, 0, 0, 0);
+      if (!drawProp('o_dish', dx, dy + 2, h * 6, 1.3)) {
+        setH(6);
+        quad(R.r_dish, dx, dy, h * 6, 1.1, 1.1, 1.3, 1.3, 1.3, 1, 0, 0, 0, 0);
+      }
     }
     if (h < 0.22 || o.style === 'store') {
       const [kx, ky] = sp(0.55, rx ? 0.68 : 0.5);

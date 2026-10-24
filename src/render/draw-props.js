@@ -8,7 +8,7 @@ import { drawRanger, lampHot } from './draw-player.js';
 import { drawEnemy } from './draw-enemies.js';
 import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
-import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk } from './decor.js';
+import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk, propShadow } from './decor.js';
 import { drawPile } from '../game/objectives.js';
 const DQ = [];
 function drawCrate(c) {
@@ -134,6 +134,7 @@ function drawCrystal(c) {
   quad(R['crystal' + c.hue], c.x, c.y - 20 * g, c.rot, c.s * g, c.s * g, 1, 1, 1, 1, pu, pu, pu, f);
 } // plain metal sides rising to the painted top: no stack of repeated hazard stripes
 function drawBurnBarrel(f) {
+  if (GS.SHMODE && propShadow('o_burn', f.x, f.y)) return;
   if (GS.SHMODE) {
     setH(18);
     quad(R.rustdisc, f.x, f.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
@@ -148,6 +149,7 @@ function drawBurnBarrel(f) {
   quad(R.bbtop, f.x, f.y - 18, f.ph, 1, 1, 1, 1, 1, 1, 1.6 * fk, 1.2 * fk, 1 * fk, 0);
 }
 function drawBarrel(b) {
+  if (GS.SHMODE && propShadow('o_drum', b.x, b.y)) return;
   if (GS.SHMODE) {
     setH(16);
     quad(R.canister, b.x, b.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
@@ -163,33 +165,40 @@ function drawPillar(p) {
   drawPole(p[0], p[1], 56, 6, 0.75);
 }
 function drawGen() {
+  if (GS.SHMODE && propShadow('o_gen', GS.obj.x, GS.obj.y)) return;
   if (GS.SHMODE) {
     setH(18);
     quad(R.gen, GS.obj.x, GS.obj.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
   }
   const ok = GS.obj.hp / GS.obj.max,
-    fl = Math.sin(GS.time * 9) > 0 ? 1 : 0.3;
+    fl = Math.sin(GS.time * 9) > 0 ? 1 : 0.3,
+    lamp = (x, y) =>
+      quad(
+        R.glow,
+        x,
+        y,
+        0,
+        0.07,
+        0.07,
+        0,
+        0,
+        0,
+        1,
+        ok > 0.35 ? 0.3 : 1.4 * fl,
+        ok > 0.35 ? 1 : 0.15 * fl,
+        ok > 0.35 ? 0.35 : 0.1,
+        0
+      ); // green while it runs, a red flicker when it is failing
+  if (drawProp('o_gen', GS.obj.x, GS.obj.y)) {
+    lamp(GS.obj.x + 11, GS.obj.y + 2);
+    return;
+  } // the status lamp on its panel door
   for (let k = 0; k <= 9; k++) {
     const sh = 0.45 + (0.5 * k) / 9;
     quad(R.gen, GS.obj.x, GS.obj.y - k * 2, 0, 1, 1, sh, sh, sh, 1, 0, 0, 0, 0);
   }
-  quad(
-    R.glow,
-    GS.obj.x + 13,
-    GS.obj.y - 10,
-    0,
-    0.07,
-    0.07,
-    0,
-    0,
-    0,
-    1,
-    ok > 0.35 ? 0.3 : 1.4 * fl,
-    ok > 0.35 ? 1 : 0.15 * fl,
-    ok > 0.35 ? 0.35 : 0.1,
-    0
-  );
+  lamp(GS.obj.x + 13, GS.obj.y - 10);
 }
 function drawCan(c) {
   setH(14);

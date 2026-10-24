@@ -175,8 +175,28 @@ const OS = {
   o_dump: [46, 46, 20],
   o_cart: [32, 46, 14],
   o_coffin: [38, 46, 8],
+  o_tl: [56, 80, 66, 23], // the picture's centre is out along the arm: that far from the mast
+  o_shelter: [90, 70, 36],
+  o_gen: [52, 54, 24],
+  o_chim: [12, 24, 14],
+  o_vent: [10, 14, 5],
+  o_dish: [16, 22, 10],
+  // seen straight down, for the shadows: [width, depth, height]
+  o_hydrant_t: [22, 22, 13],
+  o_bin_t: [18, 18, 16],
+  o_drum_t: [29, 29, 16],
+  o_burn_t: [30, 30, 18],
+  o_mailbox_t: [16, 14, 19],
+  o_news_t: [14, 12, 17],
+  o_bench_t: [40, 12, 14],
+  o_cone_t: [14, 14, 12],
+  o_tyre_t: [19, 19, 5],
+  o_dump_t: [46, 30, 20],
+  o_cart_t: [32, 18, 14],
+  o_coffin_t: [38, 18, 8],
+  o_gen_t: [52, 36, 24],
 };
-export const O_TURNS = { o_dump: 2, o_cart: 8, o_coffin: 8 };
+export const O_TURNS = { o_dump: 2, o_cart: 8, o_coffin: 8, o_tl: 2, o_dish: 4 };
 export const O_SIZES = Object.fromEntries(
   Object.entries(OS).flatMap(([n, v]) => (O_TURNS[n] ? [...Array(O_TURNS[n]).keys()].map(i => [n + i, v]) : [[n, v]]))
 );
