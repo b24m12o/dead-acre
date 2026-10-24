@@ -8,7 +8,7 @@ import { drawRanger, lampHot } from './draw-player.js';
 import { drawEnemy } from './draw-enemies.js';
 import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
-import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawTrunk } from './decor.js';
+import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk } from './decor.js';
 import { drawPile } from '../game/objectives.js';
 const DQ = [];
 function drawCrate(c) {
@@ -139,10 +139,11 @@ function drawBurnBarrel(f) {
     quad(R.rustdisc, f.x, f.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
   }
-  for (let k = 0; k <= 17; k++) {
-    const sh = 0.4 + (0.6 * k) / 17;
-    quad(R.rustdisc, f.x, f.y - k, f.ph, 1, 1, sh, sh, sh, 1, 0, 0, 0, 0);
-  }
+  if (!drawProp('o_burn', f.x, f.y))
+    for (let k = 0; k <= 17; k++) {
+      const sh = 0.4 + (0.6 * k) / 17;
+      quad(R.rustdisc, f.x, f.y - k, f.ph, 1, 1, sh, sh, sh, 1, 0, 0, 0, 0);
+    }
   const fk = 0.8 + Math.sin(GS.time * 13 + f.ph) * 0.2;
   quad(R.bbtop, f.x, f.y - 18, f.ph, 1, 1, 1, 1, 1, 1, 1.6 * fk, 1.2 * fk, 1 * fk, 0);
 }
@@ -152,6 +153,7 @@ function drawBarrel(b) {
     quad(R.canister, b.x, b.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
   }
+  if (drawProp('o_drum', b.x, b.y)) return;
   for (let k = 0; k <= 9; k++) {
     const sh = 0.62 + (0.38 * k) / 9;
     quad(R.canister, b.x, b.y - k * 1.6, 0, 1, 1, sh, sh * 0.96, sh * 0.94, 1, 0, 0, 0, 0);

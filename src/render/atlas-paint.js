@@ -2,6 +2,7 @@
 import { TAU, lerp, pick, rand, randi } from '../core/util.js';
 import { OUT, circ, ell, grad, radial, region, rgrad, rr, shape } from './atlas.js';
 import { ZSHIRT } from './draw-enemies.js';
+import { O_SIZES } from './bake.js';
 export function paintAtlas() {
   region(
     'pixel',
@@ -2382,6 +2383,8 @@ export function paintAtlas() {
       0.3,
       1
     );
+  /* ----- street props as 3D pictures, seen at the game's angle (bake-shapes.js); the sliced versions below are the fallback ----- */
+  for (const [n, [w, h]] of Object.entries(O_SIZES)) region(n, w, h, () => {}, 0.3, 0.4, 0.8);
   /* ----- street props (top view slices, stacked when drawn) ----- */
   region(
     'p_hydrant',

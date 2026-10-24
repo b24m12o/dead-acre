@@ -22,7 +22,7 @@ vec3 hx(int c){ return vec3(float((c>>16)&255),float((c>>8)&255),float(c&255))/2
 `;
 const BAKE_FS = group => `#version 300 es
 precision highp float; precision highp int;
-uniform vec3 uBox; uniform vec2 uRes; uniform int uPart; uniform float uSeed; uniform int uSS; uniform int uSteps;
+uniform vec3 uBox; uniform vec2 uRes; uniform int uPart; uniform float uSeed; uniform int uSS; uniform int uSteps; uniform float uObl;
 layout(location=0) out vec4 oC; layout(location=1) out vec4 oH;
 ${BAKE_LIB}
 ${group}
@@ -33,10 +33,11 @@ void main(){
   for(int s=0; s<uSS; s++){ int sx=s-(s/3)*3, sy=s/3; // loop bounds come from uniforms so no compiler tries to unroll the march nine times
     vec2 px=(gl_FragCoord.xy-0.5+(vec2(float(sx),float(sy))+0.5)/3.0)/uRes;
     vec2 q=vec2((px.x-0.5)*uBox.x,(0.5-px.y)*uBox.y);
-    float z=uBox.z; bool hit=false;
-    for(int i=0;i<uSteps;i++){ float d=map(vec3(q,z)); if(d<0.003){ hit=true; break; } z-=max(d*0.85,0.006); if(z<-uBox.z) break; }
+    float z=uBox.z; bool hit=false; vec3 p=vec3(q,z);
+    for(int i=0;i<uSteps;i++){ p=uObl>0.5?vec3(q.x,q.y+z-uBox.z*0.5,z):vec3(q,z); float d=map(p); if(d<0.003){ hit=true; break; } z-=max(d*(uObl>0.5?0.6:0.85),0.006); if(z<-uBox.z) break; }
     if(!hit) continue;
-    vec3 p=vec3(q,z), n=nrm(p); float o=occl(p,n);
+    /* angled parts (uObl) are seen the way the game draws height: each unit up the object is one unit up the picture, so their fronts show */
+    vec3 n=nrm(p); float o=occl(p,n);
     vec3 c=alb(p,n); float sh=(0.46+0.54*pow(max(n.z,0.0),1.2))*mix(1.0,o,0.75); // gentle: the game's own lights shade these surfaces again
     acc+=c*sh; cov+=1.0; hz+=z;
   }
@@ -48,9 +49,9 @@ export let BAKE;
 export function bakeGroup(name, glsl) {
   BAKE.groups[name] = glsl;
 }
-export function bakePart(name, group, id, zTop, seed = 0, ne = false) {
-  BAKE.parts[name] = { group, id, zTop, seed, ne };
-} // ne: drop the painted version's glow layer, which would not line up with the 3D shape
+export function bakePart(name, group, id, zTop, seed = 0, ne = false, obl = false) {
+  BAKE.parts[name] = { group, id, zTop, seed, ne, obl };
+} // ne: drop the painted version's glow layer, which would not line up with the 3D shape; obl: seen at the game's angle (fronts show), not straight down
 export function bakeRun(name, W, H, w, h) {
   // renders one part, returns straight-alpha pixels top row first and a height field, or null
   const P = BAKE.parts[name];
@@ -115,7 +116,8 @@ export function bakeRun(name, W, H, w, h) {
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.useProgram(pr.p);
     gl.uniform1i(pr.u.uSS, 9);
-    gl.uniform1i(pr.u.uSteps, 120);
+    gl.uniform1i(pr.u.uSteps, P.obl ? 200 : 120);
+    if (pr.u.uObl) gl.uniform1f(pr.u.uObl, P.obl ? 1 : 0);
     gl.uniform3f(pr.u.uBox, w, h, P.zTop);
     gl.uniform2f(pr.u.uRes, W, H);
     gl.uniform1i(pr.u.uPart, P.id);
@@ -159,6 +161,26 @@ export function bakeRun(name, W, H, w, h) {
     return null;
   } // one broken group falls back alone
 }
+// the street props drawn from 3D pictures: [width, height, how tall the object stands]. Seen at the game's
+// angle, a picture is the footprint plus that height tall; the ones that sit at any angle get one per heading
+const OS = {
+  o_hydrant: [22, 27, 13],
+  o_bin: [18, 32, 16],
+  o_drum: [29, 44, 16],
+  o_burn: [30, 48, 18],
+  o_mailbox: [16, 32, 19],
+  o_news: [14, 28, 17],
+  o_bench: [40, 28, 14],
+  o_cone: [14, 26, 12],
+  o_tyre: [19, 25, 5],
+  o_dump: [46, 46, 20],
+  o_cart: [32, 46, 14],
+  o_coffin: [38, 46, 8],
+};
+export const O_TURNS = { o_dump: 2, o_cart: 8, o_coffin: 8 };
+export const O_SIZES = Object.fromEntries(
+  Object.entries(OS).flatMap(([n, v]) => (O_TURNS[n] ? [...Array(O_TURNS[n]).keys()].map(i => [n + i, v]) : [[n, v]]))
+);
 let BAKE_SIZES; // every baked part's size, so all of them can be built during the loading screen (a part whose size changes is simply built when the atlas reaches it)
 // the 3D characters, built once from the shapes above and shipped as pictures, so every machine shows exactly the same thing without doing any 3D work itself
 // the 3D character pictures: built into the one-file version (window.__DA_DATA), or loaded from assets/ by assetsPrep
@@ -173,7 +195,6 @@ function bakeKey() {
   }
   return 'bake3d-' + (h >>> 0).toString(36) + '-' + src.length;
 } // changes whenever any shape or colour does, so a stale copy is never used
-// where the asset pack lives (next to dist/game.js). Empty means everything is built into this file, as in the one-file version
 // where assets/ is: next to dist/game.js, which records its own address in window.__DA_BASE. Empty in the one-file version
 const ASSET_URL = window.__DA_BASE ? window.__DA_BASE.replace(/dist\/$/, 'assets/') : '';
 export async function assetsPrep() {
@@ -229,7 +250,7 @@ export async function bakePrep() {
     indexedDB.deleteDatabase('dead-acre');
   } catch (e) {} // the browser copy kept by version 86 is no longer needed
   const names = Object.keys(BAKE_SIZES).filter(n => BAKE.parts[n]);
-  if (window.__liveBake) return bakeLive(names, D, T0, nap); // only for rebuilding the pictures after a shape changes
+  if (window.__liveBake === true) return bakeLive(names, D, T0, nap); // only for rebuilding the pictures after a shape changes
   if (typeof BAKE_IMG === 'undefined') {
     D.why = 'no character pictures in this build';
     return;
@@ -302,6 +323,13 @@ export async function bakePrep() {
       } // a light blur hides the 8-bit steps in the stored heights
     BAKE.pre[n] = { cv: A.c, sx, sy, sw, sh, W, H, hz };
   }
+  if (window.__liveBake === 'new')
+    await bakeLive(
+      names.filter(n => !BAKE.pre[n]),
+      D,
+      T0,
+      nap
+    ); // developer option: build only the parts the shipped pictures do not have
   D.n = Object.keys(BAKE.pre).length;
   D.ms = performance.now() - T0;
   D.on = D.n > 0;
@@ -484,6 +512,7 @@ export function init() {
     wcase: [64, 26],
   };
   BAKE_SIZES.heli = [272, 112];
+  Object.assign(BAKE_SIZES, O_SIZES);
   BAKE_SIZES.car = [84, 46];
   BAKE_SIZES.police = [84, 46];
   BAKE_SIZES.truck = [124, 52];

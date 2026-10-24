@@ -68,7 +68,7 @@ export function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
   CHARK = false;
   xa.restore();
   xe.restore();
-  R[name] = { w, h, u0: x / ATL, v0: y / ATL, u1: (x + w * AS) / ATL, v1: (y + h * AS) / ATL };
+  R[name] = { w, h, u0: x / ATL, v0: y / ATL, u1: (x + w * AS) / ATL, v1: (y + h * AS) / ATL, bk: !!BK }; // bk: drawn from a 3D picture
   // Each atlas region gets a material response: damp infected skin and helmet/face surfaces catch a soft highlight, cloth stays matte, and metal gear retains tight speculars.
   const key = name.toLowerCase();
   let materialSpec = spec;

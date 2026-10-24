@@ -11,6 +11,7 @@ import { cam } from '../game/state.js';
 import { chips, decal, part, sparks } from './effects.js';
 import { propShot } from '../world/physics.js';
 import { WST, WSTN, hsh, windows } from './blocks.js';
+import { O_SIZES, O_TURNS } from './bake.js';
 export function drawGrave(i) {
   const tx = i % MW,
     ty = (i / MW) | 0,
@@ -106,18 +107,18 @@ export function drawTrunk(t) {
 } // the trunk: brown bark, thicker at the root flare, the same colour as the limbs above
 /* ---------- decor ---------- */
 const DECOR = {
-  hydrant: { reg: 'p_hydrant', n: 6, step: 2, shoot: true },
-  mailbox: { reg: 'p_mailbox', n: 9, step: 2 },
-  trash: { reg: 'p_trash', n: 7, step: 2, shoot: true },
-  dumpster: { reg: 'p_dumpster', n: 9, step: 2.2 },
-  cone: { reg: 'p_cone', n: 6, step: 2, taper: true },
-  cart: { reg: 'p_cart', n: 4, step: 3 },
-  news: { reg: 'p_news', n: 8, step: 2 },
-  bench: { reg: 'p_bench', n: 3, step: 3 },
-  tire: { reg: 'p_tire', n: 3, step: 2 },
-  coffin: { reg: 'p_coffin', n: 4, step: 2 },
+  hydrant: { reg: 'p_hydrant', n: 6, step: 2, shoot: true, o: 'o_hydrant' },
+  mailbox: { reg: 'p_mailbox', n: 9, step: 2, o: 'o_mailbox' },
+  trash: { reg: 'p_trash', n: 7, step: 2, shoot: true, o: 'o_bin' },
+  dumpster: { reg: 'p_dumpster', n: 9, step: 2.2, o: 'o_dump' },
+  cone: { reg: 'p_cone', n: 6, step: 2, taper: true, o: 'o_cone' },
+  cart: { reg: 'p_cart', n: 4, step: 3, o: 'o_cart' },
+  news: { reg: 'p_news', n: 8, step: 2, o: 'o_news' },
+  bench: { reg: 'p_bench', n: 3, step: 3, o: 'o_bench' },
+  tire: { reg: 'p_tire', n: 3, step: 2, o: 'o_tyre' },
+  coffin: { reg: 'p_coffin', n: 4, step: 2, o: 'o_coffin' },
   wreath: { reg: 'p_wreath', n: 1, step: 1 },
-};
+}; // o: the 3D picture (bake-shapes.js) drawn instead of the stacked slices when it is there
 export function genDecor() {
   GS.decor = [];
   GS.jets = [];
@@ -330,11 +331,23 @@ export function drawDecor(d) {
     quad(reg, d.x, d.y, d.a, K, K, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
   }
+  if (D.o && drawProp(D.o, d.x, d.y, d.a)) return;
   for (let j = 0; j <= D.n; j++) {
     const sh = 0.45 + (0.55 * j) / D.n,
       s = (D.taper ? 1 - (j / D.n) * 0.7 : 1) * K;
     quad(reg, d.x, d.y - j * D.step, d.a, s, s, sh, sh, sh, 1, 0, 0, 0, 0);
   }
+}
+// draws a street prop from its 3D picture, if it has one: the one for the nearest heading, its foot on the spot
+// (a picture's centre sits half the object's height up). False when there is no picture, to draw the slices instead
+export function drawProp(name, x, y, a = 0) {
+  const t = O_TURNS[name],
+    r = R[t ? name + (((Math.round((a / TAU) * t) % t) + t) % t) : name];
+  if (!r || !r.bk) return false;
+  const z = O_SIZES[t ? name + 0 : name][2];
+  setH(z);
+  quad(r, x, y - z / 2, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+  return true;
 }
 export function decorShot(b) {
   if (propShot(b)) return true;
