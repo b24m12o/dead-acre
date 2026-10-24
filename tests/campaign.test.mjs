@@ -53,7 +53,16 @@ export async function run(b) {
     .map(n => n.w);
   const detail = Object.values(r.nights)
     .filter(n => n.stuck || n.evacStuck)
-    .map(n => JSON.stringify({ evIn: n.evIn, evOut: n.evOut, holdMax: n.holdMax, near: n.near, waiting: n.waiting, ...(n.evacStuck || n.stuck) }).slice(0, 700));
+    .map(n =>
+      JSON.stringify({
+        evIn: n.evIn,
+        evOut: n.evOut,
+        holdMax: n.holdMax,
+        near: n.near,
+        waiting: n.waiting,
+        ...(n.evacStuck || n.stuck),
+      }).slice(0, 700)
+    );
   check(!stuck.length, 'stalled on night(s) ' + stuck.join(', ') + ': ' + detail.join(' | '));
   check(r.end === 'won', `run ended "${r.end}" on night ${r.wave}`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));
