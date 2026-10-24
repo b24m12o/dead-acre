@@ -153,8 +153,8 @@ function storyEnd() {
     ];
   return ['Hawk', 'Convoy has gone quiet, nine. It is just us now. Strap in. We are going home.'];
 }
-let VOX =
-  []; /* Channel 9 voices for every line: [id, the exact words on screen, seconds, mp3, speaker R/H]. Everyday lines exist in both voices, since Hawk takes the channel on nights 11 and 12; lines are matched piece by piece, longest first */
+// Channel 9 voices for every line: [id, the exact words on screen, seconds, mp3, speaker R/H]. Everyday lines exist in both voices, since Hawk takes the channel on nights 11 and 12; lines are matched piece by piece, longest first
+let VOX = []; // filled in by the build (one-file version) or loaded from assets/
 let radioCurve = null;
 const RADIO_VOL = 0.11,
   VOX_IN = 0.75,

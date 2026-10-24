@@ -120,9 +120,9 @@ function initAudio() {
 }
 const GUNWAV = {}; // the old compressed gun sounds are gone: the recorded set (GUNHD) always ships with the game now
 const GUNVAR = { pistol: 3, rifle: 2, smg: 3, shotgun: 2, auto: 2, hunter: 2, lmg: 3 };
-let GUNHD =
-  null; /* recorded sounds, all CC0: full-quality guns (The Free Firearm Sound Library: 2-4 stereo takes per gun near and at mid distance, each gun's own reload, bolt, lever, pump and dry fire), zombie voices (80 CC0 creature SFX, pitched down), impacts and footsteps (Kenney Impact Sounds), ricochets (Warfork), your backups' call-outs (Kenney Voiceover Pack). Names ending in a digit are takes of one sound */
-// recorded gun sounds (CC0, The Free Firearm Sound Library by Still North Media), mono 48 kbps: decoded once, leading silence trimmed
+// recorded sounds, all CC0: full-quality guns (The Free Firearm Sound Library: 2-4 stereo takes per gun near and at mid distance, each gun's own reload, bolt, lever, pump and dry fire), zombie voices (80 CC0 creature SFX, pitched down), impacts and footsteps (Kenney Impact Sounds), ricochets (Warfork), your backups' call-outs (Kenney Voiceover Pack). Names ending in a digit are takes of one sound
+let GUNHD = null; // filled in by the build (one-file version) or loaded from assets/
+// the built-in gun samples (now empty: the recorded set in GUNHD replaced them): decoded once, leading silence trimmed
 const SB = {};
 let sfxRev = null;
 function loadGunSounds() {

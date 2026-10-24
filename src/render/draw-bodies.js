@@ -292,7 +292,8 @@ function drawBody(e, fl, _f, em, skin, shirt) {
         [fx, fy] = W(-31 - (i ? 2 : 0), sd * (7 + (cr ? Math.sin(cph + i) * 1.2 : 0)));
       lineQ(hx, hy, fx, fy, 11 * kem, pt[0], pt[1], pt[2], 1, 0, 0, 0, fl, R.z_lleg);
       quad(R.drop, fx, fy, 0, 1.35 * kem, 1.35 * kem, 0.22, 0.02, 0.02, 1, 0, 0, 0, 0);
-    } // the stumps
+    }
+  // the stumps
   else if (st.k > 0.01 && live)
     for (let i = 0; i < 2; i++) {
       const sd = i ? 1 : -1,
@@ -450,7 +451,8 @@ function drawBody(e, fl, _f, em, skin, shirt) {
       0.3,
       0.3,
       fl
-    ); // face up: the face to the sky, lolling a little to one side
+    );
+  // face up: the face to the sky, lolling a little to one side
   else if (!e.headless) {
     const head = brute ? R.z_bhead : spit ? R.z_head_spit : scream ? R.z_shead : R['z_head' + (e.hv || 0)];
     quad(

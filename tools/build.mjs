@@ -62,7 +62,7 @@ wr(
 // dist: the game finds its assets next to its own address
 const leanScript = lean(script);
 const net = leanScript.replace(
-  "const ASSET_URL = '';",
+  "const ASSET_URL = ''; // set by the build for dist/game.js",
   "const ASSET_URL = window.__DA_BASE ? window.__DA_BASE.replace(/dist\\/$/, 'assets/') : '';"
 );
 if (net === leanScript) throw new Error('ASSET_URL line not found');

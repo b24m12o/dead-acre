@@ -286,7 +286,8 @@ BAKE_SIZES.carburn = [84, 46];
 for (let v = 0; v <= 18; v++) BAKE_SIZES['z_lu' + v] = BAKE_SIZES['z_ly' + v];
 BAKE_SIZES.z_lhipu = BAKE_SIZES.z_lhip;
 for (let v = 0; v <= 17; v++) BAKE_SIZES['z_headu' + v] = [28, 28]; // the bodies lying face up
-let BAKE_IMG = null; // the 3D characters, built once from the shapes above and shipped as pictures, so every machine shows exactly the same thing without doing any 3D work itself
+// the 3D characters, built once from the shapes above and shipped as pictures, so every machine shows exactly the same thing without doing any 3D work itself
+let BAKE_IMG = null; // filled in by the build (one-file version) or loaded from assets/
 function bakeKey() {
   let h = 2166136261;
   const src =
@@ -297,8 +298,8 @@ function bakeKey() {
   }
   return 'bake3d-' + (h >>> 0).toString(36) + '-' + src.length;
 } // changes whenever any shape or colour does, so a stale copy is never used
-const ASSET_URL =
-  ''; /* where the asset pack lives (a pinned version on the CDN). Empty means everything is built into this file, as in the claude.ai build; the CodePen build fills it in */
+// where the asset pack lives (a pinned version on the CDN). Empty means everything is built into this file, as in the claude.ai build; the CodePen build fills it in
+const ASSET_URL = ''; // set by the build for dist/game.js
 async function assetsPrep() {
   /* the CodePen build keeps its heavy pieces off the Pen: the character pictures and the radio voices come from the asset pack. If it can't be reached the game still starts, with painted characters and a radio of clicks and static */
   if (!ASSET_URL) return;

@@ -314,7 +314,8 @@ function drawEnemy(e) {
         hands = [
           [9 + tw + Math.sin(ph) * 3 * mv, -33],
           [9 - tw - Math.sin(ph) * 3 * mv, 33],
-        ]; // arms held out round the belly, swinging with the waddle
+        ];
+      // arms held out round the belly, swinging with the waddle
       else if (spit)
         hands =
           e.charging > 0
@@ -358,12 +359,14 @@ function drawEnemy(e) {
           hands = [
             [8 + sw * 7 * mv + tw * 0.4, -18],
             [8 - sw * 7 * mv - tw * 0.4, 18],
-          ]; // arms hanging, swinging with the shamble
+          ];
+        // arms hanging, swinging with the shamble
         else if (pose === 3)
           hands = [
             [24 + reach + tw, -10],
             [13 + reach - tw * 0.6 + sw * 2, 16],
-          ]; // one hand high and grasping, one low
+          ];
+        // one hand high and grasping, one low
         else
           hands = [
             [22 + reach + tw + sw * 3, -11.5],
@@ -1005,7 +1008,8 @@ function drawGiant(e, fl, em, ta) {
     hands = [
       [6, -G.sh * 1.6],
       [6, G.sh * 1.6],
-    ]; // arms thrown wide
+    ];
+  // arms thrown wide
   else if (st === 'charge' || st === 'sprint')
     hands = [
       [G.reach * 1.1, -G.sh * 0.5],
@@ -1015,7 +1019,8 @@ function drawGiant(e, fl, em, ta) {
     hands = [
       [G.reach * 0.25, -G.sh * 1.4],
       [G.reach * 0.25, G.sh * 1.4],
-    ]; // arms up and out: the whole weight comes down
+    ];
+  // arms up and out: the whole weight comes down
   else if (st === 'act' && e.act === 'pull') {
     const j = Math.sin(time * 18) * 5;
     hands = [
@@ -1027,12 +1032,14 @@ function drawGiant(e, fl, em, ta) {
     hands = [
       [-G.reach * 0.15, -G.sh * 1.15],
       [-G.reach * 0.15, G.sh * 1.15],
-    ]; // hunched, arms back: about to go
+    ];
+  // hunched, arms back: about to go
   else if (slump)
     hands = [
       [G.reach * 0.32, -G.sh * 1.08],
       [G.reach * 0.36, G.sh * 1.08],
-    ]; // spent: arms hanging, head down
+    ];
+  // spent: arms hanging, head down
   else if (e.stunT > 0)
     hands = [
       [G.reach * 0.2, -G.sh * 1.25 + Math.sin(time * 9) * 6],
@@ -1042,7 +1049,8 @@ function drawGiant(e, fl, em, ta) {
     hands = [
       [-G.reach * 0.2, -G.sh * 0.9],
       [-G.reach * 0.55, G.sh * 1.2],
-    ]; // the sign drawn far back
+    ];
+  // the sign drawn far back
   else if (st === 'act' && e.act === 'retch')
     hands = [
       [G.reach * 0.5, -G.sh * 0.8],
