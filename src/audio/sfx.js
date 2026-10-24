@@ -1,5 +1,9 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const sfx = {
+import { GS } from '../core/gs.js';
+import { rand, randi } from '../core/util.js';
+import { AC, DRYS, RLD, SBV, duck, noise, playR, playS, spat, stab, thr, tone } from './audio.js';
+import { alarmNote } from '../game/noise.js';
+export const sfx = {
   chitter(x, y, dur = 0.5) {
     if (!thr('chitter', 200)) return;
     const b = spat(x, y);
@@ -202,27 +206,27 @@ const sfx = {
     tone(900, 0.03, 'square', 0.02, 0.6, 0.44);
   },
   dry() {
-    if (playS(DRYS[P && P.gun] || 'dryP', 0.6, 1, 0, 0) || playS('dry', 0.6, 1, 0, 0)) return;
+    if (playS(DRYS[GS.P && GS.P.gun] || 'dryP', 0.6, 1, 0, 0) || playS('dry', 0.6, 1, 0, 0)) return;
     if (!thr('dry', 200)) return;
     noise(0.02, 0.1, 6000, 4000, 'highpass');
     tone(2400, 0.02, 'square', 0.02);
   },
   magOut() {
-    const r = RLD[P && P.gun];
+    const r = RLD[GS.P && GS.P.gun];
     if (r && SBV[r[0]] && playS(r[0], 0.6, 1, 0, 0.05)) return;
-    if (playS(P && (P.gun === 'pistol' || P.gun === 'smg') ? 'magOutP' : 'magOutR', 0.6, 1, 0, 0.05)) return;
+    if (playS(GS.P && (GS.P.gun === 'pistol' || GS.P.gun === 'smg') ? 'magOutP' : 'magOutR', 0.6, 1, 0, 0.05)) return;
     noise(0.04, 0.09, 3500, 2000, 'bandpass');
     tone(700, 0.03, 'square', 0.02, 0.7);
   },
   magIn() {
-    const r = RLD[P && P.gun];
+    const r = RLD[GS.P && GS.P.gun];
     if (r && SBV[r[1]] && playS(r[1], 0.65, 1, 0, 0.05)) {
       playS(r[2], 0.6, 1, 0.16, 0.05);
       return;
     }
     if (
-      playS(P && P.gun === 'pistol' ? 'magInP' : 'magInR', 0.65, 1.2, 0, 0.05) &&
-      (P && P.gun !== 'pistol' ? playS('rack', 0.6, 1, 0.12, 0.05) : true)
+      playS(GS.P && GS.P.gun === 'pistol' ? 'magInP' : 'magInR', 0.65, 1.2, 0, 0.05) &&
+      (GS.P && GS.P.gun !== 'pistol' ? playS('rack', 0.6, 1, 0.12, 0.05) : true)
     )
       return;
     noise(0.05, 0.12, 2600, 1500, 'bandpass');
@@ -231,7 +235,7 @@ const sfx = {
     tone(1100, 0.02, 'square', 0.02, 0.6, 0.14);
   },
   shell() {
-    if (P && P.gun === 'lever' && playS('shellL', 0.6, 1, 0, 0.05)) return;
+    if (GS.P && GS.P.gun === 'lever' && playS('shellL', 0.6, 1, 0, 0.05)) return;
     if (playS('shell', 0.55, 1.1, 0, 0.05)) return;
     noise(0.04, 0.08, 2800, 1800, 'bandpass');
     tone(rand(600, 700), 0.03, 'triangle', 0.025, 0.8);
@@ -381,7 +385,7 @@ const sfx = {
     if (playR('fstep', 0.045, undefined, undefined, rand(0.9, 1.1))) return;
     noise(0.05, 0.03, 900, 300, 'bandpass');
   },
-  roar(x, y, bt = x === undefined ? null : (curBoss && curBoss.btype) || (boss && boss.btype)) {
+  roar(x, y, bt = x === undefined ? null : (GS.curBoss && GS.curBoss.btype) || (GS.boss && GS.boss.btype)) {
     if (!thr('roar', 400)) return;
     const b = spat(x, y),
       k = rand(0.9, 1.1);

@@ -1,13 +1,15 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// Reads src/ and joins the parts into the game script, in the order listed in src/order.json.
-// Every tool (build, lint, tests) goes through here, so they all see the same program.
+// Shared by the build, the fingerprint and the tests: where the repo is, reading files, and bundling src/
+// (entry src/index.js) into one script with esbuild.
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as esbuild from 'esbuild';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const rd = p => readFileSync(join(ROOT, p), 'utf8');
 const HDR = /^(\/\*|<!--) Dead Acre · Copyright/;
+// a file without its copyright line and trailing newline
 export const strip = t => {
   const l = t.split('\n');
   if (HDR.test(l[0])) l.shift();
@@ -15,32 +17,36 @@ export const strip = t => {
   return l.join('\n');
 };
 
-// the joined script, plus where each file starts in it (for mapping a line back to its file)
-export function joinSource() {
-  const order = JSON.parse(rd('src/order.json')),
-    parts = [],
-    map = [];
-  let line = 4; // after the three opening lines below
-  for (const f of order) {
-    const t = strip(rd('src/' + f));
-    parts.push(t);
-    map.push({ file: 'src/' + f, start: line, off: 1 });
-    line += t.split('\n').length;
-  }
-  const script = ['', '(() => {', "'use strict';", parts.join('\n'), '})();', ''].join('\n');
-  return { script, map, order };
-}
-// a line of the joined script back to its source file and line
-export function whereIs(map, line) {
-  let m = map[0];
-  for (const x of map) if (x.start <= line) m = x;
-  return { file: m.file, line: line - m.start + 1 + m.off };
-}
-// the code players never need: the shapes the 3D character pictures are built from
-export function lean(script) {
-  const out = script
-    .replace(/bakeGroup\(\s*'(\w+)',\s*`[\s\S]*?`\s*\);/g, (_, g) => `bakeGroup('${g}', '');`)
-    .replace(/const BAKE_LIB = `[\s\S]*?`;/, "const BAKE_LIB = '';");
-  if (out.includes('float map(vec3 p)')) throw new Error('shape code was not stripped');
-  return out;
+// players never rebuild the 3D character pictures, so dist leaves out the shapes they are built from
+const LEAN = /src[\\/]render[\\/]bake(-shapes)?\.js$/;
+const leanPlugin = {
+  name: 'lean',
+  setup(b) {
+    b.onLoad({ filter: LEAN }, a => {
+      const out = readFileSync(a.path, 'utf8')
+        .replace(/bakeGroup\(\s*'(\w+)',\s*`[\s\S]*?`\s*\);/g, (_, g) => `bakeGroup('${g}', '');`)
+        .replace(/const BAKE_LIB = `[\s\S]*?`;/, "const BAKE_LIB = '';");
+      if (out.includes('float map(vec3 p)')) throw new Error('shape code was not stripped from ' + a.path);
+      return { contents: out, loader: 'js' };
+    });
+  },
+};
+
+// src/ as one script. entry: the module to start from; lean: leave out the shape code; minify: for dist
+export async function bundle({ entry = 'src/index.js', lean = false, minify = false, fingerprint = false } = {}) {
+  const r = await esbuild.build({
+    entryPoints: [join(ROOT, entry)],
+    bundle: true,
+    write: false,
+    format: 'iife',
+    target: 'es2020',
+    charset: 'utf8',
+    legalComments: 'none',
+    minify,
+    minifySyntax: fingerprint || minify,
+    minifyWhitespace: fingerprint || minify,
+    plugins: lean ? [leanPlugin] : [],
+    logOverride: { 'direct-eval': 'silent' },
+  });
+  return r.outputFiles[0].text;
 }

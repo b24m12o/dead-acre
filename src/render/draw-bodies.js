@@ -1,6 +1,14 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const LYB = { skitter: 1, wasp: 1, flower: 1, beetle: 1, mini: 1 }; // the people who fall as whole bodies
-function lyThud(e) {
+import { GS } from '../core/gs.js';
+import { clamp, lerp } from '../core/util.js';
+import { lineQ, quad, setH } from './sprites.js';
+import { R } from './atlas.js';
+import { solidPt } from '../world/nav.js';
+import { playS, thr } from '../audio/audio.js';
+import { dust } from './effects.js';
+import { armSeg, drawEnemy, natElbow, sleeveLen } from './draw-enemies.js';
+export const LYB = { skitter: 1, wasp: 1, flower: 1, beetle: 1, mini: 1 }; // the people who fall as whole bodies
+export function lyThud(e) {
   const K = e.type === 'beetle' ? 1.9 : 1,
     a = e.fallA ?? 0,
     c = Math.cos(a),
@@ -8,8 +16,8 @@ function lyThud(e) {
   for (const t of [-32, -4, 26]) dust(e.x + c * t * K, e.y + s * t * K, 1, 16 * K, 0.42, 0.32);
   /* a little grit kicked up, not a cloud */ if (thr('thud', 45)) playS('dry', 0.1, 0.5, 0, 0);
 } // the body slaps down along its whole length
-const downEl = e => (((e.dT || DOWN_T) - e.down) * DOWN_T) / (e.dT || DOWN_T); // time since it went down, on the standard clock (each zombie gets up at its own pace)
-const DOWN_T = 1.55,
+export const downEl = e => (((e.dT || DOWN_T) - e.down) * DOWN_T) / (e.dT || DOWN_T); // time since it went down, on the standard clock (each zombie gets up at its own pace)
+export const DOWN_T = 1.55,
   LY_SC = 0.62,
   LY_FOOT = 48 * LY_SC; // the body on the ground is drawn to the same scale as the zombie standing // how long a knocked-down zombie takes to get back up; how far its waist lies from its feet
 const PANTS = [
@@ -20,7 +28,7 @@ const PANTS = [
   [0.35, 0.35, 0.36],
   [0.31, 0.33, 0.24],
 ];
-function pantsOf(e) {
+export function pantsOf(e) {
   // trousers that go with the outfit: uniforms keep theirs, everyone else wears what they had on
   if (e.pc === undefined) {
     const v = e.v;
@@ -47,12 +55,12 @@ function pantsOf(e) {
   }
   return e.pc;
 }
-const supOK = e => e.type === 'skitter' && !e.crawl && !e.half && (e.v || 0) <= 18 && (e.hv || 0) <= 17; // ordinary walkers can end up on their backs
+export const supOK = e => e.type === 'skitter' && !e.crawl && !e.half && (e.v || 0) <= 18 && (e.hv || 0) <= 17; // ordinary walkers can end up on their backs
 const lyS = (a, b, x) => {
   const t = clamp((x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
 };
-function lyState(e) {
+export function lyState(e) {
   // g: how far the body has tipped over (0 upright, 1 flat); u: how flat the upper body still is; k: legs tucked under; pl: hands planted; s: how much of the lying drawing shows; imp: the bump of hitting the ground
   if (e.dying !== undefined) {
     const t = e.dying,
@@ -88,11 +96,11 @@ function lyClear(x, y, a, len) {
   for (const t of [0.35, 0.7, 1]) if (solidPt(x + c * len * t, y + s * len * t)) return false;
   return true;
 }
-function lyAngle(x, y, a, len) {
+export function lyAngle(x, y, a, len) {
   for (const d of [0, 0.45, -0.45, 0.9, -0.9, 1.4, -1.4, 2, -2, Math.PI]) if (lyClear(x, y, a + d, len)) return a + d;
   return a;
 } // a body falls where there is room for it, never into a wall
-function lyMove(e, g) {
+export function lyMove(e, g) {
   // the waist travels out from the planted feet as the body tips over
   const K = e.type === 'beetle' ? 1.9 : 1,
     d = (g - (e.lyG || 0)) * LY_FOOT * K * 1.2;
@@ -110,7 +118,7 @@ function armW(sx, sy, hx, hy, L, w1, w2, side, skin, sleeve, fl, hs, ls = 0, cx 
   const [ex, ey] = natElbow(sx, sy, hx, hy, L, cx, cy);
   armSeg(sx, sy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, hs, ls);
 }
-function drawBody(e, fl, _f, em, skin, shirt) {
+export function drawBody(e, fl, _f, em, skin, shirt) {
   // a body going down, lying face down, or getting back up
   const st = lyState(e),
     brute = e.type === 'beetle',
@@ -133,8 +141,8 @@ function drawBody(e, fl, _f, em, skin, shirt) {
       pc0 = pantsOf(e),
       pt0 = pc0 ? [pc0[0] * 1.18, pc0[1] * 1.18, pc0[2] * 1.18] : [skin[0] * 1.1, skin[1] * 1.1, skin[2] * 1.1];
     if (sl > 1.5 && al > 0.01) {
-      const sv = gA;
-      gA *= al;
+      const sv = GS.gA;
+      GS.gA *= al;
       setH(1);
       for (let i = 0; i < 2; i++) {
         const sd = i ? 1 : -1,
@@ -165,7 +173,7 @@ function drawBody(e, fl, _f, em, skin, shirt) {
           );
         }
       }
-      gA = sv;
+      GS.gA = sv;
     }
   }
   const rising =
@@ -174,7 +182,7 @@ function drawBody(e, fl, _f, em, skin, shirt) {
     el0 >
       1.04; /* getting up: the kneeling figure comes in solid underneath first, then the body on the ground fades off it, so the street never shows through two half-drawn bodies */
   if (st.s < 0.995 || rising) {
-    const sv = [gT, gA, gR, gG, gB];
+    const sv = [GS.gT, GS.gA, GS.gR, GS.gG, GS.gB];
     e.__std = true;
     e.__sa = rising ? lyS(1.04, 1.14, el0) : 1 - st.s;
     e.__ss = live0 && !e.crawl && el0 > 1 ? lerp(LY_SC * 1.04, 1, lyS(1.04, 1.55, el0)) : 1;
@@ -182,11 +190,11 @@ function drawBody(e, fl, _f, em, skin, shirt) {
       live0 && !e.crawl && el0 > 1 ? 1 - lyS(1.22, 1.55, el0) : 0;
     drawEnemy(e);
     e.__std = false;
-    [gT, gA, gR, gG, gB] = sv;
+    [GS.gT, GS.gA, GS.gR, GS.gG, GS.gB] = sv;
   } // the upright figure: tipping over at first; kneeling, then rising toward the camera at the end
   if (st.s < 0.005) return;
-  const ga0 = gA;
-  gA *= st.s;
+  const ga0 = GS.gA;
+  GS.gA *= st.s;
   const ba = st.crawl && e.dying === undefined ? e.a : (e.fallA ?? e.a + Math.PI),
     c = Math.cos(ba),
     s = Math.sin(ba),
@@ -203,7 +211,7 @@ function drawBody(e, fl, _f, em, skin, shirt) {
     el = live ? downEl(e) : 0;
   const tw = live
     ? el > 0.35 && el < 0.72
-      ? Math.sin(time * 14 + e.id) * 1.4
+      ? Math.sin(GS.time * 14 + e.id) * 1.4
       : 0
     : e.dying > 0.6 && e.dying < 2.2
       ? Math.sin(e.dying * 31 + e.id) * (2.2 - e.dying) * 0.8 * ((e.id || 0) % 3 === 0 ? 1 : 0)
@@ -241,7 +249,7 @@ function drawBody(e, fl, _f, em, skin, shirt) {
           : [shirt[0] * tc[0], shirt[1] * tc[1], shirt[2] * tc[2]];
   const armSkin = scream ? [0.6, 0.57, 0.64] : brute ? [0.44, 0.4, 0.35] : skin;
   const cr = st.crawl && live,
-    cph = time * 5.2 + (e.id || 0);
+    cph = GS.time * 5.2 + (e.id || 0);
   const hT = i => {
     const a = HP[i],
       sd = i ? 1 : -1;
@@ -279,7 +287,7 @@ function drawBody(e, fl, _f, em, skin, shirt) {
     const [wx, wy] = W(-3, 0),
       gw = cr ? 1 : 0.25;
     for (let i = 0; i < 3; i++) {
-      const sw = Math.sin(time * 3 + i * 2 + (e.id || 0)) * 4 * gw,
+      const sw = Math.sin(GS.time * 3 + i * 2 + (e.id || 0)) * 4 * gw,
         [gx, gy] = W(-18 - i * 5, (i - 1) * 5 + sw);
       lineQ(wx, wy, gx, gy, (5.2 - i * 0.9) * kem, 0.55 - i * 0.07, 0.14, 0.16, 1, 0, 0, 0, fl);
     }
@@ -375,10 +383,10 @@ function drawBody(e, fl, _f, em, skin, shirt) {
       continue;
     }
     const [hx, hy] =
-      e.lurk === 'grab' && i === (e.sup ? 1 : 0) && P
+      e.lurk === 'grab' && i === (e.sup ? 1 : 0) && GS.P
         ? (() => {
-            const dx = P.x - sx2,
-              dy = P.y + 6 - sy2,
+            const dx = GS.P.x - sx2,
+              dy = GS.P.y + 6 - sy2,
               dl = Math.hypot(dx, dy) || 1,
               k = Math.min(1, (34 * kem) / dl);
             return [sx2 + dx * k, sy2 + dy * k];
@@ -431,7 +439,7 @@ function drawBody(e, fl, _f, em, skin, shirt) {
   if (live && (cr || e.half)) {
     e.__hx = hx;
     e.__hy = hy;
-    e.__ht = time;
+    e.__ht = GS.time;
     e.__ha = ba;
     e.__hk = 0.8;
   } // a crawler's eyes are at the front of its lifted head
@@ -473,7 +481,7 @@ function drawBody(e, fl, _f, em, skin, shirt) {
     );
   } // the face turned to one side on the ground, lifting as it pushes up
   else quad(R.drop, hx, hy, 0, 2.4, 2.4, 0.42, 0.02, 0.02, 1, 0, 0, 0, fl);
-  gA = ga0;
+  GS.gA = ga0;
 }
 
 /* ---------- wear & tear ---------- */

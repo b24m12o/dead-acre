@@ -1,15 +1,49 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function firePlayer(cwx, cwy, p, target) {
+import { GS } from '../core/gs.js';
+import { TAU, angDiff, clamp, d2, lerp, rand, randi } from '../core/util.js';
+import { GUNS } from '../game/arsenal.js';
+import { ZOOM } from '../render/sprites.js';
+import { R } from '../render/atlas.js';
+import { crystals } from '../world/map.js';
+import { los, query, solidPt } from '../world/nav.js';
+import { noise, playS, spat } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { S, gd, heroGun, startReload } from '../game/state.js';
+import { makeEnemy } from './enemies.js';
+import {
+  bleed,
+  bloodOf,
+  chips,
+  decal,
+  dust,
+  flashLight,
+  floatText,
+  glowBurst,
+  part,
+  ring,
+  shake,
+  sparks,
+} from '../render/effects.js';
+import { blowBarrel, bossOf, hitCrystal, hurtEnemy, hurtPlayer, impact, passSolid } from '../game/combat.js';
+import { mouse } from '../core/input.js';
+import { fragBurst, hitSign, pumpDrop, queenTail, shellBoom, tailHit, toWorld } from './projectiles.js';
+import { BILE, BLOOD } from '../render/draw-enemies.js';
+import { grassIgnite } from '../world/physics.js';
+import { decorShot } from '../render/decor.js';
+import { firePool } from '../world/fire.js';
+import { LOUD, SUPP, makeNoise } from '../game/noise.js';
+import { TW } from '../game/districts.js';
+export function firePlayer(cwx, cwy, p, target) {
   const g = p.gun,
     G = GUNS[g],
     hb = heroGun(g);
   if (p.mag[g] <= 0) {
-    if (time - (p.lastShotT || -9) > 0.14) startReload();
+    if (GS.time - (p.lastShotT || -9) > 0.14) startReload();
   } else {
     if (p.reload > 0) p.reload = 0;
     p.mag[g]--;
-    p.lastShotT = time;
-    if (RUN && RUN.metrics) RUN.metrics.triggers++;
+    p.lastShotT = GS.time;
+    if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.triggers++;
     const rate = G.rate * S.rate * hb.rate;
     p.fireCd += 1 / rate;
     if (p.fireCd < -0.05) p.fireCd = 1 / rate;
@@ -23,15 +57,15 @@ function firePlayer(cwx, cwy, p, target) {
       base = Math.atan2(cwy - myp, cwx - mxp);
     if (G.lob) {
       // the 40 mm round arcs to where you aim, over cars and headstones, and bursts there
-      let tx = camX + mouse.x / ZOOM,
-        ty = camY + mouse.y / ZOOM;
+      let tx = GS.camX + mouse.x / ZOOM,
+        ty = GS.camY + mouse.y / ZOOM;
       const dx0 = tx - p.x,
         dy0 = ty - p.y,
         d0 = Math.hypot(dx0, dy0) || 1,
         dl = clamp(d0, G.muzzle + 30, 560 + G.muzzle);
       tx = p.x + (dx0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread;
       ty = p.y + (dy0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread;
-      pbullets.push({
+      GS.pbullets.push({
         shell: true,
         gl: true,
         x0: mxp,
@@ -60,7 +94,7 @@ function firePlayer(cwx, cwy, p, target) {
       for (let i = 0; i < n; i++) {
         const a = base + (n > 1 ? (i / (n - 1) - 0.5) * spr : 0) + rand(-0.04, 0.04),
           sp = rand(G.speed * 0.9, G.speed * 1.05);
-        pbullets.push({
+        GS.pbullets.push({
           x: p.x + c * 14,
           y: p.y + s * 14,
           sx: p.x + c * 14,
@@ -87,13 +121,13 @@ function firePlayer(cwx, cwy, p, target) {
       shake(G.perShell ? 0.09 : 0.06);
       for (let k = 0; k < 3; k++) dust(mxp + c * 10, myp + s * 10, 1, 70, 0.6, 0.5);
       const ej = () => {
-        if (!P) return;
-        const cc = Math.cos(P.aimA),
-          ss = Math.sin(P.aimA);
+        if (!GS.P) return;
+        const cc = Math.cos(GS.P.aimA),
+          ss = Math.sin(GS.P.aimA);
         part({
           k: 7,
-          x: P.x + cc * 22,
-          y: P.y + ss * 22,
+          x: GS.P.x + cc * 22,
+          y: GS.P.y + ss * 22,
           z: 8,
           vz: rand(60, 120),
           vx: -ss * rand(80, 140),
@@ -108,19 +142,19 @@ function firePlayer(cwx, cwy, p, target) {
           tc: [1, 0.3, 0.25],
         });
       };
-      if (G.perShell) later.push({ t: 0.38, fn: ej });
+      if (G.perShell) GS.later.push({ t: 0.38, fn: ej });
       else ej();
     } else {
       const n = S.shots,
         big = g === 'hunter';
       const shot = (aa, k) => {
-        const q = P;
+        const q = GS.P;
         if (!q) return;
         const cc = Math.cos(aa),
           ss = Math.sin(aa),
           br = g === 'rifle' && Math.hypot(q.vx, q.vy) < 40,
           a = aa + rand(-G.spread, G.spread) * (0.35 + 0.65 * (q.heat || 0)) * (S.spreadMul || 1) * (br ? 0.5 : 1);
-        /* stand still and the rifle is braced: tighter, and through one more body */ pbullets.push({
+        /* stand still and the rifle is braced: tighter, and through one more body */ GS.pbullets.push({
           x: q.x + cc * 14,
           y: q.y + ss * 14,
           sx: q.x + cc * 14,
@@ -143,17 +177,17 @@ function firePlayer(cwx, cwy, p, target) {
       };
       shot(base, 1);
       for (let i = 1; i < n; i++)
-        later.push({
+        GS.later.push({
           t: i * 0.055,
           fn: () => {
-            if (!P || state !== 'play' || P.gun !== g) return;
-            shot(P.aimA, [0.4, 0.3, 0.25][i - 1] ?? 0.25);
-            const cc = Math.cos(P.aimA),
-              ss = Math.sin(P.aimA);
-            flashes.push({
-              x: P.x + cc * (G.muzzle + 4),
-              y: P.y + ss * (G.muzzle + 4),
-              rot: P.aimA,
+            if (!GS.P || GS.state !== 'play' || GS.P.gun !== g) return;
+            shot(GS.P.aimA, [0.4, 0.3, 0.25][i - 1] ?? 0.25);
+            const cc = Math.cos(GS.P.aimA),
+              ss = Math.sin(GS.P.aimA);
+            GS.flashes.push({
+              x: GS.P.x + cc * (G.muzzle + 4),
+              y: GS.P.y + ss * (G.muzzle + 4),
+              rot: GS.P.aimA,
               life: 0.04,
               max: 0.04,
               reg: R.mf_pistol,
@@ -167,16 +201,16 @@ function firePlayer(cwx, cwy, p, target) {
       p.vy -= s * push;
       if (big) {
         shake(0.12);
-        hitstop = Math.max(hitstop, 0.02);
+        GS.hitstop = Math.max(GS.hitstop, 0.02);
       } else if (g === 'pistol' || g === 'lmg') shake(0.03);
       const ej = () => {
-        if (!P) return;
-        const cc = Math.cos(P.aimA),
-          ss = Math.sin(P.aimA);
+        if (!GS.P) return;
+        const cc = Math.cos(GS.P.aimA),
+          ss = Math.sin(GS.P.aimA);
         part({
           k: 7,
-          x: P.x + cc * 22,
-          y: P.y + ss * 22,
+          x: GS.P.x + cc * 22,
+          y: GS.P.y + ss * 22,
           z: 8,
           vz: rand(60, 120),
           vx: -ss * rand(70, 130) + rand(-20, 20),
@@ -190,7 +224,7 @@ function firePlayer(cwx, cwy, p, target) {
           c: [1, 1, 1],
         });
       };
-      if (big) later.push({ t: 0.5, fn: ej });
+      if (big) GS.later.push({ t: 0.5, fn: ej });
       else ej();
     }
     p.recoil = G.kick;
@@ -200,7 +234,7 @@ function firePlayer(cwx, cwy, p, target) {
     else sfx[G.snd]();
     if (g === 'shotgun') p.pumpT = 0.56;
     makeNoise(p.x, p.y, (LOUD[g] || 700) * (sup ? 0.45 : 1));
-    flashes.push({
+    GS.flashes.push({
       x: mxp + c * 4,
       y: myp + s * 4,
       rot: p.aimA + rand(-0.08, 0.08),
@@ -234,10 +268,10 @@ function firePlayer(cwx, cwy, p, target) {
       });
     flashLight(mxp, myp, G.pellets || g === 'hunter' ? 210 : 165, [1.15, 0.72, 0.34], 0.055);
     if (p.mag[g] <= 0)
-      later.push({
+      GS.later.push({
         t: 0.14,
         fn: () => {
-          if (P && state === 'play' && P.gun === g && P.mag[g] <= 0) startReload();
+          if (GS.P && GS.state === 'play' && GS.P.gun === g && GS.P.mag[g] <= 0) startReload();
         },
       }); // the last shot finishes (flash, recoil) before the hands go to the reload
   }
@@ -263,7 +297,7 @@ function ricoAim(b, R) {
   b.life = Math.max(b.life, d / sp + 0.08);
   return true;
 }
-function updatePBullet(b, dt) {
+export function updatePBullet(b, dt) {
   if (b.shell) {
     b.t += dt;
     if (b.t < 0) return;
@@ -309,17 +343,24 @@ function updatePBullet(b, dt) {
   b.life -= dt;
   if (b.life <= 0) return;
   let used = false;
-  if (boss && boss.signAt && !b.small && d2(b.x, b.y, boss.signAt.x, boss.signAt.y) < 26 * 26) {
-    hitSign(boss, b.dmg, b.x, b.y);
+  if (GS.boss && GS.boss.signAt && !b.small && d2(b.x, b.y, GS.boss.signAt.x, GS.boss.signAt.y) < 26 * 26) {
+    hitSign(GS.boss, b.dmg, b.x, b.y);
     b.life = 0;
     return;
   }
-  if (boss && boss.btype === 'abom' && !boss.dead && boss.emerge >= 1 && !b.hits.includes(boss.id) && !b.small) {
-    const pts = queenTail(boss);
+  if (
+    GS.boss &&
+    GS.boss.btype === 'abom' &&
+    !GS.boss.dead &&
+    GS.boss.emerge >= 1 &&
+    !b.hits.includes(GS.boss.id) &&
+    !b.small
+  ) {
+    const pts = queenTail(GS.boss);
     for (let i = 1; i < pts.length; i++) {
-      const [tx, ty] = toWorld(boss, pts[i][0], pts[i][1], boss.sc || 1);
+      const [tx, ty] = toWorld(GS.boss, pts[i][0], pts[i][1], GS.boss.sc || 1);
       if (d2(b.x, b.y, tx, ty) < 21 * 21) {
-        tailHit(boss, b, tx, ty);
+        tailHit(GS.boss, b, tx, ty);
         return;
       }
     }
@@ -336,7 +377,7 @@ function updatePBullet(b, dt) {
     b.life = 0;
     return;
   }
-  for (const br of barrels)
+  for (const br of GS.barrels)
     if (!br.dead && d2(b.x, b.y, br.x, br.y) < (br.r + 4) ** 2) {
       br.hp -= b.dmg;
       sparks(b.x, b.y, [1, 0.8, 0.4], 4, 200);
@@ -357,7 +398,7 @@ function updatePBullet(b, dt) {
       tr = b.pellet && b.ox !== undefined ? Math.hypot(b.x - b.ox, b.y - b.oy) : 0;
     const rk = b.pellet ? clamp(1.3 - tr / 260, 0.4, 1.2) : 1,
       kbk = b.pellet ? clamp(1.5 - tr / 260, 0.35, 1.3) : 1; // buckshot hits hard up close and spreads thin
-    HITB = b.small ? null : b;
+    GS.HITB = b.small ? null : b;
     try {
       hurtEnemy(
         e,
@@ -371,7 +412,7 @@ function updatePBullet(b, dt) {
         hy - e.z
       );
     } finally {
-      HITB = null;
+      GS.HITB = null;
     }
     if (b.pellet && b.gun === 'shotgun' && b.sid) pumpDrop(e, b);
     b.hits.push(e.id);
@@ -414,7 +455,7 @@ function updatePBullet(b, dt) {
     if (S.frag && !b.small) fragBurst(b.x, b.y, b);
   }
 }
-function updateMortar(m, dt, p) {
+export function updateMortar(m, dt, p) {
   m.t += dt;
   const t = Math.min(1, m.t / m.dur);
   m.x = lerp(m.x0, m.tx, t);
@@ -430,7 +471,7 @@ function updateMortar(m, dt, p) {
     decal(R.hole, m.tx, m.ty, 1.3, [1, 1, 1, 0.8], [0, 0, 0], 40);
     shake(0.25);
     if (d2(m.tx, m.ty, p.x, p.y) < (60 + p.r * 0.3) ** 2)
-      hurtPlayer(20 * (1 + 0.04 * wave), m.tx, m.ty, boss && !boss.dead ? bossOf(boss) : 'the dead');
+      hurtPlayer(20 * (1 + 0.04 * GS.wave), m.tx, m.ty, GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead');
     return;
   } // a headstone lands and breaks
   if (t >= 1 && m.walker) {
@@ -441,8 +482,8 @@ function updateMortar(m, dt, p) {
     dust(m.tx, m.ty, 8, 80, 1.2, 1);
     shake(0.2);
     if (d2(m.tx, m.ty, p.x, p.y) < (55 + p.r * 0.3) ** 2)
-      hurtPlayer(16 * (1 + 0.04 * wave), m.tx, m.ty, boss && !boss.dead ? bossOf(boss) : 'the dead');
-    if (!solidPt(m.tx, m.ty) && enemies.length < 50) {
+      hurtPlayer(16 * (1 + 0.04 * GS.wave), m.tx, m.ty, GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead');
+    if (!solidPt(m.tx, m.ty) && GS.enemies.length < 50) {
       const z = makeEnemy('skitter', m.tx, m.ty);
       z.emerge = 1;
       z.v = m.walker.v;
@@ -490,14 +531,14 @@ function updateMortar(m, dt, p) {
     shake(0.2);
     if (d2(m.tx, m.ty, p.x, p.y) < (70 + p.r * 0.3) ** 2) {
       hurtPlayer(
-        14 * (1 + 0.04 * wave),
+        14 * (1 + 0.04 * GS.wave),
         m.tx,
         m.ty,
-        m.rock || m.ext ? (boss && !boss.dead ? bossOf(boss) : 'the dead') : 'spitter acid'
+        m.rock || m.ext ? (GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead') : 'spitter acid'
       );
       p.daze = Math.max(p.daze || 0, 1.2);
     }
-    gasClouds.push({ x: m.tx, y: m.ty, r: 85, life: 4, max: 4 });
+    GS.gasClouds.push({ x: m.tx, y: m.ty, r: 85, life: 4, max: 4 });
     return;
   } // a thrown extinguisher bursts into a choking white cloud that hangs for a few seconds
   if (t >= 1 && m.rock) {
@@ -509,33 +550,33 @@ function updateMortar(m, dt, p) {
     decal(R.hole, m.tx, m.ty, 1.4, [1, 1, 1, 0.9], [0, 0, 0], 20);
     shake(0.2);
     if (d2(m.tx, m.ty, p.x, p.y) < (62 + p.r * 0.3) ** 2)
-      hurtPlayer(18 * (1 + 0.04 * wave), m.tx, m.ty, boss && !boss.dead ? bossOf(boss) : 'the dead');
+      hurtPlayer(18 * (1 + 0.04 * GS.wave), m.tx, m.ty, GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead');
   } else if (t >= 1) {
     m.done = true;
     sfx.splat();
     glowBurst(m.tx, m.ty, [0.25, 0.45, 0.06], 8, 200, 0.4, 0.5);
     bleed(m.tx, m.ty, 10, 0, 0, 10, BILE, 200);
     ring(m.tx, m.ty, 8, 70, 0.3, [0.6, 1.4, 0.2], 0.9);
-    pools.push({
+    GS.pools.push({
       x: m.tx,
       y: m.ty,
       r: 56,
       life: 5,
       max: 5,
-      dmg: 6 * (1 + 0.04 * wave),
+      dmg: 6 * (1 + 0.04 * GS.wave),
       rot: rand(0, TAU),
       v: randi(0, 3),
     });
     if (d2(m.tx, m.ty, p.x, p.y) < (62 + p.r * 0.3) ** 2)
       hurtPlayer(
-        14 * (1 + 0.04 * wave),
+        14 * (1 + 0.04 * GS.wave),
         m.tx,
         m.ty,
-        m.rock || m.ext ? (boss && !boss.dead ? bossOf(boss) : 'the dead') : 'spitter acid'
+        m.rock || m.ext ? (GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead') : 'spitter acid'
       );
   }
 }
-function updateBang(g, dt, p) {
+export function updateBang(g, dt, p) {
   if (g.t < g.dur) {
     g.t += dt;
     const k = Math.min(1, g.t / g.dur);
@@ -558,8 +599,8 @@ function updateBang(g, dt, p) {
   flashLight(g.x, g.y, R0 * 3, [3, 3, 2.8], 0.35);
   dust(g.x, g.y, 8, 60, 1.4, 1.6);
   sparks(g.x, g.y, [1, 1, 0.9], 10, 260);
-  const pd = Math.hypot(P.x - g.x, P.y - g.y);
-  whiteFlash = Math.max(whiteFlash, clamp(1 - pd / (R0 * 2.2), 0, 1) * 0.6 + 0.12);
+  const pd = Math.hypot(GS.P.x - g.x, GS.P.y - g.y);
+  GS.whiteFlash = Math.max(GS.whiteFlash, clamp(1 - pd / (R0 * 2.2), 0, 1) * 0.6 + 0.12);
   let nh = 0;
   query(g.x, g.y, R0 + 40, e => {
     if (!e.dead && d2(g.x, g.y, e.x, e.y) < (R0 + e.r) ** 2) {
@@ -567,13 +608,13 @@ function updateBang(g, dt, p) {
       if (!e.dead) {
         const st = g.big ? 2.5 + S.abLv : 1.3 + 0.3 * S.pulse;
         if (e.type === 'queen') {
-          if (g.big && time > (e.bangCd || 0)) {
-            e.bangCd = time + 6;
+          if (g.big && GS.time > (e.bangCd || 0)) {
+            e.bangCd = GS.time + 6;
             e.stunT = Math.max(e.stunT || 0, 0.8);
           }
         } /* a boss shrugs off the little ones; the big bang buys a moment, not a crawl */ else {
           e.stag = Math.max(e.stag || 0, st);
-          e.dazedT = time + st;
+          e.dazedT = GS.time + st;
         }
       }
       nh++;
@@ -583,7 +624,7 @@ function updateBang(g, dt, p) {
     p.hp = Math.min(S.maxHp, p.hp + nh * 2);
     floatText(p.x, p.y - 36, '+' + nh * 2, '#8ef0b8', 15);
   }
-  for (const b of ebullets)
+  for (const b of GS.ebullets)
     if (d2(g.x, g.y, b.x, b.y) < R0 * R0) {
       b.life = 0;
       dust(b.x, b.y, 1, 20, 0.4, 0.4);

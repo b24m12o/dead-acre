@@ -1,6 +1,15 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-let radarBg = null;
-function bakeRadar() {
+import { GS } from '../core/gs.js';
+import { TAU, clamp, d2 } from '../core/util.js';
+import { opt } from '../core/settings.js';
+import { ui } from '../render/gl.js';
+import { viewH, viewW } from '../render/sprites.js';
+import { MH, MW, ROAD, WW, cars, crystals, grid, ttype } from '../world/map.js';
+import { cam } from '../game/state.js';
+import { HUDF, radarBox } from './hud.js';
+import { markerList } from './markers.js';
+export let radarBg = null;
+export function bakeRadar() {
   radarBg = document.createElement('canvas');
   radarBg.width = MW;
   radarBg.height = MH;
@@ -51,12 +60,12 @@ const RADAR_COL = {
   hound: '#ffb070',
   queen: '#ff3d5a',
 };
-function drawRadar() {
+export function drawRadar() {
   if (!radarBg) return;
   const { S0, x0, y0 } = radarBox(),
     k = S0 / WW;
   ui.save();
-  ui.globalAlpha = clamp(Math.min(HUDF.radarA, HUDF.a.radar ?? 1) * ((meta.hud && meta.hud.op) || 1), 0, 1);
+  ui.globalAlpha = clamp(Math.min(HUDF.radarA, HUDF.a.radar ?? 1) * ((GS.meta.hud && GS.meta.hud.op) || 1), 0, 1);
   ui.fillStyle = 'rgba(20,24,29,0.78)';
   ui.beginPath();
   ui.roundRect ? ui.roundRect(x0 - 6, y0 - 6, S0 + 12, S0 + 12, 10) : ui.rect(x0 - 6, y0 - 6, S0 + 12, S0 + 12);
@@ -75,7 +84,7 @@ function drawRadar() {
   for (const mk of markerList()) {
     const mx2 = x0 + mk.x * k,
       my2 = y0 + mk.y * k,
-      pu2 = 0.75 + 0.25 * Math.sin(time * 5);
+      pu2 = 0.75 + 0.25 * Math.sin(GS.time * 5);
     ui.strokeStyle = mk.col;
     ui.lineWidth = 2;
     ui.globalAlpha *= 1;
@@ -87,17 +96,18 @@ function drawRadar() {
     ui.arc(mx2, my2, 1.8, 0, TAU);
     ui.fill();
   } // objectives and the landing zone, as rings
-  const few = !queue.length && enemies.length <= 5,
-    pz = few ? 1.6 + Math.sin(time * 7) * 0.5 : 1;
-  for (const c of crates) {
+  const few = !GS.queue.length && GS.enemies.length <= 5,
+    pz = few ? 1.6 + Math.sin(GS.time * 7) * 0.5 : 1;
+  for (const c of GS.crates) {
     ui.fillStyle = '#39d0c8';
     ui.strokeStyle = '#14181d';
     ui.lineWidth = 1;
     ui.fillRect(x0 + c.x * k - 3, y0 + c.y * k - 3, 6, 6);
     ui.strokeRect(x0 + c.x * k - 3, y0 + c.y * k - 3, 6, 6);
   }
-  for (const e of enemies) {
-    if (opt.los && !few && e.type !== 'queen' && (e.sv ?? 1) < 0.5 && d2(e.x, e.y, P.x, P.y) > 260 * 260) continue;
+  for (const e of GS.enemies) {
+    if (opt.los && !few && e.type !== 'queen' && (e.sv ?? 1) < 0.5 && d2(e.x, e.y, GS.P.x, GS.P.y) > 260 * 260)
+      continue;
     const r =
       (e.type === 'queen'
         ? 4
@@ -149,8 +159,8 @@ function drawRadar() {
     ui.rect(x0, y0, S0, S0);
     ui.clip();
     ui.lineWidth = 1.3; // how far your noise carried, and car alarms
-    for (const r of noiseRings) {
-      const t = (time - r.t0) / (r.alarm ? 1.4 : 0.9);
+    for (const r of GS.noiseRings) {
+      const t = (GS.time - r.t0) / (r.alarm ? 1.4 : 0.9);
       if (t < 0 || t > 1) continue;
       ui.strokeStyle = r.alarm ? `rgba(255,176,64,${(1 - t) * 0.9})` : `rgba(240,236,224,${(1 - t) * 0.6})`;
       ui.beginPath();
@@ -159,7 +169,7 @@ function drawRadar() {
     }
     for (const c of cars)
       if (c.alarm > 0) {
-        const t = (time * 0.8) % 1,
+        const t = (GS.time * 0.8) % 1,
           on = (c.alarm * 2.2) % 1 < 0.5;
         ui.strokeStyle = `rgba(255,176,64,${(1 - t) * 0.7})`;
         ui.beginPath();
@@ -170,10 +180,10 @@ function drawRadar() {
       }
     ui.restore();
   }
-  const px = x0 + P.x * k,
-    py = y0 + P.y * k;
+  const px = x0 + GS.P.x * k,
+    py = y0 + GS.P.y * k;
   ui.translate(px, py);
-  ui.rotate(P.aimA);
+  ui.rotate(GS.P.aimA);
   ui.fillStyle = '#ffffff';
   ui.strokeStyle = '#14181d';
   ui.lineWidth = 1.5;

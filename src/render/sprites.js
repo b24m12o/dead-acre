@@ -1,12 +1,13 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const P_SPRITE = program(SPRITE_VS, SPRITE_FS),
-  P_SHADOW = program(SPRITE_VS, SHADOW_FS),
-  P_LIGHT = program(LIGHT_VS, LIGHT_FS),
-  P_COMP = program(FS_VS, COMP_FS),
-  P_DOWN = program(FS_VS, DOWN_FS),
-  P_UP = program(FS_VS, UP_FS),
-  P_FINAL = program(FS_VS, FINAL_FS);
-const emptyVAO = gl.createVertexArray();
+import { GS } from '../core/gs.js';
+import { SOFT3, clamp } from '../core/util.js';
+import { TS } from '../core/settings.js';
+import { LIGHT_FS, LIGHT_VS, SHADOW_FS, SPRITE_FS, SPRITE_VS, gl, glc, hasCBF, program, uic } from './gl.js';
+import { FS_VS } from './bake.js';
+import { COMP_FS, DOWN_FS, FINAL_FS, UP_FS } from './post.js';
+import { R } from './atlas.js';
+export let P_SPRITE, P_SHADOW, P_LIGHT, P_COMP, P_DOWN, P_UP, P_FINAL;
+export let emptyVAO;
 
 function makeTex(w, h, hdr) {
   const t = gl.createTexture();
@@ -32,37 +33,17 @@ function freeRT(rt) {
   rt.texs.forEach(t => gl.deleteTexture(t));
 }
 
-let VW = 1,
-  VH = 1,
-  RW = 1,
-  RH = 1,
-  ZOOM = 1,
-  viewW = 1,
-  viewH = 1;
-let rtScene,
-  rtShadow,
-  rtLight,
-  rtComp,
-  bloomRTs = [],
-  rtFlash = null;
-const GFX = {
-  ultra: { dpr: 1.5, pixels: 3.7e6, lightDiv: 4, bloomLevels: 6, bloom: 0.6, sharpen: 0.1, ash: 90, cav: 1 },
-  balanced: { dpr: 1, pixels: 2.1e6, lightDiv: 4, bloomLevels: 5, bloom: 0.56, sharpen: 0, ash: 45, cav: 0 },
-}; // Ultra: the full shading; Balanced: no edge shading or sharpening, fewer pixels, for weaker laptops
-const gfxPreset = () =>
-  GFX[typeof meta !== 'undefined' && meta && meta.hud && meta.hud.gfx === 'balanced' ? 'balanced' : 'ultra'];
-const DEVICE_RENDER_CAP = Math.min(window.devicePixelRatio || 1, 2); // render at the screen's own pixel density (no forced supersampling on ordinary monitors); the pixel budget bounds GPU memory
-let RS_MAX = Math.min(DEVICE_RENDER_CAP, gfxPreset().dpr),
-  rsCap = RS_MAX,
-  rsUp = 0,
-  rsDropT = 0,
-  rzT = 0;
-function resize() {
+export let VW, VH, RW, RH, ZOOM, viewW, viewH;
+export let rtScene, rtShadow, rtLight, rtComp, bloomRTs, rtFlash;
+let GFX; // Ultra: the full shading; Balanced: no edge shading or sharpening, fewer pixels, for weaker laptops
+export let gfxPreset;
+export let DEVICE_RENDER_CAP; // render at the screen's own pixel density (no forced supersampling on ordinary monitors); the pixel budget bounds GPU memory
+export function resize() {
   VW = window.innerWidth;
   VH = window.innerHeight;
-  if (typeof meta !== 'undefined' && meta) document.documentElement.style.setProperty('--ts', TS());
+  if (typeof GS.meta !== 'undefined' && GS.meta) document.documentElement.style.setProperty('--ts', TS());
   const gp = gfxPreset();
-  const rs = Math.min(rsCap, gp.dpr, Math.sqrt(gp.pixels / Math.max(1, VW * VH))); // quality preset cap, with adaptive downscaling on slow hardware
+  const rs = Math.min(GS.rsCap, gp.dpr, Math.sqrt(gp.pixels / Math.max(1, VW * VH))); // quality preset cap, with adaptive downscaling on slow hardware
   RW = Math.max(2, Math.round(VW * rs));
   RH = Math.max(2, Math.round(VH * rs));
   glc.width = RW;
@@ -102,105 +83,57 @@ function resize() {
 }
 
 /* ---------- Sprite batch ---------- */
-const MAXQ = 16000,
-  FPV = 16,
-  vdata = new Float32Array(MAXQ * 4 * FPV);
-let qn = 0;
-const sVAO = gl.createVertexArray();
-gl.bindVertexArray(sVAO);
-const sVBO = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, sVBO);
-gl.bufferData(gl.ARRAY_BUFFER, vdata.byteLength, gl.DYNAMIC_DRAW);
-[
-  [0, 2, 0],
-  [1, 2, 2],
-  [2, 4, 4],
-  [3, 4, 8],
-  [4, 4, 12],
-].forEach(([loc, size, off]) => {
-  gl.enableVertexAttribArray(loc);
-  gl.vertexAttribPointer(loc, size, gl.FLOAT, false, FPV * 4, off * 4);
-});
-const idx = new Uint16Array(MAXQ * 6);
-for (let i = 0; i < MAXQ; i++) {
-  const v = i * 4,
-    o = i * 6;
-  idx[o] = v;
-  idx[o + 1] = v + 1;
-  idx[o + 2] = v + 2;
-  idx[o + 3] = v;
-  idx[o + 4] = v + 2;
-  idx[o + 5] = v + 3;
-}
-const sIBO = gl.createBuffer();
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sIBO);
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
-gl.bindVertexArray(null);
-let bTexA = null,
-  bTexE = null,
-  bTexN = null,
-  bAdd = false,
-  camX = 0,
-  camY = 0,
-  curProg = P_SPRITE;
-let SHMODE = false,
-  SHX = 0,
-  SHY = 0,
-  SHH = 0,
-  FLX = 0,
-  FLY = 0,
-  NOHERO = false,
-  SHS = 0.6,
-  gT = 1,
-  gA = 1,
-  gR = 1,
-  gG = 1,
-  gB = 1;
-const SUNV = [0.75, 0.95];
-function setH(h) {
+let MAXQ, FPV, vdata;
+let sVAO;
+let sVBO;
+let idx;
+let sIBO;
+let bAdd;
+let SHX, SHY, SHH;
+export let SUNV;
+export function setH(h) {
   SHX = SUNV[0] * h;
   SHY = SUNV[1] * h;
   SHH = h;
 }
-function bset(a, e, n, add) {
-  if (a !== bTexA || e !== bTexE || n !== bTexN || add !== bAdd) {
+export function bset(a, e, n, add) {
+  if (a !== GS.bTexA || e !== GS.bTexE || n !== GS.bTexN || add !== bAdd) {
     flush();
-    bTexA = a;
-    bTexE = e;
-    bTexN = n;
+    GS.bTexA = a;
+    GS.bTexE = e;
+    GS.bTexN = n;
     bAdd = add;
   }
 }
-function flush() {
-  if (!qn) return;
+export function flush() {
+  if (!GS.qn) return;
   gl.bindVertexArray(sVAO);
   gl.bindBuffer(gl.ARRAY_BUFFER, sVBO);
-  gl.bufferSubData(gl.ARRAY_BUFFER, 0, vdata, 0, qn * 4 * FPV);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, vdata, 0, GS.qn * 4 * FPV);
   gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, bTexA);
+  gl.bindTexture(gl.TEXTURE_2D, GS.bTexA);
   gl.activeTexture(gl.TEXTURE1);
-  gl.bindTexture(gl.TEXTURE_2D, bTexE);
+  gl.bindTexture(gl.TEXTURE_2D, GS.bTexE);
   gl.activeTexture(gl.TEXTURE2);
-  gl.bindTexture(gl.TEXTURE_2D, bTexN);
-  if (curProg === P_SPRITE) {
+  gl.bindTexture(gl.TEXTURE_2D, GS.bTexN);
+  if (GS.curProg === P_SPRITE) {
     gl.uniform1f(P_SPRITE.u.uAdd, bAdd ? 1 : 0);
     if (bAdd) gl.blendFunc(gl.ONE, gl.ONE);
     else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   }
-  gl.drawElements(gl.TRIANGLES, qn * 6, gl.UNSIGNED_SHORT, 0);
-  qn = 0;
+  gl.drawElements(gl.TRIANGLES, GS.qn * 6, gl.UNSIGNED_SHORT, 0);
+  GS.qn = 0;
 }
-const CX = [-1, 1, 1, -1],
-  CY = [-1, -1, 1, 1];
-function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
-  if (SHMODE === 2) {
+let CX, CY;
+export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
+  if (GS.SHMODE === 2) {
     // flashlight shadows: smear each silhouette away from the light, longer the further it stands
-    const dx = x - FLX,
-      dy = y - FLY,
+    const dx = x - GS.FLX,
+      dy = y - GS.FLY,
       d = Math.hypot(dx, dy) || 1;
     if (d > 760 || SHH < 1) return;
     const off = SHH * (0.55 + d / 150);
-    SHMODE = 3;
+    GS.SHMODE = 3;
     for (const k of SOFT3)
       quad(
         r,
@@ -218,30 +151,30 @@ function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
         eb,
         ef
       );
-    SHMODE = 2;
+    GS.SHMODE = 2;
     return;
   }
-  if (SHMODE === 3) ta *= SHS;
-  else if (SHMODE) {
+  if (GS.SHMODE === 3) ta *= GS.SHS;
+  else if (GS.SHMODE) {
     x += SHX;
     y += SHY;
-    ta *= SHS;
+    ta *= GS.SHS;
   }
-  ta *= gA;
-  tr *= gT * gR;
-  tg *= gT * gG;
-  tb *= gT * gB;
+  ta *= GS.gA;
+  tr *= GS.gT * GS.gR;
+  tg *= GS.gT * GS.gG;
+  tb *= GS.gT * GS.gB;
   if (ta <= 0.002) return;
   const hw = r.w * sx * 0.5,
     hh = r.h * sy * 0.5,
     ext = Math.abs(hw) + Math.abs(hh);
-  if (x + ext < camX || x - ext > camX + viewW || y + ext < camY || y - ext > camY + viewH) return;
-  if (qn >= MAXQ) flush();
+  if (x + ext < GS.camX || x - ext > GS.camX + viewW || y + ext < GS.camY || y - ext > GS.camY + viewH) return;
+  if (GS.qn >= MAXQ) flush();
   const c = Math.cos(rot),
     s = Math.sin(rot),
     fx = sx < 0 ? -1 : 1,
     fy = sy < 0 ? -1 : 1;
-  let o = qn * 4 * FPV;
+  let o = GS.qn * 4 * FPV;
   for (let i = 0; i < 4; i++) {
     const lx = CX[i] * hw,
       ly = CY[i] * hh;
@@ -262,9 +195,9 @@ function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
     vdata[o++] = fx;
     vdata[o++] = fy;
   }
-  qn++;
+  GS.qn++;
 }
-function lineQ(x0, y0, x1, y1, w, tr, tg, tb, ta, er, eg, eb, ef, reg) {
+export function lineQ(x0, y0, x1, y1, w, tr, tg, tb, ta, er, eg, eb, ef, reg) {
   const r = reg || R.limb,
     dx = x1 - x0,
     dy = y1 - y0,
@@ -288,28 +221,13 @@ function lineQ(x0, y0, x1, y1, w, tr, tg, tb, ta, er, eg, eb, ef, reg) {
   );
 }
 /* ---------- Lights ---------- */
-const MAXL = 128,
-  ldata = new Float32Array(MAXL * 8);
-let ln = 0;
-const lVAO = gl.createVertexArray();
-gl.bindVertexArray(lVAO);
-const cornerBuf = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuf);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-gl.enableVertexAttribArray(0);
-gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-const lVBO = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, lVBO);
-gl.bufferData(gl.ARRAY_BUFFER, ldata.byteLength, gl.DYNAMIC_DRAW);
-[1, 2].forEach((loc, i) => {
-  gl.enableVertexAttribArray(loc);
-  gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, 32, i * 16);
-  gl.vertexAttribDivisor(loc, 1);
-});
-gl.bindVertexArray(null);
-function addLight(x, y, r, cr, cg, cb, dir = 0, cw = 0) {
-  if (ln >= MAXL || x + r < camX || x - r > camX + viewW || y + r < camY || y - r > camY + viewH) return;
-  let o = ln * 8;
+export let MAXL, ldata;
+export let lVAO;
+let cornerBuf;
+export let lVBO;
+export function addLight(x, y, r, cr, cg, cb, dir = 0, cw = 0) {
+  if (GS.ln >= MAXL || x + r < GS.camX || x - r > GS.camX + viewW || y + r < GS.camY || y - r > GS.camY + viewH) return;
+  let o = GS.ln * 8;
   ldata[o++] = x;
   ldata[o++] = y;
   ldata[o++] = r;
@@ -318,5 +236,120 @@ function addLight(x, y, r, cr, cg, cb, dir = 0, cw = 0) {
   ldata[o++] = cg;
   ldata[o++] = cb;
   ldata[o++] = cw;
-  ln++;
+  GS.ln++;
+}
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  P_SPRITE = program(SPRITE_VS, SPRITE_FS);
+  P_SHADOW = program(SPRITE_VS, SHADOW_FS);
+  P_LIGHT = program(LIGHT_VS, LIGHT_FS);
+  P_COMP = program(FS_VS, COMP_FS);
+  P_DOWN = program(FS_VS, DOWN_FS);
+  P_UP = program(FS_VS, UP_FS);
+  P_FINAL = program(FS_VS, FINAL_FS);
+  emptyVAO = gl.createVertexArray();
+  VW = 1;
+  VH = 1;
+  RW = 1;
+  RH = 1;
+  ZOOM = 1;
+  viewW = 1;
+  viewH = 1;
+  rtScene = undefined;
+  rtShadow = undefined;
+  rtLight = undefined;
+  rtComp = undefined;
+  bloomRTs = [];
+  rtFlash = null;
+  GFX = {
+    ultra: { dpr: 1.5, pixels: 3.7e6, lightDiv: 4, bloomLevels: 6, bloom: 0.6, sharpen: 0.1, ash: 90, cav: 1 },
+    balanced: { dpr: 1, pixels: 2.1e6, lightDiv: 4, bloomLevels: 5, bloom: 0.56, sharpen: 0, ash: 45, cav: 0 },
+  };
+  gfxPreset = () =>
+    GFX[
+      typeof GS.meta !== 'undefined' && GS.meta && GS.meta.hud && GS.meta.hud.gfx === 'balanced' ? 'balanced' : 'ultra'
+    ];
+  DEVICE_RENDER_CAP = Math.min(window.devicePixelRatio || 1, 2);
+  GS.RS_MAX = Math.min(DEVICE_RENDER_CAP, gfxPreset().dpr);
+  GS.rsCap = GS.RS_MAX;
+  GS.rsUp = 0;
+  GS.rsDropT = 0;
+  GS.rzT = 0;
+  MAXQ = 16000;
+  FPV = 16;
+  vdata = new Float32Array(MAXQ * 4 * FPV);
+  GS.qn = 0;
+  sVAO = gl.createVertexArray();
+  gl.bindVertexArray(sVAO);
+  sVBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, sVBO);
+  gl.bufferData(gl.ARRAY_BUFFER, vdata.byteLength, gl.DYNAMIC_DRAW);
+  [
+    [0, 2, 0],
+    [1, 2, 2],
+    [2, 4, 4],
+    [3, 4, 8],
+    [4, 4, 12],
+  ].forEach(([loc, size, off]) => {
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, size, gl.FLOAT, false, FPV * 4, off * 4);
+  });
+  idx = new Uint16Array(MAXQ * 6);
+  for (let i = 0; i < MAXQ; i++) {
+    const v = i * 4,
+      o = i * 6;
+    idx[o] = v;
+    idx[o + 1] = v + 1;
+    idx[o + 2] = v + 2;
+    idx[o + 3] = v;
+    idx[o + 4] = v + 2;
+    idx[o + 5] = v + 3;
+  }
+  sIBO = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sIBO);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+  GS.bTexA = null;
+  GS.bTexE = null;
+  GS.bTexN = null;
+  bAdd = false;
+  GS.camX = 0;
+  GS.camY = 0;
+  GS.curProg = P_SPRITE;
+  GS.SHMODE = false;
+  SHX = 0;
+  SHY = 0;
+  SHH = 0;
+  GS.FLX = 0;
+  GS.FLY = 0;
+  GS.NOHERO = false;
+  GS.SHS = 0.6;
+  GS.gT = 1;
+  GS.gA = 1;
+  GS.gR = 1;
+  GS.gG = 1;
+  GS.gB = 1;
+  SUNV = [0.75, 0.95];
+  CX = [-1, 1, 1, -1];
+  CY = [-1, -1, 1, 1];
+  MAXL = 128;
+  ldata = new Float32Array(MAXL * 8);
+  GS.ln = 0;
+  lVAO = gl.createVertexArray();
+  gl.bindVertexArray(lVAO);
+  cornerBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  lVBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, lVBO);
+  gl.bufferData(gl.ARRAY_BUFFER, ldata.byteLength, gl.DYNAMIC_DRAW);
+  [1, 2].forEach((loc, i) => {
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, 32, i * 16);
+    gl.vertexAttribDivisor(loc, 1);
+  });
+  gl.bindVertexArray(null);
 }

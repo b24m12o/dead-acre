@@ -21,8 +21,10 @@ See [LICENSE](LICENSE).
 ## Layout
 
 ```
-src/            the game, in the order listed in src/order.json
-  core/         errors, utilities, settings, profile, input, the update loop, startup
+src/
+  index.js      the start: imports every part, then runs each part's init() in order
+  core/         errors, utilities, settings, profile, input, the update loop, startup;
+                gs.js holds GS, the shared game state
   render/       WebGL, sprites, lighting, the painted atlas, the 3D character bake, drawing
   world/        the map, navigation, physics, wear, fire, weather, sight lines
   actors/       zombies and their AI, bosses, the player's weapons, backups, legs
@@ -33,11 +35,17 @@ src/            the game, in the order listed in src/order.json
   head.html     the page head (title, meta)
 css/style.css   styles (fonts in assets/fonts)
 assets/         art, voices and recorded sounds (pack.json lists them), fonts
-tools/          the build, lint, fingerprint, and the scripts that make the assets
+tools/          the build, fingerprint, and the scripts that make the assets
 tests/          the tests and the bot that plays the campaign test
 dist/           built files: game.js and style.css (do not edit; run the build)
 index.html      a page that plays dist/game.js
 ```
+
+Every file in `src/` is an ES module: it imports what it uses and exports what others use.
+Values that several parts change (the night, the run, the boss, the lists of zombies and effects,
+timers) live on one shared object, `GS`, as `GS.wave`, `GS.boss` and so on. A file's top level only
+declares things; anything that has to run when the game loads is in that file's `init()`, and
+`src/index.js` calls the inits in order.
 
 ## Build
 
@@ -53,13 +61,12 @@ This writes `dist/game.js`, `dist/style.css`, `index.html`, and `build/dead-acre
 
 ```sh
 npm run format      # Prettier
-npm run lint        # ESLint over the whole program, findings reported at their src/ file and line
+npm run lint        # ESLint
 npm test            # startup from one script tag, every radio line voiced, every boss (about 2 minutes)
 npm run test:campaign   # a bot plays all fifteen nights (about 30 minutes)
-npm run fingerprint # a hash of the program itself: unchanged by formatting or comments
+npm run fingerprint # a hash of the bundled program: unchanged by formatting or comments
 ```
 
 GitHub runs formatting, lint, the build (dist/ must match it) and the quick tests on every push.
 
-The parts in `src/` share one scope and are joined in the listed order; the build checks nothing
-else. Keep each file's copyright line at the top.
+The build bundles `src/` with esbuild, starting at `src/index.js`. Keep each file's copyright line at the top.

@@ -1,12 +1,45 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function updateQueen(e, dt, ux, uy, dist) {
-  curBoss = e;
+import { GS } from '../core/gs.js';
+import { TAU, angDiff, clamp, d2, rand, randi } from '../core/util.js';
+import { TILE, WH, WW } from '../world/map.js';
+import { MUS, noise, spat, thr, tone } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { showStreak } from '../ui/callouts.js';
+import { makeEnemy } from './enemies.js';
+import { banner } from '../game/waves.js';
+import { chips, dust, glowBurst, part, ring, shake } from '../render/effects.js';
+import { crushCrystals, hurtPlayer } from '../game/combat.js';
+import { toWorld } from './projectiles.js';
+import {
+  WIND_ST,
+  bossAbom,
+  bossCharge,
+  bossChief,
+  bossChop,
+  bossGrave,
+  bossLeap,
+  bossPhaseText,
+  bossPz,
+  bossRoadkill,
+  bossSprint,
+  bossVoice,
+  bossWarn,
+  graveCrack,
+  hitsP,
+  interruptBoss,
+  pzScream,
+} from './bosses.js';
+import { BILE } from '../render/draw-enemies.js';
+import { NOISE, makeNoise, screamAt } from '../game/noise.js';
+import { arenaPhase, bossName } from '../game/boss-flow.js';
+export function updateQueen(e, dt, ux, uy, dist) {
+  GS.curBoss = e;
   bossVoice(e, dt);
   if (e.st !== e.cueSt) {
     e.cueSt = e.st;
     if (WIND_ST.has(e.st)) {
       e.cueT = e.cueMax = clamp(e.stT || 0.4, 0.3, 0.6);
-      e.cueA = Math.atan2(P.y - e.y, P.x - e.x);
+      e.cueA = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
     }
   }
   e.cueT = Math.max(0, (e.cueT || 0) - dt); // the tell: as a move begins its head snaps to you and its eyes catch the light
@@ -25,7 +58,7 @@ function updateQueen(e, dt, ux, uy, dist) {
       e.stT = 1.5;
       e.busyT = 1.5;
       e.summonT = Math.max(e.summonT, 2);
-      for (const b of ebullets)
+      for (const b of GS.ebullets)
         if (!b.owner || b.owner === e) {
           b.life = 0;
           glowBurst(b.x, b.y, b.c || BILE, 2, 60, 0.2, 0.3);
@@ -36,7 +69,7 @@ function updateQueen(e, dt, ux, uy, dist) {
     e.ph = ph;
   } // a stinger, and the band moves on to a harder part
   const spMul = [1, 1.12, 1.3][ph];
-  e.face = Math.atan2(P.y - e.y, P.x - e.x);
+  e.face = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
   e.clawT = Math.max(0, e.clawT - dt);
   const cw = e.clawW || 0.75;
   e.claw = e.clawT > cw - 0.55 ? 0 : e.clawT > 0 ? Math.min(1, (cw - 0.55 - e.clawT) / 0.12 + 0.02) : 0; // wind-up (arm back), then the swing
@@ -61,7 +94,7 @@ function updateQueen(e, dt, ux, uy, dist) {
       sd = Math.floor((e.stride || 0) * 2);
     if (sp > 30 && sd !== e.stepI) {
       e.stepI = sd;
-      const d = Math.hypot(P.x - e.x, P.y - e.y);
+      const d = Math.hypot(GS.P.x - e.x, GS.P.y - e.y);
       if (d < 520) shake(0.03 * (1 - d / 520) * (bt === 'roadkill' ? 1.4 : 1));
       {
         const fa = e.a ?? 0,
@@ -108,7 +141,7 @@ function updateQueen(e, dt, ux, uy, dist) {
         c: [0.82, 0.82, 0.8],
       });
     }
-    if (state === 'play' && hitsP(e.x, e.y, e.r * 0.9) && thr('spinhit', 600)) hurtPlayer(e.dmg * 0.6, e.x, e.y);
+    if (GS.state === 'play' && hitsP(e.x, e.y, e.r * 0.9) && thr('spinhit', 600)) hurtPlayer(e.dmg * 0.6, e.x, e.y);
     if (e.spinT <= 0) {
       e.stunT = Math.max(e.stunT, 0.9);
     }
@@ -134,17 +167,17 @@ function updateQueen(e, dt, ux, uy, dist) {
     if (Math.random() < 0.5)
       dust(e.x - e.lx * e.r * 0.8 + rand(-14, 14), e.y - e.ly * e.r * 0.8 + rand(-14, 14), 1, 50, 1, 0.6);
     /* pawing the ground before it goes */ e.stT -= dt;
-    if (!e.bait && state === 'play') {
-      const a = Math.atan2(P.y - e.y, P.x - e.x);
+    if (!e.bait && GS.state === 'play') {
+      const a = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
       e.lx = Math.cos(a);
       e.ly = Math.sin(a);
     }
     e.face = Math.atan2(e.ly, e.lx);
-    if (e.stT <= 0 && !e.bait && state === 'play') {
-      const pv = Math.hypot(P.vx, P.vy),
+    if (e.stT <= 0 && !e.bait && GS.state === 'play') {
+      const pv = Math.hypot(GS.P.vx, GS.P.vy),
         vk = pv > 260 ? 260 / pv : 1,
-        t = clamp(Math.hypot(P.x - e.x, P.y - e.y) / 760, 0.1, 0.45),
-        a = Math.atan2(P.y + P.vy * vk * t - e.y, P.x + P.vx * vk * t - e.x);
+        t = clamp(Math.hypot(GS.P.x - e.x, GS.P.y - e.y) / 760, 0.1, 0.45),
+        a = Math.atan2(GS.P.y + GS.P.vy * vk * t - e.y, GS.P.x + GS.P.vx * vk * t - e.x);
       e.lx = Math.cos(a);
       e.ly = Math.sin(a);
     } // it watches you the whole time it paws the ground, and goes where you are heading: running sideways is not enough, roll as it comes
@@ -184,10 +217,10 @@ function updateQueen(e, dt, ux, uy, dist) {
         graveCrack(e, e.ga - 0.42, ph, false);
         graveCrack(e, e.ga + 0.42, ph, false);
       }
-      if (ph >= 1 && !e.gs2 && state === 'play') {
+      if (ph >= 1 && !e.gs2 && GS.state === 'play') {
         e.gs2 = true;
         e.recT = 0;
-        e.ga = Math.atan2(P.y - e.y, P.x - e.x);
+        e.ga = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
         e.st = 'gslam';
         e.stT = 0.55;
         e.busyT = 0.55 + 1.3;
@@ -235,8 +268,8 @@ function updateQueen(e, dt, ux, uy, dist) {
     e.stT -= dt;
     if (Math.random() < 0.4) dust(e.x - Math.cos(e.face) * 40, e.y - Math.sin(e.face) * 40, 1, 40, 1, 0.6);
     if (e.stT <= 0) {
-      const tx = P.x + P.vx * 0.25,
-        ty = P.y + P.vy * 0.25,
+      const tx = GS.P.x + GS.P.vx * 0.25,
+        ty = GS.P.y + GS.P.vy * 0.25,
         a = Math.atan2(ty - e.y, tx - e.x);
       e.lx = Math.cos(a);
       e.ly = Math.sin(a);
@@ -252,13 +285,13 @@ function updateQueen(e, dt, ux, uy, dist) {
     e.tvx = e.vx = e.lx * 600;
     e.tvy = e.vy = e.ly * 600;
     if (Math.random() < 0.6) dust(e.x, e.y, 1, 40, 1.2, 0.7);
-    if (state === 'play' && hitsP(e.x + e.lx * 30, e.y + e.ly * 30, e.r * 0.9) && !e.rushHit) {
+    if (GS.state === 'play' && hitsP(e.x + e.lx * 30, e.y + e.ly * 30, e.r * 0.9) && !e.rushHit) {
       e.rushHit = true;
       hurtPlayer(e.dmg * 0.9, e.x, e.y);
-      P.vx += e.lx * 520;
-      P.vy += e.ly * 520;
+      GS.P.vx += e.lx * 520;
+      GS.P.vy += e.ly * 520;
       shake(0.3);
-      sfx.crunch(P.x, P.y);
+      sfx.crunch(GS.P.x, GS.P.y);
     }
     const edge =
       (e.x < 3 * TILE + e.r && e.lx < 0) ||
@@ -288,7 +321,7 @@ function updateQueen(e, dt, ux, uy, dist) {
       ring(e.x, e.y, 12, R0, 0.3, [1.4, 1.4, 1.2], 0.7);
       sfx.crunch(e.x, e.y);
       shake(0.3);
-      if (bt === 'pz' && ph >= 1 && !e.ps2 && state === 'play') {
+      if (bt === 'pz' && ph >= 1 && !e.ps2 && GS.state === 'play') {
         e.ps2 = true;
         e.recT = 0;
         e.st = 'pswing';
@@ -318,7 +351,7 @@ function updateQueen(e, dt, ux, uy, dist) {
   // the Gravekeeper with its lantern smashed: blind, it goes for the last gunshot it heard
   if (bt === 'grave' && e.blindT > 0) {
     e.blindT -= dt;
-    const heard = time - NOISE.t < 2.5 && d2(NOISE.x, NOISE.y, e.x, e.y) < (NOISE.r || 900) ** 2;
+    const heard = GS.time - NOISE.t < 2.5 && d2(NOISE.x, NOISE.y, e.x, e.y) < (NOISE.r || 900) ** 2;
     if (heard) {
       e.hx2 = NOISE.x;
       e.hy2 = NOISE.y;
@@ -344,29 +377,29 @@ function updateQueen(e, dt, ux, uy, dist) {
     ph >= 1 &&
     Math.hypot(e.vx, e.vy) > 20 &&
     (e.trailT = (e.trailT || 0) - dt) <= 0 &&
-    pools.length < 40
+    GS.pools.length < 40
   ) {
     e.trailT = 0.5;
-    pools.push({
+    GS.pools.push({
       x: e.x - Math.cos(e.a) * 30,
       y: e.y - Math.sin(e.a) * 30,
       r: 28,
       life: 4.5,
       max: 4.5,
-      dmg: 5 * (1 + 0.04 * wave),
+      dmg: 5 * (1 + 0.04 * GS.wave),
       rot: rand(0, TAU),
       v: randi(0, 3),
     });
   } // it bleeds infection where it walks: the room to move shrinks
   if (bt === 'grave' && ph >= 1)
-    for (const fg of freshGraves)
-      if (!fg.used && d2(fg.x, fg.y, P.x, P.y) < 30 * 30) {
+    for (const fg of GS.freshGraves)
+      if (!fg.used && d2(fg.x, fg.y, GS.P.x, GS.P.y) < 30 * 30) {
         fg.used = true;
         const z = makeEnemy('mini', fg.x, fg.y);
         z.emerge = 0.4;
         z.aw = 9;
-        hurtPlayer(8 * (1 + 0.04 * wave), fg.x, fg.y, 'the Gravekeeper');
-        P.daze = Math.max(P.daze || 0, 0.6);
+        hurtPlayer(8 * (1 + 0.04 * GS.wave), fg.x, fg.y, 'the Gravekeeper');
+        GS.P.daze = Math.max(GS.P.daze || 0, 0.6);
         dust(fg.x, fg.y, 8, 80, 1.2, 1);
         chips(fg.x, fg.y, 6, [0.4, 0.3, 0.2], 4, 200);
         sfx.dig(fg.x, fg.y);
@@ -381,22 +414,22 @@ function updateQueen(e, dt, ux, uy, dist) {
     reach = bt === 'grave' ? 165 : bt === 'roadkill' || bt === 'chief' ? 150 : 130,
     swingR = bt === 'grave' ? 150 : bt === 'chief' ? 140 : 95;
   e.stuckT = Math.max(0, (e.stuckT || 0) - dt);
-  if (dist < reach + 30 && e.clawT <= 0 && e.recT <= 0 && time > (e.swingCd || 0)) {
+  if (dist < reach + 30 && e.clawT <= 0 && e.recT <= 0 && GS.time > (e.swingCd || 0)) {
     e.clawW = 0.85;
     e.clawT = 0.85;
-    e.swingCd = time + (sweep ? 1.6 : 1.1);
+    e.swingCd = GS.time + (sweep ? 1.6 : 1.1);
     const lockA = e.face,
       tok = (e.atk = (e.atk || 0) + 1);
     sfx.grunt(e.x, e.y);
-    later.push({
+    GS.later.push({
       t: 0.55,
       fn: () => {
-        if (e.dead || e.atk !== tok || e.stunT > 0 || state !== 'play') return;
+        if (e.dead || e.atk !== tok || e.stunT > 0 || GS.state !== 'play') return;
         if (sweep) {
-          const d = Math.hypot(P.x - e.x, P.y - e.y),
-            da = Math.abs(angDiff(lockA, Math.atan2(P.y - e.y, P.x - e.x)));
+          const d = Math.hypot(GS.P.x - e.x, GS.P.y - e.y),
+            da = Math.abs(angDiff(lockA, Math.atan2(GS.P.y - e.y, GS.P.x - e.x)));
           ring(e.x + Math.cos(lockA) * 80, e.y + Math.sin(lockA) * 80, 10, 120, 0.25, [1.2, 1.0, 0.7], 0.7);
-          if (d < (bt === 'grave' ? 130 : swingR) + 40 + P.r * 0.3 && da < 0.9)
+          if (d < (bt === 'grave' ? 130 : swingR) + 40 + GS.P.r * 0.3 && da < 0.9)
             hurtPlayer(e.dmg * (bt === 'grave' ? 0.9 : 1.1), e.x, e.y);
         } else {
           const [cx, cy] = toWorld(e, bt === 'roadkill' ? 120 : 130, 0);
@@ -421,11 +454,11 @@ function updateQueen(e, dt, ux, uy, dist) {
   const lead = (t, spread = 0) => {
     const a = rand(0, TAU),
       d = spread ? rand(0, spread) : 0,
-      pv = Math.hypot(P.vx, P.vy),
+      pv = Math.hypot(GS.P.vx, GS.P.vy),
       vk = pv > 260 ? 260 / pv : 1;
     return [
-      clamp(P.x + P.vx * vk * t + Math.cos(a) * d, 3 * TILE + 20, WW - 3 * TILE - 20),
-      clamp(P.y + P.vy * vk * t + Math.sin(a) * d, 3 * TILE + 20, WH - 3 * TILE - 20),
+      clamp(GS.P.x + GS.P.vx * vk * t + Math.cos(a) * d, 3 * TILE + 20, WW - 3 * TILE - 20),
+      clamp(GS.P.y + GS.P.vy * vk * t + Math.sin(a) * d, 3 * TILE + 20, WH - 3 * TILE - 20),
     ];
   };
   // ================= ABOMINATION: the acid hose, lamp-smashing leaps, egg pods =================

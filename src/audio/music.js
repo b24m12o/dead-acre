@@ -1,5 +1,11 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { clamp, pick, randi } from '../core/util.js';
+import { opt, store } from '../core/settings.js';
+import { AC, MUS, MUSK, dlyIn, master, musBus, musGate, noise, radBus, revIn, sfxBus } from './audio.js';
+import { syncOpts } from '../ui/settings-ui.js';
+export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const TEMPO = { none: 70, menu: 70, calm: 84, fight: 150, boss: 172 };
 const BOSS_TEMPO = { abom: 1, roadkill: 1.1, grave: 0.74, chief: 0.94, pz: 0.88 }; // each boss gets its own take on the boss theme: Roadkill gallops, the Gravekeeper drags
 function tempoOf(L) {
@@ -45,7 +51,7 @@ function ensureGtr() {
   post.connect(send);
   send.connect(revIn);
 }
-function mGtr(fret, t, dur, palm, vol = 1) {
+export function mGtr(fret, t, dur, palm, vol = 1) {
   ensureGtr();
   const root = 40 + fret,
     g = AC.createGain(),
@@ -182,7 +188,7 @@ function mCrash(t, vol) {
   noise(1.6, vol, 7000, 3500, 'highpass', 0, musBus, t);
   noise(1.6, vol * 0.6, 6000, 3000, 'highpass', 0, revIn, t);
 }
-function startMusic() {
+export function startMusic() {
   if (!AC || MUS.timer) return;
   MUS.nextT = AC.currentTime + 0.15;
   MUS.timer = setInterval(scheduleMusic, 25);
@@ -250,131 +256,11 @@ const RF = s => {
   while (a.length < 64) a.push('');
   return a;
 };
-const RIFFS = {
-  // fight
-  f_main: RF(
-    `p0 p0 p0 p0 p0 p0 o3 . p0 p0 p0 p0 o5 . o3 .  p0 p0 p0 p0 p0 p0 o3 . p0 p0 p0 p0 o6 . o5 .  p0 p0 o7 . p0 p0 o6 . p0 p0 o5 . p0 o3 o1 .  o0 . . . . . . . p0 p0 p0 p0 o1 . o3 .`
-  ),
-  f_gallop: RF(
-    `p0 . p0 p0 p0 . p0 p0 o5 . o3 . p0 . p0 p0  p0 . p0 p0 p0 . p0 p0 o6 . o5 . o3 . o1 .  p0 . p0 p0 p0 . p0 p0 o5 . o3 . p0 . p0 p0  o8 . . . o7 . . . o6 . o5 . o3 . o1 .`
-  ),
-  f_thrash: RF(
-    `p0 p0 p0 p0 o1 o1 p0 p0 o3 o3 p0 p0 o2 o2 o1 .  p0 p0 p0 p0 o1 o1 p0 p0 o5 o5 p0 p0 o3 o3 o1 .  p0 p0 p0 p0 o1 o1 p0 p0 o3 o3 p0 p0 o2 o2 o1 .  o6 o6 o5 o5 o3 o3 o1 o1 o0 . . . p0 p0 p0 p0`
-  ),
-  f_chorus: RF(
-    `o0 . . . . . . . o5 . . . . . . .  o3 . . . . . . . o6 . . . o7 . . .  o0 . . . . . . . o5 . . . . . . .  o8 . . . . . o7 . . . o5 . o3 . o1 .`
-  ),
-  f_break: RF(
-    `p0 . . p0 . . p0 . p0 . . . o1 . . .  p0 . . p0 . . p0 . p0 . . . o6 . o5 .  p0 . . p0 . . p0 . p0 . . . o1 . . .  p0 p0 . p0 p0 . p0 p0 o7 . . . o8 . . .`
-  ),
-  f_solo: RF(
-    `p0 p0 p0 p0 p0 p0 p0 p0 o5 . . . o3 . . .  p0 p0 p0 p0 p0 p0 p0 p0 o6 . . . o5 . . .  p0 p0 p0 p0 p0 p0 p0 p0 o8 . . . o7 . . .  p0 p0 p0 p0 o5 . o6 . o7 . o8 . o10 . . .`
-  ),
-  // boss
-  b_main: RF(
-    `p0 p0 p0 p0 p1 p1 p1 p1 p0 p0 p0 p0 p4 p4 p3 p3  p0 p0 p0 p0 p1 p1 p1 p1 p0 p0 p0 p0 p6 p6 p5 p5  o0 . . . o1 . . . o6 . . . o5 . . .  o0 . . . o1 . . . o3 . o4 . o6 . o7 .`
-  ),
-  b_doom: RF(
-    `o0 . . . . . . . . . . . o1 . . .  o0 . . . . . . . o6 . . . o5 . . .  o0 . . . . . . . . . . . o1 . . .  o3 . . . o4 . . . o6 . . . o7 . . .`
-  ),
-  b_gallop: RF(
-    `p0 . p0 p0 o1 . p0 p0 p0 . p0 p0 o3 . o1 .  p0 . p0 p0 o1 . p0 p0 p0 . p0 p0 o6 . o5 .  p0 . p0 p0 o1 . p0 p0 p0 . p0 p0 o3 . o1 .  o8 . o7 . o6 . o5 . o3 . o1 . o0 . . .`
-  ),
-  b_dirge: RF(
-    `o0 . . . . . . . . . . . . . . .  o1 . . . . . . . o0 . . . . . . .  o0 . . . . . . . . . . . o5 . . .  o4 . . . o3 . . . o1 . . . o0 . . .`
-  ),
-  b_march: RF(
-    `p0 . p0 . p0 . p0 . o3 . . . o1 . . .  p0 . p0 . p0 . p0 . o5 . . . o3 . . .  p0 . p0 . p0 . p0 . o6 . . . o5 . . .  o7 . o6 . o5 . o3 . o1 . . . p0 p0 p0 p0`
-  ),
-  b_pulse: RF(
-    `p0 . p0 . . . . . . . . . o1 . . .  p0 . p0 . . . . . . . . . o6 . . .  p0 . p0 . . . . . . . . . o1 . o0 .  p0 . p0 . . . . . o6 . . . o5 . o1 .`
-  ),
-  b_blast: RF(
-    `p0 p0 p0 p0 p0 p0 p0 p0 p1 p1 p1 p1 p1 p1 p1 p1  p0 p0 p0 p0 p0 p0 p0 p0 p6 p6 p6 p6 p5 p5 p5 p5  p0 p0 p0 p0 p0 p0 p0 p0 p1 p1 p1 p1 p1 p1 p1 p1  p3 p3 p3 p3 p4 p4 p4 p4 p6 p6 p6 p6 p7 p7 p7 p7`
-  ),
-  // calm / dread between waves
-  c_low: RF(
-    `o0 . . . . . . . o1 . . . o0 . . .  o3 . . . . . . . o1 . . . . . . .  o0 . . . . . . . o6 . . . o5 . . .  o3 . . . . . . . o1 . . . p0 p0 p0 p0`
-  ),
-  c_still: RF(
-    `o0 . . . . . . . . . . . . . . .  . . . . . . . . . . . . . . . .  o5 . . . . . . . . . . . . . . .  o3 . . . . . . . o1 . . . . . . .`
-  ),
-  none: RF(``),
-};
+let RIFFS;
 // songs: [riff, drums, key shift, lead?] — played in order, then loop with fresh solos
-const SONGS = {
-  fight: [
-    ['f_main', 'std', 0],
-    ['f_main', 'std', 0, 'hook'],
-    ['f_gallop', 'gallop', 0],
-    ['f_chorus', 'open', 0, 'hook'],
-    ['f_thrash', 'thrash', 0],
-    ['f_thrash', 'thrash', 5],
-    ['f_chorus', 'open', 5, 'hook'],
-    ['f_break', 'half', 0],
-    ['f_break', 'half', 0, 'build'],
-    ['f_solo', 'std', 0, 'solo'],
-    ['f_solo', 'gallop', 3, 'solo'],
-    ['f_chorus', 'open', 0, 'hook'],
-    ['f_gallop', 'gallop', -2],
-    ['f_main', 'thrash', 0],
-  ],
-  boss: [
-    ['b_doom', 'doom', 0],
-    ['b_main', 'boss', 0],
-    ['b_main', 'boss', 0, 'boss'],
-    ['b_blast', 'blast', 0],
-    ['b_blast', 'blast', 1],
-    ['b_doom', 'doom', 0, 'boss'],
-    ['b_main', 'boss', 3, 'boss'],
-    ['b_blast', 'blast', 0, 'solo'],
-  ],
-  boss_roadkill: [
-    ['b_gallop', 'gallop', 0],
-    ['b_gallop', 'gallop', 0, 'boss'],
-    ['b_blast', 'blast', 0],
-    ['b_main', 'boss', 2, 'boss'],
-    ['b_gallop', 'thrash', 2, 'solo'],
-    ['b_blast', 'blast', 3, 'solo'],
-  ],
-  boss_grave: [
-    ['b_dirge', 'doom', 0, 'bells'],
-    ['b_doom', 'doom', 0, 'bells'],
-    ['b_dirge', 'half', -2, 'bells'],
-    ['b_main', 'boss', 0, 'boss'],
-    ['b_doom', 'doom', -2, 'boss'],
-    ['b_blast', 'blast', 0, 'bells'],
-  ],
-  boss_chief: [
-    ['b_march', 'march', 0],
-    ['b_march', 'march', 0, 'siren'],
-    ['b_main', 'boss', 0, 'boss'],
-    ['b_blast', 'blast', 0],
-    ['b_march', 'thrash', 3, 'siren'],
-    ['b_blast', 'blast', 3, 'solo'],
-  ],
-  boss_pz: [
-    ['b_pulse', 'heart', 1],
-    ['b_pulse', 'heart', 1, 'boss'],
-    ['b_doom', 'doom', 1, 'boss'],
-    ['b_blast', 'blast', 1],
-    ['b_pulse', 'blast', 1, 'solo'],
-    ['b_main', 'boss', 6, 'boss'],
-  ],
-  calm: [
-    ['c_still', 'none', 0, 'bells'],
-    ['c_low', 'calm', 0],
-    ['c_still', 'none', 5, 'arp'],
-    ['c_low', 'calm', 0, 'arp'],
-    ['c_still', 'none', 3, 'bells'],
-    ['c_low', 'calm', -2, 'arp'],
-  ],
-};
-MUS.pos = { fight: 0, boss: 0, calm: 0 };
-MUS.sec = null;
-MUS.lead = null;
-const SCALE = [0, 2, 3, 5, 7, 8, 10]; // E natural minor with a phrygian lean below
-const scaleNote = (deg, base = 64) => base + SCALE[((deg % 7) + 7) % 7] + 12 * Math.floor(deg / 7);
+let SONGS;
+let SCALE; // E natural minor with a phrygian lean below
+let scaleNote;
 function makeLead(kind) {
   // 64 steps of midi (0 = rest, -1 = hold)
   const L = new Array(64).fill(0);
@@ -645,15 +531,15 @@ function playStep(st, t) {
       0.03
     );
 }
-function applyVol() {
+export function applyVol() {
   if (!AC) return;
-  master.gain.setTargetAtTime(muted ? 0 : meta.vol.master, AC.currentTime, 0.05);
-  sfxBus.gain.setTargetAtTime(meta.vol.sfx, AC.currentTime, 0.05);
-  if (radBus) radBus.gain.setTargetAtTime(meta.vol.sfx, AC.currentTime, 0.05);
-  musBus.gain.setTargetAtTime(opt.music ? meta.vol.music * MUSK : 0, AC.currentTime, 0.1);
+  master.gain.setTargetAtTime(GS.muted ? 0 : GS.meta.vol.master, AC.currentTime, 0.05);
+  sfxBus.gain.setTargetAtTime(GS.meta.vol.sfx, AC.currentTime, 0.05);
+  if (radBus) radBus.gain.setTargetAtTime(GS.meta.vol.sfx, AC.currentTime, 0.05);
+  musBus.gain.setTargetAtTime(opt.music ? GS.meta.vol.music * MUSK : 0, AC.currentTime, 0.1);
 }
-function setMuted(m) {
-  muted = m;
+export function setMuted(m) {
+  GS.muted = m;
   store.set('rr_muted', m ? '1' : '0');
   applyVol();
   {
@@ -663,9 +549,137 @@ function setMuted(m) {
   $('muteBtn').classList.toggle('on', !m);
   $('muteBtn').setAttribute('aria-pressed', !m ? 'true' : 'false');
 }
-function setMusic(on) {
+export function setMusic(on) {
   opt.music = on;
   store.set('rr_music', on ? '1' : '0');
   applyVol();
   syncOpts();
+}
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  RIFFS = {
+    // fight
+    f_main: RF(
+      `p0 p0 p0 p0 p0 p0 o3 . p0 p0 p0 p0 o5 . o3 .  p0 p0 p0 p0 p0 p0 o3 . p0 p0 p0 p0 o6 . o5 .  p0 p0 o7 . p0 p0 o6 . p0 p0 o5 . p0 o3 o1 .  o0 . . . . . . . p0 p0 p0 p0 o1 . o3 .`
+    ),
+    f_gallop: RF(
+      `p0 . p0 p0 p0 . p0 p0 o5 . o3 . p0 . p0 p0  p0 . p0 p0 p0 . p0 p0 o6 . o5 . o3 . o1 .  p0 . p0 p0 p0 . p0 p0 o5 . o3 . p0 . p0 p0  o8 . . . o7 . . . o6 . o5 . o3 . o1 .`
+    ),
+    f_thrash: RF(
+      `p0 p0 p0 p0 o1 o1 p0 p0 o3 o3 p0 p0 o2 o2 o1 .  p0 p0 p0 p0 o1 o1 p0 p0 o5 o5 p0 p0 o3 o3 o1 .  p0 p0 p0 p0 o1 o1 p0 p0 o3 o3 p0 p0 o2 o2 o1 .  o6 o6 o5 o5 o3 o3 o1 o1 o0 . . . p0 p0 p0 p0`
+    ),
+    f_chorus: RF(
+      `o0 . . . . . . . o5 . . . . . . .  o3 . . . . . . . o6 . . . o7 . . .  o0 . . . . . . . o5 . . . . . . .  o8 . . . . . o7 . . . o5 . o3 . o1 .`
+    ),
+    f_break: RF(
+      `p0 . . p0 . . p0 . p0 . . . o1 . . .  p0 . . p0 . . p0 . p0 . . . o6 . o5 .  p0 . . p0 . . p0 . p0 . . . o1 . . .  p0 p0 . p0 p0 . p0 p0 o7 . . . o8 . . .`
+    ),
+    f_solo: RF(
+      `p0 p0 p0 p0 p0 p0 p0 p0 o5 . . . o3 . . .  p0 p0 p0 p0 p0 p0 p0 p0 o6 . . . o5 . . .  p0 p0 p0 p0 p0 p0 p0 p0 o8 . . . o7 . . .  p0 p0 p0 p0 o5 . o6 . o7 . o8 . o10 . . .`
+    ),
+    // boss
+    b_main: RF(
+      `p0 p0 p0 p0 p1 p1 p1 p1 p0 p0 p0 p0 p4 p4 p3 p3  p0 p0 p0 p0 p1 p1 p1 p1 p0 p0 p0 p0 p6 p6 p5 p5  o0 . . . o1 . . . o6 . . . o5 . . .  o0 . . . o1 . . . o3 . o4 . o6 . o7 .`
+    ),
+    b_doom: RF(
+      `o0 . . . . . . . . . . . o1 . . .  o0 . . . . . . . o6 . . . o5 . . .  o0 . . . . . . . . . . . o1 . . .  o3 . . . o4 . . . o6 . . . o7 . . .`
+    ),
+    b_gallop: RF(
+      `p0 . p0 p0 o1 . p0 p0 p0 . p0 p0 o3 . o1 .  p0 . p0 p0 o1 . p0 p0 p0 . p0 p0 o6 . o5 .  p0 . p0 p0 o1 . p0 p0 p0 . p0 p0 o3 . o1 .  o8 . o7 . o6 . o5 . o3 . o1 . o0 . . .`
+    ),
+    b_dirge: RF(
+      `o0 . . . . . . . . . . . . . . .  o1 . . . . . . . o0 . . . . . . .  o0 . . . . . . . . . . . o5 . . .  o4 . . . o3 . . . o1 . . . o0 . . .`
+    ),
+    b_march: RF(
+      `p0 . p0 . p0 . p0 . o3 . . . o1 . . .  p0 . p0 . p0 . p0 . o5 . . . o3 . . .  p0 . p0 . p0 . p0 . o6 . . . o5 . . .  o7 . o6 . o5 . o3 . o1 . . . p0 p0 p0 p0`
+    ),
+    b_pulse: RF(
+      `p0 . p0 . . . . . . . . . o1 . . .  p0 . p0 . . . . . . . . . o6 . . .  p0 . p0 . . . . . . . . . o1 . o0 .  p0 . p0 . . . . . o6 . . . o5 . o1 .`
+    ),
+    b_blast: RF(
+      `p0 p0 p0 p0 p0 p0 p0 p0 p1 p1 p1 p1 p1 p1 p1 p1  p0 p0 p0 p0 p0 p0 p0 p0 p6 p6 p6 p6 p5 p5 p5 p5  p0 p0 p0 p0 p0 p0 p0 p0 p1 p1 p1 p1 p1 p1 p1 p1  p3 p3 p3 p3 p4 p4 p4 p4 p6 p6 p6 p6 p7 p7 p7 p7`
+    ),
+    // calm / dread between waves
+    c_low: RF(
+      `o0 . . . . . . . o1 . . . o0 . . .  o3 . . . . . . . o1 . . . . . . .  o0 . . . . . . . o6 . . . o5 . . .  o3 . . . . . . . o1 . . . p0 p0 p0 p0`
+    ),
+    c_still: RF(
+      `o0 . . . . . . . . . . . . . . .  . . . . . . . . . . . . . . . .  o5 . . . . . . . . . . . . . . .  o3 . . . . . . . o1 . . . . . . .`
+    ),
+    none: RF(``),
+  };
+  SONGS = {
+    fight: [
+      ['f_main', 'std', 0],
+      ['f_main', 'std', 0, 'hook'],
+      ['f_gallop', 'gallop', 0],
+      ['f_chorus', 'open', 0, 'hook'],
+      ['f_thrash', 'thrash', 0],
+      ['f_thrash', 'thrash', 5],
+      ['f_chorus', 'open', 5, 'hook'],
+      ['f_break', 'half', 0],
+      ['f_break', 'half', 0, 'build'],
+      ['f_solo', 'std', 0, 'solo'],
+      ['f_solo', 'gallop', 3, 'solo'],
+      ['f_chorus', 'open', 0, 'hook'],
+      ['f_gallop', 'gallop', -2],
+      ['f_main', 'thrash', 0],
+    ],
+    boss: [
+      ['b_doom', 'doom', 0],
+      ['b_main', 'boss', 0],
+      ['b_main', 'boss', 0, 'boss'],
+      ['b_blast', 'blast', 0],
+      ['b_blast', 'blast', 1],
+      ['b_doom', 'doom', 0, 'boss'],
+      ['b_main', 'boss', 3, 'boss'],
+      ['b_blast', 'blast', 0, 'solo'],
+    ],
+    boss_roadkill: [
+      ['b_gallop', 'gallop', 0],
+      ['b_gallop', 'gallop', 0, 'boss'],
+      ['b_blast', 'blast', 0],
+      ['b_main', 'boss', 2, 'boss'],
+      ['b_gallop', 'thrash', 2, 'solo'],
+      ['b_blast', 'blast', 3, 'solo'],
+    ],
+    boss_grave: [
+      ['b_dirge', 'doom', 0, 'bells'],
+      ['b_doom', 'doom', 0, 'bells'],
+      ['b_dirge', 'half', -2, 'bells'],
+      ['b_main', 'boss', 0, 'boss'],
+      ['b_doom', 'doom', -2, 'boss'],
+      ['b_blast', 'blast', 0, 'bells'],
+    ],
+    boss_chief: [
+      ['b_march', 'march', 0],
+      ['b_march', 'march', 0, 'siren'],
+      ['b_main', 'boss', 0, 'boss'],
+      ['b_blast', 'blast', 0],
+      ['b_march', 'thrash', 3, 'siren'],
+      ['b_blast', 'blast', 3, 'solo'],
+    ],
+    boss_pz: [
+      ['b_pulse', 'heart', 1],
+      ['b_pulse', 'heart', 1, 'boss'],
+      ['b_doom', 'doom', 1, 'boss'],
+      ['b_blast', 'blast', 1],
+      ['b_pulse', 'blast', 1, 'solo'],
+      ['b_main', 'boss', 6, 'boss'],
+    ],
+    calm: [
+      ['c_still', 'none', 0, 'bells'],
+      ['c_low', 'calm', 0],
+      ['c_still', 'none', 5, 'arp'],
+      ['c_low', 'calm', 0, 'arp'],
+      ['c_still', 'none', 3, 'bells'],
+      ['c_low', 'calm', -2, 'arp'],
+    ],
+  };
+  MUS.pos = { fight: 0, boss: 0, calm: 0 };
+  MUS.sec = null;
+  MUS.lead = null;
+  SCALE = [0, 2, 3, 5, 7, 8, 10];
+  scaleNote = (deg, base = 64) => base + SCALE[((deg % 7) + 7) % 7] + 12 * Math.floor(deg / 7);
 }

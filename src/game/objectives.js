@@ -1,35 +1,56 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function nightSetup() {
-  obj = null;
-  ev = null;
-  nightHit = false;
-  nightDone = false;
-  const boss = bossNight(wave),
-    last = lastNight(wave);
-  if (last) ev = 'blood';
-  else if (boss) ev = Math.random() < 0.5 ? 'storm' : null;
-  else if (wave >= 4 && Math.random() < 0.32) ev = pick(['blood', 'fog', 'blackout', 'storm']);
-  if (RUN.district === 'cemetery' && !ev && Math.random() < 0.25) ev = 'fog';
-  if (ev && ev === RUN.lastEv && !last) ev = null;
-  RUN.lastEv = ev; // never the same weather two nights running
-  if (TW('dark')) ev = 'blackout';
-  if (ev === 'blood') {
-    const extra = Math.round(queue.length * 0.35);
-    for (let i = 0; i < extra; i++) queue.push(pick(['skitter', 'skitter', 'hound', 'mini']));
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { TAU, clamp, d2, pick, rand } from '../core/util.js';
+import { quad, setH, viewH, viewW } from '../render/sprites.js';
+import { R } from '../render/atlas.js';
+import { solidPt } from '../world/nav.js';
+import { spat, tone } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { ammoTypes, cam } from './state.js';
+import { renderPicks } from './upgrades.js';
+import { hideCallouts } from '../ui/callouts.js';
+import { bossNight, lastNight } from './waves.js';
+import { chips, decal, dust, floatText } from '../render/effects.js';
+import { makeLurker } from './combat.js';
+import { updateHint } from '../ui/settings-ui.js';
+import { smoke } from '../world/fire.js';
+import { makeNoise } from './noise.js';
+import { TW } from './districts.js';
+import { TRAITS, freeSpot, makeSurvivor, rollBud } from '../actors/backups.js';
+import { RADIO, radio, radioKey } from '../audio/radio.js';
+import { OBJ_NAME, finishObjective } from './objective-flow.js';
+export function nightSetup() {
+  GS.obj = null;
+  GS.ev = null;
+  GS.nightHit = false;
+  GS.nightDone = false;
+  const boss = bossNight(GS.wave),
+    last = lastNight(GS.wave);
+  if (last) GS.ev = 'blood';
+  else if (boss) GS.ev = Math.random() < 0.5 ? 'storm' : null;
+  else if (GS.wave >= 4 && Math.random() < 0.32) GS.ev = pick(['blood', 'fog', 'blackout', 'storm']);
+  if (GS.RUN.district === 'cemetery' && !GS.ev && Math.random() < 0.25) GS.ev = 'fog';
+  if (GS.ev && GS.ev === GS.RUN.lastEv && !last) GS.ev = null;
+  GS.RUN.lastEv = GS.ev; // never the same weather two nights running
+  if (TW('dark')) GS.ev = 'blackout';
+  if (GS.ev === 'blood') {
+    const extra = Math.round(GS.queue.length * 0.35);
+    for (let i = 0; i < extra; i++) GS.queue.push(pick(['skitter', 'skitter', 'hound', 'mini']));
   }
-  const J = RUN.job;
-  RUN.job = null;
-  RUN.jobPend = false;
-  RUN.low = false; // tonight's work is the job you took at dawn; most nights have none
+  const J = GS.RUN.job;
+  GS.RUN.job = null;
+  GS.RUN.jobPend = false;
+  GS.RUN.low = false; // tonight's work is the job you took at dawn; most nights have none
   if (J && !boss && !last) {
     if (J.t === 'low') {
-      RUN.low = true;
-      queue = queue.filter((_, i) => i % 5 !== 4);
+      GS.RUN.low = true;
+      GS.queue = GS.queue.filter((_, i) => i % 5 !== 4);
     } else {
       makeObj(J.t);
-      if (obj) {
-        obj.rw = J.rw;
-        if (obj.s && J.rw && J.rw.nm) obj.s.bud = J.rw;
+      if (GS.obj) {
+        GS.obj.rw = J.rw;
+        if (GS.obj.s && J.rw && J.rw.nm) GS.obj.s.bud = J.rw;
       }
     }
   }
@@ -39,25 +60,25 @@ function makeObj(type) {
     const base = { box: 'fuel', hale: 'rescue', relay: 'gen', scouts: 'hunt' }[type];
     if (type === 'box') makeBox();
     else makeObj(base);
-    obj.job = type;
-    obj.fav = true;
-    obj.title = JOBS[type].name;
+    GS.obj.job = type;
+    GS.obj.fav = true;
+    GS.obj.title = JOBS[type].name;
     return;
   }
   if (type === 'gen') {
     const [x, y] = freeSpot(170, 320);
-    obj = { type, x, y, hp: 500 + wave * 70, max: 500 + wave * 70 };
+    GS.obj = { type, x, y, hp: 500 + GS.wave * 70, max: 500 + GS.wave * 70 };
   } else if (type === 'rescue') {
     const [x, y] = freeSpot(550, 900);
-    obj = { type, s: makeSurvivor(x, y), state: 'wait' };
+    GS.obj = { type, s: makeSurvivor(x, y), state: 'wait' };
   } else if (type === 'hunt') {
-    obj = { type, got: 0, need: 3 };
-    const n = queue.length;
-    [0.18, 0.42, 0.66].forEach((f, k) => queue.splice(Math.round(n * f) + k, 0, 'hunt'));
+    GS.obj = { type, got: 0, need: 3 };
+    const n = GS.queue.length;
+    [0.18, 0.42, 0.66].forEach((f, k) => GS.queue.splice(Math.round(n * f) + k, 0, 'hunt'));
   } // three marked elites, spread through the night
   else {
     const meds = type === 'meds';
-    obj = {
+    GS.obj = {
       type: 'fuel',
       job: meds ? 'meds' : undefined,
       title: meds ? 'Pharmacy run' : undefined,
@@ -66,9 +87,9 @@ function makeObj(type) {
       cans: [],
       got: 0,
     };
-    for (let i = 0; i < obj.need; i++) {
+    for (let i = 0; i < GS.obj.need; i++) {
       const [x, y] = freeSpot(260, 1100);
-      obj.cans.push({
+      GS.obj.cans.push({
         x,
         y,
         got: false,
@@ -82,8 +103,8 @@ function makeObj(type) {
 function makeBox() {
   // the crash: a burnt-out convoy truck somewhere out there, its load strewn round it; the box is in one of the piles
   const [x, y] = freeSpot(650, 1150),
-    a = Math.atan2(y - P.y, x - P.x);
-  obj = {
+    a = Math.atan2(y - GS.P.y, x - GS.P.x);
+  GS.obj = {
     type: 'box',
     got: 0,
     need: 1,
@@ -95,9 +116,9 @@ function makeBox() {
       Math.round((((a % TAU) + TAU) % TAU) / (TAU / 8)) % 8
     ],
   };
-  wrecks.push({ x, y, a: rand(0, TAU), s: 1.5, sm: 0, crash: true });
+  GS.wrecks.push({ x, y, a: rand(0, TAU), s: 1.5, sm: 0, crash: true });
   decal(R.scorch, x, y, 2.2, [1, 1, 1, 0.9], [0, 0, 0], 600);
-  for (let k = 0, tries = 0; obj.piles.length < 5 && tries < 80; tries++) {
+  for (let k = 0, tries = 0; GS.obj.piles.length < 5 && tries < 80; tries++) {
     const pa = rand(0, TAU),
       pd = rand(70, 210),
       px = x + Math.cos(pa) * pd,
@@ -106,27 +127,27 @@ function makeBox() {
       solidPt(px, py) ||
       solidPt(px + 14, py) ||
       solidPt(px - 14, py) ||
-      obj.piles.some(q => Math.hypot(q.x - px, q.y - py) < 70)
+      GS.obj.piles.some(q => Math.hypot(q.x - px, q.y - py) < 70)
     )
       continue;
-    obj.piles.push({ x: px, y: py, r: rand(0, TAU), v: k++, prog: 0, done: false });
+    GS.obj.piles.push({ x: px, y: py, r: rand(0, TAU), v: k++, prog: 0, done: false });
   }
-  if (!obj.piles.length) obj.piles.push({ x: x + 60, y, r: 0, v: 0, prog: 0, done: false });
-  obj.piles[(Math.random() * obj.piles.length) | 0].box = true;
+  if (!GS.obj.piles.length) GS.obj.piles.push({ x: x + 60, y, r: 0, v: 0, prog: 0, done: false });
+  GS.obj.piles[(Math.random() * GS.obj.piles.length) | 0].box = true;
 }
-const BOX_SEARCH = 2;
-function boxSignal() {
-  const o = obj;
+export const BOX_SEARCH = 2;
+export function boxSignal() {
+  const o = GS.obj;
   if (!o || o.type !== 'box') return 0;
   const b = o.piles.find(q => q.box) || o.crash;
-  return o.batt * clamp(1 - Math.hypot(b.x - P.x, b.y - P.y) / 1500, 0, 1);
+  return o.batt * clamp(1 - Math.hypot(b.x - GS.P.x, b.y - GS.P.y) / 1500, 0, 1);
 }
-function updateBox(dt) {
+export function updateBox(dt) {
   // the beacon dies as the night goes on; you read its signal, find the wreck, and search the piles one by one, standing still while they come
-  const o = obj;
-  if (nightLive && !nightDone) o.batt = Math.max(0, o.batt - dt / 80);
+  const o = GS.obj;
+  if (GS.nightLive && !GS.nightDone) o.batt = Math.max(0, o.batt - dt / 80);
   const bx = o.piles.find(q => q.box),
-    d = Math.hypot(bx.x - P.x, bx.y - P.y);
+    d = Math.hypot(bx.x - GS.P.x, bx.y - GS.P.y);
   if (o.batt > 0 && d < 260) {
     o.bp = (o.bp ?? 0) - dt;
     if (o.bp <= 0) {
@@ -148,11 +169,11 @@ function updateBox(dt) {
   )
     smoke(o.crash.x + rand(-20, 20), o.crash.y + rand(-10, 10), 1, 80, true); // the wreck still smoulders: a smoke column you can steer by
   let cur = null;
-  for (const q of o.piles) if (!q.done && d2(q.x, q.y, P.x, P.y) < 40 * 40) cur = q;
+  for (const q of o.piles) if (!q.done && d2(q.x, q.y, GS.P.x, GS.P.y) < 40 * 40) cur = q;
   o.cur = cur;
   for (const q of o.piles) if (q !== cur && !q.done) q.prog = Math.max(0, q.prog - dt * 0.5);
   if (!cur) return;
-  const still = Math.hypot(P.vx, P.vy) < 40 && !P.held;
+  const still = Math.hypot(GS.P.vx, GS.P.vy) < 40 && !GS.P.held;
   o.still = still;
   if (!still) return;
   if (cur.prog === 0) {
@@ -177,7 +198,16 @@ function updateBox(dt) {
   if (r < 0.45) {
     const ts = ammoTypes();
     if (ts.length)
-      pickups.push({ k: 'ammo', at: pick(ts), v: 1, x: cur.x, y: cur.y, vx: rand(-50, 50), vy: rand(-50, 50), t: 0 });
+      GS.pickups.push({
+        k: 'ammo',
+        at: pick(ts),
+        v: 1,
+        x: cur.x,
+        y: cur.y,
+        vx: rand(-50, 50),
+        vy: rand(-50, 50),
+        t: 0,
+      });
     floatText(cur.x, cur.y - 30, 'Not here · a box of rounds', '#cfd6d9', 14);
   } else if (r < 0.75) floatText(cur.x, cur.y - 30, 'Not here', '#cfd6d9', 14);
   else {
@@ -186,7 +216,7 @@ function updateBox(dt) {
     floatText(cur.x, cur.y - 30, 'Not here', '#cfd6d9', 14);
   } // and sometimes one of the bodies in the wreckage isn't dead
 }
-function drawPile(q) {
+export function drawPile(q) {
   // a heap of the truck's load: a split crate, a tyre, scattered scrap; searched, it is kicked flat
   const k = q.done ? 0.42 : 0.62,
     c = Math.cos(q.r),
@@ -245,8 +275,8 @@ function drawPile(q) {
     quad(R.pixel, sx, sy, q.r + 0.6, 0.5, 2.6, 1, 0.72, 0.15, 1, 0.55, 0.36, 0.06, 0);
   } /* a hazard-yellow cargo strap across the crate: convoy load, not street junk */
 }
-const objKey = () => obj.job || obj.type,
-  objName = () => obj.title || OBJ_NAME[obj.type];
+export const objKey = () => GS.obj.job || GS.obj.type,
+  objName = () => GS.obj.title || OBJ_NAME[GS.obj.type];
 // ---- Channel 9 jobs: on a few dawns (never before a boss) the convoy offers work for the coming night. Take one for its pay, or lie low
 const JOB_RW = { crate: 'Supply drop', scrap: '+50 scrap', reroll: '+2 rerolls' };
 const JOBS = {
@@ -289,13 +319,13 @@ const JOBS = {
   },
   low: { name: 'Lie low', desc: 'No job tonight. A fifth fewer dead come out.', risk: 'Quiet' },
 };
-const FAVOURS = ['box', 'hale', 'relay', 'scouts'];
-const jobNight = w =>
-  !RUN.practice &&
-  !RUN.tut &&
+export const FAVOURS = ['box', 'hale', 'relay', 'scouts'];
+export const jobNight = w =>
+  !GS.RUN.practice &&
+  !GS.RUN.tut &&
   !bossNight(w) &&
   !lastNight(w) &&
-  (RUN.endless ? w % 5 === 2 : (RUN.jobN || []).includes(w));
+  (GS.RUN.endless ? w % 5 === 2 : (GS.RUN.jobN || []).includes(w));
 function jobPay(t, rw) {
   return (t === 'low' ? '' : `+${t === 'gen' || t === 'relay' ? 25 : 30} scrap, ammo · `) + jobPay0(t, rw);
 }
@@ -303,13 +333,13 @@ function jobPay0(t, rw) {
   if (FAVOURS.includes(t))
     return (
       (t === 'hale'
-        ? buddies.length < 3
+        ? GS.buddies.length < 3
           ? 'She joins as your medic'
           : 'Team full: she rides with the convoy · +15 max health'
-        : JOB_RW[rw]) + ` · ${RUN.voice || 'Reyes'} owes you`
+        : JOB_RW[rw]) + ` · ${GS.RUN.voice || 'Reyes'} owes you`
     );
   if (t === 'rescue')
-    return buddies.length < 3
+    return GS.buddies.length < 3
       ? `${rw ? rw.nm + ', ' + TRAITS[rw.tr].name.toLowerCase() + ',' : 'They'} joins your backup · +15 max health`.replace(
           'They joins',
           'They join'
@@ -319,17 +349,17 @@ function jobPay0(t, rw) {
   if (t === 'low') return 'Full heal at dawn · +1 reroll';
   return JOB_RW[rw];
 }
-function openJobs() {
-  if (!RUN.jobPend) return;
-  if (state !== 'play') {
-    if (state === 'levelup' || state === 'pause') later.push({ t: 0.4, fn: openJobs });
+export function openJobs() {
+  if (!GS.RUN.jobPend) return;
+  if (GS.state !== 'play') {
+    if (GS.state === 'levelup' || GS.state === 'pause') GS.later.push({ t: 0.4, fn: openJobs });
     return;
   }
-  const fi0 = RUN.endless ? -1 : (RUN.jobN || []).indexOf(wave + 1),
+  const fi0 = GS.RUN.endless ? -1 : (GS.RUN.jobN || []).indexOf(GS.wave + 1),
     fb = { box: 'fuel', hale: 'rescue', relay: 'gen', scouts: 'hunt' }[FAVOURS[fi0]]; // never her favour and the same kind of job side by side
   const pool = ['gen', 'rescue', 'fuel', 'meds']
-      .concat(wave + 1 >= 6 ? ['hunt'] : [])
-      .filter(t => t !== RUN.lastJob && t !== fb),
+      .concat(GS.wave + 1 >= 6 ? ['hunt'] : [])
+      .filter(t => t !== GS.RUN.lastJob && t !== fb),
     rws = ['crate', 'scrap', 'reroll'];
   for (let i = rws.length - 1; i > 0; i--) {
     const j = (Math.random() * (i + 1)) | 0;
@@ -339,41 +369,42 @@ function openJobs() {
     id: 'job_' + t,
     job: t,
     rw,
-    cat: t === 'low' ? 'No job' : FAVOURS.includes(t) ? `${RUN.voice || 'Reyes'} asks` : 'Job',
+    cat: t === 'low' ? 'No job' : FAVOURS.includes(t) ? `${GS.RUN.voice || 'Reyes'} asks` : 'Job',
     risk: JOBS[t].risk,
     name: JOBS[t].name,
     desc: JOBS[t].desc,
     pay: jobPay(t, rw),
     max: 1,
     apply() {
-      RUN.job = { t, rw };
-      RUN.jobPend = false;
-      if (t !== 'low') RUN.lastJob = t;
+      GS.RUN.job = { t, rw };
+      GS.RUN.jobPend = false;
+      if (t !== 'low') GS.RUN.lastJob = t;
       radio(t === 'low' ? RADIO.jobLow : RADIO.jobOk);
     },
   });
-  picks = [];
-  while (picks.length < 2 && pool.length) {
+  GS.picks = [];
+  while (GS.picks.length < 2 && pool.length) {
     const t = pool.splice((Math.random() * pool.length) | 0, 1)[0];
-    picks.push(mk(t, t === 'rescue' ? rollBud() : t === 'meds' ? null : rws.pop()));
+    GS.picks.push(mk(t, t === 'rescue' ? rollBud() : t === 'meds' ? null : rws.pop()));
   }
   {
-    const fi = RUN.endless ? -1 : (RUN.jobN || []).indexOf(wave + 1),
+    const fi = GS.RUN.endless ? -1 : (GS.RUN.jobN || []).indexOf(GS.wave + 1),
       ft = FAVOURS[fi];
-    if (ft && picks.length) picks[0] = mk(ft, ft === 'hale' ? { nm: 'Dr. Hale', tr: 'medic' } : rws.pop() || 'scrap');
+    if (ft && GS.picks.length)
+      GS.picks[0] = mk(ft, ft === 'hale' ? { nm: 'Dr. Hale', tr: 'medic' } : rws.pop() || 'scrap');
   } // her favour takes one of the two job slots
-  picks.push(mk('low', null));
-  pickSource = 'job';
+  GS.picks.push(mk('low', null));
+  GS.pickSource = 'job';
   renderPicks();
   $('rerollBtn').hidden = true;
   updateHint();
-  $('luEye').textContent = `Channel 9 · night ${wave + 1}`;
+  $('luEye').textContent = `Channel 9 · night ${GS.wave + 1}`;
   $('luTitle').textContent = 'The convoy has work';
   hideCallouts();
-  state = 'levelup';
+  GS.state = 'levelup';
   $('levelup').hidden = false;
   radioKey();
-  luOpenT = performance.now() + 650;
+  GS.luOpenT = performance.now() + 650;
   $('levelup').classList.add('arming');
   setTimeout(() => $('levelup').classList.remove('arming'), 650);
 }

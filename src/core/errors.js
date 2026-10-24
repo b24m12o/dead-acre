@@ -1,6 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-let fatalStopped = false,
-  fatalShown = false;
+import { GS } from './gs.js';
+
+export let fatalStopped, fatalShown;
 function showFatalError(reason) {
   if (fatalShown) return;
   fatalShown = true;
@@ -59,21 +60,29 @@ function showFatalError(reason) {
   document.body.append(panel);
   button.focus();
 }
-let inFrame = false,
-  booted = false; // only an error that kills the game loop (or stops the game from starting) stops the game; a hiccup in a menu handler or a font that fails to load does not
-addEventListener('error', e => {
-  if (e && e.error && (inFrame || !booted)) {
-    const l = document.getElementById('loading');
-    if (l) l.hidden = true;
-    showFatalError(e.error.message || e.message || e.error);
-  }
-});
-addEventListener('unhandledrejection', e => {
-  console.warn('Dead Acre: async failure', e && e.reason);
-  if (!booted) {
-    const l = document.getElementById('loading');
-    if (l) l.hidden = true;
-    showFatalError((e && e.reason && e.reason.message) || String(e && e.reason));
-  }
-});
-const $ = id => document.getElementById(id);
+export let $;
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  'use strict';
+  fatalStopped = false;
+  fatalShown = false;
+  GS.inFrame = false;
+  GS.booted = false;
+  addEventListener('error', e => {
+    if (e && e.error && (GS.inFrame || !GS.booted)) {
+      const l = document.getElementById('loading');
+      if (l) l.hidden = true;
+      showFatalError(e.error.message || e.message || e.error);
+    }
+  });
+  addEventListener('unhandledrejection', e => {
+    console.warn('Dead Acre: async failure', e && e.reason);
+    if (!GS.booted) {
+      const l = document.getElementById('loading');
+      if (l) l.hidden = true;
+      showFatalError((e && e.reason && e.reason.message) || String(e && e.reason));
+    }
+  });
+  $ = id => document.getElementById(id);
+}

@@ -1,8 +1,33 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-let FOGB = 0,
-  FOGBT = 0,
-  bossDue = false;
-const BOSS_PRE = {
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { TAU, d2, rand, randi } from '../core/util.js';
+import { saveMeta } from '../core/settings.js';
+import { R } from '../render/atlas.js';
+import { MW, TILE, WH, WW, cars, houses, lamps } from '../world/map.js';
+import { flow, solidPt } from '../world/nav.js';
+import { MUS, noise, spat } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { cam, dropAmmo } from './state.js';
+import { showStreak } from '../ui/callouts.js';
+import { makeEnemy } from '../actors/enemies.js';
+import { banner, lastNight, spawnPoint } from './waves.js';
+import { bleed, chips, decal, dust, flashLight, part, pool, ring, shake, sparks } from '../render/effects.js';
+import { dropCrate } from './combat.js';
+import { bossDeathSfx } from '../actors/bosses.js';
+import { BILE } from '../render/draw-enemies.js';
+import { LAMPV } from '../render/decor.js';
+import { damageCar, firePool } from '../world/fire.js';
+import { startAlarm } from './noise.js';
+import { DISTRICTS, FINAL_NIGHT, INF, TW } from './districts.js';
+import { radio, tip } from '../audio/radio.js';
+import { PRACTICE_SET } from './practice.js';
+import { nightCleared } from './night-flow.js';
+import { startEvac } from './evac.js';
+GS.FOGB = 0;
+GS.FOGBT = 0;
+GS.bossDue = false;
+export const BOSS_PRE = {
   abom: 'The streetlights are going out',
   roadkill: 'A car alarm is screaming somewhere',
   grave: 'The bell on the hill is ringing',
@@ -49,30 +74,30 @@ const BOSS_RADIO = {
     kill: 'Patient Zero is down! The bird is in the air. Get to the landing zone.',
   },
 };
-function bossType() {
-  return !RUN.endless && wave === FINAL_NIGHT
+export function bossType() {
+  return !GS.RUN.endless && GS.wave === FINAL_NIGHT
     ? 'pz'
-    : !RUN.endless && wave === 10
+    : !GS.RUN.endless && GS.wave === 10
       ? 'chief'
-      : RUN.district === 'highway'
+      : GS.RUN.district === 'highway'
         ? 'roadkill'
-        : RUN.district === 'cemetery'
+        : GS.RUN.district === 'cemetery'
           ? 'grave'
           : 'abom';
 }
 function bossSubText() {
-  const t = lastNight(wave)
+  const t = lastNight(GS.wave)
     ? 'Shoot it as it breathes in, then get out of its sight'
-    : !RUN.endless && wave === 10
+    : !GS.RUN.endless && GS.wave === 10
       ? 'Fireproof. Shoot the air tank on its back'
-      : DISTRICTS[RUN.district || 'town'].bossSub;
-  return RUN.practice ? 'Boss practice · ' + t : t;
+      : DISTRICTS[GS.RUN.district || 'town'].bossSub;
+  return GS.RUN.practice ? 'Boss practice · ' + t : t;
 }
-function fmtT(s) {
+export function fmtT(s) {
   s = Math.max(0, Math.round(s));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
-function freeAround(x, y, r = 22) {
+export function freeAround(x, y, r = 22) {
   return (
     x > 4 * TILE &&
     y > 4 * TILE &&
@@ -90,8 +115,8 @@ function stageSpot(d0, d1) {
     const a = rand(0, TAU),
       r = rand(d0, d1);
     if (k < 50 && Math.abs(Math.sin(a)) > 0.55) continue;
-    /* the screen is wider than tall: arrive from the side where it can be seen */ const x = P.x + Math.cos(a) * r,
-      y = P.y + Math.sin(a) * r;
+    /* the screen is wider than tall: arrive from the side where it can be seen */ const x = GS.P.x + Math.cos(a) * r,
+      y = GS.P.y + Math.sin(a) * r;
     if (!freeAround(x, y, 30)) continue;
     const tx = Math.floor(x / TILE),
       ty = Math.floor(y / TILE);
@@ -102,7 +127,7 @@ function stageSpot(d0, d1) {
 } // close enough to watch it arrive, on ground it can walk from
 function lampOff(L, quiet) {
   if (L.down || L.off) return;
-  L.off = time;
+  L.off = GS.time;
   L.on = 0;
   if (!quiet) {
     sparks(L.hx, L.hy - LAMPV(L), [1, 0.9, 0.6], 8, 220);
@@ -111,10 +136,10 @@ function lampOff(L, quiet) {
 }
 function lampsOff(list, gap, t0 = 0, who) {
   list.forEach((L, i) =>
-    later.push({
+    GS.later.push({
       t: t0 + i * gap,
       fn: () => {
-        if (state === 'play' && !(who && who.dead)) lampOff(L);
+        if (GS.state === 'play' && !(who && who.dead)) lampOff(L);
       },
     })
   );
@@ -123,7 +148,7 @@ function lampsOff(list, gap, t0 = 0, who) {
 function lampsNear(x, y, r, max, far, keep = 0) {
   const d = L => d2(L.bx, L.by, x, y),
     l = lamps
-      .filter(L => !L.down && !L.off && d(L) < r * r && d2(L.bx, L.by, P.x, P.y) > keep * keep)
+      .filter(L => !L.down && !L.off && d(L) < r * r && d2(L.bx, L.by, GS.P.x, GS.P.y) > keep * keep)
       .sort((a, b) => d(a) - d(b))
       .slice(0, max);
   return far ? l.reverse() : l;
@@ -134,15 +159,15 @@ function lampsBack() {
   for (const L of lamps)
     if (L.off) {
       const l = L;
-      later.push({
+      GS.later.push({
         t: i++ * 0.07,
         fn: () => {
           l.off = 0;
-          l.on = time;
+          l.on = GS.time;
         },
       });
     }
-  FOGBT = 0;
+  GS.FOGBT = 0;
 } // the power comes back: every dead light stutters on again
 function ringFires(cx, cy, n, r0, r1, life, t0 = 0) {
   for (let i = 0, k = 0; i < n * 3 && k < n; i++) {
@@ -152,10 +177,10 @@ function ringFires(cx, cy, n, r0, r1, life, t0 = 0) {
       y = cy + Math.sin(a) * r;
     if (!freeAround(x, y, 12)) continue;
     const kk = k++;
-    later.push({
+    GS.later.push({
       t: t0 + kk * 0.15,
       fn: () => {
-        if (state !== 'play') return;
+        if (GS.state !== 'play') return;
         firePool(x, y, rand(34, 50), life);
         flashLight(x, y, 180, [1.4, 0.7, 0.3], 0.2);
         for (let j = 0; j < 4; j++)
@@ -180,47 +205,47 @@ function ringFires(cx, cy, n, r0, r1, life, t0 = 0) {
 }
 function whenPlay(fn) {
   const g = () => {
-    if (state === 'play') return fn();
-    if (state === 'levelup' || state === 'pause') later.push({ t: 0.1, fn: g });
-    else bossDue = false;
+    if (GS.state === 'play') return fn();
+    if (GS.state === 'levelup' || GS.state === 'pause') GS.later.push({ t: 0.1, fn: g });
+    else GS.bossDue = false;
   };
   return g;
 } // a card or the pause menu on the same tick must not cancel a boss
-function bossEntrance(bt, quick) {
+export function bossEntrance(bt, quick) {
   // nothing just digs up any more: each boss announces itself its own way, and the camera leans toward it
-  bossDue = true;
+  GS.bossDue = true;
   const L = BOSS_RADIO[bt];
   if (L) for (const l of [].concat(L.pre)) radio(l);
-  later.push({ t: quick ? 0.6 : 2.2, fn: whenPlay(() => (ENTRANCE[bt] || ENTRANCE.walk)()) });
+  GS.later.push({ t: quick ? 0.6 : 2.2, fn: whenPlay(() => (ENTRANCE[bt] || ENTRANCE.walk)()) });
 }
 function gzSecond() {
-  if (!RUN.gzDue) return;
-  if (state === 'levelup' || state === 'pause') {
-    later.push({ t: 0.2, fn: gzSecond });
+  if (!GS.RUN.gzDue) return;
+  if (GS.state === 'levelup' || GS.state === 'pause') {
+    GS.later.push({ t: 0.2, fn: gzSecond });
     return;
   }
-  if (state !== 'play' || evac) return;
-  RUN.gzDue = false;
+  if (GS.state !== 'play' || GS.evac) return;
+  GS.RUN.gzDue = false;
   showStreak('Another one', 'A second Patient Zero is coming');
   const [x, y] = stageSpot(520, 680);
   bossArrive(x, y, true);
 }
 function bossArrive_tip() {
-  later.push({
+  GS.later.push({
     t: 9,
     fn: () => {
-      if (state === 'play' && boss && !boss.dead) tip('boss');
+      if (GS.state === 'play' && GS.boss && !GS.boss.dead) tip('boss');
     },
   });
 }
 function bossArrive(x, y, walk) {
-  bossDue = false;
-  if (state !== 'play') return null;
+  GS.bossDue = false;
+  if (GS.state !== 'play') return null;
   bossArrive_tip();
   const e = makeEnemy('queen', x, y);
-  nightLive = true;
-  if (RUN.practice) RUN.t0 = time;
-  /* the practice clock starts when it shows up */ e.a = Math.atan2(P.y - y, P.x - x);
+  GS.nightLive = true;
+  if (GS.RUN.practice) GS.RUN.t0 = GS.time;
+  /* the practice clock starts when it shows up */ e.a = Math.atan2(GS.P.y - y, GS.P.x - x);
   if (walk) {
     e.emerge = 1;
     e.st = 'roar';
@@ -241,7 +266,7 @@ function bossArrive(x, y, walk) {
   banner(bossName(), bossSubText(), true);
   sfx.roar(x, y, e.btype);
   shake(0.3);
-  if (!enemies.some(o => o !== e && o.type === 'queen' && !o.dead)) {
+  if (!GS.enemies.some(o => o !== e && o.type === 'queen' && !o.dead)) {
     MUS.bt = e.btype;
     MUS.pos.boss = 0;
     MUS.bph = 0;
@@ -249,10 +274,10 @@ function bossArrive(x, y, walk) {
     MUS.sec = null;
   }
   /* its own music, from the top */ cam.peek = { x, y, t: 1.6 };
-  if (lastNight(wave) && INF(10) && !RUN.practice && !RUN.gzDone) {
-    RUN.gzDone = true;
-    RUN.gzDue = true;
-    later.push({ t: 20, fn: gzSecond });
+  if (lastNight(GS.wave) && INF(10) && !GS.RUN.practice && !GS.RUN.gzDone) {
+    GS.RUN.gzDone = true;
+    GS.RUN.gzDue = true;
+    GS.later.push({ t: 20, fn: gzSecond });
   } // Ground Zero: a second one always follows
   return e;
 }
@@ -260,34 +285,34 @@ const ENTRANCE = {
   walk() {
     const [x, y] = stageSpot(520, 680);
     cam.peek = { x, y, t: 2.2 };
-    later.push({ t: 0.6, fn: () => bossArrive(x, y, true) });
+    GS.later.push({ t: 0.6, fn: () => bossArrive(x, y, true) });
   },
   abom() {
     // the lights around where it will surface die one after another, it clicks, then it bursts out of the street
     const [x, y] = stageSpot(500, 640),
       n = lampsOff(lampsNear(x, y, 430, 6), 0.3);
     cam.peek = { x, y, t: 2.6 + n * 0.3 };
-    later.push({
+    GS.later.push({
       t: 0.5 + n * 0.3,
       fn: () => {
-        if (state === 'play') sfx.chitter(x, y, 0.9);
+        if (GS.state === 'play') sfx.chitter(x, y, 0.9);
       },
     });
-    later.push({ t: 1.3 + n * 0.3, fn: () => bossArrive(x, y, false) });
+    GS.later.push({ t: 1.3 + n * 0.3, fn: () => bossArrive(x, y, false) });
   },
   roadkill() {
     // an alarm starts screaming down the road, then the car comes apart and it climbs out of the wreck
-    const dd = c => Math.hypot(c.x - P.x, c.y - P.y),
+    const dd = c => Math.hypot(c.x - GS.P.x, c.y - GS.P.y),
       car = cars
         .filter(c => !c.dead && !c.burnt && dd(c) > 380 && dd(c) < 820)
         .sort((a, b) => Math.abs(dd(a) - 560) - Math.abs(dd(b) - 560))[0];
     if (!car) return ENTRANCE.walk();
     startAlarm(car);
     cam.peek = { x: car.x, y: car.y, t: 3.4 };
-    later.push({
+    GS.later.push({
       t: 1.9,
       fn: whenPlay(() => {
-        const a = Math.atan2(P.y - car.y, P.x - car.x);
+        const a = Math.atan2(GS.P.y - car.y, GS.P.x - car.x);
         let x = car.x,
           y = car.y;
         for (let k = 40; k < 220; k += 8) {
@@ -345,9 +370,9 @@ const ENTRANCE = {
           [(o.x + o.w) * TILE + 34, cy],
         ]) {
           if (!freeAround(x, y, 22)) continue;
-          const d = Math.hypot(x - P.x, y - P.y);
+          const d = Math.hypot(x - GS.P.x, y - GS.P.y);
           if (d < 420 || d > 950) continue;
-          const sc = Math.abs(d - 600) + Math.abs(y - P.y) * 0.6;
+          const sc = Math.abs(d - 600) + Math.abs(y - GS.P.y) * 0.6;
           if (sc < bs) {
             bs = sc;
             best = [x, y];
@@ -355,22 +380,22 @@ const ENTRANCE = {
         }
       }
     const [x, y] = best || stageSpot(520, 680);
-    FOGBT = Math.max(FOGBT, 0.75);
+    GS.FOGBT = Math.max(GS.FOGBT, 0.75);
     cam.peek = { x, y, t: 3.8 };
     for (let i = 0; i < 3; i++)
-      later.push({
+      GS.later.push({
         t: i * 0.85,
         fn: () => {
-          if (state === 'play') sfx.bell(x, y);
+          if (GS.state === 'play') sfx.bell(x, y);
         },
       });
-    later.push({
+    GS.later.push({
       t: 2.2,
       fn: () => {
-        if (state === 'play') sfx.creak(x, y);
+        if (GS.state === 'play') sfx.creak(x, y);
       },
     });
-    later.push({
+    GS.later.push({
       t: 2.9,
       fn: whenPlay(() => {
         dust(x, y, 10, 70, 1.2, 1);
@@ -384,13 +409,13 @@ const ENTRANCE = {
     sfx.siren(x, y, 2);
     cam.peek = { x, y, t: 3.4 };
     ringFires(x, y, 7, 60, 100, 18, 0.5);
-    later.push({
+    GS.later.push({
       t: 1.5,
       fn: () => {
-        if (state === 'play') sfx.radio(x, y);
+        if (GS.state === 'play') sfx.radio(x, y);
       },
     });
-    later.push({
+    GS.later.push({
       t: 2.3,
       fn: whenPlay(() => {
         sfx.breath(x, y, true);
@@ -401,19 +426,19 @@ const ENTRANCE = {
   pz() {
     // the lights go out one by one, from the far end of town toward you, and then you hear it breathing
     const [x, y] = stageSpot(560, 720),
-      n = lampsOff(lampsNear(P.x, P.y, 1100, 8, true, 200), 0.32, 0.8),
+      n = lampsOff(lampsNear(GS.P.x, GS.P.y, 1100, 8, true, 200), 0.32, 0.8),
       tA = 1.4 + n * 0.32;
-    later.push({
+    GS.later.push({
       t: tA - 0.6,
       fn: () => {
-        if (state === 'play') sfx.breath(x, y, true);
+        if (GS.state === 'play') sfx.breath(x, y, true);
       },
     });
-    later.push({ t: tA, fn: () => bossArrive(x, y, true) });
+    GS.later.push({ t: tA, fn: () => bossArrive(x, y, true) });
   },
 };
-function arenaPhase(e, ph, skip) {
-  if (!skip && !RUN.practice) for (let i = 0; i < 2; i++) dropAmmo(e.x, e.y, 1.5, 120); // each boss changes the place it fights in when it gets hurt (a burst through two phases plays both)
+export function arenaPhase(e, ph, skip) {
+  if (!skip && !GS.RUN.practice) for (let i = 0; i < 2; i++) dropAmmo(e.x, e.y, 1.5, 120); // each boss changes the place it fights in when it gets hurt (a burst through two phases plays both)
   const bt = e.btype,
     L = BOSS_RADIO[bt];
   if (L && !skip) radio(ph === 1 ? L.p1 : L.p2);
@@ -422,18 +447,18 @@ function arenaPhase(e, ph, skip) {
     else {
       for (const l of lamps)
         if (!l.down && !l.off && !l.lantern && !l.broken && Math.random() < 0.6) l.broken = l.bflick = true;
-      sfx.lampPop(P.x, P.y);
+      sfx.lampPop(GS.P.x, GS.P.y);
     }
   } // it feeds on the grid: first the block goes dark, then the lights all over town start to stutter
   else if (bt === 'roadkill') {
-    const dd = c => d2(c.x, c.y, P.x, P.y),
+    const dd = c => d2(c.x, c.y, GS.P.x, GS.P.y),
       pool2 = cars.filter(c => !c.dead && !c.fire && !c.burnt && dd(c) > 260 * 260 && dd(c) < 900 * 900);
     for (let i = 0; i < (ph === 1 ? 1 : 3) && pool2.length; i++) {
       const c = pool2.splice(randi(0, pool2.length - 1), 1)[0];
-      later.push({
+      GS.later.push({
         t: 0.4 + i * 0.6,
         fn: () => {
-          if (state === 'play' && !c.dead) {
+          if (GS.state === 'play' && !c.dead) {
             c.fire = 1;
             flashLight(c.x, c.y, 260, [1.5, 0.7, 0.3], 0.3);
             dust(c.x, c.y, 6, 60, 1, 1);
@@ -445,38 +470,38 @@ function arenaPhase(e, ph, skip) {
   } // Route 9 starts burning: the wrecks catch, one, then three more
   else if (bt === 'grave') {
     if (ph === 1) {
-      FOGBT = 1;
+      GS.FOGBT = 1;
       sfx.bell(e.x, e.y);
-    } else lampsOff(lampsNear(P.x, P.y, 1400, 16, true, 240), 0.08, 0, e);
+    } else lampsOff(lampsNear(GS.P.x, GS.P.y, 1400, 16, true, 240), 0.08, 0, e);
   } // the fog thickens, then every light on the hill goes out but its lantern
   else if (bt === 'chief') {
-    ringFires(P.x, P.y, ph === 1 ? 5 : 8, 300, 480, 25);
+    ringFires(GS.P.x, GS.P.y, ph === 1 ? 5 : 8, 300, 480, 25);
     if (ph === 2) sfx.siren(e.x, e.y, 1);
   } // the fire spreads down the block
   else if (bt === 'pz') {
     if (ph === 1) lampsOff(lampsNear(e.x, e.y, 800, 8), 0.2, 0, e);
     else {
-      sfx.siren(P.x - 900, P.y, 3, true);
+      sfx.siren(GS.P.x - 900, GS.P.y, 3, true);
       for (let i = 0; i < 20; i++) noise(0.08, 0.035, 220, 80, 'lowpass', 1.5 + i * 0.12);
     }
   } // the dark follows it; then the town siren, and far off, rotors
 }
 function recordBoss(bt, secs) {
-  const pr = RUN.practice;
-  meta.trophies = meta.trophies || {};
-  const t = (meta.trophies[bt] = meta.trophies[bt] || {}),
+  const pr = GS.RUN.practice;
+  GS.meta.trophies = GS.meta.trophies || {};
+  const t = (GS.meta.trophies[bt] = GS.meta.trophies[bt] || {}),
     k = pr ? 'pbest' : 'best',
     nb = !(t[k] <= secs);
   if (nb) t[k] = secs;
   if (!pr) {
     t.n = (t.n || 0) + 1;
-    (RUN.bossLog = RUN.bossLog || []).push({ bt, secs, nb, first: t.n === 1 });
+    (GS.RUN.bossLog = GS.RUN.bossLog || []).push({ bt, secs, nb, first: t.n === 1 });
   }
   saveMeta();
   return { nb, first: !pr && t.n === 1 };
 }
-function bossLogHtml() {
-  const l = RUN.bossLog || [];
+export function bossLogHtml() {
+  const l = GS.RUN.bossLog || [];
   if (!l.length) return '';
   return (
     '<div class="blog">' +
@@ -489,103 +514,103 @@ function bossLogHtml() {
     '</div>'
   );
 }
-function bossDown(e, alone) {
+export function bossDown(e, alone) {
   // the kill is a checkpoint: the horde breaks, the lights come back, the convoy drops a crate
-  if (alone && RUN.gzDue) {
+  if (alone && GS.RUN.gzDue) {
     alone = false;
-    bossDue = true;
-    later.push({ t: 2.5, fn: gzSecond });
+    GS.bossDue = true;
+    GS.later.push({ t: 2.5, fn: gzSecond });
   } // Ground Zero: killed the first one early, so the second comes now
   const bt = e.btype,
-    secs = time - (e.t0 || time),
+    secs = GS.time - (e.t0 || GS.time),
     tr = recordBoss(bt, Math.round(secs)),
     nm = bossName();
   bossDeathSfx(e);
   if (alone)
     MUS.cutT =
-      time +
-      (RUN.practice
+      GS.time +
+      (GS.RUN.practice
         ? 99
-        : lastNight(wave) && !RUN.endless
+        : lastNight(GS.wave) && !GS.RUN.endless
           ? 4.8
           : 1.6) /* on the last night the silence holds until the evac fight starts */; // the band stops dead with it
-  if (!RUN.practice) {
-    const sc = wave <= 5 ? 40 : wave <= 10 ? 80 : 150;
-    runSeeds += sc;
-    RUN.lvHold = time + 1.1;
+  if (!GS.RUN.practice) {
+    const sc = GS.wave <= 5 ? 40 : GS.wave <= 10 ? 80 : 150;
+    GS.runSeeds += sc;
+    GS.RUN.lvHold = GS.time + 1.1;
     /* the cards wait until the kill has landed */ banner(
       `${nm} is dead`,
       `+${sc} scrap · ${fmtT(secs)}${tr.first ? ' · first kill' : tr.nb ? ' · best time' : ''}`,
       false
     );
-    RUN.bossDawn = (BOSS_RADIO[bt] || {}).dawn;
-  } else RUN.pBest = tr.nb;
+    GS.RUN.bossDawn = (BOSS_RADIO[bt] || {}).dawn;
+  } else GS.RUN.pBest = tr.nb;
   if (!alone) return; // Ground Zero: the other one is still up
-  bossDue = false;
-  later.push({
+  GS.bossDue = false;
+  GS.later.push({
     t: 0.9,
     fn: () => {
-      if (state === 'play') lampsBack();
+      if (GS.state === 'play') lampsBack();
     },
   });
   {
     const L = BOSS_RADIO[bt];
-    if (L) later.push({ t: 1.4, fn: () => radio(L.kill) });
+    if (L) GS.later.push({ t: 1.4, fn: () => radio(L.kill) });
   }
-  if (RUN.practice) return;
-  queue.length = 0;
+  if (GS.RUN.practice) return;
+  GS.queue.length = 0;
   let n = 0;
-  for (const z of enemies)
+  for (const z of GS.enemies)
     if (z.type === 'egg' && !z.dead) {
       z.dead = true;
       bleed(z.x, z.y, 10, 0, 0, 10, BILE, 160);
       pool(z.x, z.y, 0.6, BILE, 30);
     }
-  for (const z of enemies)
+  for (const z of GS.enemies)
     if (!z.dead && z !== e && z.type !== 'queen' && z.type !== 'flower' && z.type !== 'egg') {
       z.rout = rand(4.5, 6.5);
       z.lure = null;
       n++;
     }
-  if (n) later.push({ t: 2.3, fn: () => showStreak('They scatter', 'The horde breaks without it') });
-  later.push({
+  if (n) GS.later.push({ t: 2.3, fn: () => showStreak('They scatter', 'The horde breaks without it') });
+  GS.later.push({
     t: 2.6,
     fn: () => {
-      if (state === 'play') dropCrate();
+      if (GS.state === 'play') dropCrate();
     },
   });
   {
     const rw = TW('pistol')
       ? null
-      : wave >= 10 && !P.owned.includes('launcher')
+      : GS.wave >= 10 && !GS.P.owned.includes('launcher')
         ? 'launcher'
-        : !P.owned.includes('auto')
+        : !GS.P.owned.includes('auto')
           ? 'auto'
           : null;
     if (rw)
-      later.push({
+      GS.later.push({
         t: 3.4,
         fn: () => {
-          if (state === 'play') dropCrate(rw);
+          if (GS.state === 'play') dropCrate(rw);
         },
       });
   } // the auto shotgun for your first boss, the grenade launcher for the Fire Chief
-  if (lastNight(wave) && !RUN.endless)
-    later.push({
+  if (lastNight(GS.wave) && !GS.RUN.endless)
+    GS.later.push({
       t: 3,
       fn: () => {
-        if (state === 'play' && !evac) {
+        if (GS.state === 'play' && !GS.evac) {
           nightCleared();
           startEvac();
         }
       },
     }); // the last one down: the bird comes now, not after the stragglers
 }
-function bossName() {
-  return lastNight(wave)
+export function bossName() {
+  return lastNight(GS.wave)
     ? 'Patient Zero'
-    : !RUN.endless && wave === 10
+    : !GS.RUN.endless && GS.wave === 10
       ? 'Fire Chief'
-      : DISTRICTS[RUN.district || 'town'].boss;
+      : DISTRICTS[GS.RUN.district || 'town'].boss;
 }
 /* ---------- first-run training: night 1 opens with a short drill, one control at a time ---------- */

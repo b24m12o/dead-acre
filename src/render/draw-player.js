@@ -1,7 +1,16 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const E1 = 1.6,
+import { GS } from '../core/gs.js';
+import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
+import { GUNS, HEROES } from '../game/arsenal.js';
+import { lineQ, quad, setH } from './sprites.js';
+import { R } from './atlas.js';
+import { lamps } from '../world/map.js';
+import { ik2 } from '../actors/legs.js';
+import { HPV } from '../ui/hangar.js';
+import { OUTFITS } from '../game/challenges.js';
+export const E1 = 1.6,
   NIGHT = { sun: [0.33, 0.39, 0.58], sky: [0.25, 0.28, 0.4] };
-function lampHot(x, y) {
+export function lampHot(x, y) {
   let h = 0;
   for (const L of lamps) {
     if (L.down) continue;
@@ -15,16 +24,16 @@ function lampHot(x, y) {
   }
   return h;
 }
-function lampK(L) {
-  if (ev === 'blackout' || L.down) return 0;
-  if (L.off) return time - L.off < 0.5 ? (Math.sin(time * 70 + L.ph) > 0 ? 0.8 : 0.05) : 0;
-  if (L.on && time - L.on < 0.7) return Math.sin(time * 55 + L.ph) > -0.2 ? 1 : 0.1;
+export function lampK(L) {
+  if (GS.ev === 'blackout' || L.down) return 0;
+  if (L.off) return GS.time - L.off < 0.5 ? (Math.sin(GS.time * 70 + L.ph) > 0 ? 0.8 : 0.05) : 0;
+  if (L.on && GS.time - L.on < 0.7) return Math.sin(GS.time * 55 + L.ph) > -0.2 ? 1 : 0.1;
   if (!L.broken) return 1;
-  const n = Math.sin(time * 13 + L.ph) * Math.sin(time * 5.3 + L.ph * 2) + Math.sin(time * 0.7 + L.ph) * 0.6;
+  const n = Math.sin(GS.time * 13 + L.ph) * Math.sin(GS.time * 5.3 + L.ph * 2) + Math.sin(GS.time * 0.7 + L.ph) * 0.6;
   return n > 0.1 ? 1 : n > -0.2 ? 0.4 : 0.06;
 }
 
-const HLOOK = { ranger: 0, breacher: 1, grenadier: 2 };
+export const HLOOK = { ranger: 0, breacher: 1, grenadier: 2 };
 const HSTYLE = [
   { sleeve: [0.42, 0.46, 0.3], pants: [0.32, 0.34, 0.24], hand: 'h_glove', pack: 'h_pack' },
   { sleeve: [0.8, 0.72, 0.54], pants: [0.24, 0.31, 0.48], hand: 'h_glove2', pack: null },
@@ -135,22 +144,22 @@ const GPOSE = {
     ],
   },
 };
-function drawRanger(p) {
+export function drawRanger(p) {
   const fl = p.hurt > 0 ? 1 : 0,
-    blink = p.inv > 0 && p.dashT <= 0 && Math.sin(time * 40) < -0.3 ? 0.55 : 1;
-  const pv = !p.npc && HPV.on && state === 'menu',
-    look = p.look ?? (HLOOK[(pv && HPV.hero) || RUN.hero] || 0),
+    blink = p.inv > 0 && p.dashT <= 0 && Math.sin(GS.time * 40) < -0.3 ? 0.55 : 1;
+  const pv = !p.npc && HPV.on && GS.state === 'menu',
+    look = p.look ?? (HLOOK[(pv && HPV.hero) || GS.RUN.hero] || 0),
     st = HSTYLE[look],
-    ot = p.npc ? p.tint || [1, 1, 1] : (OUTFITS[(pv && HPV.outfit) || meta.outfit] || OUTFITS.std).tint;
+    ot = p.npc ? p.tint || [1, 1, 1] : (OUTFITS[(pv && HPV.outfit) || GS.meta.outfit] || OUTFITS.std).tint;
   const dn = p.down > 0,
     amp = dn ? 0 : p.strideAmp,
     ph = p.stride * TAU,
     c = Math.cos(dn ? p.bodyA : p.moveA),
     s = Math.sin(dn ? p.bodyA : p.moveA); // down: sitting on the ground, legs out in front
   const bob = Math.abs(Math.sin(ph)) * amp * 1.2,
-    breathe = 1 + Math.sin(time * 2.4) * 0.012;
+    breathe = 1 + Math.sin(GS.time * 2.4) * 0.012;
   const roll = p.dashT > 0 ? 1 : 0;
-  gA = blink;
+  GS.gA = blink;
   const ba = p.bodyA,
     bc = Math.cos(ba),
     bs = Math.sin(ba),
@@ -159,15 +168,15 @@ function drawRanger(p) {
     ly = p.y + s * lean - bob;
   // During a dodge, two light afterimages trail the body opposite its travel vector.
   // Render-only (and disabled in shadow passes), so it adds feel without changing gameplay timing.
-  if (!SHMODE && p.dashT > 0.025 && !dn && !p.npc) {
-    const ov = gA;
+  if (!GS.SHMODE && p.dashT > 0.025 && !dn && !p.npc) {
+    const ov = GS.gA;
     for (const [age, alpha] of [
       [0.032, 0.1],
       [0.018, 0.16],
     ]) {
       const dx = -(p.vx || 0) * age,
         dy = -(p.vy || 0) * age;
-      gA = blink * alpha;
+      GS.gA = blink * alpha;
       setH(20);
       quad(
         R['hb' + look],
@@ -188,7 +197,7 @@ function drawRanger(p) {
       setH(28);
       quad(R['hh' + look], lx + dx + bc * 2, ly + dy + bs * 2 - 1, ba, 1, 1, 0.78, 0.84, 1, 1, 0.35, 0.48, 0.8, 0);
     }
-    gA = ov;
+    GS.gA = ov;
   }
   // legs + boots
   for (const side of [-1, 1]) {
@@ -212,19 +221,34 @@ function drawRanger(p) {
   if (look === 0 && p.ant && p.ant.bx !== undefined) {
     setH(30);
     lineQ(p.ant.bx, p.ant.by - bob, p.ant.x, p.ant.y - bob, 1.2, 0.08, 0.08, 0.08, 1, 0, 0, 0, fl);
-    quad(R.pixel, p.ant.x, p.ant.y - bob, 0, 0.6, 0.6, 1, 0.2, 0.15, 1, Math.sin(time * 6) > 0 ? 3 : 0.5, 0.4, 0.3, 0);
+    quad(
+      R.pixel,
+      p.ant.x,
+      p.ant.y - bob,
+      0,
+      0.6,
+      0.6,
+      1,
+      0.2,
+      0.15,
+      1,
+      Math.sin(GS.time * 6) > 0 ? 3 : 0.5,
+      0.4,
+      0.3,
+      0
+    );
   }
   // weapon pose: swap lowers the gun, reload tilts it
-  const gid = pv ? (HEROES[HPV.hero || meta.hero] || HEROES.ranger).spec : p.gun || 'rifle',
+  const gid = pv ? (HEROES[HPV.hero || GS.meta.hero] || HEROES.ranger).spec : p.gun || 'rifle',
     pose = GPOSE[gid],
     swap = p.swap > 0 ? Math.sin(Math.min(1, p.swap / 0.3) * Math.PI) : 0,
     rk = p.rk || 0,
     pis = gid === 'pistol';
   const idle = Math.max(0, 1 - amp * 3),
-    ga = p.aimA + swap * 0.9 + rk * (pis ? -0.42 : 0.5) + Math.sin(time * 1.1 + 0.5) * 0.022 * idle,
+    ga = p.aimA + swap * 0.9 + rk * (pis ? -0.42 : 0.5) + Math.sin(GS.time * 1.1 + 0.5) * 0.022 * idle,
     gc = Math.cos(ga),
     gs = Math.sin(ga),
-    GO = pose.go - p.recoil - swap * 8 - rk * (pis ? 7 : 4) + Math.sin(time * 2.4) * 0.7 * idle;
+    GO = pose.go - p.recoil - swap * 8 - rk * (pis ? 7 : 4) + Math.sin(GS.time * 2.4) * 0.7 * idle;
   const gx = lx + Math.cos(p.aimA) * GO,
     gy = ly + Math.sin(p.aimA) * GO;
   const ghw = GHW[gid] || 3.4,
@@ -394,7 +418,7 @@ function drawRanger(p) {
       { x: ax, y: ay },
       { x: ax, y: ay },
     ];
-    const flut = Math.sin(time * 11 + p.x * 0.01) * (1.5 + amp * 3);
+    const flut = Math.sin(GS.time * 11 + p.x * 0.01) * (1.5 + amp * 3);
     let px2 = ax,
       py2 = ay;
     for (let i = 0; i < 2; i++) {
@@ -444,7 +468,7 @@ function drawRanger(p) {
   const ha = ba + angDiff(ba, p.aimA) * 0.6 + (p.rk || 0) * 0.32;
   setH(32);
   quad(R['hh' + look], lx + bc * 2, ly + bs * 2 - 1, ha, 0.9, 0.9, 1, 1, 1, 1, 1, 1, 1, fl);
-  gA = 1;
+  GS.gA = 1;
 }
 
 /* ---------- The dead ---------- */

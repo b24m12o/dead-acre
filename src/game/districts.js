@@ -1,6 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const FINAL_NIGHT = 15;
-const DISTRICTS = {
+import { GS } from '../core/gs.js';
+export const FINAL_NIGHT = 15;
+export const DISTRICTS = {
   town: {
     name: 'Dead Acre',
     desc: 'Main Street crossroads, wrecked cars and ruined houses.',
@@ -26,7 +27,7 @@ const DISTRICTS = {
     camp: 2,
   },
 };
-const INFECTION = [
+export const INFECTION = [
   { name: 'Clean', desc: 'The standard 15 nights.' },
   { name: 'Tougher dead', desc: 'Zombies have 15% more health.' },
   { name: 'Faster turn', desc: 'More of the dead are runners.' },
@@ -39,8 +40,8 @@ const INFECTION = [
   { name: 'Hungry', desc: 'Zombies hit 25% harder.' },
   { name: 'Ground Zero', desc: 'Night 15 brings two bosses at once.' },
 ];
-const INF = n => ((RUN && RUN.inf) || 0) >= n;
-const TWISTS = [
+export const INF = n => ((GS.RUN && GS.RUN.inf) || 0) >= n;
+export const TWISTS = [
   // optional rules for a run, on top of the Infection level: each one changes how you play it, and pays more scrap
   { id: 'pistol', name: 'Sidearm only', desc: 'No weapon cases. Your pistol hits 60% harder.', scrap: 0.5 },
   { id: 'nomeds', name: 'No medkits', desc: 'The dead drop no medkits. Supply crates still patch you up.', scrap: 0.4 },
@@ -48,5 +49,5 @@ const TWISTS = [
   { id: 'glass', name: 'Glass cannon', desc: 'Half the health. 50% more damage.', scrap: 0.35 },
   { id: 'horde', name: 'Horde', desc: '40% more of the dead every night.', scrap: 0.4 },
 ];
-const TW = id => !!(RUN && RUN.tw && RUN.tw[id]);
-const twistK = () => 1 + TWISTS.reduce((a, t) => a + (TW(t.id) ? t.scrap : 0), 0);
+export const TW = id => !!(GS.RUN && GS.RUN.tw && GS.RUN.tw[id]);
+export const twistK = () => 1 + TWISTS.reduce((a, t) => a + (TW(t.id) ? t.scrap : 0), 0);

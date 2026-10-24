@@ -1,69 +1,84 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GS } from '../core/gs.js';
+import { TAU, angDiff, clamp, rand } from '../core/util.js';
+import { TS, store } from '../core/settings.js';
+import { AMMO_BOX, AMMO_MAX, GUNS, GUN_ORDER, HEROES } from './arsenal.js';
+import { ui } from '../render/gl.js';
+import { VH, VW, ZOOM } from '../render/sprites.js';
+import { R } from '../render/atlas.js';
+import { thr, tone } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { showStreak } from '../ui/callouts.js';
+import { floatText, part } from '../render/effects.js';
+import { mouse } from '../core/input.js';
+import { PK } from '../ui/hangar.js';
+import { TW } from './districts.js';
+import { tip } from '../audio/radio.js';
 /* =====================================================================
    State
    ===================================================================== */
-let state = 'boot',
-  S = {},
-  LV = {},
-  P = null;
-let pools = [],
-  gasClouds = [],
-  mortars = [],
-  warns = [],
-  screenBlood = [],
-  bangs = [],
-  whiteFlash = 0,
-  freshGraves = [];
-let enemies = [],
-  corpses = [],
-  pbullets = [],
-  ebullets = [],
-  darts = [],
-  buddies = [],
-  pickups = [],
-  parts = [],
-  decals = [],
-  barrels = [],
-  arcs = [],
-  flashes = [],
-  dwaves = [],
-  texts = [],
-  ghosts = [],
-  later = [],
-  dlights = [],
-  rings = [],
-  butterflies = [],
-  pollen = [],
-  clouds = [];
-let crates = [],
-  hitDirs = [],
-  slowmo = 0,
-  runSeeds = 0,
-  rerolls = 0,
-  streakT = 0,
-  pickSource = 'level';
-let wave = 0,
-  queue = [],
-  spawnT = 0,
-  interT = 0,
-  score = 0,
-  kills = 0,
-  level = 1,
-  xp = 0,
-  xpNeed = 1,
-  combo = 0,
-  comboT = 0,
-  trauma = 0,
-  hitstop = 0,
-  chroma = 0,
-  time = 0,
-  nid = 1,
-  boss = null,
-  bannerT = -1;
-const cam = { x: 0, y: 0, vx: 0, vy: 0, lx: 0, ly: 0 };
-let rec = { score: +(store.get('rr_best') || 0), wave: +(store.get('rr_wave') || 0) };
-function resetStats() {
-  const h = HEROES[RUN.hero] || HEROES.ranger,
+export let S = {},
+  LV = {};
+GS.state = 'boot';
+GS.P = null;
+GS.pools = [];
+GS.gasClouds = [];
+GS.mortars = [];
+GS.warns = [];
+GS.screenBlood = [];
+GS.bangs = [];
+GS.whiteFlash = 0;
+GS.freshGraves = [];
+GS.enemies = [];
+GS.corpses = [];
+GS.pbullets = [];
+GS.ebullets = [];
+GS.darts = [];
+GS.buddies = [];
+GS.pickups = [];
+GS.parts = [];
+GS.decals = [];
+GS.barrels = [];
+GS.arcs = [];
+GS.flashes = [];
+GS.dwaves = [];
+GS.texts = [];
+GS.ghosts = [];
+GS.later = [];
+GS.dlights = [];
+GS.rings = [];
+GS.butterflies = [];
+GS.pollen = [];
+GS.clouds = [];
+GS.crates = [];
+GS.hitDirs = [];
+GS.slowmo = 0;
+GS.runSeeds = 0;
+GS.rerolls = 0;
+GS.streakT = 0;
+GS.pickSource = 'level';
+GS.wave = 0;
+GS.queue = [];
+GS.spawnT = 0;
+GS.interT = 0;
+GS.score = 0;
+GS.kills = 0;
+GS.level = 1;
+GS.xp = 0;
+GS.xpNeed = 1;
+GS.combo = 0;
+GS.comboT = 0;
+GS.trauma = 0;
+GS.hitstop = 0;
+GS.chroma = 0;
+GS.time = 0;
+GS.nid = 1;
+GS.boss = null;
+GS.bannerT = -1;
+export const cam = { x: 0, y: 0, vx: 0, vy: 0, lx: 0, ly: 0 };
+export let rec;
+export function resetStats() {
+  const h = HEROES[GS.RUN.hero] || HEROES.ranger,
     pk = PK();
   S = {
     dmg: 1,
@@ -111,14 +126,14 @@ function resetStats() {
     S.maxHp = Math.round(S.maxHp * 0.5);
     S.dmg *= 1.5;
   }
-  rerolls = pk.reroll || 0;
+  GS.rerolls = pk.reroll || 0;
   LV = {};
 }
-const gd = () => S.dmg * 10;
-const magSize = g => Math.round(GUNS[g].mag * S.magK);
-const ammoMax = t => Math.floor(AMMO_MAX[t] * S.ammoK);
-function heroGun(g) {
-  const sp = (HEROES[RUN.hero] || HEROES.ranger).spec,
+export let gd;
+export let magSize;
+export let ammoMax;
+export function heroGun(g) {
+  const sp = (HEROES[GS.RUN.hero] || HEROES.ranger).spec,
     f = GUNS[g].fam;
   if (sp !== f) return { dmg: 1, rate: 1, pellets: 0, pierce: 0 };
   return f === 'rifle'
@@ -127,7 +142,7 @@ function heroGun(g) {
       ? { dmg: 1.2, rate: 1, pellets: 1, pierce: 0 }
       : { dmg: 1.25, rate: g === 'pistol' ? 1.4 : 1.15, pellets: 0, pierce: 1 };
 }
-function armGuns(p) {
+export function armGuns(p) {
   p.owned = ['pistol'];
   p.reload = 0;
   p.reloadMax = 1;
@@ -136,12 +151,12 @@ function armGuns(p) {
   p.ammo = { light: 0, shells: 0, rifle: 0, heavy: 0, gren: 0 };
   equip('pistol', true);
 }
-function hasAmmo(g) {
+export function hasAmmo(g) {
   const G = GUNS[g];
-  return !G.ammo || P.mag[g] > 0 || P.ammo[G.ammo] > 0;
+  return !G.ammo || GS.P.mag[g] > 0 || GS.P.ammo[G.ammo] > 0;
 }
-function equip(g, silent) {
-  const p = P;
+export function equip(g, silent) {
+  const p = GS.P;
   if (p.gun && p.gun !== g) p.lastGun = p.gun;
   p.gun = g;
   p.reload = 0;
@@ -154,33 +169,33 @@ function equip(g, silent) {
     sfx.swap();
   }
 }
-function switchGun(g) {
-  if (!P || state !== 'play' || !g || P.gun === g || !P.owned.includes(g)) return;
+export function switchGun(g) {
+  if (!GS.P || GS.state !== 'play' || !g || GS.P.gun === g || !GS.P.owned.includes(g)) return;
   if (!hasAmmo(g)) {
-    floatText(P.x, P.y - 40, `No ammo for the ${GUNS[g].name.toLowerCase()}`, '#ffb08a', 15);
+    floatText(GS.P.x, GS.P.y - 40, `No ammo for the ${GUNS[g].name.toLowerCase()}`, '#ffb08a', 15);
     sfx.dry();
     return;
   }
-  P.forced = false;
+  GS.P.forced = false;
   equip(g);
 }
-const WHEEL = { open: false, held: null, downT: 0, sel: -1 };
+export let WHEEL;
 function quickSwap() {
-  const g = P.lastGun;
-  if (g && g !== P.gun && P.owned.includes(g) && hasAmmo(g)) switchGun(g);
+  const g = GS.P.lastGun;
+  if (g && g !== GS.P.gun && GS.P.owned.includes(g) && hasAmmo(g)) switchGun(g);
   else cycleGun(1);
 } // a tap: back to the gun you had before
 function wheelGeom() {
-  const n = P.owned.length,
+  const n = GS.P.owned.length,
     k = TS();
   ui.font = `700 ${12 * k}px "JetBrains Mono", monospace`;
-  const need = Math.max(...P.owned.map(g => ui.measureText(GUNS[g].name).width)) + 48 * k,
+  const need = Math.max(...GS.P.owned.map(g => ui.measureText(GUNS[g].name).width)) + 48 * k,
     ch = 2 * Math.sin(Math.PI / Math.max(n, 3)) * 0.92,
     R0 = Math.min(Math.max(clamp(n * 26, 110, 215) * k, need / ch), VH * 0.42),
     sw = Math.max(Math.min(136 * k, R0 * ch), Math.min(need, R0 * ch)),
     sh = 44 * k;
-  /* every slot wide enough for the full name; the ring grows to make room */ const px = (P.x - camX) * ZOOM,
-    py = (P.y - camY) * ZOOM;
+  /* every slot wide enough for the full name; the ring grows to make room */ const px = (GS.P.x - GS.camX) * ZOOM,
+    py = (GS.P.y - GS.camY) * ZOOM;
   return {
     n,
     R0,
@@ -190,13 +205,13 @@ function wheelGeom() {
     cy: clamp(py, R0 + sh / 2 + 64 * k, VH - R0 - sh / 2 - 66 * k),
   }; /* clear of the night plate on top and the level bar below */
 }
-function wheelTick() {
+export function wheelTick() {
   // opens after a short hold; while open the stick or the mouse picks the slot it points at
-  if (WHEEL.held && state !== 'play') {
+  if (WHEEL.held && GS.state !== 'play') {
     WHEEL.held = null;
     WHEEL.open = false;
   }
-  if (WHEEL.held && !WHEEL.open && performance.now() - WHEEL.downT > 170 && P && P.owned.length > 1) {
+  if (WHEEL.held && !WHEEL.open && performance.now() - WHEEL.downT > 170 && GS.P && GS.P.owned.length > 1) {
     WHEEL.open = true;
     WHEEL.sel = -1;
     sfx.swap();
@@ -225,21 +240,21 @@ function wheelTick() {
     if (thr('wtick', 40)) tone(1400, 0.03, 'sine', 0.03);
   }
 }
-function wheelRelease() {
+export function wheelRelease() {
   const was = WHEEL.open,
     sel = WHEEL.sel;
   WHEEL.held = null;
   WHEEL.open = false;
-  if (state !== 'play' || !P) return;
+  if (GS.state !== 'play' || !GS.P) return;
   if (!was) {
     quickSwap();
     return;
   }
-  if (sel >= 0 && P.owned[sel] && P.owned[sel] !== P.gun) switchGun(P.owned[sel]);
+  if (sel >= 0 && GS.P.owned[sel] && GS.P.owned[sel] !== GS.P.gun) switchGun(GS.P.owned[sel]);
 }
-function drawWheel() {
+export function drawWheel() {
   // the guns in a ring around you: number key, name, rounds; empty ones are greyed and can't be picked
-  if (!WHEEL.open || !P) return;
+  if (!WHEEL.open || !GS.P) return;
   const W = wheelGeom(),
     k = TS();
   ui.fillStyle = 'rgba(8,10,14,0.42)';
@@ -255,14 +270,14 @@ function drawWheel() {
   };
   ui.textBaseline = 'middle';
   for (let i = 0; i < W.n; i++) {
-    const g = P.owned[i],
+    const g = GS.P.owned[i],
       G = GUNS[g],
       a = -Math.PI / 2 + (i * TAU) / W.n,
       x = W.cx + Math.cos(a) * W.R0 - W.sw / 2,
       y = W.cy + Math.sin(a) * W.R0 - W.sh / 2,
       ok = hasAmmo(g),
       on = i === WHEEL.sel,
-      cur = g === P.gun;
+      cur = g === GS.P.gun;
     rr(x, y, W.sw, W.sh, 7 * k);
     ui.fillStyle = on && ok ? 'rgba(255,150,60,0.9)' : on ? 'rgba(90,90,96,0.92)' : 'rgba(22,26,32,0.9)';
     ui.fill();
@@ -291,19 +306,19 @@ function drawWheel() {
     const am = !ok
       ? 'No ammo'
       : G.ammo
-        ? `${Math.floor(P.mag[g] ?? 0)} · ${Math.floor(P.ammo[G.ammo] || 0)}`
-        : `${Math.floor(P.mag[g] ?? 0)} · ∞`;
+        ? `${Math.floor(GS.P.mag[g] ?? 0)} · ${Math.floor(GS.P.ammo[G.ammo] || 0)}`
+        : `${Math.floor(GS.P.mag[g] ?? 0)} · ∞`;
     ui.fillText(am, tx, by + 8 * k);
     ui.globalAlpha = 1;
   }
   ui.textAlign = 'center';
   ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
   ui.fillStyle = 'rgba(242,234,216,0.75)';
-  const sg = WHEEL.sel >= 0 ? P.owned[WHEEL.sel] : null;
+  const sg = WHEEL.sel >= 0 ? GS.P.owned[WHEEL.sel] : null;
   const key = 'Q',
-    cn = GUNS[P.gun].name,
+    cn = GUNS[GS.P.gun].name,
     lb = sg
-      ? sg === P.gun
+      ? sg === GS.P.gun
         ? `${cn} · already in your hands`
         : hasAmmo(sg)
           ? `Release ${key} · draw the ${GUNS[sg].name}`
@@ -318,15 +333,15 @@ function drawWheel() {
   ui.fillText(lb, W.cx, ly);
   ui.textAlign = 'left'; /* below the ring: never over a slot or over you */
 }
-function cycleGun(d = 1) {
-  if (!P || state !== 'play') return;
-  const o = P.owned;
-  let i = o.indexOf(P.gun);
+export function cycleGun(d = 1) {
+  if (!GS.P || GS.state !== 'play') return;
+  const o = GS.P.owned;
+  let i = o.indexOf(GS.P.gun);
   for (let k = 0; k < o.length; k++) {
     i = (i + d + o.length) % o.length;
     if (hasAmmo(o[i])) {
-      P.forced = false;
-      if (o[i] !== P.gun) equip(o[i]);
+      GS.P.forced = false;
+      if (o[i] !== GS.P.gun) equip(o[i]);
       return;
     }
   }
@@ -334,15 +349,15 @@ function cycleGun(d = 1) {
 function bestGun() {
   let best = null,
     bi = -1;
-  for (const g of P.owned)
+  for (const g of GS.P.owned)
     if (g !== 'launcher' && g !== 'pistol' && hasAmmo(g) && GUN_ORDER.indexOf(g) > bi) {
       bi = GUN_ORDER.indexOf(g);
       best = g;
     }
-  return best || (hasAmmo('launcher') && P.owned.includes('launcher') ? 'launcher' : 'pistol');
+  return best || (hasAmmo('launcher') && GS.P.owned.includes('launcher') ? 'launcher' : 'pistol');
 } // never the grenade launcher when anything else has rounds
-function startReload() {
-  const p = P,
+export function startReload() {
+  const p = GS.P,
     g = p.gun,
     G = GUNS[g],
     n = magSize(g);
@@ -352,12 +367,12 @@ function startReload() {
       tip('dry');
       floatText(p.x, p.y - 40, 'Out of ammo', '#ffb08a', 16);
       sfx.dry();
-      later.push({
+      GS.later.push({
         t: 0.25,
         fn: () => {
-          if (P && P.gun === g && P.mag[g] <= 0) {
+          if (GS.P && GS.P.gun === g && GS.P.mag[g] <= 0) {
             equip(bestGun());
-            P.forced = true;
+            GS.P.forced = true;
           }
         },
       });
@@ -366,7 +381,7 @@ function startReload() {
   }
   p.reload = p.reloadMax = G.reload;
   p.trigFresh = false;
-  if (RUN && RUN.metrics) RUN.metrics.reloads++;
+  if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.reloads++;
   if (!G.perShell) {
     sfx.magOut();
     const cc = Math.cos(p.aimA),
@@ -391,34 +406,34 @@ function startReload() {
     });
   }
 }
-function ammoRoomK() {
-  const ts = new Set(P.owned.map(g => GUNS[g].ammo).filter(Boolean));
+export function ammoRoomK() {
+  const ts = new Set(GS.P.owned.map(g => GUNS[g].ammo).filter(Boolean));
   if (!ts.size) return 9;
   let best = 0;
-  for (const t of ts) best = Math.max(best, (ammoMax(t) - P.ammo[t]) / Math.max(1, AMMO_BOX[t]));
+  for (const t of ts) best = Math.max(best, (ammoMax(t) - GS.P.ammo[t]) / Math.max(1, AMMO_BOX[t]));
   return best;
 } // in boxes: how much the emptiest type could take
 // ammo boxes carry one calibre. Which one is decided when it drops: mostly what you are short of, with a lean toward the gun in your hands.
 // Drops also thin out while you are well stocked. Supply crates and objectives still refill everything (addAmmo).
-const AMMO_NAME = { light: '9mm', shells: '12-gauge', rifle: '5.56', heavy: 'heavy rifle', gren: '40mm' };
-function ammoTypes() {
-  return P ? [...new Set(P.owned.map(g => GUNS[g].ammo).filter(Boolean))] : [];
+export let AMMO_NAME;
+export function ammoTypes() {
+  return GS.P ? [...new Set(GS.P.owned.map(g => GUNS[g].ammo).filter(Boolean))] : [];
 }
-function ammoFill(t) {
-  return P.ammo[t] / Math.max(1, ammoMax(t));
+export function ammoFill(t) {
+  return GS.P.ammo[t] / Math.max(1, ammoMax(t));
 }
-function ammoNeed() {
+export function ammoNeed() {
   const ts = ammoTypes();
   if (!ts.length) return 1;
   const avg = ts.reduce((a, t) => a + ammoFill(t), 0) / ts.length,
-    held = GUNS[P.gun].ammo,
+    held = GUNS[GS.P.gun].ammo,
     hf = held ? ammoFill(held) : avg;
   return clamp(1.35 - (avg + hf) / 2, 0.3, 1);
 } // 1 = running low, 0.3 = well stocked
 function pickAmmoKind() {
   const ts = ammoTypes();
   if (!ts.length) return null;
-  const held = GUNS[P.gun].ammo;
+  const held = GUNS[GS.P.gun].ammo;
   let tw = 0;
   const w = ts.map(t => {
     const v = (0.08 + Math.pow(1 - ammoFill(t), 1.5) + (t === held ? 0.5 : 0)) * (t === 'gren' ? 0.45 : 1);
@@ -432,15 +447,15 @@ function pickAmmoKind() {
   }
   return ts[ts.length - 1];
 }
-function dropAmmo(x, y, v, spd = 80) {
-  pickups.push({ k: 'ammo', at: pickAmmoKind(), v, x, y, vx: rand(-spd, spd), vy: rand(-spd, spd), t: 0 });
+export function dropAmmo(x, y, v, spd = 80) {
+  GS.pickups.push({ k: 'ammo', at: pickAmmoKind(), v, x, y, vx: rand(-spd, spd), vy: rand(-spd, spd), t: 0 });
 }
-function ammoRoomFor(k) {
-  return k.at ? (ammoMax(k.at) - P.ammo[k.at]) / Math.max(1, AMMO_BOX[k.at] * 1.5) : ammoRoomK();
+export function ammoRoomFor(k) {
+  return k.at ? (ammoMax(k.at) - GS.P.ammo[k.at]) / Math.max(1, AMMO_BOX[k.at] * 1.5) : ammoRoomK();
 } // in boxes
-function addAmmoType(t, k) {
+export function addAmmoType(t, k) {
   tip('ammo');
-  const p = P,
+  const p = GS.P,
     n = Math.max(0, Math.min(ammoMax(t) - p.ammo[t], Math.round(AMMO_BOX[t] * k * 1.5)));
   p.ammo[t] = Math.floor(p.ammo[t] + n);
   const cur = GUNS[p.gun] && GUNS[p.gun].ammo === t,
@@ -455,21 +470,21 @@ function addAmmoType(t, k) {
   p.forced = false;
   sfx.ammo();
 } /* never swaps your gun for you: it says which gun the rounds are for, and tapping Q gets you back to it */
-function addAmmo(k) {
-  const p = P,
+export function addAmmo(k) {
+  const p = GS.P,
     types = new Set(p.owned.map(g => GUNS[g].ammo).filter(Boolean));
   for (const t of types) p.ammo[t] = Math.floor(Math.min(ammoMax(t), p.ammo[t] + Math.round(AMMO_BOX[t] * k)));
   floatText(p.x, p.y - 40, types.size ? '+ammo' : '+scrap', '#ffd08a', 17);
   p.forced = false;
-  if (!types.size) runSeeds += 1;
+  if (!types.size) GS.runSeeds += 1;
   sfx.ammo();
 }
-function giveGun(g) {
-  const p = P,
+export function giveGun(g) {
+  const p = GS.P,
     G = GUNS[g];
   if (!p.owned.includes(g)) {
     p.owned.push(g);
-    if (p.owned.length === 3) later.push({ t: 2.5, fn: () => tip('wheel') });
+    if (p.owned.length === 3) GS.later.push({ t: 2.5, fn: () => tip('wheel') });
     /* new guns join the end of the row, so the number keys you know never move */ p.mag[g] = magSize(g);
   }
   if (G.ammo) p.ammo[G.ammo] = Math.floor(Math.min(ammoMax(G.ammo), p.ammo[G.ammo] + G.give));
@@ -477,4 +492,14 @@ function giveGun(g) {
   showStreak(G.name, `New weapon · key ${p.owned.indexOf(g) + 1}`);
   sfx.elite();
   sfx.pump();
+}
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  rec = { score: +(store.get('rr_best') || 0), wave: +(store.get('rr_wave') || 0) };
+  gd = () => S.dmg * 10;
+  magSize = g => Math.round(GUNS[g].mag * S.magK);
+  ammoMax = t => Math.floor(AMMO_MAX[t] * S.ammoK);
+  WHEEL = { open: false, held: null, downT: 0, sel: -1 };
+  AMMO_NAME = { light: '9mm', shells: '12-gauge', rifle: '5.56', heavy: 'heavy rifle', gren: '40mm' };
 }

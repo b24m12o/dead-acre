@@ -1,11 +1,32 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function startEvac() {
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { TAU, angDiff, clamp, d2, damp, lerp, pick, rand, randi } from '../core/util.js';
+import { saveMeta, store } from '../core/settings.js';
+import { DIFF } from '../core/profile.js';
+import { lamps } from '../world/map.js';
+import { AC, noise, noiseBuf, playS, sfxBus, spat, stab, tone } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { rec } from './state.js';
+import { makeEnemy } from '../actors/enemies.js';
+import { banner, spawnPoint } from './waves.js';
+import { dust, part, shake, sparks } from '../render/effects.js';
+import { hurtEnemy } from './combat.js';
+import { PK } from '../ui/hangar.js';
+import { renderRunReport } from '../ui/screens.js';
+import { WINDX } from '../world/physics.js';
+import { DISTRICTS, INFECTION, twistK } from './districts.js';
+import { bump, chalRunSummary, checkChal, statMax } from './challenges.js';
+import { TRAITS, freeSpot, regroupSpot } from '../actors/backups.js';
+import { RADIO, radio, radioVoice, storyEnd } from '../audio/radio.js';
+import { bossLogHtml } from './boss-flow.js';
+export function startEvac() {
   const [x, y] = freeSpot(420, 700);
-  evac = {
+  GS.evac = {
     x,
     y,
     t: 0,
-    land: RUN.relayOk === true ? 30 : RUN.relayOk === false ? 44 : 36,
+    land: GS.RUN.relayOk === true ? 30 : GS.RUN.relayOk === false ? 44 : 36,
     hold: 0,
     spawnT: 1.5,
     hx: x + 900,
@@ -23,17 +44,17 @@ function startEvac() {
     if (L.bflick) L.broken = L.bflick = false;
     if (L.off) {
       L.off = 0;
-      L.on = time;
+      L.on = GS.time;
     }
   }
-  FOGBT = 0;
+  GS.FOGBT = 0;
   banner('Evac inbound', 'Hold the landing zone until the bird is down', false);
   sfx.roar();
   startHeli();
   radio(RADIO.evac);
-  if (RUN.relayOk !== undefined)
+  if (GS.RUN.relayOk !== undefined)
     radio(
-      RUN.relayOk
+      GS.RUN.relayOk
         ? 'Hawk here. Relay is strong, I am coming straight in on your signal.'
         : 'Hawk here. No relay, I am flying blind. Give me time, nine.',
       'Hawk'
@@ -46,11 +67,11 @@ function evacTarget(e) {
   // the door gunner covers the landing zone, and you if you are near it
   let best = null,
     bd = 1e12;
-  for (const z of enemies) {
+  for (const z of GS.enemies) {
     if (z.dead || z.type === 'queen' || z.emerge < 0.6 || z.dying !== undefined) continue;
     const dl = d2(z.x, z.y, e.x, e.y);
     if (dl > 520 * 520) continue;
-    const dp = d2(z.x, z.y, P.x, P.y),
+    const dp = d2(z.x, z.y, GS.P.x, GS.P.y),
       sc = Math.min(dl, dp * 0.6);
     if (sc < bd) {
       bd = sc;
@@ -59,8 +80,8 @@ function evacTarget(e) {
   }
   return best;
 }
-function updateEvac(dt) {
-  const e = evac;
+export function updateEvac(dt) {
+  const e = GS.evac;
   e.t += dt;
   for (const t of e.tr) t.t -= dt;
   if (e.tr.length && e.tr[0].t <= 0) e.tr = e.tr.filter(t => t.t > 0);
@@ -71,7 +92,7 @@ function updateEvac(dt) {
     e.hy -= dt * 260;
     e.ha = Math.atan2(-260, 420);
     if (e.leave > 4) {
-      evac = null;
+      GS.evac = null;
       stopHeli();
     }
     return;
@@ -143,7 +164,7 @@ function updateEvac(dt) {
       c: [0.6, 0.27, 0.25],
       wind: 1,
     }); // the flare's red smoke marks the landing zone
-  if (state !== 'play') return;
+  if (GS.state !== 'play') return;
   // radio and pressure: the rotors are the loudest thing in the county
   if (e.said < 1 && e.t > 10) {
     e.said = 1;
@@ -155,7 +176,7 @@ function updateEvac(dt) {
     banner('Coming in to land', 'Keep the landing zone clear', false);
   }
   e.spawnT -= dt;
-  if (e.spawnT <= 0 && enemies.length < 70) {
+  if (e.spawnT <= 0 && GS.enemies.length < 70) {
     const k = clamp(e.t / e.land, 0, 1);
     e.spawnT = lerp(0.8, 0.3, k);
     const pool =
@@ -202,7 +223,7 @@ function updateEvac(dt) {
             ty = tg.y + (hit ? rand(-6, 6) : rand(-40, 40));
           e.tr.push({ x0: gx, y0: gy, x1: tx, y1: ty, t: 0.07 });
           if (!playS('lmg_m', 0.2, 0.95, 0, 0.5)) noise(0.05, 0.06, 2400, 600, 'bandpass', 0, spat(e.hx, e.hy));
-          if (hit) hurtEnemy(tg, 34 + wave, false, tx - gx, ty - gy, 1.2, 'gunner');
+          if (hit) hurtEnemy(tg, 34 + GS.wave, false, tx - gx, ty - gy, 1.2, 'gunner');
           else {
             dust(tx, ty, 2, 50, 0.6, 0.5);
             sparks(tx, ty, [1, 0.8, 0.5], 2, 140);
@@ -217,9 +238,9 @@ function updateEvac(dt) {
       banner('Wheels down', 'Chopper down · get in', false);
       shake(0.15);
     }
-    if (d2(P.x, P.y, e.x, e.y) < 80 * 80) {
+    if (d2(GS.P.x, GS.P.y, e.x, e.y) < 80 * 80) {
       e.hold += dt;
-      const late = buddies.find(b => !(b.down > 0) && d2(b.x, b.y, e.x, e.y) < 500 * 500);
+      const late = GS.buddies.find(b => !(b.down > 0) && d2(b.x, b.y, e.x, e.y) < 500 * 500);
       if (late && e.hold >= 2.4 && (e.waitT = (e.waitT || 0) + dt) < 8) e.hold = 2.4;
       /* the pilot holds for a teammate on the way */ e.waiting = late && e.hold >= 2.4 && e.waitT < 8 ? late.nm : null;
       if (e.hold >= 2.5) winRun();
@@ -255,12 +276,12 @@ function startHeli() {
   bias.start();
   heliNodes.bias = bias;
 }
-function heliVolume() {
-  if (!heliNodes || !evac) return;
-  const d = Math.hypot(evac.hx - P.x, evac.hy - P.y);
+export function heliVolume() {
+  if (!heliNodes || !GS.evac) return;
+  const d = Math.hypot(GS.evac.hx - GS.P.x, GS.evac.hy - GS.P.y);
   heliNodes.bias.offset.setTargetAtTime(clamp(1 - d / 1400, 0.05, 1) * 0.3, AC.currentTime, 0.2);
 }
-function stopHeli() {
+export function stopHeli() {
   if (!heliNodes) return;
   try {
     heliNodes.src.stop();
@@ -270,100 +291,100 @@ function stopHeli() {
   heliNodes = null;
 }
 function winRun() {
-  if (state !== 'play') return;
+  if (GS.state !== 'play') return;
 
-  state = 'won';
-  evac.hold = 2.5;
+  GS.state = 'won';
+  GS.evac.hold = 2.5;
   sfx.level();
-  slowmo = 0.6;
+  GS.slowmo = 0.6;
   stab([0, 7, 12], 1.6);
   tone(41, 1.8, 'sine', 0.22, 0.7);
   noise(1.4, 0.08, 900, 120, 'lowpass'); /* wheels up: one last chord from the band */
-  const inf = RUN.inf || 0;
+  const inf = GS.RUN.inf || 0;
   bump('evacs');
-  meta.evacDist = meta.evacDist || {};
-  meta.evacDist[RUN.district] = true;
+  GS.meta.evacDist = GS.meta.evacDist || {};
+  GS.meta.evacDist[GS.RUN.district] = true;
   statMax('bestInf', inf);
-  if (inf >= (meta.infMax || 0)) meta.infMax = Math.min(10, inf + 1);
-  const out = RUN.aboard.slice(),
-    left = buddies.slice();
-  runSeeds += 40 * out.length;
-  for (const _ of out) bump('saved'); // every one you bring out pays
+  if (inf >= (GS.meta.infMax || 0)) GS.meta.infMax = Math.min(10, inf + 1);
+  const out = GS.RUN.aboard.slice(),
+    left = GS.buddies.slice();
+  GS.runSeeds += 40 * out.length;
+  for (let i = 0; i < out.length; i++) bump('saved'); // every one you bring out pays
   $('wCrew').innerHTML =
     out.length || left.length
       ? (out.length
           ? `Made it out with you: <b>${out.map(b => `${b.nm} (${TRAITS[b.tr].name.toLowerCase()})`).join(', ')}</b> · +${40 * out.length} scrap.`
           : 'Nobody else made it aboard.') +
         (left.length ? ` Left behind: ${left.map(b => b.nm).join(', ')}.` : '') +
-        ((RUN.lost || []).length ? ` Lost on the way: ${RUN.lost.join(', ')}.` : '')
-      : (RUN.lost || []).length
-        ? `Lost on the way: ${RUN.lost.join(', ')}.`
+        ((GS.RUN.lost || []).length ? ` Lost on the way: ${GS.RUN.lost.join(', ')}.` : '')
+      : (GS.RUN.lost || []).length
+        ? `Lost on the way: ${GS.RUN.lost.join(', ')}.`
         : '';
   $('wCrew').hidden = !$('wCrew').innerHTML;
   {
     const [who, t] = storyEnd();
     $('wRadio').innerHTML = `<b>CH 9 · ${who.toUpperCase()} · LAST TRANSMISSION</b>“${t}”`;
     setTimeout(() => {
-      if (state === 'won') radioVoice(t, who);
+      if (GS.state === 'won') radioVoice(t, who);
     }, 1100);
   } /* and you hear it, over the win screen */
-  RUN.paid = { k: kills, w: wave, s: runSeeds };
+  GS.RUN.paid = { k: GS.kills, w: GS.wave, s: GS.runSeeds };
   /* what the win already paid: endless only pays on top of this */ const earned = Math.round(
-    (kills * 0.5 + wave * 10 + runSeeds + 200 + inf * 60) *
+    (GS.kills * 0.5 + GS.wave * 10 + GS.runSeeds + 200 + inf * 60) *
       (1 + 0.15 * (PK().vault || 0)) *
-      (RUN.clean ? 1.25 : 1) *
+      (GS.RUN.clean ? 1.25 : 1) *
       DIFF().seeds *
       (1 + 0.12 * inf) *
       twistK()
   );
-  meta.seeds += earned;
-  statMax('maxLevel', level);
+  GS.meta.seeds += earned;
+  statMax('maxLevel', GS.level);
   checkChal(true);
   saveMeta();
-  const nb = score > rec.score;
+  const nb = GS.score > rec.score;
   if (nb) {
-    rec.score = score;
-    store.set('rr_best', score);
+    rec.score = GS.score;
+    store.set('rr_best', GS.score);
   }
-  $('wScore').textContent = score.toLocaleString();
-  $('wKills').textContent = kills;
-  $('wLevel').textContent = level;
+  $('wScore').textContent = GS.score.toLocaleString();
+  $('wKills').textContent = GS.kills;
+  $('wLevel').textContent = GS.level;
   $('wInf').textContent = inf ? inf : 'Clean';
-  $('wSeeds').innerHTML = `+${earned} scrap · <b>${meta.seeds.toLocaleString()}</b> banked`;
+  $('wSeeds').innerHTML = `+${earned} scrap · <b>${GS.meta.seeds.toLocaleString()}</b> banked`;
   renderRunReport('wBreakdown');
   $('wUnlock').innerHTML =
     bossLogHtml() +
     chalRunSummary() +
     ' ' +
-    (inf + 1 <= 10 && meta.infMax === inf + 1
+    (inf + 1 <= 10 && GS.meta.infMax === inf + 1
       ? `Infection ${inf + 1} unlocked: <b>${INFECTION[inf + 1].name}</b>. ${INFECTION[inf + 1].desc}`
       : '');
-  $('wTitle').textContent = `You made it out of ${DISTRICTS[RUN.district].name}`;
+  $('wTitle').textContent = `You made it out of ${DISTRICTS[GS.RUN.district].name}`;
   $('bossBox').hidden = true;
   setTimeout(() => {
-    if (state === 'won') {
+    if (GS.state === 'won') {
       $('won').hidden = false;
       $('wonMenuBtn').focus({ preventScroll: true });
       $('wonMenuBtn').scrollIntoView({ block: 'nearest' });
     }
   }, 1400);
 }
-function goEndless() {
+export function goEndless() {
   $('won').hidden = true;
-  RUN.endless = true;
-  state = 'play';
-  for (const b of RUN.aboard) {
-    const sp = regroupSpot(P, buddies.length) || [P.x - 50, P.y + 40];
+  GS.RUN.endless = true;
+  GS.state = 'play';
+  for (const b of GS.RUN.aboard) {
+    const sp = regroupSpot(GS.P, GS.buddies.length) || [GS.P.x - 50, GS.P.y + 40];
     b.x = sp[0];
     b.y = sp[1];
     b.slot = null;
-    buddies.push(b);
+    GS.buddies.push(b);
   }
-  RUN.aboard = [];
-  if (evac) evac.leave = 0.01;
-  enemies.length = 0;
-  interT = 3;
-  nightDone = true;
+  GS.RUN.aboard = [];
+  if (GS.evac) GS.evac.leave = 0.01;
+  GS.enemies.length = 0;
+  GS.interT = 3;
+  GS.nightDone = true;
   banner('Endless nights', 'You waved the chopper off. How long can you last?', true);
 }
 /* ---------- weather and events ---------- */

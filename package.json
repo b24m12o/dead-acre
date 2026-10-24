@@ -6,13 +6,15 @@
   "type": "module",
   "scripts": {
     "build": "node tools/build.mjs",
-    "lint": "node tools/lint.mjs",
+    "lint": "eslint .",
     "test": "node tests/run.mjs",
-    "test:campaign": "node tests/run.mjs campaign"
+    "test:campaign": "node tests/run.mjs campaign",
+    "format": "prettier --write \"src/**/*.js\" \"tools/**/*.mjs\" \"tests/**/*.mjs\" eslint.config.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",
     "csso": "5.0.5",
+    "esbuild": "^0.24.0",
     "eslint": "^9.12.0",
     "globals": "^15.11.0",
     "playwright": "^1.56.0",

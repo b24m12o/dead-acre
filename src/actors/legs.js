@@ -1,5 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function ik2(hx, hy, fx, fy, L1, L2, bend) {
+import { d2, lerp } from '../core/util.js';
+import { lineQ, quad, setH } from '../render/sprites.js';
+import { R } from '../render/atlas.js';
+export function ik2(hx, hy, fx, fy, L1, L2, bend) {
   let dx = fx - hx,
     dy = fy - hy,
     d = Math.hypot(dx, dy) || 0.001;
@@ -17,7 +20,7 @@ function ik2(hx, hy, fx, fy, L1, L2, bend) {
     my = hy + (dy / d) * a;
   return [mx - (dy / d) * h * bend, my + (dx / d) * h * bend, fx, fy];
 }
-const LEGSPEC = {
+export const LEGSPEC = {
   skitter: {
     pairs: [
       [5, 4, 15, 17],
@@ -60,7 +63,7 @@ const LEGSPEC = {
     col: [0.76, 0.67, 0.63],
   },
 };
-function makeLegs(e, spec) {
+export function makeLegs(e, spec) {
   e.legs = [];
   const c = Math.cos(e.a),
     s = Math.sin(e.a);
@@ -76,7 +79,7 @@ function makeLegs(e, spec) {
   }
   e.legSpec = spec;
 }
-function updateLegs(e, dt) {
+export function updateLegs(e, dt) {
   const sp = e.legSpec,
     c = Math.cos(e.a),
     s = Math.sin(e.a),
@@ -106,7 +109,7 @@ function updateLegs(e, dt) {
     }
   }
 }
-function drawLegs(e, sc, fl, curl = 0) {
+export function drawLegs(e, sc, fl, curl = 0) {
   const sp = e.legSpec,
     c = Math.cos(e.a),
     s = Math.sin(e.a),

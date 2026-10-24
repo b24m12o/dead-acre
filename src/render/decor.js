@@ -1,5 +1,17 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function drawGrave(i) {
+import { GS } from '../core/gs.js';
+import { TAU, clamp, d2, pick, rand, randi } from '../core/util.js';
+import { SUNV, addLight, lineQ, quad, setH, viewH, viewW } from './sprites.js';
+import { R } from './atlas.js';
+import { MH, MW, ROAD, RX, RY, TILE, cars, grid, houses, ttype } from '../world/map.js';
+import { query } from '../world/nav.js';
+import { noise, playS } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { cam } from '../game/state.js';
+import { chips, decal, part, sparks } from './effects.js';
+import { propShot } from '../world/physics.js';
+import { WST, WSTN, hsh, windows } from './blocks.js';
+export function drawGrave(i) {
   const tx = i % MW,
     ty = (i / MW) | 0,
     h = hsh(tx, ty),
@@ -9,26 +21,26 @@ function drawGrave(i) {
     x = (tx + 0.5) * TILE + ox,
     y = (ty + 0.5) * TILE,
     tilt = (hsh(tx, ty * 11) - 0.5) * 0.18; // no two rows alike: size, offset and lean vary
-  if (SHMODE) {
+  if (GS.SHMODE) {
     setH(18 * sc);
     quad(R.pixel, x, y - 6, 0, 5 * sc, 1.6, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
   }
   quad(R['grave' + k], x, y - 18 * sc, tilt, sc, sc, 0.92, 0.92, 0.92, 1, 0, 0, 0, 0);
 }
-function drawPole(x, y, h, w, col = 0.16) {
-  if (SHMODE) {
-    const s = SHMODE === 1 ? 1 : 0;
+export function drawPole(x, y, h, w, col = 0.16) {
+  if (GS.SHMODE) {
+    const s = GS.SHMODE === 1 ? 1 : 0;
     setH(0);
     lineQ(x, y, x + SUNV[0] * h * s + 0.01, y + SUNV[1] * h * s + 0.01, w, 1, 1, 1, 1, 0, 0, 0, 0, R.pixel);
     return;
   }
   lineQ(x, y, x, y - h, w, col, col, col * 1.08, 1, 0, 0, 0, 0, R.pixel);
 }
-const LAMPV = L => (L.lantern ? 10 : 20); // seen from almost straight above, a lamp head sits just above its light pool, not a pole's height up the screen (the shadow still shows how tall it is)
-function drawLampPole(L) {
+export const LAMPV = L => (L.lantern ? 10 : 20); // seen from almost straight above, a lamp head sits just above its light pool, not a pole's height up the screen (the shadow still shows how tall it is)
+export function drawLampPole(L) {
   if (L.down) {
-    if (SHMODE) return;
+    if (GS.SHMODE) return;
     const ex = L.bx + Math.cos(L.fa) * 66,
       ey = L.by + Math.sin(L.fa) * 66;
     setH(1);
@@ -72,7 +84,7 @@ function drawLampPole(L) {
     );
     return;
   }
-  if (SHMODE) {
+  if (GS.SHMODE) {
     const h = L.lantern ? 30 : 66;
     drawPole(L.bx, L.by, h, L.lantern ? 3 : 4.5);
     return;
@@ -82,8 +94,8 @@ function drawLampPole(L) {
   lineQ(L.bx, L.by + 1, L.bx, L.by - v, L.lantern ? 4 : 6.5, 0.2, 0.2, 0.22, 1, 0, 0, 0, 0, R.pixel);
   quad(R.pixel, L.bx, L.by - v, 0, L.lantern ? 1.1 : 1.6, L.lantern ? 1.1 : 1.6, 0.27, 0.27, 0.3, 1, 0, 0, 0, 0);
 } // the pole seen end-on from above: a short dark column with its cap; the arm reaches out from the cap
-function drawTrunk(t) {
-  if (SHMODE) {
+export function drawTrunk(t) {
+  if (GS.SHMODE) {
     drawPole(t.x, t.y, 40 * t.s, 9 * t.s, 0.2);
     return;
   }
@@ -106,10 +118,10 @@ const DECOR = {
   coffin: { reg: 'p_coffin', n: 4, step: 2 },
   wreath: { reg: 'p_wreath', n: 1, step: 1 },
 };
-function genDecor() {
-  decor = [];
-  jets = [];
-  const D = RUN.district || 'town',
+export function genDecor() {
+  GS.decor = [];
+  GS.jets = [];
+  const D = GS.RUN.district || 'town',
     c0 = MW / 2;
   const spot = (pred, minGap = 3) => {
     for (let k = 0; k < 60; k++) {
@@ -117,7 +129,7 @@ function genDecor() {
         ty = randi(3, MH - 4),
         i = ty * MW + tx;
       if (grid[i] || !pred(tx, ty, i) || Math.hypot(tx - c0, ty - c0) < 4) continue;
-      if (decor.some(d => Math.hypot(d.tx - tx, d.ty - ty) < minGap)) continue;
+      if (GS.decor.some(d => Math.hypot(d.tx - tx, d.ty - ty) < minGap)) continue;
       return [tx, ty];
     }
     return null;
@@ -127,7 +139,7 @@ function genDecor() {
       const s = spot(pred, extra.gap || 3);
       if (!s) continue;
       const [tx, ty] = s;
-      decor.push(
+      GS.decor.push(
         Object.assign(
           { kind, tx, ty, x: (tx + 0.5) * TILE + rand(-8, 8), y: (ty + 0.5) * TILE + rand(-8, 8), a: rand(0, TAU) },
           extra.fn ? extra.fn(tx, ty) : {}
@@ -155,7 +167,7 @@ function genDecor() {
       const [tx, ty] = s;
       grid[ty * MW + tx] = 1;
       ttype[ty * MW + tx] = 10;
-      decor.push({ kind: 'dumpster', tx, ty, x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, a: pick([0, Math.PI]) });
+      GS.decor.push({ kind: 'dumpster', tx, ty, x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, a: pick([0, Math.PI]) });
     }
     for (const rx of RX)
       for (const ry of RY)
@@ -166,7 +178,7 @@ function genDecor() {
           if (Math.random() < 0.25) continue;
           const x = (rx + 0.5 + dx) * TILE,
             y = (ry + 0.5 + dy) * TILE;
-          decor.push({
+          GS.decor.push({
             kind: 'tlight',
             tx: Math.floor(x / TILE),
             ty: Math.floor(y / TILE),
@@ -182,11 +194,11 @@ function genDecor() {
         if (Math.random() < 0.5) {
           const x = (rx + 0.5 + 2.4) * TILE,
             y = (ry + 0.5 - 2.4) * TILE;
-          decor.push({ kind: 'stop', tx: Math.floor(x / TILE), ty: Math.floor(y / TILE), x, y, a: 0 });
+          GS.decor.push({ kind: 'stop', tx: Math.floor(x / TILE), ty: Math.floor(y / TILE), x, y, a: 0 });
         }
     for (let j = 0; j < 2; j++) {
       const s = spot((tx, ty, i) => side(tx, ty, i) && side(tx + 1, ty, i + 1) && ROAD[i - MW] === 1, 6);
-      if (s) decor.push({ kind: 'bus', tx: s[0], ty: s[1], x: (s[0] + 1) * TILE, y: (s[1] + 0.5) * TILE, a: 0 });
+      if (s) GS.decor.push({ kind: 'bus', tx: s[0], ty: s[1], x: (s[0] + 1) * TILE, y: (s[1] + 0.5) * TILE, a: 0 });
     }
     const pc = cars.filter(c => !c.truck && !c.burnt);
     if (pc.length) {
@@ -204,7 +216,7 @@ function genDecor() {
       const [tx, ty] = s;
       grid[ty * MW + tx] = 1;
       ttype[ty * MW + tx] = 10;
-      decor.push({ kind: 'dumpster', tx, ty, x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, a: 0 });
+      GS.decor.push({ kind: 'dumpster', tx, ty, x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, a: 0 });
     }
     const pc = cars.filter(c => !c.truck && !c.burnt);
     for (let j = 0; j < 2 && pc.length; j++) {
@@ -234,7 +246,7 @@ function genDecor() {
   }
   for (const c of cars) if (!c.police && !c.burnt && Math.random() < 0.3) c.lights = 1;
 }
-function decorKey(d) {
+export function decorKey(d) {
   const D = DECOR[d.kind];
   if (D && D.n * D.step <= 12 && !d.down) return d.y - 34;
   /* knee-high: a bench or a cone sits under anyone standing at it, so it never covers a gun */ return d.kind ===
@@ -245,16 +257,16 @@ function decorKey(d) {
       : d.y + 6;
 }
 function tlightState(d) {
-  if (ev === 'blackout') return -1;
+  if (GS.ev === 'blackout') return -1;
   /* no mains power: the signals go dark with the street lights */ if (d.broken)
-    return Math.sin(time * 9 + d.ph) > 0.4 ? 1 : -1;
-  const t = (time + d.ph) % 14;
+    return Math.sin(GS.time * 9 + d.ph) > 0.4 ? 1 : -1;
+  const t = (GS.time + d.ph) % 14;
   return t < 6 ? 2 : t < 8 ? 1 : 0;
 }
-function drawDecor(d) {
+export function drawDecor(d) {
   const k = d.kind;
   if (d.down && (k === 'tlight' || k === 'stop')) {
-    if (SHMODE) return;
+    if (GS.SHMODE) return;
     const h = k === 'tlight' ? 64 : 40,
       ex = d.x + Math.cos(d.fa) * h,
       ey = d.y + Math.sin(d.fa) * h;
@@ -268,7 +280,7 @@ function drawDecor(d) {
     const h = 64,
       ax = d.x + Math.cos(d.a) * 46;
     drawPole(d.x, d.y, h, 4);
-    if (SHMODE) {
+    if (GS.SHMODE) {
       setH(h);
       lineQ(d.x, d.y, ax, d.y, 3, 1, 1, 1, 1, 0, 0, 0, 0, R.pixel);
       quad(R.p_tl, ax, d.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
@@ -286,7 +298,7 @@ function drawDecor(d) {
   }
   if (k === 'stop') {
     drawPole(d.x, d.y, 40, 3);
-    if (SHMODE) {
+    if (GS.SHMODE) {
       setH(40);
       quad(R.p_stop, d.x, d.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
       return;
@@ -296,7 +308,7 @@ function drawDecor(d) {
   }
   if (k === 'bus') {
     for (const ox of [-34, 34]) drawPole(d.x + ox, d.y + 10, 34, 3);
-    if (SHMODE) {
+    if (GS.SHMODE) {
       setH(36);
       quad(R.p_busroof, d.x, d.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
       return;
@@ -310,10 +322,10 @@ function drawDecor(d) {
   const reg = R[D.reg];
   const K = D.sc || 1;
   if (d.down) {
-    if (!SHMODE) quad(reg, d.x, d.y, d.a, K, 0.8 * K, 0.7, 0.7, 0.7, 1, 0, 0, 0, 0);
+    if (!GS.SHMODE) quad(reg, d.x, d.y, d.a, K, 0.8 * K, 0.7, 0.7, 0.7, 1, 0, 0, 0, 0);
     return;
   }
-  if (SHMODE) {
+  if (GS.SHMODE) {
     setH(D.n * D.step);
     quad(reg, d.x, d.y, d.a, K, K, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
@@ -324,16 +336,16 @@ function drawDecor(d) {
     quad(reg, d.x, d.y - j * D.step, d.a, s, s, sh, sh, sh, 1, 0, 0, 0, 0);
   }
 }
-function decorShot(b) {
+export function decorShot(b) {
   if (propShot(b)) return true;
-  for (const d of decor) {
+  for (const d of GS.decor) {
     const D = DECOR[d.kind];
     if (!D || !D.shoot || d.down) continue;
     if (d2(b.x, b.y, d.x, d.y - 6) > 13 * 13) continue;
     if (d.kind === 'hydrant') {
       if (!d.jet) {
         d.jet = 8;
-        jets.push(d);
+        GS.jets.push(d);
         playS('dry', 0.2, 0.6, 0, 0);
         noise(0.6, 0.12, 2400, 1200, 'bandpass');
       }
@@ -350,8 +362,8 @@ function decorShot(b) {
   }
   return false;
 }
-function updateJets(dt) {
-  for (const d of jets) {
+export function updateJets(dt) {
+  for (const d of GS.jets) {
     d.jet -= dt;
     if (d.jet <= 0) continue;
     const vis = Math.abs(d.x - cam.x - viewW / 2) < viewW && Math.abs(d.y - cam.y - viewH / 2) < viewH;
@@ -392,10 +404,10 @@ function updateJets(dt) {
       }
     });
   }
-  jets = jets.filter(d => d.jet > 0);
+  GS.jets = GS.jets.filter(d => d.jet > 0);
 }
-function decorLights() {
-  if (ev !== 'blackout')
+export function decorLights() {
+  if (GS.ev !== 'blackout')
     for (const w of windows)
       if (!w.broke)
         addLight(w.x, w.y, w.cool ? 170 : 140, w.cool ? 0.45 : 0.62, w.cool ? 0.6 : 0.42, w.cool ? 0.55 : 0.2);
@@ -410,22 +422,22 @@ function decorLights() {
       }
     }
     if (c.police) {
-      const on = Math.sin(time * 14) > 0;
+      const on = Math.sin(GS.time * 14) > 0;
       addLight(c.x, c.y, 300, on ? 0.12 : 0.75, 0.08, on ? 0.85 : 0.12);
     }
     if (c.lights) {
-      const k = c.hp < c.max * 0.5 && Math.sin(time * 23 + c.x) > 0.3 ? 0.15 : 1,
+      const k = c.hp < c.max * 0.5 && Math.sin(GS.time * 23 + c.x) > 0.3 ? 0.15 : 1,
         fx = c.x + Math.cos(c.a) * 40,
         fy = c.y + Math.sin(c.a) * 40;
       addLight(fx, fy, 380, 1.0 * k, 0.95 * k, 0.8 * k, c.a, 0.9);
     }
   }
-  for (let i = 0; i < grassFire.length; i += 5) {
-    const g = grassFire[i],
-      fk = 0.75 + Math.sin(time * 11 + g.ph) * 0.25;
+  for (let i = 0; i < GS.grassFire.length; i += 5) {
+    const g = GS.grassFire[i],
+      fk = 0.75 + Math.sin(GS.time * 11 + g.ph) * 0.25;
     addLight(g.x, g.y, 150, 0.9 * fk, 0.42 * fk, 0.1 * fk);
   }
-  for (const d of decor)
+  for (const d of GS.decor)
     if (d.kind === 'tlight' && !d.down) {
       const s = tlightState(d);
       if (s < 0) continue;
@@ -434,7 +446,7 @@ function decorLights() {
       addLight(ax, d.y, 120, col[0], col[1], col[2]);
     }
 }
-function drawHouseRoofs() {
+export function drawHouseRoofs() {
   for (const o of houses) {
     if (!o.roof) continue;
     const RH = (WSTN[WST[o.y * MW + o.x]] === 'conc' ? 30 : WSTN[WST[o.y * MW + o.x]] === 'stone' ? 30 : 28) + 2;
@@ -442,10 +454,10 @@ function drawHouseRoofs() {
       y0 = o.y * TILE,
       x1 = (o.x + o.w) * TILE,
       y1 = (o.y + o.h) * TILE;
-    if (x1 < camX - 40 || x0 > camX + viewW + 40 || y1 < camY - 40 || y0 - RH > camY + viewH + 40) continue;
-    const inside = P && P.x > x0 - 6 && P.x < x1 + 6 && P.y > y0 - RH - 10 && P.y < y1 + 4;
+    if (x1 < GS.camX - 40 || x0 > GS.camX + viewW + 40 || y1 < GS.camY - 40 || y0 - RH > GS.camY + viewH + 40) continue;
+    const inside = GS.P && GS.P.x > x0 - 6 && GS.P.x < x1 + 6 && GS.P.y > y0 - RH - 10 && GS.P.y < y1 + 4;
     o.fade += ((inside ? 0.12 : 1) - o.fade) * 0.15;
-    gA = o.fade;
+    GS.gA = o.fade;
     const flat = o.style === 'crypt' || o.style === 'store',
       rx = o.w >= o.h,
       tc = o.style === 'crypt' ? [0.8, 1, 1] : o.style === 'store' ? [1, 1.1, 1] : [1, 1, 1]; // houses get a pitched roof: a ridge along the long side, the slope facing the light paler than the one turned away
@@ -518,10 +530,10 @@ function drawHouseRoofs() {
       setH(1);
       quad(R.r_sky, kx, ky, rx ? 0 : Math.PI / 2, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
     }
-    gA = 1;
+    GS.gA = 1;
   }
 }
-function roofShadows() {
+export function roofShadows() {
   for (const o of houses)
     if (o.roof) {
       setH(0);

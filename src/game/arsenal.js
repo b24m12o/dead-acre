@@ -1,5 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const HEROES = {
+import { GS } from '../core/gs.js';
+import { TW } from './districts.js';
+export const HEROES = {
   ranger: {
     name: 'Soldier',
     weapon: 'Rifles',
@@ -31,7 +33,7 @@ const HEROES = {
     dot: '#c0392b',
   },
 };
-const GUNS = {
+export const GUNS = {
   pistol: {
     name: 'Pistol',
     reg: 'h_pistol',
@@ -207,14 +209,14 @@ const GUNS = {
     lob: true,
   },
 };
-const GUN_ORDER = ['pistol', 'shotgun', 'smg', 'rifle', 'auto', 'hunter', 'lever', 'lmg', 'launcher'];
-const AMMO_MAX = { light: 480, shells: 90, rifle: 400, heavy: 60, gren: 18 },
+export const GUN_ORDER = ['pistol', 'shotgun', 'smg', 'rifle', 'auto', 'hunter', 'lever', 'lmg', 'launcher'];
+export const AMMO_MAX = { light: 480, shells: 90, rifle: 400, heavy: 60, gren: 18 },
   AMMO_BOX = { light: 48, shells: 10, rifle: 40, heavy: 7, gren: 2 };
 // where the arsenal grows: a weapon case lands at the start of these nights (the boss drops the auto shotgun)
-const WEAPON_NIGHTS = { 2: 1, 4: 1, 7: 1, 9: 1, 12: 1 }; // spread over the run: something new to look forward to until night 12
+export const WEAPON_NIGHTS = { 2: 1, 4: 1, 7: 1, 9: 1, 12: 1 }; // spread over the run: something new to look forward to until night 12
 // each weapon case holds two guns and you take one; the other stays in the convoy's pool for the next case
-const GUN_PATH = ['shotgun', 'smg', 'rifle', 'hunter', 'lever', 'lmg']; // each case offers two of these and the one you leave is gone, so three cases cover them all and each pick counts
-const GUN_DESC = {
+export const GUN_PATH = ['shotgun', 'smg', 'rifle', 'hunter', 'lever', 'lmg']; // each case offers two of these and the one you leave is gone, so three cases cover them all and each pick counts
+export const GUN_DESC = {
   lever:
     "Seven .30-30 rounds, loaded one at a time. Hits hard, goes through three bodies and Roadkill's sign. Uses heavy ammo.",
   launcher: 'Six 40 mm grenades lobbed over cars and headstones to where you aim. Blows a crowd apart. Uses grenades.',
@@ -227,14 +229,14 @@ const GUN_DESC = {
   lmg: 'A 100-round belt and a long reload. Holds a street on its own, but you walk slowly while it fires. Uses rifle ammo.',
   auto: 'A semi-auto shotgun: ten shells as fast as you can pull. Pushes them back, rarely knocks one down. Uses shells.',
 };
-function nextGuns() {
+export function nextGuns() {
   if (TW('pistol')) return [];
-  const fav = { ranger: 'rifle', breacher: 'shotgun', grenadier: 'smg' }[RUN.hero] || 'shotgun',
-    base = RUN.gunPath || GUN_PATH,
+  const fav = { ranger: 'rifle', breacher: 'shotgun', grenadier: 'smg' }[GS.RUN.hero] || 'shotgun',
+    base = GS.RUN.gunPath || GUN_PATH,
     path = [fav, ...base.filter(g => g !== fav)];
-  return path.filter(g => P && !P.owned.includes(g) && !(RUN.declined || []).includes(g)).slice(0, 2);
+  return path.filter(g => GS.P && !GS.P.owned.includes(g) && !(GS.RUN.declined || []).includes(g)).slice(0, 2);
 } // a gun you turned down went back on the truck for good // the first case always holds a gun your character is good with
-const PERKS = [
+export const PERKS = [
   { id: 'hp', name: 'Kevlar Inserts', desc: '+10 max health for every character.', max: 5, cost: l => 60 + l * 60 },
   { id: 'dmg', name: 'Hand-loaded Ammo', desc: '+6% damage for every weapon.', max: 5, cost: l => 80 + l * 70 },
   { id: 'reroll', name: 'Scavenger Instinct', desc: '+1 gear reroll per run.', max: 3, cost: l => 110 + l * 110 },

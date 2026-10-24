@@ -1,91 +1,108 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-let glDead = false;
-function setPause(p) {
-  if (!p && glDead) return;
-  if (p && state === 'play') {
-    state = 'pause';
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { saveMeta, store } from '../core/settings.js';
+import { DIFF } from '../core/profile.js';
+import { AC, initAudio } from '../audio/audio.js';
+import { setMuted } from '../audio/music.js';
+import { S, rec } from '../game/state.js';
+import { explode } from '../game/combat.js';
+import { syncOpts } from './settings-ui.js';
+import { PK, begin, openHangar, renderHeroes, renderPauseGuns, seedsLine } from './hangar.js';
+import { setB, setT } from './hud.js';
+import { FINAL_NIGHT, twistK } from '../game/districts.js';
+import { chalRunSummary, checkChal, openChal, statMax } from '../game/challenges.js';
+import { practiceReport } from '../game/practice.js';
+import { bossLogHtml } from '../game/boss-flow.js';
+import { goEndless, stopHeli } from '../game/evac.js';
+import { affordNow, menuInit, renderDistricts } from './menu.js';
+GS.glDead = false;
+export function setPause(p) {
+  if (!p && GS.glDead) return;
+  if (p && GS.state === 'play') {
+    GS.state = 'pause';
     renderPauseGuns();
     $('pause').hidden = false;
     $('resumeBtn').focus({ preventScroll: true });
     if (AC && AC.state === 'running') AC.suspend();
-  } else if (!p && state === 'pause') {
-    state = 'play';
+  } else if (!p && GS.state === 'pause') {
+    GS.state = 'play';
     $('pause').hidden = true;
     $('settings').hidden = true;
     if (AC && AC.state === 'suspended' && !document.hidden) AC.resume();
   }
 } // the whole mix freezes with the game, so a paused tab doesn't stutter music in the background
-function gameOver() {
+export function gameOver() {
   $('hint').classList.remove('show', 'tut');
-  if (RUN.tut) RUN.tut = null;
-  state = 'over';
-  P.hp = 0;
+  if (GS.RUN.tut) GS.RUN.tut = null;
+  GS.state = 'over';
+  GS.P.hp = 0;
   setB('hpFill', 0);
   setT('hpTxt', `0 / ${Math.round(S.maxHp)}`);
   $('hpBar').classList.add('low');
-  explode(P.x, P.y, 110, 0, false);
-  hitstop = 0.3; // the HUD stops updating once you're dead: show the zero
+  explode(GS.P.x, GS.P.y, 110, 0, false);
+  GS.hitstop = 0.3; // the HUD stops updating once you're dead: show the zero
 
   stopHeli();
-  $('over').querySelector('.eyebrow').textContent = `Killed by ${P.lastBy || 'the dead'} · The radio is still on`;
+  $('over').querySelector('.eyebrow').textContent = `Killed by ${GS.P.lastBy || 'the dead'} · The radio is still on`;
   $('againBtn').textContent = 'Try again';
-  if (RUN.practice) {
+  if (GS.RUN.practice) {
     practiceReport(false);
     return;
   }
-  statMax('maxNight', wave - 1);
-  statMax('maxLevel', level);
+  statMax('maxNight', GS.wave - 1);
+  statMax('maxLevel', GS.level);
   checkChal(true);
-  const pd = RUN.paid || { k: 0, w: 1, s: 0 },
+  const pd = GS.RUN.paid || { k: 0, w: 1, s: 0 },
     earned = Math.max(
       1,
       Math.round(
-        ((kills - pd.k) * 0.5 + Math.max(0, wave - Math.max(1, pd.w)) * 10 + (runSeeds - pd.s)) *
+        ((GS.kills - pd.k) * 0.5 + Math.max(0, GS.wave - Math.max(1, pd.w)) * 10 + (GS.runSeeds - pd.s)) *
           (1 + 0.15 * (PK().vault || 0)) *
-          (RUN.clean ? 1.25 : 1) *
+          (GS.RUN.clean ? 1.25 : 1) *
           DIFF().seeds *
-          (1 + 0.12 * (RUN.inf || 0)) *
+          (1 + 0.12 * (GS.RUN.inf || 0)) *
           twistK()
       )
     );
-  meta.seeds += earned;
+  GS.meta.seeds += earned;
   saveMeta();
   {
     const af = affordNow();
     $('oSeeds').innerHTML =
-      `+${earned} scrap · <b>${meta.seeds.toLocaleString()}</b> banked` +
+      `+${earned} scrap · <b>${GS.meta.seeds.toLocaleString()}</b> banked` +
       (af.length
         ? `<br><span class="afford">In the Armory you can now buy: ${af.slice(0, 3).join(' · ')}${af.length > 3 ? ` · and ${af.length - 3} more` : ''}</span>`
         : '');
   }
-  const nb = score > rec.score,
-    nw = wave > rec.wave;
+  const nb = GS.score > rec.score,
+    nw = GS.wave > rec.wave;
   if (nb) {
-    rec.score = score;
-    store.set('rr_best', score);
+    rec.score = GS.score;
+    store.set('rr_best', GS.score);
   }
   if (nw) {
-    rec.wave = wave;
-    store.set('rr_wave', wave);
+    rec.wave = GS.wave;
+    store.set('rr_wave', GS.wave);
   }
-  $('overTitle').textContent = RUN.endless
-    ? `Eaten on endless night ${wave}`
-    : `Eaten on night ${wave} of ${FINAL_NIGHT}`;
-  $('oScore').textContent = score.toLocaleString();
+  $('overTitle').textContent = GS.RUN.endless
+    ? `Eaten on endless night ${GS.wave}`
+    : `Eaten on night ${GS.wave} of ${FINAL_NIGHT}`;
+  $('oScore').textContent = GS.score.toLocaleString();
   $('oWaveL').textContent = 'Scrap';
   $('oWave').textContent = `+${earned}`;
-  /* the title already says the night */ $('oKills').textContent = kills;
-  $('oLevel').textContent = level;
+  /* the title already says the night */ $('oKills').textContent = GS.kills;
+  $('oLevel').textContent = GS.level;
   renderRunReport('oBreakdown');
   {
-    const lost = (RUN.lost || []).concat(buddies.map(b => b.nm).filter(Boolean));
+    const lost = (GS.RUN.lost || []).concat(GS.buddies.map(b => b.nm).filter(Boolean));
     $('oCrew').textContent = lost.length ? `Lost with you: ${lost.join(', ')}.` : '';
     $('oCrew').hidden = !lost.length;
-    const who = RUN.voice || 'Reyes';
-    $('oRadio').innerHTML = RUN.practice
+    const who = GS.RUN.voice || 'Reyes';
+    $('oRadio').innerHTML = GS.RUN.practice
       ? ''
-      : `<b>CH 9 · ${who.toUpperCase()}</b>“${who === 'Hawk' ? 'Nine? Nine, I have lost your signal. Nine, come in.' : wave >= 10 ? 'Nine, come in. Nine? We heard the shooting stop.' : 'Nine? Nine, come in. Somebody pick up the relay.'}”`;
-    $('oRadio').hidden = !!RUN.practice;
+      : `<b>CH 9 · ${who.toUpperCase()}</b>“${who === 'Hawk' ? 'Nine? Nine, I have lost your signal. Nine, come in.' : GS.wave >= 10 ? 'Nine, come in. Nine? We heard the shooting stop.' : 'Nine? Nine, come in. Somebody pick up the relay.'}”`;
+    $('oRadio').hidden = !!GS.RUN.practice;
   }
   $('oChal').innerHTML =
     chalRunSummary() + '<div><button class="opt" id="oChalBtn" type="button">See all challenges</button></div>';
@@ -95,7 +112,7 @@ function gameOver() {
     bossLogHtml();
   $('bossBox').hidden = true;
   setTimeout(() => {
-    if (state === 'over') {
+    if (GS.state === 'over') {
       $('over').hidden = false;
       $('againBtn').focus({ preventScroll: true });
       $('againBtn').scrollIntoView({ block: 'nearest' });
@@ -106,8 +123,8 @@ function formatRunTime(seconds) {
   const s = Math.max(0, Math.floor(Number(seconds) || 0));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
-function renderRunReport(id) {
-  const m = RUN && RUN.metrics;
+export function renderRunReport(id) {
+  const m = GS.RUN && GS.RUN.metrics;
   const el = $(id);
   if (!el || !m) return;
   const cells = [
@@ -122,65 +139,68 @@ function renderRunReport(id) {
   ];
   el.innerHTML = cells.map(([label, value]) => `<div><span>${label}</span><b>${value}</b></div>`).join('');
 }
-function showMenuRec() {
+export function showMenuRec() {
   $('menuRec').innerHTML = rec.score
     ? `Best <b>${rec.score.toLocaleString()}</b> · longest night <b>${rec.wave}</b>`
     : 'No runs logged yet';
   $('menuSeeds').innerHTML = seedsLine();
 }
-$('startBtn').addEventListener('click', () => begin(false));
-$('survBtn').addEventListener('click', () => {
-  initAudio();
-  $('menu').hidden = true;
-  renderDistricts();
-  $('survSetup').hidden = false;
-  $('startBtn').focus({ preventScroll: true });
-});
-$('survBack').addEventListener('click', () => {
-  $('survSetup').hidden = true;
-  $('menu').hidden = false;
-});
 
-$('endlessBtn').addEventListener('click', goEndless);
-$('wonMenuBtn').addEventListener('click', () => {
-  $('won').hidden = true;
-  $('hud').hidden = true;
-  showMenuRec();
-  renderHeroes();
-  $('menu').hidden = false;
-  menuInit();
-  openHangar();
-});
-$('againBtn').addEventListener('click', () => begin(false));
-$('resumeBtn').addEventListener('click', () => setPause(false));
-$('quitBtn').addEventListener('click', () => {
-  const qb = $('quitBtn');
-  if (qb.dataset.sure !== '1') {
-    qb.dataset.sure = '1';
-    qb.textContent = "Quit? This run's scrap is lost";
-    setTimeout(() => {
-      qb.dataset.sure = '';
-      qb.textContent = 'Quit run';
-    }, 3000);
-    return;
-  }
-  qb.dataset.sure = '';
-  qb.textContent = 'Quit run';
-  $('pause').hidden = true;
-  $('hint').classList.remove('show');
-  $('hud').hidden = true;
-  $('bossBox').hidden = true;
-  showMenuRec();
-  $('menu').hidden = false;
-  menuInit();
-});
-$('muteBtn').addEventListener('click', () => {
-  initAudio();
-  setMuted(!muted);
-});
-$('tutBtn').addEventListener('click', () => {
-  meta.tutForce = !meta.tutForce;
-  saveMeta();
-  syncOpts();
-});
-$('menu').addEventListener('pointerdown', () => initAudio());
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  $('startBtn').addEventListener('click', () => begin(false));
+  $('survBtn').addEventListener('click', () => {
+    initAudio();
+    $('menu').hidden = true;
+    renderDistricts();
+    $('survSetup').hidden = false;
+    $('startBtn').focus({ preventScroll: true });
+  });
+  $('survBack').addEventListener('click', () => {
+    $('survSetup').hidden = true;
+    $('menu').hidden = false;
+  });
+  $('endlessBtn').addEventListener('click', goEndless);
+  $('wonMenuBtn').addEventListener('click', () => {
+    $('won').hidden = true;
+    $('hud').hidden = true;
+    showMenuRec();
+    renderHeroes();
+    $('menu').hidden = false;
+    menuInit();
+    openHangar();
+  });
+  $('againBtn').addEventListener('click', () => begin(false));
+  $('resumeBtn').addEventListener('click', () => setPause(false));
+  $('quitBtn').addEventListener('click', () => {
+    const qb = $('quitBtn');
+    if (qb.dataset.sure !== '1') {
+      qb.dataset.sure = '1';
+      qb.textContent = "Quit? This run's scrap is lost";
+      setTimeout(() => {
+        qb.dataset.sure = '';
+        qb.textContent = 'Quit run';
+      }, 3000);
+      return;
+    }
+    qb.dataset.sure = '';
+    qb.textContent = 'Quit run';
+    $('pause').hidden = true;
+    $('hint').classList.remove('show');
+    $('hud').hidden = true;
+    $('bossBox').hidden = true;
+    showMenuRec();
+    $('menu').hidden = false;
+    menuInit();
+  });
+  $('muteBtn').addEventListener('click', () => {
+    initAudio();
+    setMuted(!GS.muted);
+  });
+  $('tutBtn').addEventListener('click', () => {
+    GS.meta.tutForce = !GS.meta.tutForce;
+    saveMeta();
+    syncOpts();
+  });
+  $('menu').addEventListener('pointerdown', () => initAudio());
+}

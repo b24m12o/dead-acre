@@ -24,7 +24,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Formatting
-        run: npx prettier --check "src/**/*.js" "tools/**/*.mjs" "tests/**/*.mjs"
+        run: npx prettier --check "src/**/*.js" "tools/**/*.mjs" "tests/**/*.mjs" eslint.config.js
       - name: Lint
         run: npm run lint
       - name: Build

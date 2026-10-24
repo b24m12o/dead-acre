@@ -1,4 +1,18 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { TAU, rand } from '../core/util.js';
+import { saveMeta } from '../core/settings.js';
+import { nextGuns } from './arsenal.js';
+import { sfx } from '../audio/sfx.js';
+import { magSize } from './state.js';
+import { showStreak } from '../ui/callouts.js';
+import { makeEnemy } from '../actors/enemies.js';
+import { dust } from '../render/effects.js';
+import { dropCrate } from './combat.js';
+import { updateHint } from '../ui/settings-ui.js';
+import { radio } from '../audio/radio.js';
+import { freeAround } from './boss-flow.js';
 const TUT = [
   { k: 'move', kbm: 'Move with W A S D' },
   { k: 'shoot', kbm: 'Aim with the mouse · hold left click to fire' },
@@ -7,34 +21,34 @@ const TUT = [
   { k: 'case', kbm: 'A weapon case is coming down · walk onto it and take a gun' },
   { k: 'swap', kbm: 'Swap guns with 1–9 or the mouse wheel · tap Q for the last one' },
 ];
-function tutWanted() {
+export function tutWanted() {
   return (
-    !RUN.practice &&
-    !RUN.endless &&
-    wave === 1 &&
-    (meta.tutForce || (!meta.tutDone && ((meta.stats && meta.stats.maxNight) || 0) < 2))
+    !GS.RUN.practice &&
+    !GS.RUN.endless &&
+    GS.wave === 1 &&
+    (GS.meta.tutForce || (!GS.meta.tutDone && ((GS.meta.stats && GS.meta.stats.maxNight) || 0) < 2))
   );
 }
-function tutStart() {
-  RUN.tut = { i: -1, q: queue, mv: 0, lx: P.x, ly: P.y, list: [] };
-  queue = [];
+export function tutStart() {
+  GS.RUN.tut = { i: -1, q: GS.queue, mv: 0, lx: GS.P.x, ly: GS.P.y, list: [] };
+  GS.queue = [];
   tutNext();
 }
 function tutSpawn(n, run, d0 = 270) {
-  const T = RUN.tut;
+  const T = GS.RUN.tut;
   for (let k = 0; k < n; k++)
-    later.push({
+    GS.later.push({
       t: k * (run ? 0.15 : 1.1),
       fn: () => {
-        if (!RUN.tut || state !== 'play') return;
-        let x = P.x,
-          y = P.y;
+        if (!GS.RUN.tut || GS.state !== 'play') return;
+        let x = GS.P.x,
+          y = GS.P.y;
         const base = T.side ?? (T.side = rand(0, TAU));
         for (let j = 0; j < 24; j++) {
           const a = base + (run ? rand(-0.3, 0.3) : rand(-1.2, 1.2)),
             r = d0 + rand(-20, 40);
-          x = P.x + Math.cos(a) * r;
-          y = P.y + Math.sin(a) * r;
+          x = GS.P.x + Math.cos(a) * r;
+          y = GS.P.y + Math.sin(a) * r;
           if (freeAround(x, y, 18)) break;
         }
         const e = makeEnemy('skitter', x, y);
@@ -50,7 +64,7 @@ function tutSpawn(n, run, d0 = 270) {
     });
 }
 function tutNext() {
-  const T = RUN.tut;
+  const T = GS.RUN.tut;
   if (!T) return;
   T.i++;
   T.t = 0;
@@ -60,44 +74,44 @@ function tutNext() {
   const st = TUT[T.i].k;
   if (st === 'shoot') tutSpawn(3, false);
   if (st === 'roll') {
-    T.r0 = (RUN.metrics && RUN.metrics.rolls) || 0;
+    T.r0 = (GS.RUN.metrics && GS.RUN.metrics.rolls) || 0;
     tutSpawn(3, true, 320);
   }
   if (st === 'reload') {
-    const g = P.gun;
+    const g = GS.P.gun;
     T.rl = false;
-    if (P.mag[g] >= magSize(g)) P.mag[g] = Math.max(1, Math.floor(magSize(g) / 3));
+    if (GS.P.mag[g] >= magSize(g)) GS.P.mag[g] = Math.max(1, Math.floor(magSize(g) / 3));
   }
   if (st === 'case') {
     const gs = nextGuns();
     if (gs.length) {
       dropCrate(gs[0], gs[1]);
-      RUN.tutCase = true;
+      GS.RUN.tutCase = true;
     } else return tutNext();
   }
   if (st === 'swap') {
-    T.g0 = P.gun;
-    if (P.owned.length < 2) return tutNext();
+    T.g0 = GS.P.gun;
+    if (GS.P.owned.length < 2) return tutNext();
   }
   tutHint();
 }
-function tutHint() {
-  const T = RUN.tut;
+export function tutHint() {
+  const T = GS.RUN.tut;
   if (!T || T.i < 0 || T.i >= TUT.length) return;
   const h = $('hint');
   h.innerHTML = `<b>Training ${T.i + 1}/${TUT.length}</b>${TUT[T.i].kbm} · Enter skips`;
   h.classList.add('show', 'tut');
-  clearTimeout(hintTO);
+  clearTimeout(GS.hintTO);
 }
-function tutEnd(skipped) {
-  const T = RUN.tut;
+export function tutEnd(skipped) {
+  const T = GS.RUN.tut;
   if (!T) return;
-  RUN.tut = null;
-  meta.tutDone = true;
-  meta.tutForce = false;
+  GS.RUN.tut = null;
+  GS.meta.tutDone = true;
+  GS.meta.tutForce = false;
   saveMeta();
-  queue = T.q.concat(queue);
-  spawnT = 1.4;
+  GS.queue = T.q.concat(GS.queue);
+  GS.spawnT = 1.4;
   $('hint').classList.remove('show', 'tut');
   updateHint();
   showStreak(skipped ? 'Training skipped' : 'Training done', 'Night 1 starts now · hold till dawn');
@@ -107,8 +121,8 @@ function tutEnd(skipped) {
       : 'That is the drill, nine. The rest of them heard the shooting. Hold till dawn.'
   );
 }
-function tutTick(dt) {
-  const T = RUN.tut;
+export function tutTick(dt) {
+  const T = GS.RUN.tut;
   if (!T || T.i < 0) return;
   T.t += dt;
   if (!$('hint').classList.contains('show')) tutHint();
@@ -116,25 +130,25 @@ function tutTick(dt) {
     alive = T.list.filter(e => !e.dead).length,
     spawned = T.list.length;
   if (st === 'move') {
-    T.mv += Math.hypot(P.x - T.lx, P.y - T.ly);
-    T.lx = P.x;
-    T.ly = P.y;
+    T.mv += Math.hypot(GS.P.x - T.lx, GS.P.y - T.ly);
+    T.lx = GS.P.x;
+    T.ly = GS.P.y;
     if (T.mv > 240 || T.t > 25) tutNext();
   } else if (st === 'shoot') {
     if ((spawned >= 3 && !alive) || T.t > 45) tutNext();
   } else if (st === 'roll') {
-    const rolled = ((RUN.metrics && RUN.metrics.rolls) || 0) > T.r0;
+    const rolled = ((GS.RUN.metrics && GS.RUN.metrics.rolls) || 0) > T.r0;
     if ((rolled && spawned >= 3 && !alive) || T.t > 40) {
       if (!rolled && T.t <= 40) return;
       tutNext();
     }
   } else if (st === 'reload') {
-    if (P.reload > 0) T.rl = true;
-    if ((T.rl && !(P.reload > 0)) || T.t > 25) tutNext();
+    if (GS.P.reload > 0) T.rl = true;
+    if ((T.rl && !(GS.P.reload > 0)) || T.t > 25) tutNext();
   } else if (st === 'case') {
-    if (P.owned.length > 1 || T.t > 60) tutNext();
+    if (GS.P.owned.length > 1 || T.t > 60) tutNext();
   } else if (st === 'swap') {
-    if (P.gun !== T.g0 || T.t > 25) tutNext();
+    if (GS.P.gun !== T.g0 || T.t > 25) tutNext();
   }
 }
 // ---- a night comes in surges: two lulls where the street goes quiet, and on some nights the last surge is a set piece

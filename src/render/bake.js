@@ -1,5 +1,10 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const FS_VS = `#version 300 es
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { gl, progFinish, program } from './gl.js';
+import { AS } from './atlas.js';
+import { SBV, gunHD } from '../audio/audio.js';
+export const FS_VS = `#version 300 es
 out vec2 vUv; void main(){ vec2 p=vec2((gl_VertexID<<1)&2, gl_VertexID&2); vUv=p; gl_Position=vec4(p*2.0-1.0,0.0,1.0); }`;
 /* ---------- the 3D bake: body parts are modelled as signed-distance shapes and photographed straight down on the graphics card at load.
    Each part keeps its old name and size, so the drawing code never knows; if the card can't do it, the painted version is used. ---------- */
@@ -39,26 +44,14 @@ void main(){
   float a=cov/9.0; float h=clamp(((hz/cov)+uBox.z)/(2.0*uBox.z),0.0,1.0)*a, h8=h*255.0;
   oC=vec4(clamp(acc/cov,0.0,1.0),a); oH=vec4(floor(h8)/255.0,fract(h8),0.0,1.0);
 }`;
-const BAKE = {
-  groups: {},
-  parts: {},
-  ok: !!gl,
-  progs: {},
-  fb: null,
-  ms: 0,
-  n: 0,
-  cms: 0,
-  bad: {},
-  diag: { on: false, why: '' },
-  pre: {},
-};
-function bakeGroup(name, glsl) {
+export let BAKE;
+export function bakeGroup(name, glsl) {
   BAKE.groups[name] = glsl;
 }
-function bakePart(name, group, id, zTop, seed = 0, ne = false) {
+export function bakePart(name, group, id, zTop, seed = 0, ne = false) {
   BAKE.parts[name] = { group, id, zTop, seed, ne };
 } // ne: drop the painted version's glow layer, which would not line up with the 3D shape
-function bakeRun(name, W, H, w, h) {
+export function bakeRun(name, W, H, w, h) {
   // renders one part, returns straight-alpha pixels top row first and a height field, or null
   const P = BAKE.parts[name];
   if (!P || !BAKE.ok || BAKE.bad[P.group]) return null;
@@ -166,128 +159,10 @@ function bakeRun(name, W, H, w, h) {
     return null;
   } // one broken group falls back alone
 }
-const BAKE_SIZES = {
-  hb0: [42, 50],
-  hb1: [42, 50],
-  hb2: [42, 50],
-  hh0: [28, 28],
-  hh1: [28, 28],
-  hh2: [28, 28],
-  h_glove: [12, 12],
-  h_glove2: [12, 12],
-  h_hand: [12, 12],
-  h_foot: [17, 12],
-  h_pack: [30, 34],
-  z_torso0: [38, 42],
-  z_torso1: [38, 42],
-  z_torso2: [38, 42],
-  z_torso3: [38, 42],
-  z_torso4: [38, 42],
-  z_torso5: [38, 42],
-  z_torso6: [38, 42],
-  z_torso7: [38, 42],
-  z_torso8: [38, 42],
-  z_torso9: [38, 42],
-  z_torso10: [38, 42],
-  z_torso11: [38, 42],
-  z_torso12: [38, 42],
-  z_torso13: [38, 42],
-  z_torso14: [38, 42],
-  z_torso15: [38, 42],
-  z_torso16: [38, 42],
-  z_torso17: [38, 42],
-  z_torso18: [38, 42],
-  z_torso_spit: [38, 42],
-  z_head0: [24, 24],
-  z_head1: [24, 24],
-  z_head2: [24, 24],
-  z_head3: [26, 26],
-  z_head4: [26, 26],
-  z_head5: [30, 30],
-  z_head6: [26, 26],
-  z_head7: [26, 26],
-  z_head8: [26, 26],
-  z_head9: [24, 24],
-  z_head10: [28, 28],
-  z_head11: [26, 26],
-  z_head12: [24, 24],
-  z_head13: [24, 24],
-  z_head14: [26, 26],
-  z_head15: [26, 26],
-  z_head16: [26, 26],
-  z_head17: [26, 26],
-  z_head_spit: [24, 24],
-  z_hand: [11, 10],
-  z_foot: [13, 9],
-  z_scream: [46, 46],
-  z_shead: [28, 28],
-  z_bhead: [28, 28],
-  z_brute: [82, 92],
-  z_bloat: [64, 64],
-  h_upper: [20, 10],
-  h_fore: [20, 9],
-  h_elbow: [10, 10],
-  z_upper: [20, 10],
-  z_fore: [20, 9],
-  z_elbow: [10, 10],
-  z_hound: [54, 28],
-  z_hhead: [24, 18],
-  z_ly0: [52, 44],
-  z_ly1: [52, 44],
-  z_ly2: [52, 44],
-  z_ly3: [52, 44],
-  z_ly4: [52, 44],
-  z_ly5: [52, 44],
-  z_ly6: [52, 44],
-  z_ly7: [52, 44],
-  z_ly8: [52, 44],
-  z_ly9: [52, 44],
-  z_ly10: [52, 44],
-  z_ly11: [52, 44],
-  z_ly12: [52, 44],
-  z_ly13: [52, 44],
-  z_ly14: [52, 44],
-  z_ly15: [52, 44],
-  z_ly16: [52, 44],
-  z_ly17: [52, 44],
-  z_ly18: [52, 44],
-  z_ly19: [88.39999999999999, 74.8],
-  z_ly20: [52, 44],
-  z_ly21: [52, 44],
-  z_lhip: [30, 30],
-  z_lleg: [50, 16],
-  rk_torso: [96, 150],
-  gk_torso: [108, 124],
-  cf_torso: [104, 140],
-  pz_torso: [96, 146],
-  rk_head: [46, 46],
-  gk_head: [50, 50],
-  pz_head: [46, 46],
-  cf_head: [52, 52],
-  ab_body: [190, 156],
-  ab_head: [86, 76],
-  ab_limb: [40, 14],
-  ab_seg: [42, 38],
-  medkit: [26, 26],
-  ammo: [26, 20],
-  ammo_light: [28, 22],
-  ammo_shells: [30, 24],
-  ammo_rifle: [34, 24],
-  ammo_heavy: [28, 22],
-  ammo_gren: [34, 26],
-  crate: [34, 34],
-  wcase: [64, 26],
-}; // every baked part's size, so all of them can be built during the loading screen (a part whose size changes is simply built when the atlas reaches it)
-BAKE_SIZES.heli = [272, 112];
-BAKE_SIZES.car = [84, 46];
-BAKE_SIZES.police = [84, 46];
-BAKE_SIZES.truck = [124, 52];
-BAKE_SIZES.carburn = [84, 46];
-for (let v = 0; v <= 18; v++) BAKE_SIZES['z_lu' + v] = BAKE_SIZES['z_ly' + v];
-BAKE_SIZES.z_lhipu = BAKE_SIZES.z_lhip;
-for (let v = 0; v <= 17; v++) BAKE_SIZES['z_headu' + v] = [28, 28]; // the bodies lying face up
+let BAKE_SIZES; // every baked part's size, so all of them can be built during the loading screen (a part whose size changes is simply built when the atlas reaches it)
 // the 3D characters, built once from the shapes above and shipped as pictures, so every machine shows exactly the same thing without doing any 3D work itself
-let BAKE_IMG = null; // filled in by the build (one-file version) or loaded from assets/
+// the 3D character pictures: built into the one-file version (window.__DA_DATA), or loaded from assets/ by assetsPrep
+let BAKE_IMG = window.__DA_DATA ? window.__DA_DATA.bake : undefined;
 function bakeKey() {
   let h = 2166136261;
   const src =
@@ -299,8 +174,9 @@ function bakeKey() {
   return 'bake3d-' + (h >>> 0).toString(36) + '-' + src.length;
 } // changes whenever any shape or colour does, so a stale copy is never used
 // where the asset pack lives (a pinned version on the CDN). Empty means everything is built into this file, as in the claude.ai build; the CodePen build fills it in
-const ASSET_URL = ''; // set by the build for dist/game.js
-async function assetsPrep() {
+// where assets/ is: next to dist/game.js, which records its own address in window.__DA_BASE. Empty in the one-file version
+const ASSET_URL = window.__DA_BASE ? window.__DA_BASE.replace(/dist\/$/, 'assets/') : '';
+export async function assetsPrep() {
   /* the CodePen build keeps its heavy pieces off the Pen: the character pictures and the radio voices come from the asset pack. If it can't be reached the game still starts, with painted characters and a radio of clicks and static */
   if (!ASSET_URL) return;
   const ld = $('loading'),
@@ -323,7 +199,7 @@ async function assetsPrep() {
     if (j.gun)
       get(j.gun.file, 'arrayBuffer', 90000)
         .then(gb => {
-          GUNHD = j.gun.list.map(([n, o, l]) => [n, gb.slice(o, o + l)]);
+          GS.GUNHD = j.gun.list.map(([n, o, l]) => [n, gb.slice(o, o + l)]);
           ASSETS.gun = true;
           gunHD();
         })
@@ -332,7 +208,7 @@ async function assetsPrep() {
         ); /* the recorded gun set, swapped in as it arrives */
     get(j.vox.file, 'arrayBuffer', 90000)
       .then(vb => {
-        VOX = j.vox.list.map(([id, t, d, o, n, w]) => [id, t, d, vb.slice(o, o + n), w || 'R']);
+        GS.VOX = j.vox.list.map(([id, t, d, o, n, w]) => [id, t, d, vb.slice(o, o + n), w || 'R']);
         ASSETS.vox = true;
       })
       .catch(e =>
@@ -343,15 +219,8 @@ async function assetsPrep() {
     console.warn('Dead Acre: the asset pack could not be reached, playing with the built-in basics', e);
   }
 }
-const ASSETS = { v: null, vox: false, err: '' };
-window.DA_STATUS = () => ({
-  pack: ASSET_URL ? ASSETS.v || 'unreachable: ' + ASSETS.err : 'built in',
-  art:
-    BAKE.diag && BAKE.diag.on ? BAKE.diag.n + ' parts' : 'painted (' + ((BAKE.diag && BAKE.diag.why) || 'none') + ')',
-  voices: VOX.length,
-  guns: Object.keys(SBV).length,
-}); /* type DA_STATUS() in the browser console to see where the art and voices came from */
-async function bakePrep() {
+let ASSETS;
+export async function bakePrep() {
   // the 3D characters ship as two pictures (BAKE_IMG); loading them is the same quick step on every machine, with no 3D work on the player's graphics card
   const D = (BAKE.diag = { on: false, why: '', ms: 0, n: 0 }),
     T0 = performance.now(),
@@ -485,4 +354,149 @@ async function bakeLive(names, D, T0, nap) {
   D.ms = performance.now() - T0;
   D.on = D.n > 0;
   D.key = bakeKey();
+}
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  BAKE = {
+    groups: {},
+    parts: {},
+    ok: !!gl,
+    progs: {},
+    fb: null,
+    ms: 0,
+    n: 0,
+    cms: 0,
+    bad: {},
+    diag: { on: false, why: '' },
+    pre: {},
+  };
+  BAKE_SIZES = {
+    hb0: [42, 50],
+    hb1: [42, 50],
+    hb2: [42, 50],
+    hh0: [28, 28],
+    hh1: [28, 28],
+    hh2: [28, 28],
+    h_glove: [12, 12],
+    h_glove2: [12, 12],
+    h_hand: [12, 12],
+    h_foot: [17, 12],
+    h_pack: [30, 34],
+    z_torso0: [38, 42],
+    z_torso1: [38, 42],
+    z_torso2: [38, 42],
+    z_torso3: [38, 42],
+    z_torso4: [38, 42],
+    z_torso5: [38, 42],
+    z_torso6: [38, 42],
+    z_torso7: [38, 42],
+    z_torso8: [38, 42],
+    z_torso9: [38, 42],
+    z_torso10: [38, 42],
+    z_torso11: [38, 42],
+    z_torso12: [38, 42],
+    z_torso13: [38, 42],
+    z_torso14: [38, 42],
+    z_torso15: [38, 42],
+    z_torso16: [38, 42],
+    z_torso17: [38, 42],
+    z_torso18: [38, 42],
+    z_torso_spit: [38, 42],
+    z_head0: [24, 24],
+    z_head1: [24, 24],
+    z_head2: [24, 24],
+    z_head3: [26, 26],
+    z_head4: [26, 26],
+    z_head5: [30, 30],
+    z_head6: [26, 26],
+    z_head7: [26, 26],
+    z_head8: [26, 26],
+    z_head9: [24, 24],
+    z_head10: [28, 28],
+    z_head11: [26, 26],
+    z_head12: [24, 24],
+    z_head13: [24, 24],
+    z_head14: [26, 26],
+    z_head15: [26, 26],
+    z_head16: [26, 26],
+    z_head17: [26, 26],
+    z_head_spit: [24, 24],
+    z_hand: [11, 10],
+    z_foot: [13, 9],
+    z_scream: [46, 46],
+    z_shead: [28, 28],
+    z_bhead: [28, 28],
+    z_brute: [82, 92],
+    z_bloat: [64, 64],
+    h_upper: [20, 10],
+    h_fore: [20, 9],
+    h_elbow: [10, 10],
+    z_upper: [20, 10],
+    z_fore: [20, 9],
+    z_elbow: [10, 10],
+    z_hound: [54, 28],
+    z_hhead: [24, 18],
+    z_ly0: [52, 44],
+    z_ly1: [52, 44],
+    z_ly2: [52, 44],
+    z_ly3: [52, 44],
+    z_ly4: [52, 44],
+    z_ly5: [52, 44],
+    z_ly6: [52, 44],
+    z_ly7: [52, 44],
+    z_ly8: [52, 44],
+    z_ly9: [52, 44],
+    z_ly10: [52, 44],
+    z_ly11: [52, 44],
+    z_ly12: [52, 44],
+    z_ly13: [52, 44],
+    z_ly14: [52, 44],
+    z_ly15: [52, 44],
+    z_ly16: [52, 44],
+    z_ly17: [52, 44],
+    z_ly18: [52, 44],
+    z_ly19: [88.39999999999999, 74.8],
+    z_ly20: [52, 44],
+    z_ly21: [52, 44],
+    z_lhip: [30, 30],
+    z_lleg: [50, 16],
+    rk_torso: [96, 150],
+    gk_torso: [108, 124],
+    cf_torso: [104, 140],
+    pz_torso: [96, 146],
+    rk_head: [46, 46],
+    gk_head: [50, 50],
+    pz_head: [46, 46],
+    cf_head: [52, 52],
+    ab_body: [190, 156],
+    ab_head: [86, 76],
+    ab_limb: [40, 14],
+    ab_seg: [42, 38],
+    medkit: [26, 26],
+    ammo: [26, 20],
+    ammo_light: [28, 22],
+    ammo_shells: [30, 24],
+    ammo_rifle: [34, 24],
+    ammo_heavy: [28, 22],
+    ammo_gren: [34, 26],
+    crate: [34, 34],
+    wcase: [64, 26],
+  };
+  BAKE_SIZES.heli = [272, 112];
+  BAKE_SIZES.car = [84, 46];
+  BAKE_SIZES.police = [84, 46];
+  BAKE_SIZES.truck = [124, 52];
+  BAKE_SIZES.carburn = [84, 46];
+  for (let v = 0; v <= 18; v++) BAKE_SIZES['z_lu' + v] = BAKE_SIZES['z_ly' + v];
+  BAKE_SIZES.z_lhipu = BAKE_SIZES.z_lhip;
+  for (let v = 0; v <= 17; v++) BAKE_SIZES['z_headu' + v] = [28, 28]; // the bodies lying face up
+  ASSETS = { v: null, vox: false, err: '' };
+  window.DA_STATUS = () => ({
+    pack: ASSET_URL ? ASSETS.v || 'unreachable: ' + ASSETS.err : 'built in',
+    art:
+      BAKE.diag && BAKE.diag.on ? BAKE.diag.n + ' parts' : 'painted (' + ((BAKE.diag && BAKE.diag.why) || 'none') + ')',
+    voices: GS.VOX.length,
+    guns: Object.keys(SBV).length,
+  }); /* type DA_STATUS() in the browser console to see where the art and voices came from */
 }

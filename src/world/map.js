@@ -1,50 +1,42 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GS } from '../core/gs.js';
+import { TAU, clamp, pick, rand, randi } from '../core/util.js';
+import { DLOOK } from '../core/profile.js';
+import { gl } from '../render/gl.js';
+import { MAXTEX, boxBlur, circ, ell, grad, heightToNormals, rgrad, rr } from '../render/atlas.js';
+import { texFromCanvas } from './nav.js';
+import { resetWear, setupAtmos } from './wear.js';
+import { bakeRadar } from '../ui/radar.js';
+import { hsh, prepBlocks } from '../render/blocks.js';
+import { carHits } from '../render/cars.js';
+import { genDecor } from '../render/decor.js';
+import { buildCarMap } from './fire.js';
 /* =====================================================================
    Town map
    ===================================================================== */
-const TILE = 40,
+export const TILE = 40,
   MW = 60,
   MH = 60,
   WW = MW * TILE,
   WH = MH * TILE;
-const grid = new Uint8Array(MW * MH),
+export const grid = new Uint8Array(MW * MH),
   ttype = new Uint8Array(MW * MH);
-const mapA = document.createElement('canvas'),
+export const mapA = document.createElement('canvas'),
   mapE = document.createElement('canvas');
-const MAPS =
-  !matchMedia('(pointer: coarse)').matches && (window.devicePixelRatio || 1) >= 1 && MAXTEX >= 4096 ? 1.5 : 1; // a 3600 px ground map only where the GPU can hold it
-mapA.width = mapA.height = Math.round(WW * MAPS);
-mapE.width = mapE.height = WW;
-const NM = 1200,
-  mapH = document.createElement('canvas');
-mapH.width = mapH.height = NM;
-const mapN = document.createElement('canvas');
-mapN.width = mapN.height = NM;
-const MAPREG = { w: WW, h: WH, u0: 0, v0: 0, u1: 1, v1: 1 };
-let texAtlA,
-  texAtlE,
-  texAtlN,
-  texMapA,
-  texMapE,
-  texMapN,
-  trees = [],
-  barrelSpots = [],
-  crystals = [],
-  grassCells = [];
-const TRAD = t => (t === 3 ? 14 : t === 8 ? 11 : t === 9 ? 13 : 20);
-const isWall = (tx, ty) => tx < 0 || ty < 0 || tx >= MW || ty >= MH || grid[ty * MW + tx] === 1;
-const SUN = [9, 11];
+let MAPS; // a 3600 px ground map only where the GPU can hold it
+export let NM, mapH;
+let mapN;
+export let MAPREG;
+export let texMapA, texMapE, texMapN, trees, barrelSpots, crystals, grassCells;
+export let TRAD;
+export let isWall;
+let SUN;
 
-let lamps = [],
-  cars = [],
-  houses = [],
-  fires = [],
-  roofs = [];
-const ROAD = new Uint8Array(MW * MH);
-let RX = [12, 30, 47],
-  RY = [13, 30, 46];
-const CAR_COLS = ['#8a3a32', '#3e5a7a', '#c8c4b8', '#4a6a4a', '#7a6a3a', '#5a5a60'];
-function generateMap() {
+export let lamps, cars, houses, fires, roofs;
+export let ROAD;
+export let RX, RY;
+let CAR_COLS;
+export function generateMap() {
   grid.fill(0);
   ttype.fill(0);
   ROAD.fill(0);
@@ -56,7 +48,7 @@ function generateMap() {
   houses = [];
   fires = [];
   roofs = [];
-  const D = (RUN && RUN.district) || 'town';
+  const D = (GS.RUN && GS.RUN.district) || 'town';
   RX = D === 'town' ? [12, 30, 47] : [];
   RY = D === 'town' ? [13, 30, 46] : D === 'highway' ? [30] : [];
   const set = (x, y, t) => {
@@ -607,7 +599,7 @@ function generateMap() {
   setupAtmos();
   bakeMap();
 }
-let asphaltTileCache = null;
+let asphaltTileCache;
 function getAsphaltTile() {
   if (asphaltTileCache) return asphaltTileCache;
   const n = 192,
@@ -710,7 +702,7 @@ function bakeMap() {
   h.fillStyle = '#000';
   h.fillRect(0, 0, NM, NM);
   h.setTransform(NM / WW, 0, 0, NM / WW, 0, 0);
-  const D = (RUN && RUN.district) || 'town',
+  const D = (GS.RUN && GS.RUN.district) || 'town',
     DT = DLOOK[D];
   a.fillStyle = DT.ground;
   a.fillRect(0, 0, WW, WH);
@@ -1954,4 +1946,40 @@ function bakeMap() {
   texMapE = texFromCanvas(mapE, true);
   texMapN = texFromCanvas(mapN, false, false);
   bakeRadar();
+}
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  MAPS = !matchMedia('(pointer: coarse)').matches && (window.devicePixelRatio || 1) >= 1 && MAXTEX >= 4096 ? 1.5 : 1;
+  mapA.width = mapA.height = Math.round(WW * MAPS);
+  mapE.width = mapE.height = WW;
+  NM = 1200;
+  mapH = document.createElement('canvas');
+  mapH.width = mapH.height = NM;
+  mapN = document.createElement('canvas');
+  mapN.width = mapN.height = NM;
+  MAPREG = { w: WW, h: WH, u0: 0, v0: 0, u1: 1, v1: 1 };
+  GS.texAtlA = undefined;
+  GS.texAtlE = undefined;
+  GS.texAtlN = undefined;
+  texMapA = undefined;
+  texMapE = undefined;
+  texMapN = undefined;
+  trees = [];
+  barrelSpots = [];
+  crystals = [];
+  grassCells = [];
+  TRAD = t => (t === 3 ? 14 : t === 8 ? 11 : t === 9 ? 13 : 20);
+  isWall = (tx, ty) => tx < 0 || ty < 0 || tx >= MW || ty >= MH || grid[ty * MW + tx] === 1;
+  SUN = [9, 11];
+  lamps = [];
+  cars = [];
+  houses = [];
+  fires = [];
+  roofs = [];
+  ROAD = new Uint8Array(MW * MH);
+  RX = [12, 30, 47];
+  RY = [13, 30, 46];
+  CAR_COLS = ['#8a3a32', '#3e5a7a', '#c8c4b8', '#4a6a4a', '#7a6a3a', '#5a5a60'];
+  asphaltTileCache = null;
 }

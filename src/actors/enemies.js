@@ -1,5 +1,20 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const ET = {
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { TAU, d2, pick, rand, randi } from '../core/util.js';
+import { DIFF } from '../core/profile.js';
+import { cars } from '../world/map.js';
+import { query } from '../world/nav.js';
+import { LEGSPEC, makeLegs } from './legs.js';
+import { budKey, playR, thr } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { bossNight } from '../game/waves.js';
+import { bleed, distort, ring } from '../render/effects.js';
+import { BILE, ZSKIN } from '../render/draw-enemies.js';
+import { FINAL_NIGHT, INF } from '../game/districts.js';
+import { tip } from '../audio/radio.js';
+import { bossName } from '../game/boss-flow.js';
+export const ET = {
   skitter: { hp: 20, r: 14, sp: 84, dmg: 9, xp: 1, score: 10, col: [0.62, 0.04, 0.03] },
   hopper: { hp: 70, r: 24, sp: 46, dmg: 0, xp: 3, score: 30, col: [0.42, 0.62, 0.1] },
   mini: { hp: 14, r: 12, sp: 62, dmg: 7, xp: 1, score: 8, col: [0.62, 0.04, 0.03] },
@@ -10,17 +25,17 @@ const ET = {
   egg: { hp: 70, r: 20, sp: 0, dmg: 0, xp: 2, score: 25, col: [0.5, 0.7, 0.2] },
   queen: { hp: 7500, r: 64, sp: 84, dmg: 32, xp: 80, score: 5000, col: [0.62, 0.04, 0.03] },
 };
-function makeEnemy(type, x, y) {
+export function makeEnemy(type, x, y) {
   const T = ET[type];
   // Preserve a meaningful late-run health ramp without letting ordinary enemies become pure bullet sponges.
   // For ordinary enemies, night 15 is about 4.85x base health (5.45x originally, 4.25x in the proposed cut): tested with the pacing bot, the full cut made nights 11-15 half as dangerous
   const waveHp =
     type === 'queen'
-      ? (1 + 0.65 * Math.max(0, wave / 5 - 1)) * (INF(6) ? 1.3 : 1)
-      : 1 + 0.135 * (wave - 1) + 0.01 * (wave - 1) ** 2;
+      ? (1 + 0.65 * Math.max(0, GS.wave / 5 - 1)) * (INF(6) ? 1.3 : 1)
+      : 1 + 0.135 * (GS.wave - 1) + 0.01 * (GS.wave - 1) ** 2;
   const m = waveHp * DIFF().hp * (INF(1) ? 1.15 : 1);
   const e = {
-    id: nid++,
+    id: GS.nid++,
     type,
     x,
     y,
@@ -32,8 +47,8 @@ function makeEnemy(type, x, y) {
     r: T.r,
     hp: T.hp * m,
     maxHp: T.hp * m,
-    sp: T.sp * (1 + Math.min(0.3, Math.max(0, wave - 4) * 0.025)) * rand(0.92, 1.08),
-    dmg: T.dmg * (1 + 0.05 * (wave - 1)),
+    sp: T.sp * (1 + Math.min(0.3, Math.max(0, GS.wave - 4) * 0.025)) * rand(0.92, 1.08),
+    dmg: T.dmg * (1 + 0.05 * (GS.wave - 1)),
     xp: T.xp,
     score: T.score,
     col: T.col,
@@ -54,7 +69,7 @@ function makeEnemy(type, x, y) {
 
   if (INF(5)) e.sp *= 1.1;
   if (INF(9)) e.dmg *= 1.25;
-  if (ev === 'blood') {
+  if (GS.ev === 'blood') {
     e.sp *= 1.12;
     e.xp *= 2;
   }
@@ -69,7 +84,7 @@ function makeEnemy(type, x, y) {
   if (type === 'skitter' || type === 'mini') {
     // who the dead were: police, medics, firefighters and road crews everywhere; truckers and bikers on Route 9; mourners, the buried and the groundskeepers at Hollow Hill
     const r = Math.random(),
-      D = RUN.district,
+      D = GS.RUN.district,
       w =
         D === 'highway'
           ? [
@@ -142,7 +157,8 @@ function makeEnemy(type, x, y) {
   } // hard hats and leather take a little more
   if (
     type === 'skitter' &&
-    Math.random() < Math.min(0.6, 0.08 + wave * 0.03 + (INF(2) ? 0.15 : 0) + (RUN.district === 'highway' ? 0.1 : 0))
+    Math.random() <
+      Math.min(0.6, 0.08 + GS.wave * 0.03 + (INF(2) ? 0.15 : 0) + (GS.RUN.district === 'highway' ? 0.1 : 0))
   ) {
     e.run = true;
     e.sp *= 2.05;
@@ -152,7 +168,7 @@ function makeEnemy(type, x, y) {
   if (type === 'queen') {
     makeLegs(e, LEGSPEC.queen);
     e.big = true;
-    e.t0 = time;
+    e.t0 = GS.time;
     e.los = true;
     e.ph = -1;
     e.summonT = 7;
@@ -163,20 +179,20 @@ function makeEnemy(type, x, y) {
     e.spin = 0;
     e.leapT = 5;
     e.mortT = 4;
-    boss = e;
+    GS.boss = e;
     $('bossBox').hidden = false;
     {
       const bb = $('bossBox').firstElementChild;
       if (bb) bb.textContent = bossName();
     }
     e.btype =
-      !RUN.endless && wave === FINAL_NIGHT
+      !GS.RUN.endless && GS.wave === FINAL_NIGHT
         ? 'pz'
-        : !RUN.endless && wave === 10
+        : !GS.RUN.endless && GS.wave === 10
           ? 'chief'
-          : RUN.district === 'highway'
+          : GS.RUN.district === 'highway'
             ? 'roadkill'
-            : RUN.district === 'cemetery'
+            : GS.RUN.district === 'cemetery'
               ? 'grave'
               : 'abom';
     if (e.btype === 'chief') {
@@ -224,11 +240,11 @@ function makeEnemy(type, x, y) {
     e.half = true;
     e.lyG = 1;
   } // already on the ground: half a body
-  enemies.push(e);
+  GS.enemies.push(e);
   return e;
 }
-function makeElite(e) {
-  if (state === 'play' && wave > 0) tip('elite');
+export function makeElite(e) {
+  if (GS.state === 'play' && GS.wave > 0) tip('elite');
   e.elite = true;
   e.hp *= 3.2;
   e.maxHp = e.hp;
@@ -241,7 +257,7 @@ function makeElite(e) {
   if (e.legSpec) {
     e.legSpec = Object.assign({}, e.legSpec);
   }
-  if ((wave >= 9 || RUN.endless) && state === 'play' && !RUN.practice && !bossNight(wave)) {
+  if ((GS.wave >= 9 || GS.RUN.endless) && GS.state === 'play' && !GS.RUN.practice && !bossNight(GS.wave)) {
     const pool =
       e.type === 'skitter' && !e.shield
         ? ['runner', 'bloater', 'screamer', 'armored']
@@ -251,7 +267,7 @@ function makeElite(e) {
     if (pool.length && Math.random() < 0.6) setTrait(e, pick(pool));
   } // late in the run an elite is more than a bigger zombie: each one asks for its own answer
 }
-const TRAIT = {
+export const TRAIT = {
   runner: {
     name: 'Runner',
     tip: 'That fast one is an elite runner. It closes the gap in a heartbeat. Roll when it crouches.',
@@ -268,14 +284,14 @@ const TRAIT = {
 };
 function setTrait(e, t) {
   e.trait = t;
-  if (state === 'play' && thr('budLook', 18000)) {
-    const up = buddies.filter(b => !(b.down > 0));
+  if (GS.state === 'play' && thr('budLook', 18000)) {
+    const up = GS.buddies.filter(b => !(b.down > 0));
     if (up.length)
-      later.push({
+      GS.later.push({
         t: 0.9,
         fn: () => {
           const b = pick(up);
-          if (state === 'play' && b && !(b.down > 0)) playR(budKey(b, 'Look'), 0.22, b.x, b.y);
+          if (GS.state === 'play' && b && !(b.down > 0)) playR(budKey(b, 'Look'), 0.22, b.x, b.y);
         },
       });
   } /* one of your people spots it first */
@@ -305,14 +321,14 @@ function setTrait(e, t) {
   e.hp *= 0.8;
   e.maxHp = e.hp; // the trait is the threat now, not the extra health
 }
-function traitTick(e, dt, pd2) {
+export function traitTick(e, dt, pd2) {
   // what the trait does while it walks
   if (e.trait === 'screamer') {
     e.scrT -= dt;
     if (e.scrT <= 0 && e.los && pd2 < 520 * 520 && !(e.down > 0) && !(e.stag > 0)) {
       e.scrT = 10;
       e.wakeT = 0.7;
-      e.scrPose = time + 0.9;
+      e.scrPose = GS.time + 0.9;
       sfx.scream(e.x, e.y);
       e.squash = 0.2;
       distort(e.x, e.y, 0.012, 0.6, 0.5);
@@ -323,7 +339,7 @@ function traitTick(e, dt, pd2) {
           o.frenzy = Math.max(o.frenzy || 0, 3);
         }
       });
-      if (state === 'play') tip('el_screamer');
+      if (GS.state === 'play') tip('el_screamer');
     }
   }
   if (e.trait === 'bloater' && Math.random() < dt * 3) bleed(e.x, e.y, 8, rand(-1, 1), rand(-1, 1), 1, BILE, 40);

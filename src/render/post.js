@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const COMP_FS = `#version 300 es
+export const COMP_FS = `#version 300 es
 precision highp float;
 uniform sampler2D uAlb; uniform sampler2D uEmi; uniform sampler2D uLight; uniform sampler2D uNrm; uniform sampler2D uShadow;
 uniform vec3 uSun; uniform vec3 uSky; uniform vec3 uL; uniform float uCav;
@@ -26,14 +26,14 @@ void main(){
   vec3 c=a*(ambient+diffuse+uSky*(rim+fresnel)+l*0.82)*(1.0-cavity*0.5)+uSun*spec*1.48+lc*ls*0.92+e;
   o=vec4(c,1.0);
 }`;
-const DOWN_FS = `#version 300 es
+export const DOWN_FS = `#version 300 es
 precision highp float;
 uniform sampler2D uSrc; uniform vec2 uTexel; uniform float uThresh;
 in vec2 vUv; out vec4 o;
 void main(){ vec3 c=texture(uSrc,vUv+uTexel*vec2(-1.0,-1.0)).rgb+texture(uSrc,vUv+uTexel*vec2(1.0,-1.0)).rgb+texture(uSrc,vUv+uTexel*vec2(-1.0,1.0)).rgb+texture(uSrc,vUv+uTexel*vec2(1.0,1.0)).rgb; c*=0.25;
   if(uThresh>0.0){ float b=max(c.r,max(c.g,c.b)); c*=max(b-uThresh,0.0)/max(b,0.0001); c=min(c,vec3(20.0)); }
   o=vec4(c,1.0); }`;
-const UP_FS = `#version 300 es
+export const UP_FS = `#version 300 es
 precision highp float;
 uniform sampler2D uSrc; uniform vec2 uTexel;
 in vec2 vUv; out vec4 o;
@@ -41,7 +41,7 @@ void main(){ vec3 c=texture(uSrc,vUv).rgb*4.0;
   c+=(texture(uSrc,vUv+vec2(uTexel.x,0.0)).rgb+texture(uSrc,vUv-vec2(uTexel.x,0.0)).rgb+texture(uSrc,vUv+vec2(0.0,uTexel.y)).rgb+texture(uSrc,vUv-vec2(0.0,uTexel.y)).rgb)*2.0;
   c+=texture(uSrc,vUv+uTexel).rgb+texture(uSrc,vUv-uTexel).rgb+texture(uSrc,vUv+vec2(uTexel.x,-uTexel.y)).rgb+texture(uSrc,vUv+vec2(-uTexel.x,uTexel.y)).rgb;
   o=vec4(c/16.0,1.0); }`;
-const FINAL_FS = `#version 300 es
+export const FINAL_FS = `#version 300 es
 precision highp float;
 uniform sampler2D uScene; uniform sampler2D uBloom; uniform vec4 uWaves[8]; uniform int uWaveN; uniform vec4 uHaze[6]; uniform int uHazeN;
 uniform float uAspect; uniform float uChroma; uniform float uHurt; uniform float uBloomK; uniform float uTime; uniform float uGrain;

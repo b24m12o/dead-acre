@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// The build. Joins src/ (in the order listed in src/order.json) back into the game and writes:
+// The build. Bundles src/ (starting at src/index.js) and writes:
 //   dist/game.js          the game, minified. It adds its own page markup and styles, and loads its art,
 //                         voices and sounds from ../assets next to itself, so a page only needs one script tag
 //   dist/style.css        the styles, minified (fonts load from assets/fonts)
@@ -8,9 +8,8 @@
 // Run: npm install, then npm run build
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { minify } from 'terser';
 import { minify as cssMin } from 'csso';
-import { ROOT, rd, strip, joinSource, lean } from './lib/source.mjs';
+import { ROOT, rd, strip, bundle } from './lib/source.mjs';
 
 const wr = (p, t) => {
   mkdirSync(dirname(join(ROOT, p)), { recursive: true });
@@ -20,58 +19,42 @@ const b64 = p => readFileSync(join(ROOT, p)).toString('base64');
 const NOTICE =
   '/*! Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. No permission is granted to copy, modify, distribute or reuse this code or its assets, in whole or in part. */';
 
-// the game script, exactly as the parts join up
-const { script } = joinSource();
-const swap = (src, pre, empty, val) => {
-  const k = src.indexOf('\n' + pre + empty);
-  if (k < 0) throw new Error('missing ' + pre);
-  return src.slice(0, k + 1) + pre + val + src.slice(k + 1 + pre.length + empty.length);
-};
-
-// the asset pack, for the one-file build
-const pack = JSON.parse(rd('assets/pack.json'));
-const vox = readFileSync(join(ROOT, 'assets', pack.vox.file)),
-  gun = readFileSync(join(ROOT, 'assets', pack.gun.file));
-const BAKE = JSON.stringify({
-  key: pack.bake.key,
-  hs: pack.bake.hs,
-  pos: pack.bake.pos,
-  a: 'data:image/avif;base64,' + b64('assets/' + pack.bake.a),
-  h: 'data:image/avif;base64,' + b64('assets/' + pack.bake.h),
-});
-const VOX = JSON.stringify(
-  pack.vox.list.map(([id, t, d, o, n, w]) => [id, t, d, vox.subarray(o, o + n).toString('base64'), w])
-);
-const GUN = JSON.stringify(pack.gun.list.map(([n, o, l]) => [n, gun.subarray(o, o + l).toString('base64')]));
-let full = swap(script, 'let BAKE_IMG = ', 'null', BAKE);
-full = swap(full, 'let VOX = ', '[]', VOX);
-full = swap(full, 'let GUNHD = ', 'null', GUN);
-
 const css = strip(rd('css/style.css')),
   markup = strip(rd('src/markup.html')),
   head = strip(rd('src/head.html')).trim();
+
+// the one-file version: the asset pack goes in as window.__DA_DATA, read by the game as it loads
+const pack = JSON.parse(rd('assets/pack.json'));
+const vox = readFileSync(join(ROOT, 'assets', pack.vox.file)),
+  gun = readFileSync(join(ROOT, 'assets', pack.gun.file));
+const data = {
+  bake: {
+    key: pack.bake.key,
+    hs: pack.bake.hs,
+    pos: pack.bake.pos,
+    a: 'data:image/avif;base64,' + b64('assets/' + pack.bake.a),
+    h: 'data:image/avif;base64,' + b64('assets/' + pack.bake.h),
+  },
+  vox: pack.vox.list.map(([id, t, d, o, n, w]) => [id, t, d, vox.subarray(o, o + n).toString('base64'), w]),
+  gun: pack.gun.list.map(([n, o, l]) => [n, gun.subarray(o, o + l).toString('base64')]),
+};
 const cssFull = css.replace(
   /url\(\.\.\/assets\/fonts\/([\w.-]+)\)/g,
   (_, f) => 'url(data:font/woff2;base64,' + b64('assets/fonts/' + f) + ')'
 );
+const full = await bundle();
 wr(
   'build/dead-acre.html',
-  head + '\n' + '<style>' + cssFull + '</style>\n\n' + markup + '\n<script>' + full + '</script>\n'
+  `${head}\n<style>${cssFull}</style>\n\n${markup}\n<script>window.__DA_DATA = ${JSON.stringify(data)};</script>\n<script>\n${full}</script>\n`
 );
 
-// dist: the game finds its assets next to its own address
-const leanScript = lean(script);
-const net = leanScript.replace(
-  "const ASSET_URL = ''; // set by the build for dist/game.js",
-  "const ASSET_URL = window.__DA_BASE ? window.__DA_BASE.replace(/dist\\/$/, 'assets/') : '';"
-);
-if (net === leanScript) throw new Error('ASSET_URL line not found');
-const min = await minify(net, { compress: { passes: 2 }, mangle: true, ecma: 2020, format: { comments: false } });
+// dist: the game finds its assets next to its own address (window.__DA_BASE)
+const min = await bundle({ lean: true, minify: true });
 const boot =
   `(function(){var s=document.currentScript,b=s&&s.src?s.src.replace(/[^\\/?#]*([?#].*)?$/,''):'';window.__DA_BASE=b;` +
   `var M=${JSON.stringify(markup)};function go(){if(go.d)return;go.d=1;document.body.insertAdjacentHTML('afterbegin',M);run();}` +
   `var l=document.createElement('link');l.rel='stylesheet';l.href=b+'style.css';l.onload=l.onerror=go;document.head.appendChild(l);setTimeout(go,8000);` +
-  `function run(){${min.code}}})();`;
+  `function run(){${min.trim()}}})();`;
 wr('dist/game.js', NOTICE + '\n' + boot + '\n');
 wr('dist/style.css', NOTICE + '\n' + cssMin(css, { restructure: false, comments: false }).css + '\n');
 wr(
@@ -80,9 +63,9 @@ wr(
 );
 console.log(
   'dist/game.js',
-  readFileSync(join(ROOT, 'dist/game.js')).length,
+  Buffer.byteLength(boot) + NOTICE.length,
   'bytes; build/dead-acre.html',
-  Buffer.byteLength(head + cssFull + markup + full),
+  Buffer.byteLength(full) + JSON.stringify(data).length,
   'bytes; pack',
   pack.v
 );

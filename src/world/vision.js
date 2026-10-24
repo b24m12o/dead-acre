@@ -1,22 +1,14 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const VISC = document.createElement('canvas'),
-  visX = VISC.getContext('2d');
-let texVis = null,
-  visOn = 0,
-  visW = 0,
-  visH = 0;
-const VIS_BLUR = (() => {
-  try {
-    visX.filter = 'blur(2px)';
-    const ok = visX.filter === 'blur(2px)';
-    visX.filter = 'none';
-    return ok;
-  } catch (e) {
-    return false;
-  }
-})(); // Safari has no canvas filter: a smaller mask, smoothed by texture filtering, stands in
-const VIS_N = 540,
-  opaqueT = i => grid[i] === 1 && (ttype[i] === 1 || ttype[i] === 5); // chain-link, cars, trees and posts don't block the view
+import { GS } from '../core/gs.js';
+import { TAU } from '../core/util.js';
+import { opt } from '../core/settings.js';
+import { gl } from '../render/gl.js';
+import { VH, VW, ZOOM, viewH, viewW } from '../render/sprites.js';
+import { MH, MW, TILE, grid, ttype } from './map.js';
+let VISC, visX;
+export let texVis, visW, visH;
+let VIS_BLUR; // Safari has no canvas filter: a smaller mask, smoothed by texture filtering, stands in
+let VIS_N, opaqueT; // chain-link, cars, trees and posts don't block the view
 function rayDist(x0, y0, dx, dy, maxD) {
   // walk the tiles along a ray until an opaque one
   let tx = Math.floor(x0 / TILE),
@@ -44,13 +36,13 @@ function rayDist(x0, y0, dx, dy, maxD) {
   }
   return maxD;
 }
-function sightClear(x0, y0, x1, y1) {
+export function sightClear(x0, y0, x1, y1) {
   const dx = x1 - x0,
     dy = y1 - y0,
     L = Math.hypot(dx, dy);
   return L < 1 || rayDist(x0, y0, dx / L, dy / L, L) >= L - 6;
 }
-function buildVis() {
+export function buildVis() {
   const dv = VIS_BLUR ? 4 : 10,
     W = Math.max(2, Math.ceil(VW / dv)),
     H = Math.max(2, Math.ceil(VH / dv));
@@ -58,8 +50,8 @@ function buildVis() {
     VISC.width = W;
     VISC.height = H;
   }
-  const ox = P.x,
-    oy = P.y,
+  const ox = GS.P.x,
+    oy = GS.P.y,
     maxD = Math.hypot(viewW, viewH) + 200,
     k = ZOOM / dv;
   visX.setTransform(1, 0, 0, 1, 0, 0);
@@ -75,8 +67,8 @@ function buildVis() {
       dy = Math.sin(a);
     let d = rayDist(ox, oy, dx, dy, maxD);
     if (d < maxD) d += 20 + (dy < 0 ? -dy * 34 : 0); // the wall itself stays in view, including its raised face
-    const x = (ox + dx * d - camX) * k,
-      y = (oy + dy * d - camY) * k;
+    const x = (ox + dx * d - GS.camX) * k,
+      y = (oy + dy * d - GS.camY) * k;
     if (i) visX.lineTo(x, y);
     else visX.moveTo(x, y);
   }
@@ -84,8 +76,8 @@ function buildVis() {
   visX.fill();
   visX.filter = 'none';
   {
-    const cx = (ox - camX) * k,
-      cy = (oy - camY) * k,
+    const cx = (ox - GS.camX) * k,
+      cy = (oy - GS.camY) * k,
       g = visX.createRadialGradient(cx, cy, 340 * k, cx, cy, 900 * k);
     g.addColorStop(0, 'rgba(255,255,255,0)');
     g.addColorStop(1, 'rgba(255,255,255,0.5)');
@@ -109,9 +101,9 @@ function buildVis() {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, VISC);
   } else gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, VISC);
 }
-function sightTick(dt) {
+export function sightTick(dt) {
   // fade each zombie in or out as it comes into or leaves your line of sight
-  const on = opt.los && P && state !== 'menu',
+  const on = opt.los && GS.P && GS.state !== 'menu',
     k = Math.min(1, dt * 9);
   const upd = e => {
     if (!on || e.big || e.type === 'queen') {
@@ -121,11 +113,33 @@ function sightTick(dt) {
     e.svT = (e.svT || 0) - dt;
     if (e.svT <= 0) {
       e.svT = 0.1;
-      e.svW = sightClear(P.x, P.y, e.x, e.y - (e.z || 0) * 0.5) ? 1 : 0;
+      e.svW = sightClear(GS.P.x, GS.P.y, e.x, e.y - (e.z || 0) * 0.5) ? 1 : 0;
     }
     e.sv = (e.sv ?? 1) + ((e.svW ?? 1) - (e.sv ?? 1)) * k;
   };
-  for (const e of enemies) upd(e);
-  for (const e of corpses) upd(e);
+  for (const e of GS.enemies) upd(e);
+  for (const e of GS.corpses) upd(e);
 }
 /* ---------- HUD + world ticking ---------- */
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  VISC = document.createElement('canvas');
+  visX = VISC.getContext('2d');
+  texVis = null;
+  GS.visOn = 0;
+  visW = 0;
+  visH = 0;
+  VIS_BLUR = (() => {
+    try {
+      visX.filter = 'blur(2px)';
+      const ok = visX.filter === 'blur(2px)';
+      visX.filter = 'none';
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  })();
+  VIS_N = 540;
+  opaqueT = i => grid[i] === 1 && (ttype[i] === 1 || ttype[i] === 5);
+}

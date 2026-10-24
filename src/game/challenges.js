@@ -1,5 +1,11 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const CHAL = [
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { saveMeta } from '../core/settings.js';
+import { sfx } from '../audio/sfx.js';
+import { showStreak } from '../ui/callouts.js';
+import { DISTRICTS } from './districts.js';
+export const CHAL = [
   { id: 'k100', name: 'First blood', desc: 'Kill 100 zombies', stat: 'kills', goal: 100, scrap: 50 },
   {
     id: 'k1000',
@@ -211,20 +217,20 @@ function renderChalScreen() {
     )
     .join('');
 }
-function openChal(from) {
+export function openChal(from) {
   chalFrom = from;
   ['menu', 'hangar', 'over'].forEach(id => ($(id).hidden = true));
   renderChalScreen();
   $('chal').hidden = false;
   $('chalBack').focus({ preventScroll: true });
 }
-let chalFrom = 'menu',
+export let chalFrom = 'menu',
   chalAtStart = {};
-function snapChal() {
+export function snapChal() {
   chalAtStart = {};
   for (const c of CHAL) chalAtStart[c.id] = chalValue(c);
 }
-function chalRunSummary() {
+export function chalRunSummary() {
   const moved = CHAL.filter(c => !(chalAtStart[c.id] >= c.goal) && chalValue(c) > (chalAtStart[c.id] || 0))
     .sort((a, b) => chalDone(b.id) - chalDone(a.id) || chalValue(b) / b.goal - chalValue(a) / a.goal)
     .slice(0, 4);
@@ -240,7 +246,7 @@ function chalRunSummary() {
       .join('')
   );
 }
-const OUTFITS = {
+export const OUTFITS = {
   std: { name: 'Standard issue', tint: [1, 1, 1] },
   night: { name: 'Night camo', tint: [0.5, 0.56, 0.68], req: 'flawless3' },
   blood: { name: 'Bloodstained', tint: [1.15, 0.55, 0.5], req: 'heads50' },
@@ -249,38 +255,35 @@ const OUTFITS = {
   guard: { name: 'Guardsman', tint: [0.78, 0.88, 0.7], req: 'boss5' },
   convoy: { name: 'Convoy', tint: [0.62, 0.62, 0.58], req: 'evac3' },
 };
-// Reject missing, misspelled or still-locked outfits from older/corrupt local saves.
-if (!OUTFITS[meta.outfit] || (OUTFITS[meta.outfit].req && !chalDoneSafe(meta.chal, OUTFITS[meta.outfit].req)))
-  meta.outfit = 'std';
 function chalDoneSafe(chal, id) {
   return !!(chal && chal[id] === true);
 }
-function stat(k) {
-  meta.stats = meta.stats || {};
-  return meta.stats[k] || 0;
+export function stat(k) {
+  GS.meta.stats = GS.meta.stats || {};
+  return GS.meta.stats[k] || 0;
 }
-function bump(k, v = 1) {
-  if (RUN && RUN.practice) return;
-  meta.stats = meta.stats || {};
-  meta.stats[k] = (meta.stats[k] || 0) + v;
+export function bump(k, v = 1) {
+  if (GS.RUN && GS.RUN.practice) return;
+  GS.meta.stats = GS.meta.stats || {};
+  GS.meta.stats[k] = (GS.meta.stats[k] || 0) + v;
 }
-function statMax(k, v) {
-  if (RUN && RUN.practice) return;
-  meta.stats = meta.stats || {};
-  meta.stats[k] = Math.max(meta.stats[k] || 0, v);
+export function statMax(k, v) {
+  if (GS.RUN && GS.RUN.practice) return;
+  GS.meta.stats = GS.meta.stats || {};
+  GS.meta.stats[k] = Math.max(GS.meta.stats[k] || 0, v);
 }
 function chalValue(c) {
-  return c.stat === 'evacDistricts' ? Object.keys(meta.evacDist || {}).length : stat(c.stat);
+  return c.stat === 'evacDistricts' ? Object.keys(GS.meta.evacDist || {}).length : stat(c.stat);
 }
-const chalDone = id => !!(meta.chal && meta.chal[id]);
-function checkChal(quiet) {
-  if (RUN && RUN.practice) return;
-  meta.chal = meta.chal || {};
+export let chalDone;
+export function checkChal(quiet) {
+  if (GS.RUN && GS.RUN.practice) return;
+  GS.meta.chal = GS.meta.chal || {};
   let any = false;
   for (const c of CHAL)
-    if (!meta.chal[c.id] && chalValue(c) >= c.goal) {
-      meta.chal[c.id] = true;
-      meta.seeds += c.scrap;
+    if (!GS.meta.chal[c.id] && chalValue(c) >= c.goal) {
+      GS.meta.chal[c.id] = true;
+      GS.meta.seeds += c.scrap;
       any = true;
       if (!quiet) {
         const u = c.unlock && UNLOCK_KIND[c.unlock];
@@ -290,6 +293,18 @@ function checkChal(quiet) {
     }
   if (any) saveMeta();
 }
-const districtOpen = d => !DISTRICTS[d].lock || chalDone(DISTRICTS[d].lock);
+export let districtOpen;
 
 /* ---------- per-night state ---------- */
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  // Reject missing, misspelled or still-locked outfits from older/corrupt local saves.
+  if (
+    !OUTFITS[GS.meta.outfit] ||
+    (OUTFITS[GS.meta.outfit].req && !chalDoneSafe(GS.meta.chal, OUTFITS[GS.meta.outfit].req))
+  )
+    GS.meta.outfit = 'std';
+  chalDone = id => !!(GS.meta.chal && GS.meta.chal[id]);
+  districtOpen = d => !DISTRICTS[d].lock || chalDone(DISTRICTS[d].lock);
+}

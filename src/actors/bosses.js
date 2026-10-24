@@ -1,5 +1,35 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const WCOL = {
+import { GS } from '../core/gs.js';
+import { TAU, angDiff, clamp, d2, keepIf, lerp, rand, randi } from '../core/util.js';
+import { R } from '../render/atlas.js';
+import { MH, MW, TILE, WH, WW, cars, grid, lamps, ttype } from '../world/map.js';
+import { los, solidPt } from '../world/nav.js';
+import { noise, spat, thr, tone } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { showStreak } from '../ui/callouts.js';
+import { makeEnemy } from './enemies.js';
+import { spawnPoint } from '../game/waves.js';
+import {
+  bleed,
+  chips,
+  decal,
+  distort,
+  dust,
+  flashLight,
+  floatText,
+  glowBurst,
+  part,
+  ring,
+  shake,
+  sparks,
+} from '../render/effects.js';
+import { crushCrystals, hurtPlayer } from '../game/combat.js';
+import { bossSlam, queenTail, toWorld } from './projectiles.js';
+import { BILE, BLOOD, ZSKIN } from '../render/draw-enemies.js';
+import { hsh } from '../render/blocks.js';
+import { carAt, damageCar, firePool, ignite, smoke } from '../world/fire.js';
+import { makeNoise, startAlarm } from '../game/noise.js';
+export const WCOL = {
   friend: [0.7, 0.62, 0.45],
   dust: [0.8, 0.68, 0.5],
   slam: [2.0, 0.32, 0.22],
@@ -7,8 +37,8 @@ const WCOL = {
   rock: [1.7, 1.05, 0.4],
   dead: [1.4, 1.0, 0.6],
 };
-let curBoss = null;
-function bossVoice(e, dt) {
+GS.curBoss = null;
+export function bossVoice(e, dt) {
   // between attacks you can still tell who is out there
   if (e.dying !== undefined || e.emerge < 1) return;
   const bt = e.btype;
@@ -69,7 +99,7 @@ function bossProps(e) {
     x = e.x,
     y = e.y,
     put = (reg, dx, dy, rot, sc, t = 0.45) =>
-      later.push({
+      GS.later.push({
         t,
         fn: () => {
           const d = decal(reg, x + dx, y + dy, sc, [1, 1, 1, 1], [0, 0, 0], 900);
@@ -86,13 +116,13 @@ function bossProps(e) {
   if (e.btype === 'roadkill' && e.sign) {
     const [dx, dy] = side(-10, 70);
     put(R.rk_sign, dx, dy, a + 2.2, 1.05);
-    later.push({ t: 0.45, fn: () => sfx.signClang(x + dx, y + dy) });
+    GS.later.push({ t: 0.45, fn: () => sfx.signClang(x + dx, y + dy) });
   } else if (e.btype === 'chief') {
     const [dx, dy] = side(70, -30);
     put(R.cf_axe, dx, dy, a + 0.6, 1.15);
-    later.push({ t: 0.45, fn: () => sfx.axeRing(x + dx, y + dy) });
+    GS.later.push({ t: 0.45, fn: () => sfx.axeRing(x + dx, y + dy) });
     if (!e.tankGone) {
-      later.push({
+      GS.later.push({
         t: 0.2,
         fn: () => {
           noise(1.6, 0.08, 6000, 2500, 'highpass', 0, spat(x, y));
@@ -107,10 +137,10 @@ function bossProps(e) {
     if (e.lant) {
       const [lx, ly] = side(-6, -60);
       put(R.gk_lantern, lx, ly, rand(0, TAU), 1.2, 0.5);
-      later.push({
+      GS.later.push({
         t: 0.5,
         fn: () => {
-          if (state === 'play') {
+          if (GS.state === 'play') {
             firePool(x + lx, y + ly, 24, 6);
             sfx.shatter();
           }
@@ -121,7 +151,7 @@ function bossProps(e) {
   else if (e.btype === 'pz') {
     const [dx, dy] = side(30, 70);
     put(R.pz_pole, dx, dy, a + 1.9, 1.1, 0.4);
-    later.push({
+    GS.later.push({
       t: 0.4,
       fn: () => {
         sfx.signClang(x + dx, y + dy);
@@ -129,13 +159,13 @@ function bossProps(e) {
     });
   }
 }
-function bossDeathSfx(e) {
+export function bossDeathSfx(e) {
   const x = e.x,
     y = e.y;
   bossProps(e); // the last sound each one makes
-  if (e.btype === 'pz') later.push({ t: 0.3, fn: () => sfx.flatline(x, y) });
-  else if (e.btype === 'chief') later.push({ t: 0.6, fn: () => sfx.pass(x, y, 6) });
-  else if (e.btype === 'grave') later.push({ t: 1.2, fn: () => sfx.bell(x, y) });
+  if (e.btype === 'pz') GS.later.push({ t: 0.3, fn: () => sfx.flatline(x, y) });
+  else if (e.btype === 'chief') GS.later.push({ t: 0.6, fn: () => sfx.pass(x, y, 6) });
+  else if (e.btype === 'grave') GS.later.push({ t: 1.2, fn: () => sfx.bell(x, y) });
   else if (e.btype === 'roadkill') {
     const b = spat(x, y);
     tone(60, 2, 'sawtooth', 0.08, 0.3, 0, 300, b);
@@ -150,11 +180,11 @@ function bossDeathSfx(e) {
     }
   } // the clicking slows and stops
 }
-function bossWarn(o) {
-  warns.push(Object.assign({ t: 0, k: 'slam', owner: curBoss }, o));
+export function bossWarn(o) {
+  GS.warns.push(Object.assign({ t: 0, k: 'slam', owner: GS.curBoss }, o));
 }
-function hitsP(x, y, r) {
-  return state === 'play' && d2(x, y, P.x, P.y) < (r + P.r * 0.3) ** 2;
+export function hitsP(x, y, r) {
+  return GS.state === 'play' && d2(x, y, GS.P.x, GS.P.y) < (r + GS.P.r * 0.3) ** 2;
 } // hit areas match what is drawn
 const BOSS_HINT = {
   abom: 'Chitin in front · buckshot up close, or get round and shoot its tail',
@@ -163,7 +193,7 @@ const BOSS_HINT = {
   chief: 'Fireproof · rifles, not buckshot · air tank on its back',
   pz: 'Shoot it as it breathes in · break line of sight · roll late when it bolts',
 };
-function bossHint(e) {
+export function bossHint(e) {
   // the hint follows the fight: once the sign, the lantern or the tank is gone, it says what to do next
   if (e.btype === 'roadkill' && !e.sign)
     return e.signAt
@@ -173,7 +203,7 @@ function bossHint(e) {
   if (e.btype === 'chief' && e.tankGone) return 'Air tank gone · its back is open · the gear is torn';
   return BOSS_HINT[e.btype] || '';
 }
-function bossPhaseText(e, ph) {
+export function bossPhaseText(e, ph) {
   const t = {
     abom: ['It lays eggs and charges · it leaps twice now', 'Three leaps · slip through the gaps in the bile'],
     roadkill: [
@@ -186,7 +216,7 @@ function bossPhaseText(e, ph) {
   }[e.btype] || ['', ''];
   return t[ph - 1];
 }
-const STAGGERABLE = { move: 1, rear: 1, inhale: 1, gslam: 1, pswing: 1, chop: 1, brace: 1, crouch: 1, act: 1 };
+export const STAGGERABLE = { move: 1, rear: 1, inhale: 1, gslam: 1, pswing: 1, chop: 1, brace: 1, crouch: 1, act: 1 };
 function bossAct(e, name, wind, fn, o = {}) {
   // a wind-up the player can read (the body tells it), then the move happens; a stagger cancels it
   e.st = 'act';
@@ -202,29 +232,29 @@ function bossAct(e, name, wind, fn, o = {}) {
     e.clawT = wind + 0.3;
   }
 }
-function pzScream(e, ph) {
+export function pzScream(e, ph) {
   // only reaches you if it can see you: get behind a house or a car when it breathes in
   sfx.scream(e.x, e.y);
   sfx.roar(e.x, e.y);
   distort(e.x, e.y, 0.03, 0.9, 0.6);
   for (let i = 0; i < 4; i++)
-    later.push({ t: i * 0.08, fn: () => ring(e.x, e.y, 14, 300 + i * 70, 0.6, [0.4, 0.38, 0.42], 0.5) });
-  const d = Math.hypot(P.x - e.x, P.y - e.y),
-    seen = d < 600 && los(e.x, e.y, P.x, P.y);
-  if (state === 'play' && seen) {
-    P.daze = Math.max(P.daze || 0, 1.8);
-    chroma = Math.max(chroma, 0.012);
-    hurtPlayer(10 * (1 + 0.04 * wave), e.x, e.y);
-  } else if (state === 'play' && d < 700) floatText(P.x, P.y - 44, 'Out of sight', '#b8e0c8', 15);
+    GS.later.push({ t: i * 0.08, fn: () => ring(e.x, e.y, 14, 300 + i * 70, 0.6, [0.4, 0.38, 0.42], 0.5) });
+  const d = Math.hypot(GS.P.x - e.x, GS.P.y - e.y),
+    seen = d < 600 && los(e.x, e.y, GS.P.x, GS.P.y);
+  if (GS.state === 'play' && seen) {
+    GS.P.daze = Math.max(GS.P.daze || 0, 1.8);
+    GS.chroma = Math.max(GS.chroma, 0.012);
+    hurtPlayer(10 * (1 + 0.04 * GS.wave), e.x, e.y);
+  } else if (GS.state === 'play' && d < 700) floatText(GS.P.x, GS.P.y - 44, 'Out of sight', '#b8e0c8', 15);
   const R2 = ph >= 2 ? 1e12 : 700 * 700;
-  for (const o of enemies)
+  for (const o of GS.enemies)
     if (!o.dead && o !== e && d2(o.x, o.y, e.x, e.y) < R2) {
       o.frenzy = 3.5;
       o.aw = 9;
     }
   makeNoise(e.x, e.y, ph >= 2 ? 2600 : 1600);
 }
-function graveCrack(e, ga, ph, summon) {
+export function graveCrack(e, ga, ph, summon) {
   // the spade comes down: the ground splits along a line and the dead climb out of the graves it runs past
   const c = Math.cos(ga),
     s2 = Math.sin(ga),
@@ -232,7 +262,7 @@ function graveCrack(e, ga, ph, summon) {
   sfx.boom(e.x, e.y);
   sfx.dig(e.x, e.y);
   shake(0.45);
-  hitstop = Math.max(hitstop, 0.04);
+  GS.hitstop = Math.max(GS.hitstop, 0.04);
   for (let d = 50; d <= L; d += 22) {
     const x = e.x + c * d + rand(-6, 6),
       y = e.y + s2 * d + rand(-6, 6);
@@ -241,11 +271,12 @@ function graveCrack(e, ga, ph, summon) {
     chips(x, y, 2, [0.42, 0.34, 0.24], 4, 180);
   }
   {
-    const px = P.x - e.x,
-      py = P.y - e.y,
+    const px = GS.P.x - e.x,
+      py = GS.P.y - e.y,
       along = px * c + py * s2,
       side = Math.abs(-px * s2 + py * c);
-    if (state === 'play' && along > 30 && along < L + 20 && side < 30 + P.r * 0.3) hurtPlayer(e.dmg * 1.1, e.x, e.y);
+    if (GS.state === 'play' && along > 30 && along < L + 20 && side < 30 + GS.P.r * 0.3)
+      hurtPlayer(e.dmg * 1.1, e.x, e.y);
   }
   if (summon) {
     let n = 0;
@@ -268,19 +299,19 @@ function graveCrack(e, ga, ph, summon) {
           al = px * c + py * s2,
           sd = Math.abs(-px * s2 + py * c);
         if (al < 20 || al > L + 40 || sd > 75) continue;
-        if (enemies.length < 40) {
+        if (GS.enemies.length < 40) {
           const z = makeEnemy(Math.random() < 0.5 ? 'mini' : 'skitter', gx, gy);
           z.emerge = 0;
           z.aw = 9;
         }
-        freshGraves.push({ x: gx, y: gy, used: false });
+        GS.freshGraves.push({ x: gx, y: gy, used: false });
         decal(R.hole, gx, gy, 0.9, [0.55, 0.42, 0.3, 0.9], [0, 0, 0], 120);
         dust(gx, gy, 5, 60, 1, 0.8);
         n++;
       }
   } // the dead only climb out of real graves the crack runs past
 }
-function interruptBoss(e) {
+export function interruptBoss(e) {
   // every forced state change goes through here, so nothing an attack set up is left behind
   if (e.st === 'leap' || e.st === 'crouch') {
     if ((e.z || 0) > 1) {
@@ -304,9 +335,9 @@ function interruptBoss(e) {
   e.atk = (e.atk || 0) + 1;
   e.actFn = null;
   e.actTick = null;
-  keepIf(warns, w => w.owner !== e);
+  keepIf(GS.warns, w => w.owner !== e);
 }
-function breakLantern(e) {
+export function breakLantern(e) {
   // glass and burning oil: it stands in flames, blind, and hunts by sound from here on
   e.lant = 0;
   const [lx, ly] = toWorld(e, -4, -39, e.sc || 1);
@@ -316,8 +347,8 @@ function breakLantern(e) {
   e.st = 'move';
   e.stunT = Math.max(e.stunT || 0, 1.2);
   e.blindT = 8;
-  e.hx2 = P.x;
-  e.hy2 = P.y;
+  e.hx2 = GS.P.x;
+  e.hy2 = GS.P.y;
   for (let i = 0; i < 10; i++)
     part({
       k: 3,
@@ -341,7 +372,7 @@ function breakLantern(e) {
   shake(0.3);
   showStreak('Lantern smashed', 'It is blind · it hunts by sound now');
 }
-function tankHit(e, dmg, hx, hy) {
+export function tankHit(e, dmg, hx, hy) {
   e.tank -= dmg;
   if (Math.random() < 0.5) sparks(hx, hy, [1, 1, 0.95], 2, 160);
   if (thr('tankping', 90)) tone(rand(1700, 2100), 0.08, 'sine', 0.025, 0.97);
@@ -362,19 +393,19 @@ function ruptureTank(e) {
   glowBurst(bx, by, [0.9, 0.9, 0.9], 20, 300, 0.5, 0.6);
   chips(bx, by, 12, [0.8, 0.8, 0.76], 3, 380);
   shake(0.5);
-  hitstop = Math.max(hitstop, 0.06);
+  GS.hitstop = Math.max(GS.hitstop, 0.06);
   noise(2.2, 0.22, 7000, 1800, 'highpass', 0, spat(bx, by));
   sfx.boom2(bx, by);
   sfx.roar(e.x, e.y);
-  if (state === 'play' && d2(P.x, P.y, bx, by) < 120 * 120) {
-    const a = Math.atan2(P.y - by, P.x - bx);
-    P.vx += Math.cos(a) * 520;
-    P.vy += Math.sin(a) * 520;
+  if (GS.state === 'play' && d2(GS.P.x, GS.P.y, bx, by) < 120 * 120) {
+    const a = Math.atan2(GS.P.y - by, GS.P.x - bx);
+    GS.P.vx += Math.cos(a) * 520;
+    GS.P.vy += Math.sin(a) * 520;
   }
   showStreak('Air pack ruptured', 'Its armour is done. Pour it on');
 }
-const WIND_ST = new Set(['act', 'crouch', 'rear', 'brace', 'gslam', 'chop', 'inhale', 'pswing']);
-function bossAbom(dist, dt, e, lead, ph) {
+export const WIND_ST = new Set(['act', 'crouch', 'rear', 'brace', 'gslam', 'chop', 'inhale', 'pswing']);
+export function bossAbom(dist, dt, e, lead, ph) {
   if (e.tailLimp > 0) e.tailLimp -= dt;
   e.hoseR =
     (e.hoseR || 0) +
@@ -388,8 +419,8 @@ function bossAbom(dist, dt, e, lead, ph) {
     // it jumps for the street light nearest you when there is one: the lights go out as the fight goes on
     let [tx, ty] = lead(0.9);
     const L = lamps
-      .filter(l => !l.down && !l.lantern && d2(l.bx, l.by, P.x, P.y) < 200 * 200)
-      .sort((a, b) => d2(a.bx, a.by, P.x, P.y) - d2(b.bx, b.by, P.x, P.y))[0];
+      .filter(l => !l.down && !l.lantern && d2(l.bx, l.by, GS.P.x, GS.P.y) < 200 * 200)
+      .sort((a, b) => d2(a.bx, a.by, GS.P.x, GS.P.y) - d2(b.bx, b.by, GS.P.x, GS.P.y))[0];
     if (L) {
       tx = lerp(tx, L.bx, 0.5);
       ty = lerp(ty, L.by, 0.5);
@@ -447,18 +478,18 @@ function bossAbom(dist, dt, e, lead, ph) {
         const n = 5 + ph,
           [hx, hy] = toWorld(e, 70, 0, e.sc || 1),
           v = 400,
-          [tx, ty] = lead(Math.hypot(P.x - hx, P.y - hy) / v),
+          [tx, ty] = lead(Math.hypot(GS.P.x - hx, GS.P.y - hy) / v),
           base = Math.atan2(ty - hy, tx - hx);
         for (let i = 0; i < n; i++) {
           const a = base + (i - (n - 1) / 2) * 0.13;
-          ebullets.push({
+          GS.ebullets.push({
             k: 'acid',
             x: hx,
             y: hy,
             vx: Math.cos(a) * v,
             vy: Math.sin(a) * v,
             r: 7,
-            dmg: 6 * (1 + 0.04 * wave),
+            dmg: 6 * (1 + 0.04 * GS.wave),
             life: 1.6,
             c: BILE,
             ghost: 0.2,
@@ -475,7 +506,7 @@ function bossAbom(dist, dt, e, lead, ph) {
   }
   if (e.tailT <= 0 && dist < 560 && !(e.tailLimp > 0)) {
     e.tailT = [5.2, 4.3, 3.5][ph];
-    const base = Math.atan2(P.y - e.y, P.x - e.x); // the acid hose: the tail rears over its back, gurgles, then hoses a sweeping arc of acid across the ground
+    const base = Math.atan2(GS.P.y - e.y, GS.P.x - e.x); // the acid hose: the tail rears over its back, gurgles, then hoses a sweeping arc of acid across the ground
     bossAct(
       e,
       'hosewind',
@@ -494,8 +525,8 @@ function bossAbom(dist, dt, e, lead, ph) {
               a = e.hoseA0 + sweep * 0.8 * e.hoseDir;
             e.hoseNow = a;
             e.hoseAcc = (e.hoseAcc || 0) + dt2;
-            e.hoseA0 += clamp(angDiff(e.hoseA0, Math.atan2(P.y - e.y, P.x - e.x)), -0.7 * dt2, 0.7 * dt2);
-            const hd = Math.hypot(P.x - e.x, P.y - e.y);
+            e.hoseA0 += clamp(angDiff(e.hoseA0, Math.atan2(GS.P.y - e.y, GS.P.x - e.x)), -0.7 * dt2, 0.7 * dt2);
+            const hd = Math.hypot(GS.P.x - e.x, GS.P.y - e.y);
             const tpp = queenTail(e),
               tip = tpp[tpp.length - 1],
               [mx0, my0] = toWorld(e, tip[0], tip[1], e.sc || 1);
@@ -505,14 +536,14 @@ function bossAbom(dist, dt, e, lead, ph) {
               const [sx, sy] = [mx0 + Math.cos(a) * 12, my0 + Math.sin(a) * 12],
                 /* out of the tail's mouth, reared over its back */ v = rand(400, 460),
                 aa = a + rand(-0.04, 0.04);
-              ebullets.push({
+              GS.ebullets.push({
                 k: 'acid',
                 x: sx,
                 y: sy,
                 vx: Math.cos(aa) * v,
                 vy: Math.sin(aa) * v,
                 r: 6,
-                dmg: 7 * (1 + 0.04 * wave),
+                dmg: 7 * (1 + 0.04 * GS.wave),
                 life: clamp((hd + rand(30, 110)) / v, 0.5, 1.45),
                 c: BILE,
                 ghost: 0.3,
@@ -531,12 +562,12 @@ function bossAbom(dist, dt, e, lead, ph) {
   }
   return;
 }
-function bossRoadkill(dist, dt, e, lead, ph, spMul) {
+export function bossRoadkill(dist, dt, e, lead, ph, spMul) {
   e.baitT = (e.baitT || 0) - dt;
   e.hugT = dist < 175 ? (e.hugT || 0) + dt : Math.max(0, (e.hugT || 0) - dt * 2);
-  if (e.hugT > [1.1, 0.85, 0.65][ph] && time > (e.stompCd || 0)) {
+  if (e.hugT > [1.1, 0.85, 0.65][ph] && GS.time > (e.stompCd || 0)) {
     e.hugT = 0;
-    e.stompCd = time + 3.2;
+    e.stompCd = GS.time + 3.2;
     const R0 = 195;
     bossWarn({ x: e.x, y: e.y, r: R0, dur: 0.6, k: 'slam', follow: e });
     sfx.windup(e.x, e.y); // stand under it and it stamps: the road heaves out to the edge of the ring
@@ -549,24 +580,24 @@ function bossRoadkill(dist, dt, e, lead, ph, spMul) {
         sfx.boom(e.x, e.y);
         sfx.crunch(e.x, e.y);
         shake(0.5);
-        hitstop = Math.max(hitstop, 0.05);
+        GS.hitstop = Math.max(GS.hitstop, 0.05);
         ring(e.x, e.y, 18, R0, 0.4, [1.5, 1.3, 1.0], 1.2);
         dust(e.x, e.y, 18, 200, 1.8, 1.4);
         chips(e.x, e.y, 14, null, 4, 380);
         decal(R.hole, e.x, e.y, 2.6, [1, 1, 1, 0.9], [0, 0, 0], 40);
-        if (state === 'play' && d2(e.x, e.y, P.x, P.y) < (R0 + P.r * 0.3) ** 2) {
-          const a = Math.atan2(P.y - e.y, P.x - e.x);
+        if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (R0 + GS.P.r * 0.3) ** 2) {
+          const a = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
           hurtPlayer(e.dmg, e.x, e.y);
-          P.vx += Math.cos(a) * 520;
-          P.vy += Math.sin(a) * 520;
-          P.daze = Math.max(P.daze || 0, 0.5);
+          GS.P.vx += Math.cos(a) * 520;
+          GS.P.vy += Math.sin(a) * 520;
+          GS.P.daze = Math.max(GS.P.daze || 0, 0.5);
         }
       },
       { busy: 0.4, rec: 0.7 }
     );
     return;
   }
-  if (!e.sign && e.signAt && time - e.signAt.t > [9, 4, 3][ph]) {
+  if (!e.sign && e.signAt && GS.time - e.signAt.t > [9, 4, 3][ph]) {
     const sa = e.signAt,
       dS = Math.hypot(sa.x - e.x, sa.y - e.y),
       a = Math.atan2(sa.y - e.y, sa.x - e.x); // it goes back for its sign: pulling it out of the asphalt takes a moment, back to you
@@ -581,7 +612,7 @@ function bossRoadkill(dist, dt, e, lead, ph, spMul) {
           if (!e.signAt) return;
           e.sign = true;
           e.signAt = null;
-          e.thrCd = time + 7;
+          e.thrCd = GS.time + 7;
           chips(sa.x, sa.y, 10, [0.45, 0.45, 0.45], 4, 220);
           dust(sa.x, sa.y, 6, 60, 1, 0.8);
           sfx.signClang(e.x, e.y);
@@ -621,8 +652,8 @@ function bossRoadkill(dist, dt, e, lead, ph, spMul) {
     sfx.signClang(e.x, e.y);
     return;
   } // a screaming car: it can't help itself
-  if (ph >= 1 && e.sign && ((e.throws || 0) < 1 || (ph >= 2 && (e.throws || 0) < 3)) && time > (e.thrCd || 0)) {
-    const base = Math.atan2(P.y - e.y, P.x - e.x);
+  if (ph >= 1 && e.sign && ((e.throws || 0) < 1 || (ph >= 2 && (e.throws || 0) < 3)) && GS.time > (e.thrCd || 0)) {
+    const base = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
     e.throws = (e.throws || 0) + 1;
     bossWarn({ lane: true, x: e.x, y: e.y, a: base, len: 560, w: 44, dur: 0.8, k: 'slam' }); // the STOP sign, thrown like a blade; it sticks in the road and the front armour goes with it
     bossAct(
@@ -632,7 +663,7 @@ function bossRoadkill(dist, dt, e, lead, ph, spMul) {
       () => {
         e.sign = false;
         const [sx, sy] = toWorld(e, 40, 30);
-        ebullets.push({
+        GS.ebullets.push({
           k: 'sign',
           x: sx,
           y: sy,
@@ -678,16 +709,16 @@ function bossRoadkill(dist, dt, e, lead, ph, spMul) {
         for (let i = 0; i < n; i++) {
           const [sx, sy] = toWorld(e, 30, 34),
             v = 340 + i * 15,
-            [lx, ly] = lead(Math.hypot(P.x - sx, P.y - sy) / v),
+            [lx, ly] = lead(Math.hypot(GS.P.x - sx, GS.P.y - sy) / v),
             a = Math.atan2(ly - sy, lx - sx) + (i === 0 ? 0 : (i % 2 ? side : -side) * 0.32 * Math.ceil(i / 2));
-          ebullets.push({
+          GS.ebullets.push({
             k: 'tire',
             x: sx,
             y: sy,
             vx: Math.cos(a) * v,
             vy: Math.sin(a) * v,
             r: 13,
-            dmg: 14 * (1 + 0.04 * wave),
+            dmg: 14 * (1 + 0.04 * GS.wave),
             life: 3.4,
             c: [0.3, 0.3, 0.3],
             bounces: 2,
@@ -703,7 +734,7 @@ function bossRoadkill(dist, dt, e, lead, ph, spMul) {
   }
   return;
 }
-function bossGrave(dist, dt, e, lead, ph) {
+export function bossGrave(dist, dt, e, lead, ph) {
   if (e.mortT <= 0 && dist < 420) {
     e.mortT = [7, 5.5, 4.2][ph];
     e.ga = e.face;
@@ -723,7 +754,7 @@ function bossGrave(dist, dt, e, lead, ph) {
   }
   if ((e.hkT = (e.hkT ?? 3) - dt) <= 0 && dist > 140 && dist < 290 && e.los) {
     e.hkT = [5.5, 4.5, 3.6][ph];
-    const base = Math.atan2(P.y - e.y, P.x - e.x); // the hook: the spade blade thrust out low and dragged back, and you come with it into the swing
+    const base = Math.atan2(GS.P.y - e.y, GS.P.x - e.x); // the hook: the spade blade thrust out low and dragged back, and you come with it into the swing
     bossWarn({ lane: true, x: e.x, y: e.y, a: base, len: 300, w: 40, dur: 0.55, k: 'dead' });
     sfx.windup(e.x, e.y);
     bossAct(
@@ -733,27 +764,27 @@ function bossGrave(dist, dt, e, lead, ph) {
       () => {
         const c = Math.cos(base),
           s2 = Math.sin(base),
-          px = P.x - e.x,
-          py = P.y - e.y,
+          px = GS.P.x - e.x,
+          py = GS.P.y - e.y,
           along = px * c + py * s2,
           side = Math.abs(-px * s2 + py * c);
         sfx.dig(e.x + c * 200, e.y + s2 * 200);
         dust(e.x + c * 240, e.y + s2 * 240, 4, 50, 1, 0.7);
-        if (state === 'play' && P.inv <= 0 && along > 30 && along < 310 && side < 22 + P.r * 0.3) {
+        if (GS.state === 'play' && GS.P.inv <= 0 && along > 30 && along < 310 && side < 22 + GS.P.r * 0.3) {
           const pull = Math.max(0, along - 100),
             v = Math.sqrt(4800 * pull);
-          P.vx = -c * v;
-          P.vy = -s2 * v;
-          P.daze = Math.max(P.daze || 0, 0.45);
-          hurtPlayer(4 * (1 + 0.04 * wave), e.x + c * along, e.y + s2 * along, 'the Gravekeeper');
-          P.vx = -c * v;
-          P.vy = -s2 * v;
-          P.inv = 0.12;
+          GS.P.vx = -c * v;
+          GS.P.vy = -s2 * v;
+          GS.P.daze = Math.max(GS.P.daze || 0, 0.45);
+          hurtPlayer(4 * (1 + 0.04 * GS.wave), e.x + c * along, e.y + s2 * along, 'the Gravekeeper');
+          GS.P.vx = -c * v;
+          GS.P.vy = -s2 * v;
+          GS.P.inv = 0.12;
           e.recT = 0;
           e.clawT = 0;
           e.swingCd = 0;
-          sfx.crunch(P.x, P.y);
-          floatText(P.x, P.y - 44, 'Hooked · roll!', '#ffb070', 16);
+          sfx.crunch(GS.P.x, GS.P.y);
+          floatText(GS.P.x, GS.P.y - 44, 'Hooked · roll!', '#ffb070', 16);
         }
       },
       { face: base, busy: 0.25 }
@@ -786,14 +817,14 @@ function bossGrave(dist, dt, e, lead, ph) {
         () => {
           grid[gi] = 0;
           ttype[gi] = 0;
-          flowTile = -1;
+          GS.flowTile = -1;
           chips(gx, gy, 10, [0.62, 0.6, 0.56], 4, 220);
           dust(gx, gy, 8, 70, 1.2, 1);
           sfx.crunch(gx, gy);
           decal(R.hole, gx, gy + 6, 1.1, [1, 1, 1, 0.85], [0, 0, 0], 60);
           const dur = 0.9,
             [tx, ty] = lead(dur * 0.85, 30);
-          mortars.push({ x0: e.x, y0: e.y - 40, tx, ty, t: 0, dur, x: e.x, y: e.y, z: 0, slab: true, gk });
+          GS.mortars.push({ x0: e.x, y0: e.y - 40, tx, ty, t: 0, dur, x: e.x, y: e.y, z: 0, slab: true, gk });
           bossWarn({ x: tx, y: ty, r: 60, dur, k: 'rock' });
           sfx.thump(e.x, e.y);
         },
@@ -805,7 +836,7 @@ function bossGrave(dist, dt, e, lead, ph) {
   }
   if (e.tailT <= 0 && dist > 110 && dist < 300) {
     e.tailT = [4.2, 3.4, 2.8][ph];
-    const base = Math.atan2(P.y - e.y, P.x - e.x); // a spadeful of grave dirt flung in your face: a short cone, it stings and blinds
+    const base = Math.atan2(GS.P.y - e.y, GS.P.x - e.x); // a spadeful of grave dirt flung in your face: a short cone, it stings and blinds
     bossAct(
       e,
       'shovel',
@@ -834,11 +865,11 @@ function bossGrave(dist, dt, e, lead, ph) {
         }
         chips(e.x + Math.cos(base) * 50, e.y + Math.sin(base) * 50, 12, [0.36, 0.28, 0.2], 4, 380);
         sfx.dirt(e.x, e.y);
-        const d = Math.hypot(P.x - e.x, P.y - e.y),
-          da = Math.abs(angDiff(base, Math.atan2(P.y - e.y, P.x - e.x)));
-        if (state === 'play' && d < R0 && da < half + 0.12) {
-          hurtPlayer(11 * (1 + 0.04 * wave), e.x, e.y);
-          P.daze = Math.max(P.daze || 0, 0.7);
+        const d = Math.hypot(GS.P.x - e.x, GS.P.y - e.y),
+          da = Math.abs(angDiff(base, Math.atan2(GS.P.y - e.y, GS.P.x - e.x)));
+        if (GS.state === 'play' && d < R0 && da < half + 0.12) {
+          hurtPlayer(11 * (1 + 0.04 * GS.wave), e.x, e.y);
+          GS.P.daze = Math.max(GS.P.daze || 0, 0.7);
         }
       },
       { face: base, arm: true, busy: 0.5 }
@@ -847,7 +878,7 @@ function bossGrave(dist, dt, e, lead, ph) {
   }
   return;
 }
-function bossChief(dist, dt, e, lead, ph) {
+export function bossChief(dist, dt, e, lead, ph) {
   if ((e.rushT -= dt) <= 0 && e.los && dist > 170 && dist < 520) {
     e.rushT = [4.2, 3.2, 2.4][ph];
     e.st = 'brace';
@@ -870,10 +901,10 @@ function bossChief(dist, dt, e, lead, ph) {
     e.summonT = [99, 12, 9][ph];
     sfx.radio(e.x, e.y);
     floatText(e.x, e.y - 90, 'Engine 4, respond…', '#ffb070', 14); // the crew: the dead of Engine 4 walk in from the dark a few seconds later
-    later.push({
+    GS.later.push({
       t: 4,
       fn: () => {
-        if (e.dead || state !== 'play') return;
+        if (e.dead || GS.state !== 'play') return;
         const [sx, sy] = spawnPoint(380, false);
         for (let i = 0; i < 2 + ph; i++) {
           const z = makeEnemy('skitter', sx + rand(-20, 20), sy + rand(-20, 20));
@@ -892,13 +923,13 @@ function bossChief(dist, dt, e, lead, ph) {
     e.clawW = 0.85;
     e.clawT = 0.85;
     for (let i = 0; i < n; i++)
-      later.push({
+      GS.later.push({
         t: 0.35 + i * 0.35,
         fn: () => {
-          if (e.dead || state !== 'play' || e.stunT > 0) return;
+          if (e.dead || GS.state !== 'play' || e.stunT > 0) return;
           const dur = 1.0,
             [tx, ty] = lead(dur * 0.85, i ? 150 : 0);
-          mortars.push({ x0: e.x, y0: e.y - 40, tx, ty, t: 0, dur, x: e.x, y: e.y, z: 0, rock: true, ext: true });
+          GS.mortars.push({ x0: e.x, y0: e.y - 40, tx, ty, t: 0, dur, x: e.x, y: e.y, z: 0, rock: true, ext: true });
           bossWarn({ x: tx, y: ty, r: 70, dur, k: 'rock' });
           sfx.thump(e.x, e.y);
         },
@@ -911,13 +942,13 @@ function bossChief(dist, dt, e, lead, ph) {
     e.clawW = 0.75;
     e.clawT = Math.max(e.clawT, 0.75);
     sfx.flareLight(e.x, e.y); // road flares: struck, then lobbed where you're heading; the ground burns for a few seconds and it walks straight through
-    later.push({
+    GS.later.push({
       t: 0.3,
       fn: () => {
-        if (e.dead || state !== 'play' || e.stunT > 0) return;
+        if (e.dead || GS.state !== 'play' || e.stunT > 0) return;
         for (let i = 0; i < n; i++) {
           const [tx, ty] = lead(0.7, i ? 110 : 20);
-          mortars.push({ x0: e.x, y0: e.y - 40, tx, ty, t: 0, dur: 0.75, x: e.x, y: e.y, z: 0, flare: true });
+          GS.mortars.push({ x0: e.x, y0: e.y - 40, tx, ty, t: 0, dur: 0.75, x: e.x, y: e.y, z: 0, flare: true });
           bossWarn({ x: tx, y: ty, r: 46, dur: 0.75, k: 'rock' });
         }
         sfx.thump(e.x, e.y);
@@ -926,7 +957,7 @@ function bossChief(dist, dt, e, lead, ph) {
   }
   return;
 }
-function bossPz(dist, dt, e, lead, ph) {
+export function bossPz(dist, dt, e, lead, ph) {
   if (e.scrT <= 0) {
     e.scrT = [9, 7.5, 6][ph];
     e.st = 'inhale';
@@ -947,7 +978,7 @@ function bossPz(dist, dt, e, lead, ph) {
   }
   if (ph >= 1 && e.swT <= 0 && dist >= 230 && dist < 330) {
     e.swT = [6.5, 5, 4][ph];
-    const base = Math.atan2(P.y - e.y, P.x - e.x);
+    const base = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
     bossWarn({ lane: true, x: e.x, y: e.y, a: base, len: 290, w: 40, dur: 0.6, k: 'slam' }); // the IV pole as a spear
     bossAct(
       e,
@@ -956,16 +987,16 @@ function bossPz(dist, dt, e, lead, ph) {
       () => {
         const c = Math.cos(base),
           s2 = Math.sin(base),
-          px = P.x - e.x,
-          py = P.y - e.y,
+          px = GS.P.x - e.x,
+          py = GS.P.y - e.y,
           along = px * c + py * s2,
           side = Math.abs(-px * s2 + py * c);
         sfx.crunch(e.x + c * 200, e.y + s2 * 200);
         dust(e.x + c * 260, e.y + s2 * 260, 4, 60, 1, 0.7);
-        if (state === 'play' && along > 20 && along < 300 && side < 26 + P.r * 0.3) {
+        if (GS.state === 'play' && along > 20 && along < 300 && side < 26 + GS.P.r * 0.3) {
           hurtPlayer(e.dmg * 1.2, e.x, e.y);
-          P.vx += c * 480;
-          P.vy += s2 * 480;
+          GS.P.vx += c * 480;
+          GS.P.vy += s2 * 480;
         }
       },
       { face: base, busy: 0.6, rec: 1.1 }
@@ -975,7 +1006,7 @@ function bossPz(dist, dt, e, lead, ph) {
   }
   if ((e.spT = (e.spT ?? 7) - dt) <= 0 && dist > 200 && dist < 700 && e.los) {
     e.spT = [10, 8, 6.5][ph];
-    const base = Math.atan2(P.y - e.y, P.x - e.x);
+    const base = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
     sfx.flatline(e.x, e.y);
     bossWarn({ lane: true, x: e.x, y: e.y, a: base, len: 360, w: 60, dur: 0.75, k: 'slam' }); // the monitor flatlines and it bolts at you
     bossAct(
@@ -985,7 +1016,7 @@ function bossPz(dist, dt, e, lead, ph) {
       () => {
         e.st = 'sprint';
         e.stT = 1.5 + ph * 0.25;
-        e.sa = Math.atan2(P.y - e.y, P.x - e.x);
+        e.sa = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
         e.spPx = undefined;
         e.spSlow = 0;
         e.busyT = e.stT + 1.2;
@@ -998,7 +1029,7 @@ function bossPz(dist, dt, e, lead, ph) {
   }
   if (e.k2T <= 0 && dist < 240) {
     e.k2T = [6, 5, 4][ph];
-    const base = Math.atan2(P.y - e.y, P.x - e.x); // a heave of black bile on the ground in front of it
+    const base = Math.atan2(GS.P.y - e.y, GS.P.x - e.x); // a heave of black bile on the ground in front of it
     bossAct(
       e,
       'retch',
@@ -1007,13 +1038,13 @@ function bossPz(dist, dt, e, lead, ph) {
         for (let i = 0; i < 4; i++) {
           const d = 60 + i * 50,
             a = base + rand(-0.25, 0.25);
-          pools.push({
+          GS.pools.push({
             x: e.x + Math.cos(a) * d,
             y: e.y + Math.sin(a) * d,
             r: 36,
             life: 5,
             max: 5,
-            dmg: 6 * (1 + 0.04 * wave),
+            dmg: 6 * (1 + 0.04 * GS.wave),
             rot: rand(0, TAU),
             v: randi(0, 3),
           });
@@ -1029,7 +1060,7 @@ function bossPz(dist, dt, e, lead, ph) {
     e.tailT = [4.5, 3.8, 3.2][ph]; // it grabs one of the dead and throws it at you
     let z = null,
       zd = 220 * 220;
-    for (const o of enemies)
+    for (const o of GS.enemies)
       if (!o.dead && (o.type === 'skitter' || o.type === 'mini') && !o.big && o.emerge >= 1) {
         const dd = d2(o.x, o.y, e.x, e.y);
         if (dd < zd) {
@@ -1054,7 +1085,7 @@ function bossPz(dist, dt, e, lead, ph) {
       () => {
         const dur = 0.85,
           [tx, ty] = lead(dur * 0.85, 25);
-        mortars.push({ x0: e.x, y0: e.y - 40, tx, ty, t: 0, dur, x: e.x, y: e.y, z: 0, walker: look });
+        GS.mortars.push({ x0: e.x, y0: e.y - 40, tx, ty, t: 0, dur, x: e.x, y: e.y, z: 0, walker: look });
         bossWarn({ x: tx, y: ty, r: 55, dur, k: 'rock' });
         sfx.thump(e.x, e.y);
       },
@@ -1064,7 +1095,7 @@ function bossPz(dist, dt, e, lead, ph) {
   }
   return;
 }
-function bossCharge(G, bt, dt, e, ph) {
+export function bossCharge(G, bt, dt, e, ph) {
   if (bt === 'roadkill') {
     // Route 9's boss runs straight through parked cars: the car is wrecked and set alight, glass and metal fly forward, and it reels
     const fx = e.x + e.lx * e.r * 0.9,
@@ -1094,7 +1125,7 @@ function bossCharge(G, bt, dt, e, ph) {
         sparks(fx, fy, [1, 0.9, 0.6], 26, 420);
         chips(fx, fy, 16, [0.75, 0.85, 0.9], 3, 380);
         shake(0.55);
-        hitstop = Math.max(hitstop, 0.05);
+        GS.hitstop = Math.max(GS.hitstop, 0.05);
         sfx.crunch(fx, fy);
         sfx.boom(fx, fy);
         for (let i = 0; i < 14; i++)
@@ -1168,7 +1199,7 @@ function bossCharge(G, bt, dt, e, ph) {
     (e.y > WH - 3 * TILE - e.r && e.ly > 0); // only running out of the map ends it, not starting near the edge
   if (e.stT <= 0 && !edge && (e.rc || 0) < (bt === 'roadkill' ? ph : ph - 1) && e.los) {
     e.rc = (e.rc || 0) + 1;
-    const a = Math.atan2(P.y - e.y, P.x - e.x);
+    const a = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
     e.st = 'rear';
     e.stT = 0.5;
     e.lx = Math.cos(a);
@@ -1194,7 +1225,7 @@ function bossCharge(G, bt, dt, e, ph) {
   crushCrystals(e.x, e.y, e.r);
   return;
 }
-function bossLeap(dist, dt, e, ph) {
+export function bossLeap(dist, dt, e, ph) {
   e.stT -= dt;
   const t = 1 - Math.max(0, e.stT) / e.ldur,
     k = t * t * (3 - 2 * t),
@@ -1218,14 +1249,14 @@ function bossLeap(dist, dt, e, ph) {
       for (let i = 0; i < n; i++) {
         const a = off + (i / n) * TAU,
           v = 290;
-        ebullets.push({
+        GS.ebullets.push({
           k: 'acid',
           x: e.x + Math.cos(a) * 60,
           y: e.y + Math.sin(a) * 60,
           vx: Math.cos(a) * v,
           vy: Math.sin(a) * v,
           r: 7,
-          dmg: 6 * (1 + 0.04 * wave),
+          dmg: 6 * (1 + 0.04 * GS.wave),
           life: 0.85,
           c: BILE,
           ghost: 0.25,
@@ -1237,7 +1268,7 @@ function bossLeap(dist, dt, e, ph) {
     if ((e.lc || 0) < ph && dist < 800) {
       e.lc = (e.lc || 0) + 1;
       e.recT = 0;
-      const [tx, ty] = [P.x + P.vx * 0.3, P.y + P.vy * 0.3];
+      const [tx, ty] = [GS.P.x + GS.P.vx * 0.3, GS.P.y + GS.P.vy * 0.3];
       e.tx = clamp(tx, 3 * TILE + 40, WW - 3 * TILE - 40);
       e.ty = clamp(ty, 3 * TILE + 40, WH - 3 * TILE - 40);
       e.st = 'crouch';
@@ -1250,7 +1281,7 @@ function bossLeap(dist, dt, e, ph) {
   } // hurt, it jumps again before you have settled
   return;
 }
-function bossChop(dt, e, ph) {
+export function bossChop(dt, e, ph) {
   e.stT -= dt;
   e.face = e.ga;
   if (e.stT <= 0) {
@@ -1274,18 +1305,19 @@ function bossChop(dt, e, ph) {
       }
     } // forcible entry: the axe goes through fences and car doors
     {
-      const px = P.x - e.x,
-        py = P.y - e.y,
+      const px = GS.P.x - e.x,
+        py = GS.P.y - e.y,
         along = px * c + py * s2,
         side = Math.abs(-px * s2 + py * c);
-      if (state === 'play' && along > 20 && along < L + 20 && side < 28 + P.r * 0.3) hurtPlayer(e.dmg * 1.05, e.x, e.y);
+      if (GS.state === 'play' && along > 20 && along < L + 20 && side < 28 + GS.P.r * 0.3)
+        hurtPlayer(e.dmg * 1.05, e.x, e.y);
     }
   }
   return;
 }
-function bossSprint(dt, e, ph) {
+export function bossSprint(dt, e, ph) {
   e.stT -= dt;
-  const want = Math.atan2(P.y - e.y, P.x - e.x),
+  const want = Math.atan2(GS.P.y - e.y, GS.P.x - e.x),
     tr = [1.8, 2.1, 2.4][ph],
     v = 470 + ph * 40;
   e.sa += clamp(angDiff(e.sa, want), -tr * dt, tr * dt);
@@ -1293,13 +1325,13 @@ function bossSprint(dt, e, ph) {
   e.tvx = e.vx = Math.cos(e.sa) * v;
   e.tvy = e.vy = Math.sin(e.sa) * v;
   if (Math.random() < 0.6) dust(e.x, e.y, 1, 40, 1.2, 0.7);
-  if (Math.random() < 0.25 && pools.length < 40) bleed(e.x, e.y, 6, -Math.cos(e.sa), -Math.sin(e.sa), 2, BILE, 60); // the bolt: it runs you down, turning as it goes; roll late and it can't turn in time
-  if (state === 'play' && P.inv <= 0 && hitsP(e.x + Math.cos(e.sa) * 30, e.y + Math.sin(e.sa) * 30, e.r * 0.85)) {
+  if (Math.random() < 0.25 && GS.pools.length < 40) bleed(e.x, e.y, 6, -Math.cos(e.sa), -Math.sin(e.sa), 2, BILE, 60); // the bolt: it runs you down, turning as it goes; roll late and it can't turn in time
+  if (GS.state === 'play' && GS.P.inv <= 0 && hitsP(e.x + Math.cos(e.sa) * 30, e.y + Math.sin(e.sa) * 30, e.r * 0.85)) {
     hurtPlayer(e.dmg * 1.1, e.x, e.y);
-    P.vx += Math.cos(e.sa) * 560;
-    P.vy += Math.sin(e.sa) * 560;
+    GS.P.vx += Math.cos(e.sa) * 560;
+    GS.P.vy += Math.sin(e.sa) * 560;
     shake(0.35);
-    sfx.crunch(P.x, P.y);
+    sfx.crunch(GS.P.x, GS.P.y);
     e.st = 'move';
     e.recT = 0.8;
     e.turnT = 0.6;
@@ -1323,7 +1355,7 @@ function bossSprint(dt, e, ph) {
     showStreak('It hit the wall', 'Its back is open');
     return;
   } // run it into a wall or a car and it reels
-  if (Math.abs(angDiff(e.sa, want)) > 1.6 && Math.hypot(P.x - e.x, P.y - e.y) < 300) {
+  if (Math.abs(angDiff(e.sa, want)) > 1.6 && Math.hypot(GS.P.x - e.x, GS.P.y - e.y) < 300) {
     e.st = 'move';
     e.spPx = undefined;
     e.stunT = 1.3;

@@ -1,12 +1,31 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-let nightLive = false,
-  obj = null,
-  ev = null,
-  evac = null,
-  nightHit = false,
-  nightDone = false,
-  lightning = 0,
-  lightT = 0;
+import { GS } from '../core/gs.js';
+import { TAU, angDiff, clamp, d2, damp, lerp, pick, rand } from '../core/util.js';
+import { TS } from '../core/settings.js';
+import { ui } from '../render/gl.js';
+import { viewH, viewW } from '../render/sprites.js';
+import { R } from '../render/atlas.js';
+import { MW, TILE, WH, WW, isWall } from '../world/map.js';
+import { N8, collide, flow, los, query, solidPt } from '../world/nav.js';
+import { budKey, playR, playS, thr, tone } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { LV, S, ammoFill, ammoTypes, cam, gd } from '../game/state.js';
+import { renderMods } from '../game/upgrades.js';
+import { showStreak } from '../ui/callouts.js';
+import { bleed, floatText, pool } from '../render/effects.js';
+import { HLOOK } from '../render/draw-player.js';
+import { BLOOD } from '../render/draw-enemies.js';
+import { makeNoise } from '../game/noise.js';
+import { TW } from '../game/districts.js';
+import { radio } from '../audio/radio.js';
+GS.nightLive = false;
+GS.obj = null;
+GS.ev = null;
+GS.evac = null;
+GS.nightHit = false;
+GS.nightDone = false;
+GS.lightning = 0;
+GS.lightT = 0;
 // buddies can be hurt: contact with the dead hurts them (less than you), they patch up when it is quiet, and at zero they go down
 // a downed buddy bleeds out in 12 s unless you stand next to them for 1.5 s; bled out, they are gone and the Backup card can be offered again
 const BUD_NAMES = [
@@ -27,7 +46,7 @@ const BUD_NAMES = [
   'Bo',
   'Maria',
 ];
-const TRAITS = {
+export const TRAITS = {
   // each backup brings one thing: you learn who they are by what they do
   medic: {
     name: 'Medic',
@@ -38,50 +57,50 @@ const TRAITS = {
   scav: { name: 'Scavenger', desc: 'Turns up spare rounds, and a medkit when you are hurt', gun: 'pistol' },
   cop: { name: 'Ex-cop', desc: 'A shotgun that knocks them flat, and a thicker skin', gun: 'shotgun' },
 };
-function rollBud() {
-  const free = Object.keys(TRAITS).filter(t => !buddies.some(b => b.tr === t)),
+export function rollBud() {
+  const free = Object.keys(TRAITS).filter(t => !GS.buddies.some(b => b.tr === t)),
     used = ['Dr. Hale'].concat(
-      buddies.map(b => b.nm),
-      RUN.lost || [],
-      (RUN.aboard || []).map(b => b.nm)
+      GS.buddies.map(b => b.nm),
+      GS.RUN.lost || [],
+      (GS.RUN.aboard || []).map(b => b.nm)
     );
   return {
     nm: pick(BUD_NAMES.filter(n => !used.includes(n))) || pick(BUD_NAMES),
     tr: pick(free.length ? free : Object.keys(TRAITS)),
   };
 }
-const budMax = b => (100 + 12 * Math.max(1, wave)) * (b.tr === 'cop' ? 1.4 : 1);
-function budSetup(b, r) {
+export const budMax = b => (100 + 12 * Math.max(1, GS.wave)) * (b.tr === 'cop' ? 1.4 : 1);
+export function budSetup(b, r) {
   b.nm = r.nm;
   b.tr = r.tr;
   b.gun = TRAITS[r.tr].gun;
   b.max = Math.max(b.max, budMax(b));
   b.hp = b.max;
 }
-function budPerk(s, dt, pd) {
+export function budPerk(s, dt, pd) {
   // what the trait does, every frame the survivor is on their feet
   if (s.tr === 'medic') {
-    if (pd < 180 && P.hp > 0 && P.hp < S.maxHp) P.hp = Math.min(S.maxHp, P.hp + 2 * dt);
-    for (const b of buddies)
+    if (pd < 180 && GS.P.hp > 0 && GS.P.hp < S.maxHp) GS.P.hp = Math.min(S.maxHp, GS.P.hp + 2 * dt);
+    for (const b of GS.buddies)
       if (b !== s && !(b.down > 0) && b.hp < b.max && d2(b.x, b.y, s.x, s.y) < 180 * 180)
         b.hp = Math.min(b.max, b.hp + 3 * dt);
   }
-  if (s.tr === 'scav' && nightLive && !nightDone && !evac) {
+  if (s.tr === 'scav' && GS.nightLive && !GS.nightDone && !GS.evac) {
     s.scT = (s.scT ?? 22) - dt;
     if (s.scT <= 0) {
       s.scT = 28;
       const ts = ammoTypes().sort((a, b) => ammoFill(a) - ammoFill(b));
-      if (P.hp < S.maxHp * 0.6 && !TW('nomeds') && Math.random() < 0.35) {
-        pickups.push({ k: 'hp', v: 20, x: s.x, y: s.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
+      if (GS.P.hp < S.maxHp * 0.6 && !TW('nomeds') && Math.random() < 0.35) {
+        GS.pickups.push({ k: 'hp', v: 20, x: s.x, y: s.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
         floatText(s.x, s.y - 40, `${s.nm} found a medkit`, '#8ef0b8', 14);
       } else if (ts.length && ammoFill(ts[0]) < 0.95) {
-        pickups.push({ k: 'ammo', at: ts[0], v: 1, x: s.x, y: s.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
+        GS.pickups.push({ k: 'ammo', at: ts[0], v: 1, x: s.x, y: s.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
         floatText(s.x, s.y - 40, `${s.nm} found rounds`, '#ffd08a', 14);
       } else s.scT = 6;
     }
   }
 }
-function buddyShoot(s, dt, slow) {
+export function buddyShoot(s, dt, slow) {
   s.cd -= dt / (slow || 1);
   const mm = s.tr === 'marksman',
     cop = s.tr === 'cop',
@@ -105,7 +124,7 @@ function buddyShoot(s, dt, slow) {
       sn = Math.sin(s.aim);
     if (mm) {
       s.cd = S.buddyCd * 2.3;
-      pbullets.push({
+      GS.pbullets.push({
         x: s.x + c * 34,
         y: s.y + sn * 34,
         vx: c * 1500,
@@ -117,14 +136,22 @@ function buddyShoot(s, dt, slow) {
         hits: [],
         small: true,
       });
-      flashes.push({ x: s.x + c * 40, y: s.y + sn * 40, rot: s.aim, life: 0.06, max: 0.06, reg: R.mf_rifle, fs: 0.8 });
+      GS.flashes.push({
+        x: s.x + c * 40,
+        y: s.y + sn * 40,
+        rot: s.aim,
+        life: 0.06,
+        max: 0.06,
+        reg: R.mf_rifle,
+        fs: 0.8,
+      });
       playS('rifle_m', 0.2, 1.05, 0, 0.2);
     } else {
       s.cd = S.buddyCd * 1.7;
       for (let k = 0; k < 4; k++) {
         const a = s.aim + rand(-0.16, 0.16),
           v = rand(900, 1050);
-        pbullets.push({
+        GS.pbullets.push({
           x: s.x + c * 32,
           y: s.y + sn * 32,
           vx: Math.cos(a) * v,
@@ -138,7 +165,7 @@ function buddyShoot(s, dt, slow) {
           kb: 2.4,
         });
       }
-      flashes.push({
+      GS.flashes.push({
         x: s.x + c * 36,
         y: s.y + sn * 36,
         rot: s.aim,
@@ -156,7 +183,7 @@ function buddyShoot(s, dt, slow) {
     s.aim += angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x)) * damp(14, dt);
     if (s.cd <= 0 && !mm && !cop) {
       s.cd = S.buddyCd;
-      pbullets.push({
+      GS.pbullets.push({
         x: s.x + Math.cos(s.aim) * 30,
         y: s.y + Math.sin(s.aim) * 30,
         vx: Math.cos(s.aim) * 1000,
@@ -170,7 +197,7 @@ function buddyShoot(s, dt, slow) {
       });
       s.recoil = 4;
       if (thr('bnoise', 400)) makeNoise(s.x, s.y, 480, true);
-      flashes.push({
+      GS.flashes.push({
         x: s.x + Math.cos(s.aim) * 34,
         y: s.y + Math.sin(s.aim) * 34,
         rot: s.aim,
@@ -183,7 +210,7 @@ function buddyShoot(s, dt, slow) {
     }
   }
 }
-function buddyHurt(s, p, dt) {
+export function buddyHurt(s, p, dt) {
   s.inv = Math.max(0, (s.inv || 0) - dt);
   s.hurt = Math.max(0, (s.hurt || 0) - dt);
   if (!(s.down > 0)) {
@@ -200,7 +227,7 @@ function buddyHurt(s, p, dt) {
           bleed(s.x, s.y, 16, s.x - e.x, s.y - e.y, 5, BLOOD, 200);
         }
       });
-    if (!near && s.hp < s.max && thr('bq' + (s.id || (s.id = nid++)), 250)) {
+    if (!near && s.hp < s.max && thr('bq' + (s.id || (s.id = GS.nid++)), 250)) {
       let q = true;
       query(s.x, s.y, 300, e => {
         if (!e.dead && e.emerge >= 1 && e.dmg > 0) q = false;
@@ -209,7 +236,7 @@ function buddyHurt(s, p, dt) {
     } // patches up when nothing is close (about 4 a second)
     if (s.hp <= 0) {
       s.hp = 0;
-      s.down = buddies.some(b => b !== s && b.tr === 'medic' && !(b.down > 0)) ? 24 : 18;
+      s.down = GS.buddies.some(b => b !== s && b.tr === 'medic' && !(b.down > 0)) ? 24 : 18;
       s.downMax = s.down;
       s.rev = 0;
       s.strideAmp = 0;
@@ -217,14 +244,14 @@ function buddyHurt(s, p, dt) {
       pool(s.x, s.y, 1.1, BLOOD);
       sfx.grunt && sfx.grunt(s.x, s.y);
       if (Math.abs(s.x - cam.x - viewW / 2) > viewW / 2 || Math.abs(s.y - cam.y - viewH / 2) > viewH / 2)
-        sfx.radio(P.x, P.y);
+        sfx.radio(GS.P.x, GS.P.y);
       showStreak('Man down', `${s.nm || 'Backup'} · stand next to them to get them up`);
     }
     return false;
   }
   s.down -= dt;
   const close = d2(p.x, p.y, s.x, s.y) < 70 * 70 && p.hp > 0;
-  const med = buddies.some(b => b !== s && b.tr === 'medic' && !(b.down > 0) && d2(b.x, b.y, s.x, s.y) < 200 * 200);
+  const med = GS.buddies.some(b => b !== s && b.tr === 'medic' && !(b.down > 0) && d2(b.x, b.y, s.x, s.y) < 200 * 200);
   s.rev = close ? s.rev + dt : med ? s.rev + dt * 0.5 : s.rev; // what you put in stays; a medic nearby works on them too
   if (close && thr('revtick', 400)) tone(660 + s.rev * 200, 0.05, 'sine', 0.025);
   if (!close && (s.callT = (s.callT ?? 1.2) - dt) <= 0) {
@@ -243,8 +270,8 @@ function buddyHurt(s, p, dt) {
   }
   if (s.down <= 0) {
     // bled out
-    const i = buddies.indexOf(s);
-    if (i >= 0) buddies.splice(i, 1);
+    const i = GS.buddies.indexOf(s);
+    if (i >= 0) GS.buddies.splice(i, 1);
     S.buddy = Math.max(0, S.buddy - 1);
     if ((LV.buddy || 0) > 0) LV.buddy--;
     pool(s.x, s.y, 1.6, BLOOD);
@@ -259,7 +286,7 @@ function buddyHurt(s, p, dt) {
       "They didn't make it",
       s.nm ? `${s.nm} the ${TRAITS[s.tr].name.toLowerCase()} is gone` : 'You lost one of your backup'
     );
-    if (s.nm) (RUN.lost = RUN.lost || []).push(s.nm);
+    if (s.nm) (GS.RUN.lost = GS.RUN.lost || []).push(s.nm);
     renderMods();
     return true;
   }
@@ -272,9 +299,9 @@ function buddyHurt(s, p, dt) {
 }
 // a buddy lost behind walls rejoins from just off screen behind you, on ground with a short walk in; failing that, close behind you
 const pspdOf = p => Math.hypot(p.vx, p.vy); // standing still, a survivor steps to the nearest good spot instead of crossing round you
-function buddySlot(p, s, i, taken) {
+export function buddySlot(p, s, i, taken) {
   // the best open spot round the player for survivor i, nearest to where the formation wants it
-  const pref = p.formA + Math.PI + (i - (buddies.length - 1) / 2) * 0.95;
+  const pref = p.formA + Math.PI + (i - (GS.buddies.length - 1) / 2) * 0.95;
   let best = null,
     bs = 1e9;
   for (const R of [84, 64, 48])
@@ -292,7 +319,7 @@ function buddySlot(p, s, i, taken) {
       )
         continue;
       if (Math.abs(angDiff(p.aimA, a)) < 0.55 || taken.some(q => d2(q[0], q[1], x, y) < 44 * 44)) continue;
-      if (s.avoid && time < s.avoid.t && d2(s.avoid.x, s.avoid.y, x, y) < 30 * 30) continue;
+      if (s.avoid && GS.time < s.avoid.t && d2(s.avoid.x, s.avoid.y, x, y) < 30 * 30) continue;
       const sc =
         Math.abs(angDiff(pref, a)) * 40 +
         (84 - R) * 0.6 +
@@ -305,10 +332,12 @@ function buddySlot(p, s, i, taken) {
     } // a spot it can walk straight to is better than one round a corner
   return best;
 }
-function rescueFollower() {
-  return obj && obj.type === 'rescue' && obj.state === 'follow' && !obj.done && obj.s && obj.s.hp > 0 ? obj.s : null;
+export function rescueFollower() {
+  return GS.obj && GS.obj.type === 'rescue' && GS.obj.state === 'follow' && !GS.obj.done && GS.obj.s && GS.obj.s.hp > 0
+    ? GS.obj.s
+    : null;
 }
-function budTag(s, x, y) {
+export function budTag(s, x, y) {
   if (!s.nm) return;
   ui.font = `600 ${9 * TS()}px "JetBrains Mono", monospace`;
   ui.textAlign = 'center';
@@ -319,18 +348,18 @@ function budTag(s, x, y) {
   ui.fillStyle = s.down > 0 ? '#ff8a7a' : '#cfe9dc';
   ui.fillText(t, x, y);
 } // whose bar it is
-function budBoard(s, dt) {
+export function budBoard(s, dt) {
   // to the side door; aboard, they are out of the fight and fly out with you
-  const e = evac,
+  const e = GS.evac,
     gx = e.x - 34,
     gy = e.y + 8,
     dx = gx - s.x,
     dy = gy - s.y,
     dd = Math.hypot(dx, dy);
   if (dd < 26) {
-    const i = buddies.indexOf(s);
-    if (i >= 0) buddies.splice(i, 1);
-    RUN.aboard.push(s);
+    const i = GS.buddies.indexOf(s);
+    if (i >= 0) GS.buddies.splice(i, 1);
+    GS.RUN.aboard.push(s);
     floatText(s.x, s.y - 40, `${s.nm || 'Backup'} is aboard`, '#8ef0b8', 15);
     sfx.ammo();
     return true;
@@ -377,7 +406,7 @@ function budBoard(s, dt) {
   s.recoil = Math.max(0, (s.recoil || 0) - dt * 40);
   return true;
 }
-function regroupSpot(p, i) {
+export function regroupSpot(p, i) {
   const back = p.formA + Math.PI,
     open = (x, y) => {
       if (solidPt(x, y) || solidPt(x + 16, y) || solidPt(x - 16, y) || solidPt(x, y + 16) || solidPt(x, y - 16))
@@ -412,12 +441,12 @@ function regroupSpot(p, i) {
   }
   return null;
 }
-function freeSpot(minD, maxD) {
+export function freeSpot(minD, maxD) {
   for (let k = 0; k < 80; k++) {
     const a = rand(0, TAU),
       d = rand(minD, maxD),
-      x = clamp(P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
-      y = clamp(P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
+      x = clamp(GS.P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
+      y = clamp(GS.P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
     const tx = Math.floor(x / TILE),
       ty = Math.floor(y / TILE);
     let ok = true;
@@ -429,16 +458,16 @@ function freeSpot(minD, maxD) {
         }
     if (ok && flow[ty * MW + tx] < 65535) return [(tx + 0.5) * TILE, (ty + 0.5) * TILE];
   }
-  return [P.x + rand(-120, 120), P.y + rand(-120, 120)];
+  return [GS.P.x + rand(-120, 120), GS.P.y + rand(-120, 120)];
 }
-const NPC_TINTS = [
+export const NPC_TINTS = [
   [1, 1, 1],
   [0.86, 0.92, 1.06],
   [1.08, 0.96, 0.8],
   [0.82, 0.86, 0.76],
 ]; // faded, sun-bleached and grimy clothes so backups aren't clones
-function makeSurvivor(x, y) {
-  const mh = 100 + 12 * Math.max(1, wave);
+export function makeSurvivor(x, y) {
+  const mh = 100 + 12 * Math.max(1, GS.wave);
   return {
     x,
     y,
@@ -460,7 +489,7 @@ function makeSurvivor(x, y) {
     dashT: 0,
     hurt: 0,
     ant: {},
-    look: pick([0, 1, 2].filter(l => l !== (HLOOK[RUN.hero] || 0))),
+    look: pick([0, 1, 2].filter(l => l !== (HLOOK[GS.RUN.hero] || 0))),
     tint: pick(NPC_TINTS.slice(1)),
     cd: 0,
     npc: true,

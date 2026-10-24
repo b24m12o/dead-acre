@@ -1,5 +1,30 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function updateEnemy(e, dt, p) {
+import { GS } from '../core/gs.js';
+import { TAU, angDiff, clamp, d2, damp, rand, randi } from '../core/util.js';
+import { saveMeta } from '../core/settings.js';
+import { viewH, viewW } from '../render/sprites.js';
+import { R } from '../render/atlas.js';
+import { MH, MW, TILE, WH, WW, cars, isWall, ttype } from '../world/map.js';
+import { N8, collide, flow, los, steer } from '../world/nav.js';
+import { updateLegs } from './legs.js';
+import { sfx } from '../audio/sfx.js';
+import { S, cam } from '../game/state.js';
+import { showStreak } from '../ui/callouts.js';
+import { ET, makeEnemy, traitTick } from './enemies.js';
+import { spawnPoint } from '../game/waves.js';
+import { HUMAN, bleed, bloodOf, chips, decal, distort, dust, part, pool, shake, sparks } from '../render/effects.js';
+import { SHIELD_TURN, SIGHT, hurtPlayer, killEnemy, releaseGrab, shieldUp } from '../game/combat.js';
+import { toWorld } from './projectiles.js';
+import { updateQueen } from './queen.js';
+import { BILE, BLOOD } from '../render/draw-enemies.js';
+import { downEl, lyMove, lyState, lyThud } from '../render/draw-bodies.js';
+import { breakTile, corpseMass, ragKick } from '../world/physics.js';
+import { burnTick, carAt, damageCar } from '../world/fire.js';
+import { poundCar, screamAt } from '../game/noise.js';
+import { tip } from '../audio/radio.js';
+import { finishObjective } from '../game/objective-flow.js';
+import { budTarget, objTarget } from '../game/objective-update.js';
+export function updateEnemy(e, dt, p) {
   if (e.dead) return;
   e.flash = Math.max(0, e.flash - dt);
   e.squash = Math.max(0, e.squash - dt);
@@ -8,7 +33,7 @@ function updateEnemy(e, dt, p) {
     e.emerge = Math.min(1, e.emerge + dt * (e.type === 'queen' ? 0.7 : 2.2));
     if (Math.random() < dt * 20) dust(e.x, e.y, 1, 30, 0.6, 0.6);
   }
-  if (!queue.length && enemies.length <= 3 && e.type !== 'flower') e.sp = Math.max(e.sp, ET[e.type].sp * 1.25);
+  if (!GS.queue.length && GS.enemies.length <= 3 && e.type !== 'flower') e.sp = Math.max(e.sp, ET[e.type].sp * 1.25);
   e.losT -= dt;
   if (e.losT <= 0) {
     e.losT = 0.25;
@@ -17,10 +42,15 @@ function updateEnemy(e, dt, p) {
   // awareness: they see you, hear you, or get hit; otherwise they amble
   const pd2 = d2(e.x, e.y, p.x, p.y),
     allAw =
-      e.big || e.fly || e.type === 'wasp' || e.type === 'flower' || !!evac || (!queue.length && enemies.length <= 5);
+      e.big ||
+      e.fly ||
+      e.type === 'wasp' ||
+      e.type === 'flower' ||
+      !!GS.evac ||
+      (!GS.queue.length && GS.enemies.length <= 5);
   const sr = SIGHT();
   if (e.los && pd2 < sr * sr) {
-    if (!(e.aw > 0)) e.wokeT = time;
+    if (!(e.aw > 0)) e.wokeT = GS.time;
     e.aw = Math.max(e.aw || 0, 4);
   }
   e.aw = (e.aw || 0) - dt;
@@ -37,7 +67,7 @@ function updateEnemy(e, dt, p) {
     lure = e.lure = null;
     e.aw = 4;
   }
-  if (e.mark && obj && obj.type === 'hunt' && !obj.done && e.emerge >= 1) {
+  if (e.mark && GS.obj && GS.obj.type === 'hunt' && !GS.obj.done && e.emerge >= 1) {
     e.markT -= dt;
     if (e.markT <= 0) {
       e.dead = true;
@@ -52,7 +82,7 @@ function updateEnemy(e, dt, p) {
   } // it gets away
   if (e.trait) {
     traitTick(e, dt, pd2);
-    if (!e.tipped && e.los && pd2 < 450 * 450 && state === 'play') {
+    if (!e.tipped && e.los && pd2 < 450 * 450 && GS.state === 'play') {
       e.tipped = 1;
       tip('el_' + e.trait);
     }
@@ -80,7 +110,7 @@ function updateEnemy(e, dt, p) {
     rate = 6;
   if (e.rout > 0 && em && e.type !== 'flower') {
     e.rout -= dt;
-    const fa = Math.atan2(e.y - p.y, e.x - p.x) + Math.sin(time * 1.7 + e.id) * 0.5;
+    const fa = Math.atan2(e.y - p.y, e.x - p.x) + Math.sin(GS.time * 1.7 + e.id) * 0.5;
     tvx = Math.cos(fa) * e.sp * 1.15;
     tvy = Math.sin(fa) * e.sp * 1.15;
     face = fa;
@@ -95,9 +125,9 @@ function updateEnemy(e, dt, p) {
     e.mark &&
     em &&
     !(e.down > 0) &&
-    obj &&
-    obj.type === 'hunt' &&
-    !obj.done &&
+    GS.obj &&
+    GS.obj.type === 'hunt' &&
+    !GS.obj.done &&
     pd2 > 85 * 85 &&
     pd2 < 460 * 460
   ) {
@@ -169,30 +199,30 @@ function updateEnemy(e, dt, p) {
           }
           if (e.lurk === 'lie') {
             e.aw = 0;
-            if (e.hp < e.maxHp || (!queue.length && !enemies.some(o => o !== e && !o.dead && !o.lurk))) {
+            if (e.hp < e.maxHp || (!GS.queue.length && !GS.enemies.some(o => o !== e && !o.dead && !o.lurk))) {
               e.lurk = null;
               e.aw = 9;
               e.down = Math.min(e.down, e.dT - 0.95);
               sfx.groan(e.x, e.y);
             } // shot, or the last one left: it gives up the act and gets up
-            else if (dP < 48 && !(p.dashT > 0) && !p.held && state === 'play' && em) {
+            else if (dP < 48 && !(p.dashT > 0) && !p.held && GS.state === 'play' && em) {
               e.lurk = 'grab';
               e.grip = 1;
               e.gT = 0;
               e.tickT = 0.5;
               p.held = e;
-              hurtPlayer(5 + wave * 0.5, e.x, e.y, 'a lurker');
+              hurtPlayer(5 + GS.wave * 0.5, e.x, e.y, 'a lurker');
               sfx.growl(e.x, e.y);
               shake(0.12);
-              if (!(meta.tips && meta.tips.lurk)) {
-                meta.tips = meta.tips || {};
-                meta.tips.lurk = 1;
+              if (!(GS.meta.tips && GS.meta.tips.lurk)) {
+                GS.meta.tips = GS.meta.tips || {};
+                GS.meta.tips.lurk = 1;
                 saveMeta();
               }
               showStreak('Grabbed', 'Dodge to break free', true);
             }
           } else if (e.lurk === 'grab') {
-            if (p.held !== e || state !== 'play') {
+            if (p.held !== e || GS.state !== 'play') {
               e.lurk = null;
               e.down = Math.min(e.down, e.dT - 0.95);
               if (p.held === e) p.held = null;
@@ -201,7 +231,7 @@ function updateEnemy(e, dt, p) {
               e.tickT -= dt;
               if (e.tickT <= 0) {
                 e.tickT = 0.5;
-                hurtPlayer(4 + wave * 0.35, e.x, e.y, 'a lurker');
+                hurtPlayer(4 + GS.wave * 0.35, e.x, e.y, 'a lurker');
               }
               const dx = e.x - p.x,
                 dy = e.y - p.y;
@@ -267,7 +297,7 @@ function updateEnemy(e, dt, p) {
             if (Math.random() < 0.5) sfx.groan(e.x, e.y);
           }
         } else {
-          const w = Math.sin(time * (e.run ? 3 : 1.1) + e.id) * (e.run ? 0.3 : 0.45),
+          const w = Math.sin(GS.time * (e.run ? 3 : 1.1) + e.id) * (e.run ? 0.3 : 0.45),
             c = Math.cos(w),
             s = Math.sin(w),
             lurch = e.run
@@ -354,7 +384,7 @@ function updateEnemy(e, dt, p) {
             sfx.growl(e.x, e.y);
           }
         } else {
-          const w = dist > 220 ? Math.sin(time * 2.4 + e.id * 2.1) * 0.75 : 0.1,
+          const w = dist > 220 ? Math.sin(GS.time * 2.4 + e.id * 2.1) * 0.75 : 0.1,
             c = Math.cos(w),
             s = Math.sin(w);
           tvx = (ux * c - uy * s) * e.sp;
@@ -373,7 +403,7 @@ function updateEnemy(e, dt, p) {
       }
       case 'wasp': {
         const k = dist > 320 ? 1 : dist < 200 ? -0.8 : 0,
-          side = Math.sin(time * 0.7 + e.id * 1.7) > 0 ? 1 : -1;
+          side = Math.sin(GS.time * 0.7 + e.id * 1.7) > 0 ? 1 : -1;
         tvx = (ux * k - uy * side * 0.5) * e.sp;
         tvy = (uy * k + ux * side * 0.5) * e.sp;
         face = Math.atan2(p.y - e.y, p.x - e.x);
@@ -388,19 +418,19 @@ function updateEnemy(e, dt, p) {
           tvy *= 0.1;
           if (e.charging <= 0) {
             e.charging = 0;
-            e.fireT = Math.max(1.8, 3 - wave * 0.05);
+            e.fireT = Math.max(1.8, 3 - GS.wave * 0.05);
             const [mx2, my2] = toWorld(e, 12, 0);
             for (const o of [-0.16, 0, 0.16]) {
               const a = face + o + rand(-0.04, 0.04),
                 sp = o ? 300 : 340;
-              ebullets.push({
+              GS.ebullets.push({
                 k: 'acid',
                 x: mx2,
                 y: my2,
                 vx: Math.cos(a) * sp,
                 vy: Math.sin(a) * sp,
                 r: o ? 5.5 : 7.5,
-                dmg: 8 * (1 + 0.05 * wave),
+                dmg: 8 * (1 + 0.05 * GS.wave),
                 life: 2.2,
                 c: BILE,
                 pool: !o,
@@ -508,7 +538,7 @@ function updateEnemy(e, dt, p) {
         break;
     }
   if (!aware && !lure && !ot && e.st !== 'leap' && e.st !== 'charge') {
-    const w = Math.sin(time * 0.5 + e.id * 1.7) * 0.6,
+    const w = Math.sin(GS.time * 0.5 + e.id * 1.7) * 0.6,
       c = Math.cos(w),
       sn = Math.sin(w),
       nx = tvx * c - tvy * sn,
@@ -600,7 +630,7 @@ function updateEnemy(e, dt, p) {
     tvy *= clamp(al, 0.15, 1);
   } // just up, it turns to face you before it really walks
   if (e.burn > 0 && e.type !== 'queen') {
-    const w = Math.sin(time * 9 + e.id) * 0.6,
+    const w = Math.sin(GS.time * 9 + e.id) * 0.6,
       c = Math.cos(w),
       s2 = Math.sin(w);
     const nx = tvx * c - tvy * s2,
@@ -651,7 +681,7 @@ function updateEnemy(e, dt, p) {
         dt
       ); // a boss that's recovering turns slowly: that's when you get round its back
   if (HUMAN[e.type] && !(e.down > 0 && downEl(e) < 1.12)) {
-    const tg = aware || e.down > 0 ? Math.atan2(p.y - e.y, p.x - e.x) : e.a + Math.sin(time * 0.7 + e.id) * 0.7;
+    const tg = aware || e.down > 0 ? Math.atan2(p.y - e.y, p.x - e.x) : e.a + Math.sin(GS.time * 0.7 + e.id) * 0.7;
     e.hl = (e.hl ?? e.a) + angDiff(e.hl ?? e.a, tg) * damp(e.down > 0 ? 4 : 7, dt);
   }
   if (e.flT > 0) e.flT -= dt;
@@ -686,7 +716,7 @@ function updateEnemy(e, dt, p) {
       const d = Math.sqrt(pd2);
       e.noProg = d > 260 && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
       e.lastPD = d;
-      if (e.noProg >= 12 && !queue.length && enemies.length <= 3 && nightLive) {
+      if (e.noProg >= 12 && !GS.queue.length && GS.enemies.length <= 3 && GS.nightLive) {
         const [sx, sy] = spawnPoint(380, false);
         e.x = sx;
         e.y = sy;
@@ -704,7 +734,7 @@ function updateEnemy(e, dt, p) {
     if (want > 0.5 && moved < want * 0.25) e.stk = (e.stk || 0) + dt;
     else e.stk = Math.max(0, (e.stk || 0) - dt);
     if (e.stk > 0.5 && e.los) {
-      e.flowT = time + 1.2;
+      e.flowT = GS.time + 1.2;
       e.stk = 0;
     } // can see you but can't get through: take the long way round for a while
     if (e.stk > 0.5) {
@@ -730,7 +760,7 @@ function updateEnemy(e, dt, p) {
     const sp = Math.hypot(e.vx, e.vy),
       ux2 = e.vx / sp,
       uy2 = e.vy / sp;
-    for (const c of corpses) {
+    for (const c of GS.corpses) {
       if (d2(c.x, c.y, e.x, e.y) > (e.r + 16) ** 2) continue;
       const m = corpseMass(c);
       if (m < Infinity) ragKick(c, ux2, uy2, Math.min(420, sp * 0.8) / m, sp > 400);

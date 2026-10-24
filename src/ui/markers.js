@@ -1,12 +1,24 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function drawObjectiveGlow() {
-  if (evac) {
-    const pu = (0.6 + Math.sin(time * 6) * 0.3) * (evac.t >= evac.land ? 0.16 : 1);
+import { GS } from '../core/gs.js';
+import { TAU, clamp, d2 } from '../core/util.js';
+import { TS } from '../core/settings.js';
+import { ui } from '../render/gl.js';
+import { VH, VW, ZOOM, addLight, lineQ, quad, viewH, viewW } from '../render/sprites.js';
+import { R, rr } from '../render/atlas.js';
+import { cam } from '../game/state.js';
+import { TRAIT } from '../actors/enemies.js';
+import { hudRects, inRect, safeLabel } from './hud.js';
+import { budTag } from '../actors/backups.js';
+import { BOX_SEARCH } from '../game/objectives.js';
+import { drawRainUI } from '../world/weather.js';
+export function drawObjectiveGlow() {
+  if (GS.evac) {
+    const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1);
     /* once it is down, the ring fades so the chopper itself reads */ quad(
       R.ring,
-      evac.x,
-      evac.y,
-      time * 0.5,
+      GS.evac.x,
+      GS.evac.y,
+      GS.time * 0.5,
       80 / 58,
       80 / 58,
       0,
@@ -18,18 +30,18 @@ function drawObjectiveGlow() {
       0.26 * pu,
       0
     );
-    if (evac.hold > 0) quad(R.glow, evac.x, evac.y, 0, 1.2, 1.2, 0, 0, 0, 0.35, 0.08, 0.35, 0.12, 0);
-    quad(R.glow, evac.x + 40, evac.y + 30, 0, 0.4 + Math.random() * 0.1, 0.4, 0, 0, 0, 1, 1.5, 0.25, 0.18, 0);
+    if (GS.evac.hold > 0) quad(R.glow, GS.evac.x, GS.evac.y, 0, 1.2, 1.2, 0, 0, 0, 0.35, 0.08, 0.35, 0.12, 0);
+    quad(R.glow, GS.evac.x + 40, GS.evac.y + 30, 0, 0.4 + Math.random() * 0.1, 0.4, 0, 0, 0, 1, 1.5, 0.25, 0.18, 0);
   }
-  if (obj && obj.type === 'fuel')
-    for (const c of obj.cans) if (!c.got) quad(R.glow, c.x, c.y, 0, 0.6, 0.6, 0, 0, 0, 1, 0.6, 0.4, 0.1, 0);
-  if (obj && obj.type === 'box' && !obj.done && obj.batt > 0) {
-    const bx = obj.piles.find(q => q.box);
-    if (bx && d2(bx.x, bx.y, P.x, P.y) < 200 * 200 && (time * 1.6) % 1 < 0.12)
-      quad(R.glow, bx.x, bx.y - 4, 0, 0.16, 0.16, 0, 0, 0, 1, 1.2 * obj.batt, 0.1, 0.05, 0);
+  if (GS.obj && GS.obj.type === 'fuel')
+    for (const c of GS.obj.cans) if (!c.got) quad(R.glow, c.x, c.y, 0, 0.6, 0.6, 0, 0, 0, 1, 0.6, 0.4, 0.1, 0);
+  if (GS.obj && GS.obj.type === 'box' && !GS.obj.done && GS.obj.batt > 0) {
+    const bx = GS.obj.piles.find(q => q.box);
+    if (bx && d2(bx.x, bx.y, GS.P.x, GS.P.y) < 200 * 200 && (GS.time * 1.6) % 1 < 0.12)
+      quad(R.glow, bx.x, bx.y - 4, 0, 0.16, 0.16, 0, 0, 0, 1, 1.2 * GS.obj.batt, 0.1, 0.05, 0);
   } // a pinprick of red in the wreckage, only up close
-  if (evac)
-    for (const t of evac.tr) {
+  if (GS.evac)
+    for (const t of GS.evac.tr) {
       const f = 1 - t.t / 0.07,
         f0 = Math.max(0, f - 0.45),
         dx = t.x1 - t.x0,
@@ -38,25 +50,25 @@ function drawObjectiveGlow() {
       if (f > 0.9) quad(R.glow, t.x1, t.y1, 0, 0.18, 0.18, 0, 0, 0, 1, 1.4, 0.9, 0.4, 0);
     } // door-gun tracers
 }
-function objectiveLights() {
-  if (obj && obj.type === 'gen' && obj.hp > 0) addLight(obj.x, obj.y - 30, 200, 0.4, 0.36, 0.28);
-  if (obj && obj.type === 'rescue' && obj.s.hp > 0 && !obj.joined)
+export function objectiveLights() {
+  if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) addLight(GS.obj.x, GS.obj.y - 30, 200, 0.4, 0.36, 0.28);
+  if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && !GS.obj.joined)
     addLight(
-      obj.s.x + Math.cos(obj.s.aimA) * 8,
-      obj.s.y + Math.sin(obj.s.aimA) * 8,
+      GS.obj.s.x + Math.cos(GS.obj.s.aimA) * 8,
+      GS.obj.s.y + Math.sin(GS.obj.s.aimA) * 8,
       420,
       0.6,
       0.6,
       0.5,
-      obj.s.aimA,
+      GS.obj.s.aimA,
       0.86
     );
-  if (evac) {
-    const landed = evac.t >= evac.land;
-    addLight(evac.x + 40, evac.y + 30, 200, 0.95, 0.17, 0.1);
+  if (GS.evac) {
+    const landed = GS.evac.t >= GS.evac.land;
+    addLight(GS.evac.x + 40, GS.evac.y + 30, 200, 0.95, 0.17, 0.1);
     /* the flare: a red glow on the tarmac, not a blob */ addLight(
-      evac.hx,
-      evac.hy,
+      GS.evac.hx,
+      GS.evac.hy,
       landed ? 300 : 360,
       landed ? 0.85 : 1.1,
       landed ? 0.88 : 1.15,
@@ -64,27 +76,28 @@ function objectiveLights() {
     );
   }
 }
-function markerList() {
+export function markerList() {
   const m = [];
-  if (evac) m.push({ x: evac.x, y: evac.y, col: '#8ef0a0', label: 'EVAC' });
-  for (const b of buddies)
+  if (GS.evac) m.push({ x: GS.evac.x, y: GS.evac.y, col: '#8ef0a0', label: 'EVAC' });
+  for (const b of GS.buddies)
     if (
       b.down > 0 &&
       (Math.abs(b.x - cam.x - viewW / 2) > viewW / 2 - 20 || Math.abs(b.y - cam.y - viewH / 2) > viewH / 2 - 20)
     )
       m.push({ x: b.x, y: b.y, col: '#ff6a5a', label: `${(b.nm || 'BACKUP').toUpperCase()} ${Math.ceil(b.down)} S` }); // off screen and bleeding out: which way
-  if (RUN.sg && RUN.sg.horde && time < RUN.sg.horde.t && nightLive && !nightDone)
-    m.push({ x: RUN.sg.horde.x, y: RUN.sg.horde.y, col: '#ff8a6a', label: 'HORDE' });
-  if (obj && !obj.done) {
-    if (obj.type === 'gen') m.push({ x: obj.x, y: obj.y, col: '#ffe08a', label: 'GENERATOR' });
-    if (obj.type === 'rescue' && !obj.joined) m.push({ x: obj.s.x, y: obj.s.y, col: '#bff4ff', label: 'SURVIVOR' });
-    if (obj.type === 'fuel')
-      for (const c of obj.cans)
+  if (GS.RUN.sg && GS.RUN.sg.horde && GS.time < GS.RUN.sg.horde.t && GS.nightLive && !GS.nightDone)
+    m.push({ x: GS.RUN.sg.horde.x, y: GS.RUN.sg.horde.y, col: '#ff8a6a', label: 'HORDE' });
+  if (GS.obj && !GS.obj.done) {
+    if (GS.obj.type === 'gen') m.push({ x: GS.obj.x, y: GS.obj.y, col: '#ffe08a', label: 'GENERATOR' });
+    if (GS.obj.type === 'rescue' && !GS.obj.joined)
+      m.push({ x: GS.obj.s.x, y: GS.obj.s.y, col: '#bff4ff', label: 'SURVIVOR' });
+    if (GS.obj.type === 'fuel')
+      for (const c of GS.obj.cans)
         if (!c.got) {
           m.push({ x: c.x, y: c.y, col: c.reg === 'medkit' ? '#8ef0a0' : '#ffb070', label: c.label || 'FUEL' });
         }
-    if (obj.type === 'hunt')
-      for (const e of enemies)
+    if (GS.obj.type === 'hunt')
+      for (const e of GS.enemies)
         if (e.mark && !e.dead)
           m.push({
             x: e.x,
@@ -124,7 +137,7 @@ function edgeSpot(a) {
   }
   return [x, y];
 }
-function pushInd(o) {
+export function pushInd(o) {
   const [x, y] = edgeSpot(o.a);
   o.x = x;
   o.y = y;
@@ -158,7 +171,7 @@ function pushInd(o) {
   } // nudged apart, then kept off the HUD again
   IND.push(o);
 }
-function drawInd() {
+export function drawInd() {
   const used = [],
     rects = hudRects(),
     dark = 'rgba(20,24,29,0.85)';
@@ -176,7 +189,7 @@ function drawInd() {
     ui.lineWidth = 3;
     ui.lineJoin = 'round';
     if (o.kind === 'enemy') {
-      const pu = o.pulse ? 1 + Math.sin(time * 7) * 0.15 : 1;
+      const pu = o.pulse ? 1 + Math.sin(GS.time * 7) * 0.15 : 1;
       ui.scale(pu, pu);
       ui.beginPath();
       ui.moveTo(15, 0);
@@ -242,14 +255,14 @@ function drawTraitTags(toS) {
   ui.textAlign = 'center';
   ui.lineWidth = 3;
   ui.strokeStyle = 'rgba(20,24,29,0.85)';
-  for (const e of enemies) {
+  for (const e of GS.enemies) {
     if (
       !e.trait ||
       e.dead ||
       e.dying !== undefined ||
       e.emerge < 1 ||
       (e.sv ?? 1) < 0.5 ||
-      d2(e.x, e.y, P.x, P.y) > 450 * 450
+      d2(e.x, e.y, GS.P.x, GS.P.y) > 450 * 450
     )
       continue;
     const [bx, by0] = toS(e.x, e.y),
@@ -265,23 +278,28 @@ function drawTraitTags(toS) {
   }
 }
 function boxPill(toS) {
-  if (!obj || obj.type !== 'box' || !obj.cur || obj.still) return null;
+  if (!GS.obj || GS.obj.type !== 'box' || !GS.obj.cur || GS.obj.still) return null;
   const k = TS(),
-    [bx, by] = toS(obj.cur.x, obj.cur.y),
+    [bx, by] = toS(GS.obj.cur.x, GS.obj.cur.y),
     lb = 'Stand still to search';
   ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
   const w = ui.measureText(lb).width + 16 * k;
   return { lb, x: bx - w / 2, y: by + 24 * ZOOM + 6 * k, w, h: 20 * k };
 } /* the prompt's box, shared so the pile icons can step out of its way */
-function drawMarkersUI(toS) {
+export function drawMarkersUI(toS) {
   drawTraitTags(toS);
-  if (obj && obj.type === 'box' && !obj.done && d2(obj.crash.x, obj.crash.y, P.x, P.y) < 420 * 420) {
+  if (
+    GS.obj &&
+    GS.obj.type === 'box' &&
+    !GS.obj.done &&
+    d2(GS.obj.crash.x, GS.obj.crash.y, GS.P.x, GS.P.y) < 420 * 420
+  ) {
     const k = TS();
     ui.save();
     const pl = boxPill(toS),
       hit = (x, y) =>
         pl && x > pl.x - 14 * k && x < pl.x + pl.w + 14 * k && y > pl.y - 14 * k && y < pl.y + pl.h + 14 * k;
-    for (const q of obj.piles) {
+    for (const q of GS.obj.piles) {
       const [bx, by] = toS(q.x, q.y);
       if (q.done) {
         ui.globalAlpha = 0.5;
@@ -294,8 +312,8 @@ function drawMarkersUI(toS) {
         if (!hit(bx, by - 30 * ZOOM)) ui.stroke();
         continue;
       }
-      if (q === obj.cur && q.prog > 0 && obj.still) continue;
-      const pu = 0.55 + 0.25 * Math.sin(time * 3 + q.v);
+      if (q === GS.obj.cur && q.prog > 0 && GS.obj.still) continue;
+      const pu = 0.55 + 0.25 * Math.sin(GS.time * 3 + q.v);
       ui.globalAlpha = pu;
       ui.setLineDash([4 * k, 4 * k]);
       ui.lineWidth = 2 * k;
@@ -339,8 +357,8 @@ function drawMarkersUI(toS) {
       ui.restore();
     }
   } /* on a pile but moving: say what to do, under the pile and clear of you */
-  if (obj && obj.type === 'box' && obj.cur && obj.cur.prog > 0) {
-    const q = obj.cur,
+  if (GS.obj && GS.obj.type === 'box' && GS.obj.cur && GS.obj.cur.prog > 0) {
+    const q = GS.obj.cur,
       [bx, by] = toS(q.x, q.y),
       r = 22 * ZOOM;
     ui.save();
@@ -374,21 +392,21 @@ function drawMarkersUI(toS) {
       kind: 'marker',
       grp: 'mk:' + mk.label,
       col: mk.col,
-      dist: Math.round(Math.hypot(mk.x - P.x, mk.y - P.y) / 10),
+      dist: Math.round(Math.hypot(mk.x - GS.P.x, mk.y - GS.P.y) / 10),
       lab: true,
       name: mk.label,
     });
   }
-  if (obj && obj.type === 'gen' && obj.hp > 0 && !obj.done) {
-    const [bx, by] = toS(obj.x, obj.y);
+  if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0 && !GS.obj.done) {
+    const [bx, by] = toS(GS.obj.x, GS.obj.y);
     if (bx > 0 && by > 0 && bx < VW && by < VH) {
       ui.fillStyle = 'rgba(20,24,29,0.8)';
       ui.fillRect(bx - 30, by + 26 * ZOOM, 60, 6);
-      ui.fillStyle = obj.hp / obj.max > 0.6 ? '#8ef0a0' : obj.hp / obj.max > 0.3 ? '#ffc04a' : '#ff5a4a';
-      ui.fillRect(bx - 29, by + 26 * ZOOM + 1, (58 * obj.hp) / obj.max, 4);
+      ui.fillStyle = GS.obj.hp / GS.obj.max > 0.6 ? '#8ef0a0' : GS.obj.hp / GS.obj.max > 0.3 ? '#ffc04a' : '#ff5a4a';
+      ui.fillRect(bx - 29, by + 26 * ZOOM + 1, (58 * GS.obj.hp) / GS.obj.max, 4);
     }
   }
-  for (const s of buddies) {
+  for (const s of GS.buddies) {
     if (!(s.hp < s.max) && !(s.down > 0)) continue;
     const [bx, by] = toS(s.x, s.y);
     if (bx < 0 || by < 0 || bx > VW || by > VH) continue; // your people: a bar only once they are hurt; down, a bleed-out ring
@@ -399,7 +417,7 @@ function drawMarkersUI(toS) {
       ui.beginPath();
       ui.arc(bx, by - 4 * ZOOM, r, 0, TAU);
       ui.stroke();
-      ui.strokeStyle = Math.sin(time * 8) > 0 ? '#ff5a4a' : '#c23a2e';
+      ui.strokeStyle = Math.sin(GS.time * 8) > 0 ? '#ff5a4a' : '#c23a2e';
       ui.beginPath();
       ui.arc(bx, by - 4 * ZOOM, r, -Math.PI / 2, -Math.PI / 2 + (TAU * s.down) / (s.downMax || 12));
       ui.stroke();
@@ -419,18 +437,18 @@ function drawMarkersUI(toS) {
     ui.fillRect(bx - 17, by + 26 * ZOOM + 1, (34 * s.hp) / s.max, 3);
     budTag(s, bx, by + 26 * ZOOM + 15);
   }
-  if (obj && obj.type === 'rescue' && obj.s.hp > 0 && obj.s.hp < obj.s.max && !obj.done) {
-    const [bx, by] = toS(obj.s.x, obj.s.y);
+  if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && GS.obj.s.hp < GS.obj.s.max && !GS.obj.done) {
+    const [bx, by] = toS(GS.obj.s.x, GS.obj.s.y);
     if (bx > 0 && by > 0 && bx < VW && by < VH) {
       ui.fillStyle = 'rgba(20,24,29,0.8)';
       ui.fillRect(bx - 22, by + 26 * ZOOM, 44, 5);
       ui.fillStyle = '#8ef0b8';
-      ui.fillRect(bx - 21, by + 26 * ZOOM + 1, (42 * obj.s.hp) / obj.s.max, 3);
+      ui.fillRect(bx - 21, by + 26 * ZOOM + 1, (42 * GS.obj.s.hp) / GS.obj.s.max, 3);
     }
   }
-  if (evac && evac.t >= evac.land && !evac.leave) {
-    const [bx, by] = toS(evac.x, evac.y),
-      f = clamp(evac.hold / 2.5, 0, 1),
+  if (GS.evac && GS.evac.t >= GS.evac.land && !GS.evac.leave) {
+    const [bx, by] = toS(GS.evac.x, GS.evac.y),
+      f = clamp(GS.evac.hold / 2.5, 0, 1),
       r = 86 * ZOOM;
     ui.save();
     ui.lineWidth = 6;
@@ -448,7 +466,7 @@ function drawMarkersUI(toS) {
       ui.textAlign = 'center';
       ui.lineWidth = 3;
       ui.strokeStyle = 'rgba(20,24,29,0.85)';
-      const t = `HOLD ${Math.max(0, 2.5 - evac.hold).toFixed(1)} s`;
+      const t = `HOLD ${Math.max(0, 2.5 - GS.evac.hold).toFixed(1)} s`;
       ui.strokeText(t, bx, by - r - 10);
       ui.fillStyle = '#8ef0a0';
       ui.fillText(t, bx, by - r - 10);

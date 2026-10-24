@@ -1,4 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GS } from './gs.js';
+import { $ } from './errors.js';
+import { mergeSavedMeta, store } from './settings.js';
+import { normalizeMeta } from './profile.js';
 const PROFILE_FORMAT = 'dead-acre-profile';
 const PROFILE_VERSION = 1;
 const PROFILE_KEYS = [
@@ -33,17 +37,13 @@ function profileStatus(message, isError = false) {
 }
 function buildProfileExport() {
   const values = {};
-  values.rr_meta = JSON.stringify(meta);
+  values.rr_meta = JSON.stringify(GS.meta);
   for (const key of PROFILE_KEYS) if (key !== 'rr_meta') values[key] = store.get(key);
   // Keep older backup readers compatible while ensuring this build always records Ultra.
   values.rr_quality = 'ultra';
   return { format: PROFILE_FORMAT, version: PROFILE_VERSION, exportedAt: new Date().toISOString(), values };
 }
 let dlCap;
-if (window.claude && typeof window.claude.use === 'function')
-  dlCap = window.claude
-    .use('downloads')
-    .catch(() => null); /* hosted on claude.ai: saves go through the viewer's own confirmation */
 async function exportProfile() {
   const name = `dead-acre-save-${new Date().toISOString().slice(0, 10)}.json`;
   const dl = dlCap ? await dlCap : null;
@@ -105,14 +105,14 @@ function normalizeImportedProfile(doc) {
     throw new Error('The backup does not contain a valid game profile.');
   }
   // Reuse the game's allow-list and clamping rules; don't trust raw file data as runtime state.
-  const previousMeta = meta;
+  const previousMeta = GS.meta;
   let sanitizedMeta;
   try {
     mergeSavedMeta(doc.values.rr_meta);
     normalizeMeta();
-    sanitizedMeta = JSON.stringify(meta);
+    sanitizedMeta = JSON.stringify(GS.meta);
   } finally {
-    meta = previousMeta;
+    GS.meta = previousMeta;
   }
   const clean = { rr_meta: sanitizedMeta };
   for (const key of PROFILE_KEYS) {
@@ -134,7 +134,7 @@ function commitImportedProfile(values) {
   for (const key of keys) previous[key] = localStorage.getItem(key);
   try {
     // `meta` is already normalized at runtime; keep that known-good profile as the recovery point.
-    localStorage.setItem('rr_meta_backup', JSON.stringify(meta));
+    localStorage.setItem('rr_meta_backup', JSON.stringify(GS.meta));
     localStorage.setItem('rr_meta', values.rr_meta);
     for (const key of PROFILE_KEYS) {
       if (key === 'rr_meta') continue;
@@ -154,34 +154,42 @@ function commitImportedProfile(values) {
     );
   }
 }
-$('exportSave').addEventListener('click', exportProfile);
-$('importSave').addEventListener('click', () => {
-  $('importSaveFile').click();
-});
-$('importSaveFile').addEventListener('change', async e => {
-  const file = e.target.files && e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-  if (file.size > 2 * 1024 * 1024) {
-    profileStatus('Import failed: save files must be smaller than 2 MB.', true);
-    return;
-  }
-  try {
-    const doc = JSON.parse(await file.text());
-    const values = normalizeImportedProfile(doc);
-    if (
-      !window.confirm(
-        'Import this save? It replaces the profile and settings in this browser, then reloads the game. Your current valid profile will be kept as a recovery backup.'
-      )
-    ) {
-      profileStatus('Import cancelled. Your current profile is unchanged.');
+/* ---------- Hangar ---------- */
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  if (window.claude && typeof window.claude.use === 'function')
+    dlCap = window.claude
+      .use('downloads')
+      .catch(() => null); /* hosted on claude.ai: saves go through the viewer's own confirmation */
+  $('exportSave').addEventListener('click', exportProfile);
+  $('importSave').addEventListener('click', () => {
+    $('importSaveFile').click();
+  });
+  $('importSaveFile').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      profileStatus('Import failed: save files must be smaller than 2 MB.', true);
       return;
     }
-    commitImportedProfile(values);
-    profileStatus('Import successful. Reloading the game…');
-    setTimeout(() => location.reload(), 250);
-  } catch (err) {
-    profileStatus(`Import failed: ${String((err && err.message) || err).slice(0, 220)}`, true);
-  }
-});
-/* ---------- Hangar ---------- */
+    try {
+      const doc = JSON.parse(await file.text());
+      const values = normalizeImportedProfile(doc);
+      if (
+        !window.confirm(
+          'Import this save? It replaces the profile and settings in this browser, then reloads the game. Your current valid profile will be kept as a recovery backup.'
+        )
+      ) {
+        profileStatus('Import cancelled. Your current profile is unchanged.');
+        return;
+      }
+      commitImportedProfile(values);
+      profileStatus('Import successful. Reloading the game…');
+      setTimeout(() => location.reload(), 250);
+    } catch (err) {
+      profileStatus(`Import failed: ${String((err && err.message) || err).slice(0, 220)}`, true);
+    }
+  });
+}

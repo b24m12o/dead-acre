@@ -1,18 +1,19 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GS } from './gs.js';
 /* =====================================================================
    Update
    ===================================================================== */
-function runLater(dt) {
-  for (let i = later.length - 1; i >= 0; i--) {
-    later[i].t -= dt;
-    if (later[i].t <= 0) {
-      const f = later[i].fn;
-      later.splice(i, 1);
+export function runLater(dt) {
+  for (let i = GS.later.length - 1; i >= 0; i--) {
+    GS.later[i].t -= dt;
+    if (GS.later[i].t <= 0) {
+      const f = GS.later[i].fn;
+      GS.later.splice(i, 1);
       f();
     }
   }
 }
-function rope(p, dt, ax, ay) {
+export function rope(p, dt, ax, ay) {
   const sc = p.scarf;
   sc[0].x = ax;
   sc[0].y = ay;
@@ -22,7 +23,7 @@ function rope(p, dt, ax, ay) {
       vy = (q.y - q.py) * 0.86;
     q.px = q.x;
     q.py = q.y;
-    q.x += vx + Math.sin(time * 3 + i) * 0.18;
+    q.x += vx + Math.sin(GS.time * 3 + i) * 0.18;
     q.y += vy + 0.06;
   }
   for (let it = 0; it < 3; it++)

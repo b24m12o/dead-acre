@@ -1,12 +1,27 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { clamp } from '../core/util.js';
+import { GUNS } from '../game/arsenal.js';
+import { ui } from '../render/gl.js';
+import { VH, VW, ZOOM } from '../render/sprites.js';
+import { S, hasAmmo, magSize } from '../game/state.js';
+import { placeStreak } from './callouts.js';
+import { underBoss } from '../game/waves.js';
+import { AB, abCd } from '../game/abilities.js';
+import { bossHint } from '../actors/bosses.js';
+import { FINAL_NIGHT } from '../game/districts.js';
+import { TRAITS } from '../actors/backups.js';
+import { EV_NAME } from '../audio/radio.js';
+import { objText } from '../game/objective-flow.js';
 const hc = {};
-const setT = (id, v) => {
+export const setT = (id, v) => {
   if (hc[id] !== v) {
     hc[id] = v;
     $(id).textContent = v;
   }
 };
-const setB = (id, f) => {
+export const setB = (id, f) => {
   const v = clamp(f, 0, 1).toFixed(3);
   if (hc[id] !== v) {
     hc[id] = v;
@@ -14,7 +29,7 @@ const setB = (id, f) => {
   }
 };
 /* HUD layout: panel rects (refreshed a few times a second) drive the fade-when-covered, the radar spot and where edge arrows may sit */
-const HUDF = {
+export const HUDF = {
   t: 0,
   rects: [],
   els: null,
@@ -29,12 +44,12 @@ const HUDF = {
   newGun: null,
   swapT: 0,
 };
-function radarBox() {
+export function radarBox() {
   const S0 = VW < 900 || VH < 640 ? 100 : VH < 820 ? 112 : 128,
     sp = HUDF.score;
   return { S0, x0: VW - S0 - 14, y0: Math.max(40, sp ? Math.round(sp.b + 10) : 44) };
 }
-function hudRects() {
+export function hudRects() {
   const now = performance.now();
   if (now - HUDF.t < 200 && HUDF.rects.length) return HUDF.rects;
   HUDF.t = now;
@@ -53,7 +68,7 @@ function hudRects() {
   HUDF.rects = out;
   return out;
 }
-function safeLabel(txt, x, y) {
+export function safeLabel(txt, x, y) {
   // a label above something in the world: kept inside the screen and nudged off the HUD panels, never cut off or hidden under them
   const w = ui.measureText(txt).width,
     m = 8;
@@ -71,21 +86,21 @@ function safeLabel(txt, x, y) {
   }
   return [x, y];
 }
-const inRect = (x, y, q, pad) => x > q.l - pad && x < q.r + pad && y > q.t - pad && y < q.b + pad;
+export const inRect = (x, y, q, pad) => x > q.l - pad && x < q.r + pad && y > q.t - pad && y < q.b + pad;
 function hudFade() {
   const now = performance.now() / 1000,
     dt = Math.min(0.1, now - (HUDF.last || now));
   HUDF.last = now;
   const rects = hudRects(),
-    op = (meta.hud && meta.hud.op) || 1,
-    pts = [[(P.x - camX) * ZOOM, (P.y - camY) * ZOOM]];
-  for (const e of enemies)
+    op = (GS.meta.hud && GS.meta.hud.op) || 1,
+    pts = [[(GS.P.x - GS.camX) * ZOOM, (GS.P.y - GS.camY) * ZOOM]];
+  for (const e of GS.enemies)
     if (!e.dead) {
-      const x = (e.x - camX) * ZOOM,
-        y = (e.y - (e.z || 0) - camY) * ZOOM;
+      const x = (e.x - GS.camX) * ZOOM,
+        y = (e.y - (e.z || 0) - GS.camY) * ZOOM;
       if (x > -20 && y > -20 && x < VW + 20 && y < VH + 20) pts.push([x, y]);
     }
-  for (const c of crates) pts.push([(c.x - camX) * ZOOM, (c.y - camY) * ZOOM]);
+  for (const c of GS.crates) pts.push([(c.x - GS.camX) * ZOOM, (c.y - GS.camY) * ZOOM]);
   for (const q of rects) {
     const hid = pts.some(([x, y]) => inRect(x, y, q, 22)),
       tgt = hid ? 0.5 : 1,
@@ -101,16 +116,16 @@ function hudFade() {
     }
   }
   const important =
-    (!queue.length && enemies.length > 0 && enemies.length <= 5) ||
-    crates.some(c => c.landed) ||
-    (boss && !boss.dead) ||
-    !!evac;
+    (!GS.queue.length && GS.enemies.length > 0 && GS.enemies.length <= 5) ||
+    GS.crates.some(c => c.landed) ||
+    (GS.boss && !GS.boss.dead) ||
+    !!GS.evac;
   const rt = important ? 1 : 0.62;
   HUDF.radarA += (rt - HUDF.radarA) * Math.min(1, dt * 3);
 }
 function gunPanel() {
   // Compact never expands on its own: pickups and swaps show inside the compact panel
-  const full = meta.hud && meta.hud.size === 'full',
+  const full = GS.meta.hud && GS.meta.hud.size === 'full',
     now = performance.now() / 1000;
   const g = $('gauge');
   if (g.classList.contains('open') !== full) {
@@ -118,41 +133,41 @@ function gunPanel() {
     HUDF.t = 0;
   }
   const fresh = new Set();
-  if (HUDF.own && P.owned.length > HUDF.own) {
-    for (const q of P.owned)
+  if (HUDF.own && GS.P.owned.length > HUDF.own) {
+    for (const q of GS.P.owned)
       if (!HUDF.ownSet.includes(q)) {
         HUDF.newGun = { g: q, until: now + 2.4 };
         if (GUNS[q].ammo) fresh.add(GUNS[q].ammo);
       }
   }
-  HUDF.own = P.owned.length;
-  HUDF.ownSet = P.owned.slice();
+  HUDF.own = GS.P.owned.length;
+  HUDF.ownSet = GS.P.owned.slice();
   const prev = HUDF.prev || {},
     got = HUDF.got || (HUDF.got = {});
-  for (const t in P.ammo) {
-    if (prev[t] !== undefined && P.ammo[t] > prev[t] && !fresh.has(t)) {
-      got[t] = { n: P.ammo[t] - prev[t] + (got[t] && now < got[t].until ? got[t].n : 0), until: now + 1.4 };
+  for (const t in GS.P.ammo) {
+    if (prev[t] !== undefined && GS.P.ammo[t] > prev[t] && !fresh.has(t)) {
+      got[t] = { n: GS.P.ammo[t] - prev[t] + (got[t] && now < got[t].until ? got[t].n : 0), until: now + 1.4 };
     }
-    prev[t] = P.ammo[t];
+    prev[t] = GS.P.ammo[t];
   }
   HUDF.prev = prev;
-  if (HUDF.gun !== P.gun) {
+  if (HUDF.gun !== GS.P.gun) {
     if (HUDF.gun !== null) HUDF.swapT = now + 0.5;
-    HUDF.gun = P.gun;
+    HUDF.gun = GS.P.gun;
   }
-  const G = GUNS[P.gun],
-    mag = P.mag[P.gun],
-    res = G.ammo ? P.ammo[G.ammo] : null,
-    rl = P.reload > 0,
+  const G = GUNS[GS.P.gun],
+    mag = GS.P.mag[GS.P.gun],
+    res = G.ammo ? GS.P.ammo[G.ammo] : null,
+    rl = GS.P.reload > 0,
     pl = G.ammo && got[G.ammo] && now < got[G.ammo].until ? got[G.ammo].n : 0;
   setT(
     'gunName',
     rl
       ? 'Reloading…'
       : G.name +
-          (P.gun === 'rifle' && Math.hypot(P.vx, P.vy) < 40 && time - (P.lastShotT || -9) < 1.2
+          (GS.P.gun === 'rifle' && Math.hypot(GS.P.vx, GS.P.vy) < 40 && GS.time - (GS.P.lastShotT || -9) < 1.2
             ? ' · braced'
-            : P.gun === 'lmg' && time - (P.lastShotT || -9) < 0.22
+            : GS.P.gun === 'lmg' && GS.time - (GS.P.lastShotT || -9) < 0.22
               ? ' · slowed'
               : '')
   );
@@ -162,7 +177,8 @@ function gunPanel() {
   if (hc.gunAmmo !== ak) {
     hc.gunAmmo = ak;
     const ga = $('gunAmmo');
-    ga.className = 'ga' + (rl ? ' rl' : !mag && !res ? ' out' : mag <= Math.ceil(magSize(P.gun) * 0.2) ? ' low' : '');
+    ga.className =
+      'ga' + (rl ? ' rl' : !mag && !res ? ' out' : mag <= Math.ceil(magSize(GS.P.gun) * 0.2) ? ' low' : '');
     ga.innerHTML =
       `<b>${mag}</b> / ${res === null ? '∞' : res === 0 && mag > 0 ? '<s class="lastmag">0 · last mag</s>' : res}` +
       (pl ? `<i class="plus">+${pl}</i>` : '');
@@ -172,19 +188,19 @@ function gunPanel() {
       return t && got[t] && now < got[t].until;
     },
     nw = q => HUDF.newGun && HUDF.newGun.g === q && now < HUDF.newGun.until;
-  const ck = P.owned.map(q => q + (hasAmmo(q) ? 1 : 0) + (fl(q) ? 'g' : '') + (nw(q) ? 'n' : '')).join() + P.gun;
+  const ck = GS.P.owned.map(q => q + (hasAmmo(q) ? 1 : 0) + (fl(q) ? 'g' : '') + (nw(q) ? 'n' : '')).join() + GS.P.gun;
   if (hc.chips !== ck) {
     hc.chips = ck;
-    $('gunChips').innerHTML = P.owned
+    $('gunChips').innerHTML = GS.P.owned
       .map(
         (q, i) =>
-          `<span class="${P.gun === q ? 'on' : ''}${hasAmmo(q) ? '' : ' empty'}${fl(q) ? ' got' : ''}${nw(q) ? ' new' : ''}" title="${GUNS[q].name}">${i + 1}</span>`
+          `<span class="${GS.P.gun === q ? 'on' : ''}${hasAmmo(q) ? '' : ' empty'}${fl(q) ? ' got' : ''}${nw(q) ? ' new' : ''}" title="${GUNS[q].name}">${i + 1}</span>`
       )
       .join('');
   }
 }
-function updateHud() {
-  if (streakT > 0 && streakCur) placeStreak();
+export function updateHud() {
+  if (GS.streakT > 0 && GS.streakCur) placeStreak();
   hudFade();
   gunPanel();
   {
@@ -200,41 +216,44 @@ function updateHud() {
       }
     }
   }
-  const r = Math.max(0, P.hp) / S.maxHp;
+  const r = Math.max(0, GS.P.hp) / S.maxHp;
   setB('hpFill', r);
   $('hpBar').classList.toggle('low', r < 0.3);
-  setT('hpTxt', `${Math.ceil(Math.max(0, P.hp))} / ${Math.round(S.maxHp)}`);
-  setT('waveTxt', RUN.endless ? `Night ${Math.max(1, wave)} · endless` : `Night ${Math.max(1, wave)} / ${FINAL_NIGHT}`);
+  setT('hpTxt', `${Math.ceil(Math.max(0, GS.P.hp))} / ${Math.round(S.maxHp)}`);
+  setT(
+    'waveTxt',
+    GS.RUN.endless ? `Night ${Math.max(1, GS.wave)} · endless` : `Night ${Math.max(1, GS.wave)} / ${FINAL_NIGHT}`
+  );
   setT('objTxt', objText());
-  const left = queue.length + enemies.length,
-    sg = RUN.sg,
-    quiet = sg && sg.lull > 0 && enemies.filter(e => !e.dead && !e.dormant).length <= 3;
+  const left = GS.queue.length + GS.enemies.length,
+    sg = GS.RUN.sg,
+    quiet = sg && sg.lull > 0 && GS.enemies.filter(e => !e.dead && !e.dormant).length <= 3;
   setT(
     'waveSub',
-    !wave
+    !GS.wave
       ? 'Get ready'
-      : evac && !evac.leave
+      : GS.evac && !GS.evac.leave
         ? 'Get to the chopper'
-        : RUN.jobPend && nightDone
+        : GS.RUN.jobPend && GS.nightDone
           ? 'Convoy calling…'
-          : nightDone && !left && interT > 0
-            ? crates.some(c => c.dawn && !c.open) && interT <= 4.05 && (RUN.dawnX || 0) < 14
+          : GS.nightDone && !left && GS.interT > 0
+            ? GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14
               ? 'Drop waiting · Enter to skip'
-              : `Next night in ${Math.ceil(interT)} · Enter to start`
+              : `Next night in ${Math.ceil(GS.interT)} · Enter to start`
             : quiet
               ? sg.i >= sg.cuts.length
                 ? 'Quiet · last surge next'
                 : 'Quiet · more coming'
               : left
-                ? sg && nightLive && !nightDone
+                ? sg && GS.nightLive && !GS.nightDone
                   ? `Surge ${Math.min(sg.i + 1, 3)} of 3 · ${left} still walking`
                   : `${left} still walking`
-                : obj && !obj.done
+                : GS.obj && !GS.obj.done
                   ? 'Finish the job'
                   : 'Hold on'
   );
   {
-    const w = ev && !nightDone && !evac ? ev : null;
+    const w = GS.ev && !GS.nightDone && !GS.evac ? GS.ev : null;
     if (hc.wx !== w) {
       hc.wx = w;
       const t = $('wxTag');
@@ -246,31 +265,35 @@ function updateHud() {
       HUDF.t = 0;
     }
   }
-  /* the weather, as a small tag */ setT('scoreTxt', score.toLocaleString());
-  const mult = 1 + Math.min(4, Math.floor(combo / 10) * 0.5);
+  /* the weather, as a small tag */ setT('scoreTxt', GS.score.toLocaleString());
+  const mult = 1 + Math.min(4, Math.floor(GS.combo / 10) * 0.5);
   setT(
     'chain',
-    combo >= 10 ? `Chain ${combo} · ×${mult.toFixed(1)} score` : combo >= 5 ? `Chain ${combo} · ×1.5 at 10` : ''
+    GS.combo >= 10
+      ? `Chain ${GS.combo} · ×${mult.toFixed(1)} score`
+      : GS.combo >= 5
+        ? `Chain ${GS.combo} · ×1.5 at 10`
+        : ''
   );
   {
-    const gk = P.owned.map(g => g + P.mag[g]).join() + JSON.stringify(P.ammo) + P.gun + (P.reload > 0);
+    const gk = GS.P.owned.map(g => g + GS.P.mag[g]).join() + JSON.stringify(GS.P.ammo) + GS.P.gun + (GS.P.reload > 0);
     if (hc.guns !== gk) {
       hc.guns = gk;
-      $('gunRow').innerHTML = P.owned
+      $('gunRow').innerHTML = GS.P.owned
         .map((g, i) => {
           const G = GUNS[g];
-          return `<span class="${P.gun === g ? 'on' : ''}${hasAmmo(g) ? '' : ' empty'}"><b>${i + 1}</b>${G.name}<em class="${P.reload > 0 && P.gun === g ? 'rl' : ''}">${P.mag[g] + ' / ' + (G.ammo ? P.ammo[G.ammo] : '∞')}</em></span>`;
+          return `<span class="${GS.P.gun === g ? 'on' : ''}${hasAmmo(g) ? '' : ' empty'}"><b>${i + 1}</b>${G.name}<em class="${GS.P.reload > 0 && GS.P.gun === g ? 'rl' : ''}">${GS.P.mag[g] + ' / ' + (G.ammo ? GS.P.ammo[G.ammo] : '∞')}</em></span>`;
         })
         .join('');
     }
   }
   {
-    const k = buddies
+    const k = GS.buddies
       .map(b => b.nm + b.tr + (b.down > 0 ? 'd' + Math.ceil(b.down) : Math.round((b.hp / b.max) * 20)))
       .join();
     if (hc.squad !== k) {
       hc.squad = k;
-      $('squad').innerHTML = buddies
+      $('squad').innerHTML = GS.buddies
         .map(b => {
           const f = b.down > 0 ? b.down / (b.downMax || 12) : b.hp / b.max;
           return `<div class="sq${b.down > 0 ? ' dn' : f < 0.5 ? ' hurt' : ''}"><span><b>${b.nm || 'Backup'}</b> · ${b.down > 0 ? `down ${Math.ceil(b.down)} s` : TRAITS[b.tr] ? TRAITS[b.tr].name : ''}</span><div class="thin"><i style="transform:scaleX(${clamp(f, 0, 1).toFixed(2)})"></i></div></div>`;
@@ -279,13 +302,13 @@ function updateHud() {
       HUDF.t = 0;
     }
   } // your people, by name
-  setT('lv', `Level ${level}`);
-  setB('xpFill', xp / xpNeed);
-  setB('dashFill', 1 - P.dashCd / S.dashCd);
-  setB('abFill', 1 - (P.abT || 0) / abCd());
+  setT('lv', `Level ${GS.level}`);
+  setB('xpFill', GS.xp / GS.xpNeed);
+  setB('dashFill', 1 - GS.P.dashCd / S.dashCd);
+  setB('abFill', 1 - (GS.P.abT || 0) / abCd());
   {
-    const rd = !(P.abT > 0),
-      lt = rd ? AB().name + ' · E' : `${AB().name} · ${Math.ceil(P.abT)} s`;
+    const rd = !(GS.P.abT > 0),
+      lt = rd ? AB().name + ' · E' : `${AB().name} · ${Math.ceil(GS.P.abT)} s`;
     if (hc.abL !== lt) {
       hc.abL = lt;
       $('abLbl').textContent = lt;
@@ -301,16 +324,16 @@ function updateHud() {
       }
     }
   }
-  if (boss && !boss.dead) {
-    setB('bossFill', boss.hp / boss.maxHp);
-    setB('bossStg', (boss.stg || 0) / (boss.maxHp * 0.05));
-    const ct = boss.btype === 'chief' && !boss.tankGone;
+  if (GS.boss && !GS.boss.dead) {
+    setB('bossFill', GS.boss.hp / GS.boss.maxHp);
+    setB('bossStg', (GS.boss.stg || 0) / (GS.boss.maxHp * 0.05));
+    const ct = GS.boss.btype === 'chief' && !GS.boss.tankGone;
     if (hc.tankOn !== ct) {
       hc.tankOn = ct;
       $('tankWrap').hidden = $('tankLbl').hidden = !ct;
     }
-    if (ct) setB('bossTank', boss.tank / (boss.maxHp * 0.1));
-    const ht = bossHint(boss);
+    if (ct) setB('bossTank', GS.boss.tank / (GS.boss.maxHp * 0.1));
+    const ht = bossHint(GS.boss);
     if ($('banner').classList.contains('show')) underBoss($('banner'));
     if (hc.bhint !== ht) {
       hc.bhint = ht;

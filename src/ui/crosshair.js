@@ -1,5 +1,12 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const CH_COLS = {
+import { GS } from '../core/gs.js';
+import { TAU, clamp, d2 } from '../core/util.js';
+import { TS } from '../core/settings.js';
+import { ui } from '../render/gl.js';
+import { ZOOM } from '../render/sprites.js';
+import { S, magSize } from '../game/state.js';
+import { mouse } from '../core/input.js';
+export const CH_COLS = {
   white: '#f2efe6',
   amber: '#ffc04a',
   red: '#ff5a4a',
@@ -9,21 +16,21 @@ const CH_COLS = {
   pink: '#ff5a4a',
 };
 let chHot = 0;
-function drawCrosshair() {
-  const ch = meta.ch,
+export function drawCrosshair() {
+  const ch = GS.meta.ch,
     col = CH_COLS[ch.col] || CH_COLS.lime,
     k = ch.size * 0.72,
     mx = mouse.x,
     my = mouse.y;
   // aim line from the muzzle to the cursor
   if (ch.line) {
-    const px = (P.x + Math.cos(P.aimA) * S.muzzle - camX) * ZOOM,
-      py = (P.y + Math.sin(P.aimA) * S.muzzle - camY) * ZOOM,
+    const px = (GS.P.x + Math.cos(GS.P.aimA) * S.muzzle - GS.camX) * ZOOM,
+      py = (GS.P.y + Math.sin(GS.P.aimA) * S.muzzle - GS.camY) * ZOOM,
       L = Math.hypot(mx - px, my - py);
     if (L > 40) {
       ui.save();
       ui.setLineDash([3, 9]);
-      ui.lineDashOffset = -time * 40;
+      ui.lineDashOffset = -GS.time * 40;
       ui.lineCap = 'round';
       ui.strokeStyle = 'rgba(20,24,29,0.45)';
       ui.lineWidth = 4;
@@ -39,10 +46,10 @@ function drawCrosshair() {
     }
   }
   // is a creature under the cursor?
-  const wx = camX + mx / ZOOM,
-    wy = camY + my / ZOOM;
+  const wx = GS.camX + mx / ZOOM,
+    wy = GS.camY + my / ZOOM;
   let hot = false;
-  for (const e of enemies)
+  for (const e of GS.enemies)
     if (!e.dead && d2(wx, wy, e.x, e.y - e.z) < (e.r + 10) ** 2) {
       hot = true;
       break;
@@ -50,13 +57,13 @@ function drawCrosshair() {
   chHot += ((hot ? 1 : 0) - chHot) * 0.35;
   const c2 = hot ? '#ffffff' : col,
     sp =
-      (11 + Math.max(0, P.fireCd) * 22 + P.recoil * 0.9 + (P.heat || 0) * 9) *
+      (11 + Math.max(0, GS.P.fireCd) * 22 + GS.P.recoil * 0.9 + (GS.P.heat || 0) * 9) *
         k *
-        (P.gun === 'rifle' && Math.hypot(P.vx, P.vy) < 40 ? 0.6 : 1) -
+        (GS.P.gun === 'rifle' && Math.hypot(GS.P.vx, GS.P.vy) < 40 ? 0.6 : 1) -
       chHot * 3 * k; /* a braced rifle: the gap closes */
   paintCH(ui, mx, my, k, c2, sp, chHot, true);
 }
-function paintCH(ui, mx, my, k, c2, sp, chHot, game) {
+export function paintCH(ui, mx, my, k, c2, sp, chHot, game) {
   const R0 = 15 * k;
   ui.save();
   ui.lineCap = 'round';
@@ -91,8 +98,8 @@ function paintCH(ui, mx, my, k, c2, sp, chHot, game) {
   ui.fill();
   ui.restore();
   if (!game) return;
-  if (P.reload > 0) {
-    const f = 1 - P.reload / P.reloadMax,
+  if (GS.P.reload > 0) {
+    const f = 1 - GS.P.reload / GS.P.reloadMax,
       R1 = 24 * k;
     ui.save();
     ui.lineWidth = 4;
@@ -113,15 +120,15 @@ function paintCH(ui, mx, my, k, c2, sp, chHot, game) {
     ui.fillStyle = '#ffd08a';
     ui.fillText('RELOAD', mx, my + R1 + 15);
     ui.restore();
-  } else if (P.mag && P.mag[P.gun] <= Math.ceil(magSize(P.gun) * 0.2)) {
+  } else if (GS.P.mag && GS.P.mag[GS.P.gun] <= Math.ceil(magSize(GS.P.gun) * 0.2)) {
     ui.save();
     ui.font = `600 ${11 * TS()}px JetBrains Mono, monospace`;
     ui.textAlign = 'center';
-    const lt = P.mag[P.gun] ? `${P.mag[P.gun]} LEFT · R` : 'EMPTY';
+    const lt = GS.P.mag[GS.P.gun] ? `${GS.P.mag[GS.P.gun]} LEFT · R` : 'EMPTY';
     ui.lineWidth = 3;
     ui.strokeStyle = 'rgba(14,16,20,0.9)';
     ui.strokeText(lt, mx, my + 38 * k);
-    ui.fillStyle = P.mag[P.gun] ? '#ffd08a' : '#ff6a5a';
+    ui.fillStyle = GS.P.mag[GS.P.gun] ? '#ffd08a' : '#ff6a5a';
     ui.fillText(lt, mx, my + 38 * k);
     ui.restore();
   }

@@ -1,18 +1,19 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GS } from '../core/gs.js';
+import { lineQ, quad, setH } from './sprites.js';
+import { R } from './atlas.js';
+import { MH, MW, TILE, cars, houses, ttype } from '../world/map.js';
+import { WBURN, WHOLES } from '../world/wear.js';
 /* =====================================================================
    2.5D: extruded blocks, stacked props, cars, roofs, decor
    ===================================================================== */
 const BH = { brick: 28, conc: 30, barr: 16, stone: 30, bord: 34, fence: 24, int: 26 },
   FACEH = { brick: 28, conc: 30, barr: 16, stone: 30, bord: 32, int: 30 };
-const WSTN = ['brick', 'conc', 'barr', 'stone', 'bord', 'fence', 'int'];
-const WST = new Uint8Array(MW * MH),
-  WHT = new Float32Array(MW * MH),
-  WVAR = new Uint8Array(MW * MH);
-const hsh = (x, y) => ((((x * 73856093) ^ (y * 19349663)) >>> 0) % 1000) / 1000;
-const isBlock = t => t === 5 || t === 1 || t === 9;
-let windows = [],
-  decor = [],
-  jets = [];
+export const WSTN = ['brick', 'conc', 'barr', 'stone', 'bord', 'fence', 'int'];
+export let WST, WHT, WVAR;
+export let hsh;
+export let isBlock;
+export let windows;
 function hexTint(h) {
   const n = parseInt(h.slice(1), 16);
   return [((n >> 16) & 255) / 208, ((n >> 8) & 255) / 208, (n & 255) / 208];
@@ -22,13 +23,13 @@ function wallStyleOf(tx, ty) {
   if (t === 1) return 'bord';
   if (t === 9) return 'fence';
 
-  const D = RUN.district || 'town',
+  const D = GS.RUN.district || 'town',
     hz = houses.find(o => tx >= o.x && tx < o.x + o.w && ty >= o.y && ty < o.y + o.h);
   if (D === 'cemetery') return 'stone';
   if (D === 'highway') return ty === 28 || ty === 32 ? 'barr' : hz && hz.style === 'store' ? 'conc' : 'brick';
   return hz && hz.style === 'store' ? 'conc' : 'brick';
 }
-function prepBlocks() {
+export function prepBlocks() {
   windows = [];
   for (let ty = 0; ty < MH; ty++)
     for (let tx = 0; tx < MW; tx++) {
@@ -73,20 +74,15 @@ function prepBlocks() {
     c.police = c.police || false;
   }
 }
-const WVN = {
-  brick: ['', 'win', 'dark', 'post', 'crack', 'brk'],
-  conc: ['', 'win', 'brk'],
-  bord: ['0', '1', '2'],
-  int: ['', 'stain', 'blood', 'board', 'crack'],
-};
-function drawBlock(i) {
+export let WVN;
+export function drawBlock(i) {
   const tx = i % MW,
     ty = (i / MW) | 0,
     x = (tx + 0.5) * TILE,
     y = (ty + 0.5) * TILE,
     st = WSTN[WST[i]],
     H = WHT[i];
-  if (SHMODE) {
+  if (GS.SHMODE) {
     setH(H);
     if (st === 'fence') {
       const horiz = ttype[i - 1] === 9 || ttype[i + 1] === 9 || !(ttype[i - MW] === 9 || ttype[i + MW] === 9),
@@ -101,7 +97,7 @@ function drawBlock(i) {
     quad(R.pixel, x, y, 0, 10, 10, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
   }
-  if (P && st !== 'bord' && Math.abs(P.x - x) < 36 && P.y < y + 14 && P.y > y - 20 - H - 30) gA = 0.42;
+  if (GS.P && st !== 'bord' && Math.abs(GS.P.x - x) < 36 && GS.P.y < y + 14 && GS.P.y > y - 20 - H - 30) GS.gA = 0.42;
   if (st === 'fence') {
     const horiz = ttype[i - 1] === 9 || ttype[i + 1] === 9 || !(ttype[i - MW] === 9 || ttype[i + MW] === 9);
     if (horiz) quad(R.wf_fence, x, y - H / 2 + 6, 0, 1, H / 26, 0.9, 0.9, 0.9, 1, 0, 0, 0, 0);
@@ -110,7 +106,7 @@ function drawBlock(i) {
       lineQ(x, y - 20 - H * 0.8, x, y + 20 - H * 0.8, 2.2, 0.08, 0.08, 0.08, 1, 0, 0, 0, 0, R.pixel);
       lineQ(x, y - 20 - H * 0.2, x, y + 20 - H * 0.2, 2.2, 0.08, 0.08, 0.08, 1, 0, 0, 0, 0, R.pixel);
     }
-    gA = 1;
+    GS.gA = 1;
     return;
   }
   const below = ty + 1 < MH ? i + MW : -1,
@@ -144,5 +140,23 @@ function drawBlock(i) {
     for (const h of hl)
       if (h.f ? faceShown : true) quad(R.bhole, x + h.dx, y + h.dy, h.r, h.s, h.s, 1, 1, 1, 1, 0, 0, 0, 0);
   if (WBURN[i] > 0.05) quad(R.scorch, x, y + 20 - H * 0.5, 0, 0.36, H / 110, 1, 1, 1, WBURN[i] * 0.7, 0, 0, 0, 0);
-  gA = 1;
+  GS.gA = 1;
+}
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  WST = new Uint8Array(MW * MH);
+  WHT = new Float32Array(MW * MH);
+  WVAR = new Uint8Array(MW * MH);
+  hsh = (x, y) => ((((x * 73856093) ^ (y * 19349663)) >>> 0) % 1000) / 1000;
+  isBlock = t => t === 5 || t === 1 || t === 9;
+  windows = [];
+  GS.decor = [];
+  GS.jets = [];
+  WVN = {
+    brick: ['', 'win', 'dark', 'post', 'crack', 'brk'],
+    conc: ['', 'win', 'brk'],
+    bord: ['0', '1', '2'],
+    int: ['', 'stain', 'blood', 'board', 'crack'],
+  };
 }

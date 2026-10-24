@@ -1,9 +1,24 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function drawUI() {
+import { GS } from '../core/gs.js';
+import { TAU, clamp } from '../core/util.js';
+import { TS, opt } from '../core/settings.js';
+import { GUNS } from '../game/arsenal.js';
+import { ui, uic } from '../render/gl.js';
+import { RH, RW, VH, VW, ZOOM } from '../render/sprites.js';
+import { WHEEL, drawWheel } from '../game/state.js';
+import { hudDomRects } from './callouts.js';
+import { spatSprite } from '../render/effects.js';
+import { mouse } from '../core/input.js';
+import { drawRadar } from './radar.js';
+import { drawCrosshair } from './crosshair.js';
+import { safeLabel } from './hud.js';
+import { drawInd, drawMarkersUI, pushInd } from './markers.js';
+import { FPSV } from '../core/main.js';
+export function drawUI() {
   const k = uic.width / VW;
   ui.setTransform(k, 0, 0, k, 0, 0);
   ui.clearRect(0, 0, VW, VH);
-  if (meta.hud.fps && state !== 'menu') {
+  if (GS.meta.hud.fps && GS.state !== 'menu') {
     const f = Math.round(FPSV);
     ui.font = `600 ${11 * TS()}px "JetBrains Mono", monospace`;
     ui.textAlign = 'right';
@@ -12,11 +27,11 @@ function drawUI() {
     ui.fillText(`${f} FPS · ${RW}×${RH}`, VW - 14, VH - 30 * TS());
     ui.textAlign = 'left';
   } // the frame-rate readout: bottom right, clear of the HUD
-  if (whiteFlash > 0.01) {
-    ui.fillStyle = `rgba(255,252,240,${Math.min(opt.flash ? 0.1 : 0.75, whiteFlash)})`;
+  if (GS.whiteFlash > 0.01) {
+    ui.fillStyle = `rgba(255,252,240,${Math.min(opt.flash ? 0.1 : 0.75, GS.whiteFlash)})`;
     ui.fillRect(0, 0, VW, VH);
   }
-  for (const b of screenBlood) {
+  for (const b of GS.screenBlood) {
     const sp = spatSprite(b.k || 0),
       a = Math.min(1, b.life / 0.8) * 0.5,
       x = b.x * VW,
@@ -38,11 +53,11 @@ function drawUI() {
     ui.restore();
     continue;
   }
-  const toS = (x, y) => [(x - camX) * ZOOM, (y - camY) * ZOOM];
+  const toS = (x, y) => [(x - GS.camX) * ZOOM, (y - GS.camY) * ZOOM];
   ui.textAlign = 'center';
   ui.lineJoin = 'round';
   const placed = [];
-  for (const t of state === 'play' || WHEEL.open ? texts : []) {
+  for (const t of GS.state === 'play' || WHEEL.open ? GS.texts : []) {
     let [x, y] = toS(t.x, t.y);
     const fs = t.size * Math.max(0.85, ZOOM);
     ui.font = `italic 800 ${fs}px Kanit, sans-serif`;
@@ -69,9 +84,9 @@ function drawUI() {
     ui.fillText(t.txt, x, y);
   }
   ui.globalAlpha = 1;
-  if (state !== 'play') return;
-  const few = !queue.length && enemies.length <= 5;
-  for (const e of enemies) {
+  if (GS.state !== 'play') return;
+  const few = !GS.queue.length && GS.enemies.length <= 5;
+  for (const e of GS.enemies) {
     if (e.dormant) continue;
     const big = e.type === 'queen' || e.type === 'beetle';
     if (!big && !few) continue;
@@ -79,7 +94,7 @@ function drawUI() {
       col = e.type === 'queen' ? '#ff3d5a' : few ? '#ffd23a' : 'rgba(255,122,47,0.9)';
     if (bx > 0 && by > 0 && bx < VW && by < VH) {
       if (!few) continue;
-      const bob = Math.sin(time * 6) * 4,
+      const bob = Math.sin(GS.time * 6) * 4,
         yy = by - (e.r + 18) * ZOOM + bob,
         hr = hudDomRects().boss;
       if (hr && bx > hr.left - 12 && bx < hr.right + 12 && yy > hr.top - 12 && yy < hr.bottom + 12) continue; // never drawn over the boss panel
@@ -103,12 +118,12 @@ function drawUI() {
       kind: 'enemy',
       grp: e.type === 'queen' ? 'boss' : 'enemy',
       col,
-      dist: Math.round(Math.hypot(e.x - P.x, e.y - P.y) / 10),
+      dist: Math.round(Math.hypot(e.x - GS.P.x, e.y - GS.P.y) / 10),
       lab: few,
       pulse: few,
     });
   }
-  for (const c of crates) {
+  for (const c of GS.crates) {
     const [bx, by] = toS(c.x + (c.landed ? 0 : c.sx || 0), c.y - c.z + (c.landed ? 0 : c.sy || 0));
     if (bx > 0 && by > 0 && bx < VW && by < VH) {
       ui.font = `600 ${11 * TS()}px "JetBrains Mono", monospace`;
@@ -133,16 +148,16 @@ function drawUI() {
       kind: 'crate',
       grp: 'crate',
       col: c.gun ? '#ffd08a' : '#39d0c8',
-      dist: Math.round(Math.hypot(c.x - P.x, c.y - P.y) / 10),
+      dist: Math.round(Math.hypot(c.x - GS.P.x, c.y - GS.P.y) / 10),
       lab: false,
     });
   }
   drawMarkersUI(toS);
   drawInd();
   {
-    const px = (P.x - camX) * ZOOM,
-      py = (P.y - camY) * ZOOM;
-    for (const h of hitDirs) {
+    const px = (GS.P.x - GS.camX) * ZOOM,
+      py = (GS.P.y - GS.camY) * ZOOM;
+    for (const h of GS.hitDirs) {
       const al = h.life / 0.8;
       ui.strokeStyle = `rgba(255,61,90,${al * 0.9})`;
       ui.lineWidth = 6;
@@ -159,9 +174,9 @@ function drawUI() {
   drawRadar();
   drawWheel();
   if (mouse.seen) drawCrosshair();
-  else if (state === 'play' && P && (P.reload > 0 || (P.mag && P.mag[P.gun] <= 0))) {
-    const hx = (P.x - camX) * ZOOM,
-      hy = (P.y - camY) * ZOOM,
+  else if (GS.state === 'play' && GS.P && (GS.P.reload > 0 || (GS.P.mag && GS.P.mag[GS.P.gun] <= 0))) {
+    const hx = (GS.P.x - GS.camX) * ZOOM,
+      hy = (GS.P.y - GS.camY) * ZOOM,
       r = 30 * ZOOM;
     ui.save();
     ui.lineWidth = 4;
@@ -169,11 +184,11 @@ function drawUI() {
     ui.beginPath();
     ui.arc(hx, hy, r, 0, TAU);
     ui.stroke();
-    if (P.reload > 0) {
+    if (GS.P.reload > 0) {
       ui.lineWidth = 3;
       ui.strokeStyle = '#ffd08a';
       ui.beginPath();
-      ui.arc(hx, hy, r, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(1 - P.reload / P.reloadMax, 0, 1));
+      ui.arc(hx, hy, r, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(1 - GS.P.reload / GS.P.reloadMax, 0, 1));
       ui.stroke();
     } else {
       ui.font = `600 ${11 * TS()}px JetBrains Mono, monospace`;

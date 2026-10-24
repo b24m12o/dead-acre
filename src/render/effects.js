@@ -1,10 +1,16 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function part(o) {
-  if (parts.length > 2600) parts.shift();
-  parts.push(o);
+import { GS } from '../core/gs.js';
+import { TAU, d2, rand, randi } from '../core/util.js';
+import { opt } from '../core/settings.js';
+import { R } from './atlas.js';
+import { MH, MW, ROAD, TILE } from '../world/map.js';
+import { BILE, BLOOD } from './draw-enemies.js';
+export function part(o) {
+  if (GS.parts.length > 2600) GS.parts.shift();
+  GS.parts.push(o);
   return o;
 }
-function glowBurst(x, y, col, n, sp, life, size) {
+export function glowBurst(x, y, col, n, sp, life, size) {
   for (let i = 0; i < n; i++) {
     const a = rand(0, TAU),
       s = rand(sp * 0.2, sp);
@@ -22,7 +28,7 @@ function glowBurst(x, y, col, n, sp, life, size) {
     });
   }
 }
-function sparks(x, y, col, n, sp, dir = null, spread = Math.PI) {
+export function sparks(x, y, col, n, sp, dir = null, spread = Math.PI) {
   for (let i = 0; i < n; i++) {
     const a = dir === null ? rand(0, TAU) : dir + rand(-spread, spread),
       s = rand(sp * 0.3, sp);
@@ -40,7 +46,7 @@ function sparks(x, y, col, n, sp, dir = null, spread = Math.PI) {
     });
   }
 }
-function dust(x, y, n, sp = 40, size = 1, life = 1) {
+export function dust(x, y, n, sp = 40, size = 1, life = 1) {
   for (let i = 0; i < n; i++) {
     const a = rand(0, TAU),
       s = rand(5, sp);
@@ -60,7 +66,7 @@ function dust(x, y, n, sp = 40, size = 1, life = 1) {
     });
   }
 }
-function chips(x, y, n, col, kind = 3, sp = 240) {
+export function chips(x, y, n, col, kind = 3, sp = 240) {
   for (let i = 0; i < n; i++) {
     const a = rand(0, TAU),
       s = rand(60, sp);
@@ -82,7 +88,7 @@ function chips(x, y, n, col, kind = 3, sp = 240) {
     });
   }
 }
-function decal(reg, x, y, scale, tint, emit, life = 30) {
+export function decal(reg, x, y, scale, tint, emit, life = 30) {
   if (
     scale < 0.26 &&
     reg &&
@@ -91,8 +97,8 @@ function decal(reg, x, y, scale, tint, emit, life = 30) {
   ) {
     // tiny splats: round specks that fade sooner, so the ground doesn't fill with little dark shapes
     let near = 0;
-    for (let i = decals.length - 1, n = 0; i >= 0 && n < 60; i--, n++) {
-      const d = decals[i];
+    for (let i = GS.decals.length - 1, n = 0; i >= 0 && n < 60; i--, n++) {
+      const d = GS.decals[i];
       if (Math.abs(d.x - x) < 14 && Math.abs(d.y - y) < 14) {
         near++;
         if (near > 1) return d;
@@ -122,44 +128,44 @@ function decal(reg, x, y, scale, tint, emit, life = 30) {
       road = tx >= 0 && ty >= 0 && tx < MW && ty < MH && ROAD[ty * MW + tx];
     tint = road ? [tint[0] * 0.7, tint[1] * 0.6, tint[2] * 0.6, tint[3] * 0.92] : [tint[0], tint[1], tint[2], tint[3]];
   } // on asphalt blood soaks in almost black; on pale concrete it stays red
-  if (decals.length > 420) decals.shift();
+  if (GS.decals.length > 420) GS.decals.shift();
   const d = { reg, x, y, rot: rand(0, TAU), s: scale, tint, emit, life, max: life };
   if (isBlood) {
     d.blood = true;
     d.dry = 1;
   }
-  decals.push(d);
+  GS.decals.push(d);
   return d;
 }
-function flashLight(x, y, r, col, life) {
-  dlights.push({ x, y, r, col, life, max: life });
+export function flashLight(x, y, r, col, life) {
+  GS.dlights.push({ x, y, r, col, life, max: life });
 }
-function distort(x, y, s, sp, life) {
-  if (dwaves.length >= 8) dwaves.shift();
-  dwaves.push({ x, y, s: s / (1 + shakeLoad * 0.8), sp, t: 0, life });
+export function distort(x, y, s, sp, life) {
+  if (GS.dwaves.length >= 8) GS.dwaves.shift();
+  GS.dwaves.push({ x, y, s: s / (1 + GS.shakeLoad * 0.8), sp, t: 0, life });
 }
-let shakeLoad = 0; // how much the screen has been shaken lately: the more it has, the less each new jolt adds, so a run of blasts reads as a rumble, not a constant judder
-function shake(v) {
+GS.shakeLoad = 0; // how much the screen has been shaken lately: the more it has, the less each new jolt adds, so a run of blasts reads as a rumble, not a constant judder
+export function shake(v) {
   if (!opt.shake) return;
-  const k = 1 / (1 + shakeLoad * 1.6);
-  trauma = Math.min(0.85, trauma + v * k * (1 - trauma * 0.5));
-  shakeLoad = Math.min(3, shakeLoad + v);
+  const k = 1 / (1 + GS.shakeLoad * 1.6);
+  GS.trauma = Math.min(0.85, GS.trauma + v * k * (1 - GS.trauma * 0.5));
+  GS.shakeLoad = Math.min(3, GS.shakeLoad + v);
 }
-function floatText(x, y, txt, col, size) {
-  if (texts.length > 70) texts.shift();
+export function floatText(x, y, txt, col, size) {
+  if (GS.texts.length > 70) GS.texts.shift();
   const L = txt.length > 12 ? 1.6 : 0.8;
-  texts.push({ x, y, txt, col, size, life: L, max: L, vy: -60 });
+  GS.texts.push({ x, y, txt, col, size, life: L, max: L, vy: -60 });
 } // a sentence stays up long enough to read
-function ring(x, y, r0, r1, life, col, w = 1) {
-  rings.push({ x, y, r0, r1, life, max: life, c: col, w });
+export function ring(x, y, r0, r1, life, col, w = 1) {
+  GS.rings.push({ x, y, r0, r1, life, max: life, c: col, w });
 }
 
 /* ---------- Combat ---------- */
-const HUMAN = { skitter: 1, wasp: 1, flower: 1, beetle: 1, mini: 1 };
-function bloodOf(e) {
+export const HUMAN = { skitter: 1, wasp: 1, flower: 1, beetle: 1, mini: 1 };
+export function bloodOf(e) {
   return e.type === 'hopper' || e.type === 'egg' ? BILE : BLOOD;
 }
-function bleed(x, y, z, dx, dy, n, col, sp = 260, size = 1) {
+export function bleed(x, y, z, dx, dy, n, col, sp = 260, size = 1) {
   if (!opt.gore) n = Math.ceil(n * 0.4);
   const dl = Math.hypot(dx, dy) || 1;
   dx /= dl;
@@ -184,8 +190,8 @@ function bleed(x, y, z, dx, dy, n, col, sp = 260, size = 1) {
     });
   }
 }
-let GIBN = 0; // pieces on the ground right now: past forty, new ones don't stay long
-function gib(x, y, reg, tc, col, sp = 260, dx = 0, dy = 0, sz = 1) {
+GS.GIBN = 0; // pieces on the ground right now: past forty, new ones don't stay long
+export function gib(x, y, reg, tc, col, sp = 260, dx = 0, dy = 0, sz = 1) {
   const a = rand(0, TAU),
     s = rand(0.35, 1) * sp;
   part({
@@ -198,7 +204,7 @@ function gib(x, y, reg, tc, col, sp = 260, dx = 0, dy = 0, sz = 1) {
     vz: rand(120, 300),
     vx: Math.cos(a) * s + dx * sp * 0.5,
     vy: Math.sin(a) * s + dy * sp * 0.5,
-    life: parts.length > 500 || GIBN > 40 ? rand(2.5, 4) : rand(5, 8),
+    life: GS.parts.length > 500 || GS.GIBN > 40 ? rand(2.5, 4) : rand(5, 8),
     max: 8,
     size: rand(0.9, 1.15) * sz,
     rot: rand(0, TAU),
@@ -207,7 +213,7 @@ function gib(x, y, reg, tc, col, sp = 260, dx = 0, dy = 0, sz = 1) {
     c: col,
   });
 }
-function pool(x, y, scale, col, life = 45) {
+export function pool(x, y, scale, col, life = 45) {
   decal(
     R['splat' + randi(0, 3)],
     x,
@@ -219,7 +225,7 @@ function pool(x, y, scale, col, life = 45) {
   );
 }
 const SPATS = [];
-function spatSprite(k) {
+export function spatSprite(k) {
   // a spatter of blood: one wet irregular drop, darker at its rim, specks thrown one way
   if (SPATS[k]) return SPATS[k];
   const c = document.createElement('canvas');
@@ -258,13 +264,13 @@ function spatSprite(k) {
   }
   return (SPATS[k] = c);
 }
-function splatterScreen(x, y, n) {
-  if (!opt.gore || !P || d2(x, y, P.x, P.y) > 95 * 95) return;
+export function splatterScreen(x, y, n) {
+  if (!opt.gore || !GS.P || d2(x, y, GS.P.x, GS.P.y) > 95 * 95) return;
   for (let i = 0; i < Math.min(n, 2); i++) {
     const edge = randi(0, 3),
       u = rand(0.04, 0.96),
       w = rand(0.02, 0.16);
-    screenBlood.push({
+    GS.screenBlood.push({
       x: edge === 0 ? w : edge === 1 ? 1 - w : u,
       y: edge === 2 ? w : edge === 3 ? 1 - w : u,
       r: rand(22, 46),
@@ -275,5 +281,5 @@ function splatterScreen(x, y, n) {
       rot: rand(0, TAU),
     });
   } // a few drops hit the edge of the view, not big red discs
-  if (screenBlood.length > 14) screenBlood.splice(0, screenBlood.length - 14);
+  if (GS.screenBlood.length > 14) GS.screenBlood.splice(0, GS.screenBlood.length - 14);
 }

@@ -1,7 +1,19 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { TAU, rand } from '../core/util.js';
+import { GUNS, GUN_DESC } from './arsenal.js';
+import { sfx } from '../audio/sfx.js';
+import { LV, S, addAmmo, giveGun } from './state.js';
+import { hideCallouts, showStreak } from '../ui/callouts.js';
+import { AB } from './abilities.js';
+import { updateHint } from '../ui/settings-ui.js';
+import { HLOOK } from '../render/draw-player.js';
+import { NPC_TINTS, TRAITS, budSetup, makeSurvivor, rollBud } from '../actors/backups.js';
+import { FAVOURS } from './objectives.js';
 const DMG_STEP = [1.25, 1.22, 1.18, 1.15, 1.12, 1.1],
   RATE_STEP = [1.18, 1.15, 1.12, 1.1, 1.08, 1.06]; // each rank of these two adds a little less than the last: strong early, no runaway late
-const UP = [
+export const UP = [
   {
     id: 'dmg',
     cat: 'Gun mod',
@@ -175,17 +187,17 @@ const UP = [
     max: 3,
     apply() {
       S.buddy++;
-      const r = RUN.nextBud || rollBud();
-      RUN.nextBud = null;
-      const b = Object.assign(makeSurvivor(P.x - 40, P.y + 30), {
+      const r = GS.RUN.nextBud || rollBud();
+      GS.RUN.nextBud = null;
+      const b = Object.assign(makeSurvivor(GS.P.x - 40, GS.P.y + 30), {
         a: rand(0, TAU),
         cd: 0,
         aim: 0,
-        look: [0, 1, 2].filter(l => l !== (HLOOK[RUN.hero] || 0))[buddies.length % 2],
-        tint: NPC_TINTS[buddies.length % NPC_TINTS.length],
+        look: [0, 1, 2].filter(l => l !== (HLOOK[GS.RUN.hero] || 0))[GS.buddies.length % 2],
+        tint: NPC_TINTS[GS.buddies.length % NPC_TINTS.length],
       });
       budSetup(b, r);
-      buddies.push(b);
+      GS.buddies.push(b);
       showStreak(`${r.nm} joins you`, `${TRAITS[r.tr].name} · ${TRAITS[r.tr].desc}`);
     },
   },
@@ -197,7 +209,7 @@ const UP = [
     max: 5,
     apply() {
       S.maxHp += 25;
-      P.hp = Math.min(S.maxHp, P.hp + 40);
+      GS.P.hp = Math.min(S.maxHp, GS.P.hp + 40);
     },
   },
   {
@@ -271,7 +283,7 @@ const UP = [
     },
   },
 ];
-const EVOS = [
+export const EVOS = [
   {
     id: 'tempest',
     name: "Dragon's Breath",
@@ -333,22 +345,22 @@ const EVOS = [
     },
   },
 ];
-let picks = [];
-function upgradePool() {
+GS.picks = [];
+export function upgradePool() {
   const w = S.weapon,
     pool = UP.filter(
       u =>
         (LV[u.id] || 0) < u.max &&
         !(u.not && u.not.includes(w)) &&
-        !(u.only && !((P && P.owned) || [w]).some(g => u.only.includes(g)))
+        !(u.only && !((GS.P && GS.P.owned) || [w]).some(g => u.only.includes(g)))
     );
   return pool;
 }
 function rollPicks() {
   const pool = upgradePool();
-  picks = [];
+  GS.picks = [];
   const evo = EVOS.find(v => !LV[v.id] && Object.entries(v.need).every(([k, n]) => (LV[k] || 0) >= n));
-  if (evo) picks.push(Object.assign({ evo: true, cat: 'Combo', max: 1 }, evo));
+  if (evo) GS.picks.push(Object.assign({ evo: true, cat: 'Combo', max: 1 }, evo));
   const wt = u => {
     let w = 1;
     const lv = LV[u.id] || 0;
@@ -365,13 +377,13 @@ function rollPicks() {
       w *= 1.7;
     /* half a combo already in hand */ if (
       u.only &&
-      u.only.some(g => (g === 'pistol' ? P && P.gun === 'pistol' : P && P.owned.includes(g)))
+      u.only.some(g => (g === 'pistol' ? GS.P && GS.P.gun === 'pistol' : GS.P && GS.P.owned.includes(g)))
     )
       w *= 1.4;
-    /* made for a gun you carry */ if (u.id === 'buddy' && !buddies.length && wave >= 4) w *= 1.3;
+    /* made for a gun you carry */ if (u.id === 'buddy' && !GS.buddies.length && GS.wave >= 4) w *= 1.3;
     return w;
   };
-  while (picks.length < 3 && pool.length) {
+  while (GS.picks.length < 3 && pool.length) {
     const tot = pool.reduce((a, u) => a + wt(u), 0);
     let r = Math.random() * tot,
       k = 0;
@@ -379,14 +391,14 @@ function rollPicks() {
       r -= wt(pool[k]);
       if (r <= 0) break;
     }
-    picks.push(pool.splice(k, 1)[0]);
+    GS.picks.push(pool.splice(k, 1)[0]);
   }
 }
-function renderPicks() {
+export function renderPicks() {
   const box = $('cards');
   box.innerHTML = '';
-  box.classList.toggle('two', picks.length <= 2); // the weapon case shows its pair centred
-  picks.forEach((u, i) => {
+  box.classList.toggle('two', GS.picks.length <= 2); // the weapon case shows its pair centred
+  GS.picks.forEach((u, i) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'card' + (u.evo ? ' evo' : '');
@@ -411,36 +423,36 @@ function renderPicks() {
     });
     box.appendChild(b);
   });
-  $('rerollBtn').textContent = `Reroll · ${rerolls} left`;
-  $('rerollBtn').hidden = rerolls <= 0;
+  $('rerollBtn').textContent = `Reroll · ${GS.rerolls} left`;
+  $('rerollBtn').hidden = GS.rerolls <= 0;
   updateHint();
   markSel();
 }
-function offerUpgrades(source = 'level') {
+export function offerUpgrades(source = 'level') {
   rollPicks();
-  if (!picks.length) {
-    P.hp = S.maxHp;
+  if (!GS.picks.length) {
+    GS.P.hp = S.maxHp;
     S.dmg *= 1.1;
     return;
   }
-  pickSource = source;
+  GS.pickSource = source;
   renderPicks();
   $('luEye').textContent =
-    source === 'crate' ? 'Supply crate · free gear' : source === 'start' ? 'Go bag' : `Level ${level}`;
+    source === 'crate' ? 'Supply crate · free gear' : source === 'start' ? 'Go bag' : `Level ${GS.level}`;
   $('luTitle').textContent = source === 'crate' ? 'Crate unpacked' : 'Pick your gear';
   hideCallouts();
-  state = 'levelup';
+  GS.state = 'levelup';
   $('levelup').hidden = false;
   sfx.level();
-  luOpenT = performance.now() + 650;
+  GS.luOpenT = performance.now() + 650;
   $('levelup').classList.add('arming');
   setTimeout(() => $('levelup').classList.remove('arming'), 650); // a beat before anything counts, so a key or button held in the fight can't pick for you
 }
-let luOpenT = 0;
-function offerGuns(gs) {
+GS.luOpenT = 0;
+export function offerGuns(gs) {
   // the weapon case: two guns on the pick screen, take one
-  const fav = { ranger: 'rifle', breacher: 'shotgun', grenadier: 'smg' }[RUN.hero];
-  picks = gs.map(g => ({
+  const fav = { ranger: 'rifle', breacher: 'shotgun', grenadier: 'smg' }[GS.RUN.hero];
+  GS.picks = gs.map(g => ({
     id: 'gun_' + g,
     gun: g,
     cat:
@@ -455,58 +467,58 @@ function offerGuns(gs) {
     max: 1,
     apply() {
       giveGun(g);
-      RUN.declined = (RUN.declined || []).concat(gs.filter(x => x !== g));
+      GS.RUN.declined = (GS.RUN.declined || []).concat(gs.filter(x => x !== g));
     },
   }));
-  pickSource = 'weapon';
+  GS.pickSource = 'weapon';
   renderPicks();
   $('rerollBtn').hidden = true;
   updateHint();
   $('luEye').textContent = gs.length > 1 ? 'Weapon case · the other goes back for good' : 'Weapon case';
   $('luTitle').textContent = 'Take one gun';
   hideCallouts();
-  state = 'levelup';
+  GS.state = 'levelup';
   $('levelup').hidden = false;
   sfx.pump();
-  luOpenT = performance.now() + 650;
+  GS.luOpenT = performance.now() + 650;
   $('levelup').classList.add('arming');
   setTimeout(() => $('levelup').classList.remove('arming'), 650);
 }
-function doReroll() {
+export function doReroll() {
   if (
-    state !== 'levelup' ||
-    rerolls <= 0 ||
-    performance.now() < luOpenT ||
-    pickSource === 'weapon' ||
-    pickSource === 'job'
+    GS.state !== 'levelup' ||
+    GS.rerolls <= 0 ||
+    performance.now() < GS.luOpenT ||
+    GS.pickSource === 'weapon' ||
+    GS.pickSource === 'job'
   )
     return;
-  rerolls--;
+  GS.rerolls--;
   rollPicks();
   renderPicks();
   sfx.ting();
 }
 function markSel() {
-  picks.forEach((_, i) => {
+  GS.picks.forEach((_, i) => {
     const c = $('card' + i);
     if (c) c.classList.remove('sel');
   });
 }
-function choose(i) {
-  if (state !== 'levelup' || !picks[i] || performance.now() < luOpenT) return;
-  const u = picks[i];
+export function choose(i) {
+  if (GS.state !== 'levelup' || !GS.picks[i] || performance.now() < GS.luOpenT) return;
+  const u = GS.picks[i];
   if (!u.job) LV[u.id] = (LV[u.id] || 0) + 1;
   u.apply();
   $('levelup').hidden = true;
-  state = 'play';
-  P.inv = Math.max(P.inv, 0.6);
+  GS.state = 'play';
+  GS.P.inv = Math.max(GS.P.inv, 0.6);
   renderMods();
   if (u.evo) {
     showStreak(u.name, 'Combo ready');
     sfx.elite();
   }
 }
-function renderMods() {
+export function renderMods() {
   $('mods').innerHTML =
     EVOS.filter(u => LV[u.id])
       .map(u => `<span style="background:rgba(255,207,58,.22);color:#ffe7a0">${u.name}</span>`)

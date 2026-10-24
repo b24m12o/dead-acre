@@ -1,8 +1,79 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function render() {
+import { GS } from '../core/gs.js';
+import { clamp, d2, lerp, rand } from '../core/util.js';
+import { opt } from '../core/settings.js';
+import { gl, hasCBF } from './gl.js';
+import {
+  P_COMP,
+  P_DOWN,
+  P_FINAL,
+  P_LIGHT,
+  P_SHADOW,
+  P_SPRITE,
+  P_UP,
+  RH,
+  RW,
+  VH,
+  VW,
+  addLight,
+  bloomRTs,
+  bset,
+  emptyVAO,
+  flush,
+  gfxPreset,
+  lVAO,
+  lVBO,
+  ldata,
+  lineQ,
+  quad,
+  rtComp,
+  rtFlash,
+  rtLight,
+  rtScene,
+  rtShadow,
+  setH,
+  viewH,
+  viewW,
+} from './sprites.js';
+import { R } from './atlas.js';
+import {
+  MAPREG,
+  MH,
+  MW,
+  TILE,
+  WH,
+  WW,
+  cars,
+  crystals,
+  fires,
+  grassCells,
+  lamps,
+  roofs,
+  texMapA,
+  texMapE,
+  texMapN,
+  trees,
+} from '../world/map.js';
+import { S, cam } from '../game/state.js';
+import { HUMAN } from './effects.js';
+import { WCOL } from '../actors/bosses.js';
+import { shakeOff } from './camera.js';
+import { NIGHT, lampHot, lampK } from './draw-player.js';
+import { BILE, GIANT } from './draw-enemies.js';
+import { LYB, lyState } from './draw-bodies.js';
+import { atmosLights, drawAsh, drawAshGlow, lampShadows, shaftGlow } from '../world/wear.js';
+import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
+import { chuteGeom, drawCasters, drawChutes, heliRotor } from './draw-props.js';
+import { drawUI } from '../ui/draw-ui.js';
+import { buildVis, texVis } from '../world/vision.js';
+import { LAMPV, decorLights, drawHouseRoofs, roofShadows } from './decor.js';
+import { fireBeds } from '../world/fire.js';
+import { WXV, drawFog } from '../world/weather.js';
+import { drawObjectiveGlow, objectiveLights } from '../ui/markers.js';
+export function render() {
   const [sx, sy] = shakeOff();
-  camX = cam.x + sx;
-  camY = cam.y + sy;
+  GS.camX = cam.x + sx;
+  GS.camY = cam.y + sy;
   // shadow pass: real silhouettes projected along the sun direction
   gl.bindFramebuffer(gl.FRAMEBUFFER, rtShadow.fb);
   gl.viewport(0, 0, rtShadow.w, rtShadow.h);
@@ -11,19 +82,19 @@ function render() {
   gl.enable(gl.BLEND);
   gl.blendEquation(gl.MAX);
   gl.blendFunc(gl.ONE, gl.ONE);
-  curProg = P_SHADOW;
+  GS.curProg = P_SHADOW;
   gl.useProgram(P_SHADOW.p);
-  gl.uniform4f(P_SHADOW.u.uCam, camX, camY, viewW, viewH);
+  gl.uniform4f(P_SHADOW.u.uCam, GS.camX, GS.camY, viewW, viewH);
   gl.uniform1i(P_SHADOW.u.uAlb, 0);
-  bTexA = bTexE = bTexN = null;
-  qn = 0;
-  bset(texAtlA, texAtlE, texAtlN, false);
-  SHMODE = true;
-  SHS = 0.2;
+  GS.bTexA = GS.bTexE = GS.bTexN = null;
+  GS.qn = 0;
+  bset(GS.texAtlA, GS.texAtlE, GS.texAtlN, false);
+  GS.SHMODE = true;
+  GS.SHS = 0.2;
   setH(0); // cloud shadows: a soft drift over the moonlight, not dirty smudges
-  if (ev !== 'fog' && ev !== 'storm')
-    for (const c of clouds) quad(R.cloud, c.x, c.y, c.r, c.s, c.s * 0.7, 1, 1, 1, 1, 0, 0, 0, 0); // fog and storm cloud cast no hard shadows
-  SHS = 0.5;
+  if (GS.ev !== 'fog' && GS.ev !== 'storm')
+    for (const c of GS.clouds) quad(R.cloud, c.x, c.y, c.r, c.s, c.s * 0.7, 1, 1, 1, 1, 0, 0, 0, 0); // fog and storm cloud cast no hard shadows
+  GS.SHS = 0.5;
   for (const L of lamps) {
     if (L.down) continue;
     const lh = L.lantern ? 30 : 66;
@@ -31,41 +102,56 @@ function render() {
     lineQ(L.bx, L.by, L.hx, L.hy, L.lantern ? 3 : 4, 1, 1, 1, 1, 0, 0, 0, 0, R.pixel);
     quad(L.lantern ? R.lantern : R.lamp, L.hx, L.hy, L.a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
   }
-  SHS = 0.7;
+  GS.SHS = 0.7;
   roofShadows();
   for (const r of roofs) {
     setH(95);
     quad(R[r.reg], r.x, r.y, 0, r.s, r.s, 1, 1, 1, 1, 0, 0, 0, 0);
   }
-  SHS = 0.62;
+  GS.SHS = 0.62;
   for (const t of trees) {
     setH(70);
-    quad(R['canopy' + t.v], t.x, t.y, t.rot + Math.sin(time * 0.8 + t.sway) * 0.03, t.s, t.s, 1, 1, 1, 1, 0, 0, 0, 0);
+    quad(
+      R['canopy' + t.v],
+      t.x,
+      t.y,
+      t.rot + Math.sin(GS.time * 0.8 + t.sway) * 0.03,
+      t.s,
+      t.s,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0
+    );
   }
-  SHS = 0.7;
+  GS.SHS = 0.7;
   drawCasters();
   flush();
-  SHMODE = false;
+  GS.SHMODE = false;
   setH(0);
   // flashlight shadow pass
   gl.bindFramebuffer(gl.FRAMEBUFFER, rtFlash.fb);
   gl.viewport(0, 0, rtFlash.w, rtFlash.h);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
-  if (P && state !== 'over' && state !== 'menu') {
-    FLX = P.x + Math.cos(P.aimA) * 8;
-    FLY = P.y + Math.sin(P.aimA) * 8;
-    SHMODE = 2;
-    NOHERO = true;
-    SHS = 0.85;
+  if (GS.P && GS.state !== 'over' && GS.state !== 'menu') {
+    GS.FLX = GS.P.x + Math.cos(GS.P.aimA) * 8;
+    GS.FLY = GS.P.y + Math.sin(GS.P.aimA) * 8;
+    GS.SHMODE = 2;
+    GS.NOHERO = true;
+    GS.SHS = 0.85;
     for (const t of trees) {
       setH(55);
       quad(R['canopy' + t.v], t.x, t.y, t.rot, t.s, t.s, 1, 1, 1, 0.8, 0, 0, 0, 0);
     }
     drawCasters();
     flush();
-    SHMODE = false;
-    NOHERO = false;
+    GS.SHMODE = false;
+    GS.NOHERO = false;
     setH(0);
   }
   gl.blendEquation(gl.FUNC_ADD);
@@ -74,19 +160,19 @@ function render() {
   gl.viewport(0, 0, RW, RH);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
-  curProg = P_SPRITE;
+  GS.curProg = P_SPRITE;
   gl.useProgram(P_SPRITE.p);
-  gl.uniform4f(P_SPRITE.u.uCam, camX, camY, viewW, viewH);
+  gl.uniform4f(P_SPRITE.u.uCam, GS.camX, GS.camY, viewW, viewH);
   gl.uniform1i(P_SPRITE.u.uAlb, 0);
   gl.uniform1i(P_SPRITE.u.uEmi, 1);
   gl.uniform1i(P_SPRITE.u.uNrm, 2);
-  bTexA = bTexE = bTexN = null;
-  qn = 0;
+  GS.bTexA = GS.bTexE = GS.bTexN = null;
+  GS.qn = 0;
   bset(texMapA, texMapE, texMapN, false);
   quad(MAPREG, WW / 2, WH / 2, 0, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1.2, 0);
   flush();
-  bset(texAtlA, texAtlE, texAtlN, false);
-  for (const d of decals) {
+  bset(GS.texAtlA, GS.texAtlE, GS.texAtlN, false);
+  for (const d of GS.decals) {
     const f = Math.min(1, d.life / 5),
       g = d.life / d.max;
     quad(
@@ -109,9 +195,9 @@ function render() {
   {
     // contact shadows: soft occlusion where bodies meet the ground
     const ao = (x, y, r, al, a = 0, ex = 1) => quad(R.blob, x, y, a, (r * ex) / 15, r / 15, 0, 0, 0, al, 0, 0, 0, 0);
-    if (P && state !== 'menu') ao(P.x - 1, P.y + 2, 19, 0.42, P.bodyA, 1.15);
-    for (const b of buddies) ao(b.x - 1, b.y + 2, 18, 0.4, b.bodyA, 1.15);
-    for (const e of enemies)
+    if (GS.P && GS.state !== 'menu') ao(GS.P.x - 1, GS.P.y + 2, 19, 0.42, GS.P.bodyA, 1.15);
+    for (const b of GS.buddies) ao(b.x - 1, b.y + 2, 18, 0.4, b.bodyA, 1.15);
+    for (const e of GS.enemies)
       if (!e.dead && !e.fly && (e.z || 0) < 10)
         ao(
           e.x - 1,
@@ -121,14 +207,14 @@ function render() {
           e.a + Math.PI / 2,
           0.85
         );
-    for (const c of crates)
+    for (const c of GS.crates)
       if (!c.landed) {
         const k = clamp(c.z / 640, 0, 1),
           g = chuteGeom(c);
         ao(c.x + (c.sx || 0), c.y, 16 + k * 26, 0.55 - k * 0.35);
         if ((c.dep || 0) > 0.3) ao(g.cx, c.y + 6, (c.gun ? 62 : 52) * (1 + k * 0.4), 0.2 - k * 0.1);
       }
-    for (const e of corpses)
+    for (const e of GS.corpses)
       if (HUMAN[e.type] && !(e.z > 2)) {
         const al = 0.26 * clamp(((e.keep || 0.55) - e.dying) / 1.5, 0, 1);
         if (LYB[e.type]) {
@@ -145,9 +231,9 @@ function render() {
         } else ao(e.x, e.y, e.r * 1.7, al, e.fallA ?? 0, 1.5);
       } // a long soft shadow under the whole body
   }
-  for (const pl of pools) {
+  for (const pl of GS.pools) {
     const f = Math.min(1, pl.life / 0.8, (pl.max - pl.life) / 0.25 + 0.2),
-      pu = 0.8 + Math.sin(time * 5 + pl.x) * 0.2;
+      pu = 0.8 + Math.sin(GS.time * 5 + pl.x) * 0.2;
     quad(
       R['splat' + pl.v],
       pl.x,
@@ -165,15 +251,15 @@ function render() {
       0
     );
   }
-  const tx0 = Math.max(0, Math.floor(camX / TILE) - 1),
-    tx1 = Math.min(MW - 1, Math.floor((camX + viewW) / TILE) + 1),
-    ty0 = Math.max(0, Math.floor(camY / TILE) - 1),
-    ty1 = Math.min(MH - 1, Math.floor((camY + viewH) / TILE) + 1);
+  const tx0 = Math.max(0, Math.floor(GS.camX / TILE) - 1),
+    tx1 = Math.min(MW - 1, Math.floor((GS.camX + viewW) / TILE) + 1),
+    ty0 = Math.max(0, Math.floor(GS.camY / TILE) - 1),
+    ty1 = Math.min(MH - 1, Math.floor((GS.camY + viewH) / TILE) + 1);
   for (let ty = ty0; ty <= ty1; ty++)
     for (let tx = tx0; tx <= tx1; tx++)
       for (const g of grassCells[ty * MW + tx]) {
-        const dx = g.x - P.x,
-          dy = g.y - P.y,
+        const dx = g.x - GS.P.x,
+          dy = g.y - GS.P.y,
           dd = dx * dx + dy * dy;
         let push = 0,
           pa = 0;
@@ -182,9 +268,9 @@ function render() {
           pa = Math.atan2(dy, dx);
         }
         g.bend += (push - g.bend) * 0.2;
-        const wind = Math.sin(time * 1.7 + g.x * 0.012 + g.y * 0.008) * 0.14 + Math.sin(time * 3.1 + g.ph) * 0.04;
+        const wind = Math.sin(GS.time * 1.7 + g.x * 0.012 + g.y * 0.008) * 0.14 + Math.sin(GS.time * 3.1 + g.ph) * 0.04;
         if (g.burn > 0) {
-          const fk = 0.7 + Math.sin(time * 19 + g.ph * 7) * 0.3;
+          const fk = 0.7 + Math.sin(GS.time * 19 + g.ph * 7) * 0.3;
           quad(
             R['grass' + g.v],
             g.x,
@@ -221,7 +307,7 @@ function render() {
             0
           );
       }
-  for (const k of pickups) {
+  for (const k of GS.pickups) {
     const bob = Math.sin(k.t * 5 + k.x) * 2.5,
       hot = lampHot(k.x, k.y),
       dm = 1 / (1 + 3.2 * hot);
@@ -262,7 +348,7 @@ function render() {
         0
       ); /* a modest self-glow: under a streetlamp they no longer burn out to a white square */
   }
-  for (const q of parts)
+  for (const q of GS.parts)
     if (q.k >= 3 && q.k !== 10 && q.k !== 11 && q.k !== 13) {
       const f = Math.min(1, q.life * 2),
         c = q.k === 3 || q.k === 8 ? q.c : q.tc || [1, 1, 1],
@@ -288,7 +374,7 @@ function render() {
         continue;
       }
       quad(
-        q.reg || PARTREG[q.k],
+        q.reg || GS.PARTREG[q.k],
         q.x,
         q.y - q.z,
         q.rot,
@@ -306,7 +392,7 @@ function render() {
     }
   lampShadows();
   drawCasters();
-  for (const q of parts)
+  for (const q of GS.parts)
     if (q.k === 2) {
       const t = 1 - q.life / q.max,
         a = Math.min(1, (q.life / q.max) * 2) * 0.7,
@@ -314,14 +400,14 @@ function render() {
       const tc = q.c || [1, 1, 1];
       quad(R.dust, q.x, q.y, q.rot, sc, sc, tc[0], tc[1], tc[2], q.c ? a * 0.9 : a, 0, 0, 0, 0);
     }
-  if (boss && !boss.dead && boss.signAt) {
-    const sa = boss.signAt,
+  if (GS.boss && !GS.boss.dead && GS.boss.signAt) {
+    const sa = GS.boss.signAt,
       hk = 0.5 + 0.4 * clamp((sa.hp ?? 1) / (sa.max || 1), 0, 1);
     setH(3);
     quad(R.rk_sign, sa.x, sa.y, sa.a, 1.05, 1.05, hk, hk, hk, 1, 0.2, 0.2, 0.2, 0);
   } // the STOP sign stuck in the road, waiting for it to come back
-  for (const b of ebullets) {
-    const pu = 1 + Math.sin(time * 18 + b.x) * 0.08;
+  for (const b of GS.ebullets) {
+    const pu = 1 + Math.sin(GS.time * 18 + b.x) * 0.08;
     if (b.k === 'tire') {
       if (!(b.flat > 0)) {
         setH(14);
@@ -377,7 +463,7 @@ function render() {
         R.sonic,
         b.x,
         b.y,
-        time * 4,
+        GS.time * 4,
         (0.55 + (4 - b.life) * 0.12) * pu,
         (0.55 + (4 - b.life) * 0.12) * pu,
         1,
@@ -392,13 +478,13 @@ function render() {
     else if (b.k === 'acid' && b.hose)
       quad(R.acid, b.x, b.y, Math.atan2(b.vy, b.vx), 1.5, 0.75, 1, 1, 1, 1, 1.9, 1.9, 1.6, 0);
     else if (b.k === 'acid')
-      quad(R.acid, b.x, b.y, time * 5, (b.r / 7.5) * pu, (b.r / 7.5) * pu, 1, 1, 1, 1, 1.6, 1.6, 1.6, 0);
+      quad(R.acid, b.x, b.y, GS.time * 5, (b.r / 7.5) * pu, (b.r / 7.5) * pu, 1, 1, 1, 1, 1.6, 1.6, 1.6, 0);
     else if (b.k === 'rock')
       quad(
         R.rockchip,
         b.x,
         b.y,
-        time * 9 + b.x * 0.1,
+        GS.time * 9 + b.x * 0.1,
         b.r / 3.6,
         b.r / 3.6,
         b.c[0] * 1.3,
@@ -410,18 +496,18 @@ function render() {
         0,
         0
       );
-    else quad(R.spore, b.x, b.y, time * 3, (b.r / 7.5) * pu, (b.r / 7.5) * pu, 1, 1, 1, 1, 2, 2, 2, 0);
+    else quad(R.spore, b.x, b.y, GS.time * 3, (b.r / 7.5) * pu, (b.r / 7.5) * pu, 1, 1, 1, 1, 2, 2, 2, 0);
   }
   for (const t of trees) {
     const cx = t.x,
       cy = t.y - 40 * t.s,
       R1 = 100 * t.s;
-    let near = P && d2(cx, cy, P.x, P.y) < R1 * R1;
-    if (!near && P && d2(cx, cy, P.x, P.y) < 700 * 700) {
+    let near = GS.P && d2(cx, cy, GS.P.x, GS.P.y) < R1 * R1;
+    if (!near && GS.P && d2(cx, cy, GS.P.x, GS.P.y) < 700 * 700) {
       const R2 = 80 * t.s;
       near =
-        buddies.some(b => d2(cx, cy, b.x, b.y) < R2 * R2) ||
-        enemies.some(e => !e.dead && e.emerge >= 1 && d2(cx, cy, e.x, e.y) < R2 * R2);
+        GS.buddies.some(b => d2(cx, cy, b.x, b.y) < R2 * R2) ||
+        GS.enemies.some(e => !e.dead && e.emerge >= 1 && d2(cx, cy, e.x, e.y) < R2 * R2);
     }
     /* the whole canopy, and anything hiding under it near you, not just its trunk */ t.fade +=
       ((near ? 0.3 : 0.98) - t.fade) * 0.15;
@@ -429,7 +515,7 @@ function render() {
       R['canopy' + t.v],
       t.x,
       t.y - 40 * t.s,
-      t.rot + Math.sin(time * 0.8 + t.sway) * 0.03,
+      t.rot + Math.sin(GS.time * 0.8 + t.sway) * 0.03,
       t.s,
       t.s,
       1,
@@ -450,8 +536,8 @@ function render() {
     lineQ(L.bx, L.by - lh, L.hx, L.hy - lh, L.lantern ? 3 : 4, 0.18, 0.18, 0.2, 1, 0, 0, 0, 0, R.pixel);
     quad(L.lantern ? R.lantern : R.lamp, L.hx, L.hy - lh, L.a, 1, 1, 1, 1, 1, 1, 2.4 * k, 2.2 * k, 1.8 * k, 0);
   }
-  if (evac && evac.z >= 20) {
-    const e = evac;
+  if (GS.evac && GS.evac.z >= 20) {
+    const e = GS.evac;
     setH(e.z + 60);
     {
       const hk = e.t >= e.land ? 0.8 : 1.4;
@@ -463,14 +549,16 @@ function render() {
   drawFog();
   for (const r of roofs) {
     const under =
-      P && Math.abs(P.x - r.x) < R[r.reg].w * 0.5 * r.s + 10 && Math.abs(P.y - r.y + 40) < R[r.reg].h * 0.5 * r.s + 30;
+      GS.P &&
+      Math.abs(GS.P.x - r.x) < R[r.reg].w * 0.5 * r.s + 10 &&
+      Math.abs(GS.P.y - r.y + 40) < R[r.reg].h * 0.5 * r.s + 30;
     r.fade += ((under ? 0.3 : 1) - r.fade) * 0.12;
     quad(R[r.reg], r.x, r.y - 56, 0, r.s, r.s, 1, 1, 1, r.fade, 1.6 * r.fade, 1.6 * r.fade, 1.6 * r.fade, 0);
   }
   drawChutes(); // canopies are the highest thing in the sky: above lamps and roofs
   flush();
   // additive glow pass
-  bset(texAtlA, texAtlE, texAtlN, true);
+  bset(GS.texAtlA, GS.texAtlE, GS.texAtlN, true);
   drawObjectiveGlow();
   shaftGlow();
   drawAshGlow();
@@ -495,10 +583,10 @@ function render() {
       );
   }
   for (const f of fires) {
-    const fk = 0.75 + Math.sin(time * 17 + f.ph) * 0.15 + Math.sin(time * 7.3 + f.ph) * 0.1;
+    const fk = 0.75 + Math.sin(GS.time * 17 + f.ph) * 0.15 + Math.sin(GS.time * 7.3 + f.ph) * 0.1;
     quad(R.glow, f.x, f.y - 26, 0, 0.7 * fk, 0.9 * fk, 0, 0, 0, 1, 0.55 * fk, 0.25 * fk, 0.07, 0);
   }
-  for (const w of warns) {
+  for (const w of GS.warns) {
     // a steady outline that fills in as the moment nears, and brightens only in the last instant
     const t = clamp(w.t / w.dur, 0, 1),
       late = w.dur - w.t < 0.15 ? 1.6 : 1,
@@ -566,10 +654,10 @@ function render() {
         0
       );
   }
-  for (const m of mortars)
+  for (const m of GS.mortars)
     if (m.flare) quad(R.glow, m.x, m.y - m.z, 0, 0.5, 0.5, 0, 0, 0, 1, 0.9, 0.18, 0.1, 0);
     else if (!m.rock) quad(R.glow, m.x, m.y - m.z, 0, 0.6, 0.6, 0, 0, 0, 1, 0.35, 0.7, 0.08, 0);
-  for (const b of pbullets) {
+  for (const b of GS.pbullets) {
     if (b.shell) {
       if (b.t >= 0) quad(R.glow, b.x, b.y - b.z, 0, 0.3, 0.3, 0, 0, 0, 1, 1.2, 0.6, 0.2, 0);
       continue;
@@ -600,15 +688,15 @@ function render() {
   }
   // Eyes are authored into head atlas textures so face details share the sprite
   // transform, scale, shadows and shading. Keep only the restrained elite marker here.
-  for (const e of enemies)
-    if (!e.dead && !e.dormant && e.elite && (e.sv ?? 1) >= 0.55 && !(e.down > 0) && e.__ht === time) {
+  for (const e of GS.enemies)
+    if (!e.dead && !e.dormant && e.elite && (e.sv ?? 1) >= 0.55 && !(e.down > 0) && e.__ht === GS.time) {
       const v = e.sv ?? 1,
         a = e.__ha ?? e.a,
         hx = e.__hx,
         hy = e.__hy,
         k = (e.sc || 1) * 1.2 * (e.__hk || 1),
         bl =
-          Math.sin(time * 0.9 + e.id * 1.7) > 0.96
+          Math.sin(GS.time * 0.9 + e.id * 1.7) > 0.96
             ? 0.15
             : 1; /* no ring on the ground: its eyes catch the light like an animal's, two hard amber points you can pick out in the dark, and they blink now and then */
       for (const sd of [-1, 1]) {
@@ -618,9 +706,9 @@ function render() {
         quad(R.pixel, ex, ey, 0, 0.36 * k, 0.36 * k, 0, 0, 0, 1, 3.2 * v * bl, 1.7 * v * bl, 0.4 * v * bl, 0);
       }
     }
-  for (const c of crates)
+  for (const c of GS.crates)
     if (c.landed) {
-      const pu = 0.6 + Math.sin(time * 4) * 0.25;
+      const pu = 0.6 + Math.sin(GS.time * 4) * 0.25;
       quad(R.glow, c.x, c.y, 0, 1.2 * pu, 1.2 * pu, 0, 0, 0, 1, c.gun ? 0.5 : 0.32, c.gun ? 0.36 : 0.22, 0.08, 0);
       if (c.flare > 0) {
         const fk = Math.min(1, c.flare / 1.5) * (0.75 + Math.random() * 0.25);
@@ -628,17 +716,17 @@ function render() {
         quad(R.glow, c.x + 20, c.y + 12, 0, 0.6, 0.6, 0, 0, 0, 1, 0.7 * fk, 0.12 * fk, 0.08 * fk, 0);
       }
     }
-  for (const b of ebullets)
+  for (const b of GS.ebullets)
     if (b.k !== 'tire' && b.k !== 'sign' && b.k !== 'rock')
       quad(R.glow, b.x, b.y, 0, 0.32, 0.32, 0, 0, 0, 1, b.c[0] * 0.18, b.c[1] * 0.18, b.c[2] * 0.18, 0);
-  for (const g of bangs)
-    if (g.t >= g.dur && Math.sin(time * 50) > 0) quad(R.glow, g.x, g.y, 0, 0.25, 0.25, 0, 0, 0, 1, 2.4, 2.2, 1.6, 0);
-  for (const m of darts)
-    if (m.t >= m.dur && Math.sin(time * 40) > 0) quad(R.glow, m.x, m.y, 0, 0.3, 0.3, 0, 0, 0, 1, 2.6, 0.3, 0.2, 0);
-  for (const q of parts)
+  for (const g of GS.bangs)
+    if (g.t >= g.dur && Math.sin(GS.time * 50) > 0) quad(R.glow, g.x, g.y, 0, 0.25, 0.25, 0, 0, 0, 1, 2.4, 2.2, 1.6, 0);
+  for (const m of GS.darts)
+    if (m.t >= m.dur && Math.sin(GS.time * 40) > 0) quad(R.glow, m.x, m.y, 0, 0.3, 0.3, 0, 0, 0, 1, 2.6, 0.3, 0.2, 0);
+  for (const q of GS.parts)
     if (q.k === 11)
       quad(R.glow, q.x, q.y - q.z, 0, q.size, q.size, 0, 0, 0, Math.min(1, q.life * 2), 0.45, 0.55, 0.65, 0);
-  for (const q of parts)
+  for (const q of GS.parts)
     if (q.k === 13) {
       const f = q.life / q.max,
         sc = q.size * (0.55 + (1 - f) * 1.2),
@@ -647,15 +735,15 @@ function render() {
       quad(R.glow, q.x, q.y, q.rot, sc * 0.55, sc * 0.5, 0, 0, 0, al, col[0], col[1], col[2], 0);
     }
   fireBeds();
-  for (const q of parts)
+  for (const q of GS.parts)
     if (q.k === 10) {
       const f = q.life / q.max,
         sc = q.size * (0.7 + (1 - f) * 0.7),
         lean = Math.atan2(q.vy, q.vx + WINDX * 0.6) + Math.PI / 2,
-        fl = 1 + Math.sin(time * 23 + q.x) * 0.12,
+        fl = 1 + Math.sin(GS.time * 23 + q.x) * 0.12,
         al = Math.min(1, f * 2.2) * Math.min(1, (1 - f) * 8 + 0.2);
-      const wob = Math.sin(time * 13 + q.x * 0.7) * 0.14,
-        sw = 1 + Math.sin(time * 17 + q.y) * 0.1; // each tongue sways and breathes on its own
+      const wob = Math.sin(GS.time * 13 + q.x * 0.7) * 0.14,
+        sw = 1 + Math.sin(GS.time * 17 + q.y) * 0.1; // each tongue sways and breathes on its own
       quad(
         R.ftongue,
         q.x,
@@ -706,20 +794,20 @@ function render() {
           0
         );
     } // the hot core: small, yellow-white, low down
-  for (const g of grassFire) {
+  for (const g of GS.grassFire) {
     if (g.fs === undefined) {
       g.fs = rand(0.6, 1.35);
       g.fl = rand(-0.35, 0.35);
     }
-    const fk = 0.75 + Math.sin(time * 19 + g.ph * 5) * 0.25,
+    const fk = 0.75 + Math.sin(GS.time * 19 + g.ph * 5) * 0.25,
       h = Math.min(1, g.burn / 1.2),
       sc = g.fs * h; // each tuft burns at its own size and lean
     if (g.fs > 1.05) quad(R.glow, g.x, g.y - 2, 0, 0.5 * sc, 0.35 * sc, 0, 0, 0, 0.6, 0.5 * fk, 0.2 * fk, 0.04, 0);
     quad(
       R.ftongue,
-      g.x + Math.sin(time * 7 + g.ph) * 1.5,
+      g.x + Math.sin(GS.time * 7 + g.ph) * 1.5,
       g.y - 7 * sc,
-      Math.sin(time * (4 + g.fs * 2) + g.ph) * 0.22 + g.fl + WINDX * 0.012,
+      Math.sin(GS.time * (4 + g.fs * 2) + g.ph) * 0.22 + g.fl + WINDX * 0.012,
       0.38 * sc,
       0.5 * sc * fk,
       0,
@@ -732,7 +820,7 @@ function render() {
       0
     );
   }
-  for (const q of parts) {
+  for (const q of GS.parts) {
     if (q.k === 0) {
       const f = q.life / q.max;
       quad(
@@ -772,18 +860,18 @@ function render() {
       );
     }
   }
-  for (const f of flashes) {
+  for (const f of GS.flashes) {
     if (f.reg) quad(f.reg, f.x, f.y, f.rot, f.fs, f.fs, 0, 0, 0, f.life / f.max, 3.6, 2.3, 0.9, 0);
     else
       quad(R.muzzle, f.x, f.y, f.rot, f.big ? 1.7 : 1.1, f.big ? 1.5 : 1.1, 0, 0, 0, f.life / f.max, 3.4, 2.1, 0.8, 0);
   }
-  for (const r of rings) {
+  for (const r of GS.rings) {
     const t = 1 - r.life / r.max,
       k = 1 - (1 - t) * (1 - t),
       sc = lerp(r.r0, r.r1, k) / 58;
     quad(R.ring, r.x, r.y, 0, sc, sc, 0, 0, 0, (r.life / r.max) * r.w, r.c[0], r.c[1], r.c[2], 0);
   }
-  for (const a of arcs) {
+  for (const a of GS.arcs) {
     const n = 7,
       f = a.life / 0.14;
     let px = a.x0,
@@ -795,7 +883,7 @@ function render() {
       ny = dx / L;
     for (let i = 1; i <= n; i++) {
       const t = i / n,
-        j = i === n ? 0 : Math.sin(a.seed + i * 12.9 + time * 60) * 11,
+        j = i === n ? 0 : Math.sin(a.seed + i * 12.9 + GS.time * 60) * 11,
         x = a.x0 + dx * t + nx * j,
         y = a.y0 + dy * t + ny * j;
       lineQ(px, py, x, y, 3, 0, 0, 0, f, 1.4, 2.6, 3.4, 0, R.pixel);
@@ -805,17 +893,17 @@ function render() {
     }
   }
   for (const c of crystals) {
-    if (!c.alive || Math.sin(time * 5 + c.x) < 0.3) continue;
+    if (!c.alive || Math.sin(GS.time * 5 + c.x) < 0.3) continue;
     quad(R.glow, c.x + 14, c.y - 18, 0, 0.25, 0.25, 0, 0, 0, 1, 0.3, 0.7, 0.9, 0);
   }
-  for (const p of pollen) {
-    const tw = 0.5 + Math.sin(time * 2 + p.ph) * 0.5;
+  for (const p of GS.pollen) {
+    const tw = 0.5 + Math.sin(GS.time * 2 + p.ph) * 0.5;
     quad(R.glow, p.x, p.y, 0, p.s * 0.8, p.s * 0.8, 0, 0, 0, tw, 1.1, 0.5, 0.15, 0);
   }
   flush();
   // point lights (accents)
-  ln = 0;
-  for (const l of dlights) {
+  GS.ln = 0;
+  for (const l of GS.dlights) {
     const f = l.life / l.max;
     addLight(l.x, l.y, l.r * (0.6 + 0.4 * f), l.col[0] * f, l.col[1] * f, l.col[2] * f);
   }
@@ -826,28 +914,28 @@ function render() {
       else addLight(L.hx, L.hy, 330, 1.05 * k, 0.8 * k, 0.5 * k);
     }
   }
-  for (const r of roofs) if (ev !== 'blackout') addLight(r.x, r.y, 380, 0.9, 0.92, 0.95);
+  for (const r of roofs) if (GS.ev !== 'blackout') addLight(r.x, r.y, 380, 0.9, 0.92, 0.95);
   objectiveLights();
   decorLights();
   atmosLights();
   for (const f of fires) {
-    const fk = 0.8 + Math.sin(time * 17 + f.ph) * 0.12 + Math.sin(time * 7.3 + f.ph) * 0.08;
+    const fk = 0.8 + Math.sin(GS.time * 17 + f.ph) * 0.12 + Math.sin(GS.time * 7.3 + f.ph) * 0.08;
     addLight(f.x, f.y, 300 * fk, 1.25 * fk, 0.6 * fk, 0.2 * fk);
   }
-  if (P && state !== 'over') {
-    FLX = P.x + Math.cos(P.aimA) * 8;
-    FLY = P.y + Math.sin(P.aimA) * 8;
-    addLight(FLX, FLY, 620, 1.05, 1.0, 0.84, P.aimA, 0.86);
+  if (GS.P && GS.state !== 'over') {
+    GS.FLX = GS.P.x + Math.cos(GS.P.aimA) * 8;
+    GS.FLY = GS.P.y + Math.sin(GS.P.aimA) * 8;
+    addLight(GS.FLX, GS.FLY, 620, 1.05, 1.0, 0.84, GS.P.aimA, 0.86);
     addLight(
-      P.x,
-      P.y,
+      GS.P.x,
+      GS.P.y,
       260,
-      ev === 'fog' || ev === 'blackout' ? 0.46 : 0.32,
-      ev === 'fog' || ev === 'blackout' ? 0.45 : 0.31,
-      ev === 'fog' || ev === 'blackout' ? 0.43 : 0.3
+      GS.ev === 'fog' || GS.ev === 'blackout' ? 0.46 : 0.32,
+      GS.ev === 'fog' || GS.ev === 'blackout' ? 0.45 : 0.31,
+      GS.ev === 'fog' || GS.ev === 'blackout' ? 0.43 : 0.3
     );
   }
-  for (const e of enemies)
+  for (const e of GS.enemies)
     if (e.type === 'queen') {
       if (e.giant && e.cueT > 0 && e.dying === undefined) {
         const G = GIANT[e.btype] || GIANT.roadkill,
@@ -856,7 +944,7 @@ function render() {
       }
       if (!e.giant) {
         const k = e.cueT > 0 && e.dying === undefined ? clamp(1 - e.cueT / e.cueMax, 0, 1) : 0,
-          kk = Math.min(1, k * 1.4) * (0.85 + 0.15 * Math.sin(time * 40));
+          kk = Math.min(1, k * 1.4) * (0.85 + 0.15 * Math.sin(GS.time * 40));
         addLight(e.x, e.y, 300, 0.45 * (1 - kk), 0.08 * (1 - kk), 0.05 * (1 - kk));
         if (kk > 0) addLight(e.x, e.y, 190 + 70 * k, 0.24 * kk, 0.7 * kk, 0.09 * kk);
       } /* the Abomination's tell: its sacs light up bile-green from inside as a move winds up */ else if (
@@ -864,13 +952,13 @@ function render() {
         e.dying === undefined &&
         e.lant
       ) {
-        const fk = 0.85 + Math.sin(time * 9 + e.id) * 0.1,
+        const fk = 0.85 + Math.sin(GS.time * 9 + e.id) * 0.1,
           a = e.a;
         addLight(e.x + Math.sin(a) * 39, e.y - Math.cos(a) * 39, 210, 0.62 * fk, 0.34 * fk, 0.1 * fk);
       } else if (e.btype === 'chief' && e.dying === undefined) {
         addLight(e.x + Math.cos(e.a) * 110, e.y + Math.sin(e.a) * 110, 170, 0.5, 0.46, 0.36);
         if (e.ph >= 1) {
-          const fk = 0.75 + Math.sin(time * 11 + e.id) * 0.15 + Math.sin(time * 4.3) * 0.1;
+          const fk = 0.75 + Math.sin(GS.time * 11 + e.id) * 0.15 + Math.sin(GS.time * 4.3) * 0.1;
           addLight(e.x, e.y, 150 + 60 * e.ph, 0.45 * fk, 0.2 * fk, 0.05 * fk);
         }
       } // the helmet lamp throws a beam ahead of it; hurt, its coat smoulders
@@ -879,22 +967,23 @@ function render() {
         addLight(e.x, e.y, 250, 0.13 * k, 0.32 * k, 0.17 * k);
       }
     } // a sick green glow that pulses with the monitor
-  for (const fp of firePools) {
-    const k = Math.min(1, fp.life / 1.5) * (0.85 + Math.sin(time * 19 + fp.x) * 0.15);
+  for (const fp of GS.firePools) {
+    const k = Math.min(1, fp.life / 1.5) * (0.85 + Math.sin(GS.time * 19 + fp.x) * 0.15);
     addLight(fp.x, fp.y, fp.r * 3, 0.85 * k, 0.38 * k, 0.1 * k);
   }
   {
     let nb = 0;
-    for (const e of enemies)
+    for (const e of GS.enemies)
       if (e.burn > 0 && nb < 12 && (e.sv ?? 1) > 0.3) {
         nb++;
         addLight(e.x, e.y, 140, 0.55, 0.24, 0.06);
       }
   }
   for (const c of cars) if (c.fire && !c.dead) addLight(c.x, c.y - 20, 280, 1.05, 0.46, 0.12);
-  for (const c of crates)
+  for (const c of GS.crates)
     if (c.flare > 0) {
-      const fk = Math.min(1, c.flare / 1.5) * (0.8 + Math.sin(time * 23 + c.x) * 0.12 + Math.sin(time * 9.1) * 0.08);
+      const fk =
+        Math.min(1, c.flare / 1.5) * (0.8 + Math.sin(GS.time * 23 + c.x) * 0.12 + Math.sin(GS.time * 9.1) * 0.08);
       addLight(c.x + 20, c.y + 12, 230, 1.15 * fk, 0.26 * fk, 0.16 * fk);
     }
   gl.bindFramebuffer(gl.FRAMEBUFFER, rtLight.fb);
@@ -903,22 +992,22 @@ function render() {
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.blendFunc(gl.ONE, gl.ONE);
   gl.useProgram(P_LIGHT.p);
-  gl.uniform4f(P_LIGHT.u.uCam, camX, camY, viewW, viewH);
+  gl.uniform4f(P_LIGHT.u.uCam, GS.camX, GS.camY, viewW, viewH);
   gl.uniform1i(P_LIGHT.u.uNrm, 0);
   gl.uniform2f(P_LIGHT.u.uRes, rtLight.w, rtLight.h);
-  WETV += ((ev === 'storm' ? 1 : 0.42) - WETV) * 0.02;
-  gl.uniform1f(P_LIGHT.u.uWet, WETV);
+  GS.WETV += ((GS.ev === 'storm' ? 1 : 0.42) - GS.WETV) * 0.02;
+  gl.uniform1f(P_LIGHT.u.uWet, GS.WETV);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, rtScene.texs[2]);
   gl.uniform1i(P_LIGHT.u.uFsh, 1);
-  gl.uniform2f(P_LIGHT.u.uFL, FLX, FLY);
+  gl.uniform2f(P_LIGHT.u.uFL, GS.FLX, GS.FLY);
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, rtFlash.texs[0]);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindVertexArray(lVAO);
   gl.bindBuffer(gl.ARRAY_BUFFER, lVBO);
-  gl.bufferSubData(gl.ARRAY_BUFFER, 0, ldata, 0, ln * 8);
-  gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, ln);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, ldata, 0, GS.ln * 8);
+  gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, GS.ln);
   gl.bindVertexArray(emptyVAO);
   gl.disable(gl.BLEND);
   // composite: sun + sky + shadows + specular
@@ -981,11 +1070,11 @@ function render() {
   gl.bindTexture(gl.TEXTURE_2D, bloomRTs.length ? bloomRTs[0].texs[0] : rtComp.texs[0]);
   const wv = new Float32Array(32);
   let wn = 0;
-  for (const w of dwaves) {
+  for (const w of GS.dwaves) {
     if (wn >= 8) break;
     const t = w.t / w.life;
-    wv[wn * 4] = (w.x - camX) / viewW;
-    wv[wn * 4 + 1] = 1 - (w.y - camY) / viewH;
+    wv[wn * 4] = (w.x - GS.camX) / viewW;
+    wv[wn * 4 + 1] = 1 - (w.y - GS.camY) / viewH;
     wv[wn * 4 + 2] = t * w.sp * (viewW / 1400);
     wv[wn * 4 + 3] = w.s * (1 - t) * (opt.shake ? 1 : 0.4);
     wn++;
@@ -995,33 +1084,33 @@ function render() {
   hazeCollect();
   const hv = new Float32Array(24);
   hazeSrc.forEach((h, i) => {
-    hv[i * 4] = (h[0] - camX) / viewW;
-    hv[i * 4 + 1] = 1 - (h[1] - camY) / viewH;
+    hv[i * 4] = (h[0] - GS.camX) / viewW;
+    hv[i * 4 + 1] = 1 - (h[1] - GS.camY) / viewH;
     hv[i * 4 + 2] = h[2] / viewH;
     hv[i * 4 + 3] = h[3];
   });
   gl.uniform4fv(P_FINAL.u.uHaze, hv);
   gl.uniform1i(P_FINAL.u.uHazeN, hazeSrc.length);
   gl.uniform1f(P_FINAL.u.uAspect, VW / VH);
-  gl.uniform1f(P_FINAL.u.uChroma, chroma);
-  const hpR = state === 'play' ? P.hp / S.maxHp : 1;
+  gl.uniform1f(P_FINAL.u.uChroma, GS.chroma);
+  const hpR = GS.state === 'play' ? GS.P.hp / S.maxHp : 1;
   {
-    const want = (state === 'play' || state === 'pause' || state === 'levelup') && opt.los && P ? 1 : 0,
+    const want = (GS.state === 'play' || GS.state === 'pause' || GS.state === 'levelup') && opt.los && GS.P ? 1 : 0,
       rdt = Math.min(0.1, (performance.now() - (render.lt || performance.now())) / 1000);
     render.lt = performance.now();
-    visOn += (want - visOn) * Math.min(1, (want ? 2.5 : 6) * rdt);
+    GS.visOn += (want - GS.visOn) * Math.min(1, (want ? 2.5 : 6) * rdt);
     gl.activeTexture(gl.TEXTURE2);
-    if (visOn > 0.01) buildVis();
-    else visOn = want ? visOn : 0;
+    if (GS.visOn > 0.01) buildVis();
+    else GS.visOn = want ? GS.visOn : 0;
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, texVis || rtComp.texs[0]);
     gl.uniform1i(P_FINAL.u.uVis, 2);
-    gl.uniform1f(P_FINAL.u.uVisOn, texVis && visOn > 0.01 ? visOn : 0);
+    gl.uniform1f(P_FINAL.u.uVisOn, texVis && GS.visOn > 0.01 ? GS.visOn : 0);
     gl.useProgram(P_FINAL.p);
   }
-  gl.uniform1f(P_FINAL.u.uHurt, clamp((0.3 - hpR) * 1.2, 0, 0.3) + P.hurt * 1.2);
+  gl.uniform1f(P_FINAL.u.uHurt, clamp((0.3 - hpR) * 1.2, 0, 0.3) + GS.P.hurt * 1.2);
   gl.uniform1f(P_FINAL.u.uBloomK, gfxPreset().bloom);
-  gl.uniform1f(P_FINAL.u.uTime, time);
+  gl.uniform1f(P_FINAL.u.uTime, GS.time);
   gl.uniform1f(P_FINAL.u.uGrain, opt.grain ? 0.045 : 0);
   gl.uniform2f(P_FINAL.u.uTexel, 1 / RW, 1 / RH);
   gl.uniform1f(P_FINAL.u.uSharpen, gfxPreset().sharpen);

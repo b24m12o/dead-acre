@@ -1,8 +1,35 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function shellBoom(x, y, R0, dmg, main) {
-  if (boss && boss.signAt && d2(x, y, boss.signAt.x, boss.signAt.y) < (R0 + 20) ** 2) hitSign(boss, dmg * 1.5);
+import { GS } from '../core/gs.js';
+import { TAU, clamp, d2, lerp, rand, randi } from '../core/util.js';
+import { R } from '../render/atlas.js';
+import { crystals, lamps } from '../world/map.js';
+import { query, solidPt } from '../world/nav.js';
+import { playS, thr } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { S } from '../game/state.js';
+import { showStreak } from '../ui/callouts.js';
+import {
+  HUMAN,
+  bleed,
+  chips,
+  decal,
+  distort,
+  dust,
+  flashLight,
+  glowBurst,
+  ring,
+  shake,
+  sparks,
+} from '../render/effects.js';
+import { blowBarrel, bossOf, crushCrystals, hitCrystal, hurtEnemy, hurtPlayer } from '../game/combat.js';
+import { interruptBoss } from './bosses.js';
+import { BILE } from '../render/draw-enemies.js';
+import { DOWN_T, lyAngle, supOK } from '../render/draw-bodies.js';
+export function shellBoom(x, y, R0, dmg, main) {
+  if (GS.boss && GS.boss.signAt && d2(x, y, GS.boss.signAt.x, GS.boss.signAt.y) < (R0 + 20) ** 2)
+    hitSign(GS.boss, dmg * 1.5);
   sfx.boom2(x, y);
-  shake((main ? 0.14 : 0.05) * (P ? clamp(1.25 - Math.hypot(x - P.x, y - P.y) / 600, 0.2, 1) : 1));
+  shake((main ? 0.14 : 0.05) * (GS.P ? clamp(1.25 - Math.hypot(x - GS.P.x, y - GS.P.y) / 600, 0.2, 1) : 1));
   distort(x, y, main ? 0.02 : 0.01, 0.8, 0.35);
   flashLight(x, y, R0 * 2.6, [2.2, 1.2, 0.8], 0.3);
   glowBurst(x, y, [1, 0.5, 0.6], main ? 22 : 10, R0 * 4, 0.45, 0.7);
@@ -19,10 +46,10 @@ function shellBoom(x, y, R0, dmg, main) {
       if (S.evo.stun && !e.dead) e.slowT = Math.max(e.slowT || 0, 0.8);
     }
   });
-  for (const b of barrels)
+  for (const b of GS.barrels)
     if (!b.dead && d2(x, y, b.x, b.y) < (R0 + 10) ** 2) {
       b.hp = 0;
-      later.push({ t: 0.1, fn: () => blowBarrel(b) });
+      GS.later.push({ t: 0.1, fn: () => blowBarrel(b) });
     }
   for (const c of crystals) if (c.alive && d2(x, y, c.x, c.y) < (R0 + 16) ** 2) hitCrystal(c, dmg, c.x - x, c.y - y);
   if (main && S.bomblets)
@@ -31,7 +58,7 @@ function shellBoom(x, y, R0, dmg, main) {
         d = rand(50, 90),
         bx = x + Math.cos(a) * d,
         by = y + Math.sin(a) * d;
-      pbullets.push({
+      GS.pbullets.push({
         shell: true,
         mini: true,
         x0: x,
@@ -52,7 +79,7 @@ function shellBoom(x, y, R0, dmg, main) {
       });
     }
 }
-function pumpDrop(e, b) {
+export function pumpDrop(e, b) {
   // the pump at close range: four pellets of one shell into one body and it goes down
   if (
     e.dead ||
@@ -80,7 +107,7 @@ function pumpDrop(e, b) {
   e.kx += b.vx * 0.12;
   e.ky += b.vy * 0.12;
 }
-function fragBurst(x, y, b, skipId) {
+export function fragBurst(x, y, b, skipId) {
   const R0 = (34 + S.frag * 14) * (b.pellet ? 0.6 : 1);
   glowBurst(x, y, [0.5, 1, 1], 6, 180, 0.25, 0.4);
   ring(x, y, 4, R0, 0.18, [0.8, 1.8, 1.8], 0.6);
@@ -89,12 +116,12 @@ function fragBurst(x, y, b, skipId) {
       hurtEnemy(e, b.dmg * (0.12 + 0.16 * S.frag) * (b.pellet ? 0.5 : 1), false, e.x - x, e.y - y, 0.4, 'frag');
   });
 }
-function queenTail(e) {
+export function queenTail(e) {
   const pts = [];
   let x = -80,
     y = 0,
     a = Math.PI;
-  const sway = Math.sin(time * 1.4) * 0.22,
+  const sway = Math.sin(GS.time * 1.4) * 0.22,
     r = e.hoseR || 0;
   for (let i = 0; i < 4; i++) {
     pts.push([x, y]);
@@ -112,7 +139,7 @@ function queenTail(e) {
     } // rearing to hose: the tail arcs up over its back so the mouth hangs above its shoulders
   return pts;
 }
-function toWorld(e, lx, ly, sc = 1) {
+export function toWorld(e, lx, ly, sc = 1) {
   const c = Math.cos(e.a),
     s = Math.sin(e.a);
   return [e.x + (lx * c - ly * s) * sc, e.y + (lx * s + ly * c) * sc];
@@ -131,7 +158,7 @@ function tireProj(b, dt, p) {
     const sp = Math.hypot(b.vx, b.vy);
     b.ph = b.ph ?? rand(0, TAU);
     b.spin = (b.spin || 0) + (dt * sp) / 13;
-    b.lean = Math.sin(time * 5 + b.ph) * 0.1 * (1.6 - Math.min(1, sp / 340));
+    b.lean = Math.sin(GS.time * 5 + b.ph) * 0.1 * (1.6 - Math.min(1, sp / 340));
     if (solidPt(b.x, b.y)) {
       b.x = ox;
       b.y = oy;
@@ -187,12 +214,12 @@ function tireProj(b, dt, p) {
     b.life = 0;
   } // and it stays in the road
 }
-const SIGN_HP = () => 90 + 30 * wave; // the STOP sign stuck in the road takes this much shooting to break
-function signKnocked(e) {
+const SIGN_HP = () => 90 + 30 * GS.wave; // the STOP sign stuck in the road takes this much shooting to break
+export function signKnocked(e) {
   e.sign = false;
   const [sx, sy] = toWorld(e, 80, rand(-50, 50)),
     a = rand(0, TAU);
-  e.signAt = { x: sx, y: sy, a, t: time, hp: SIGN_HP(), max: SIGN_HP() };
+  e.signAt = { x: sx, y: sy, a, t: GS.time, hp: SIGN_HP(), max: SIGN_HP() };
   chips(sx, sy, 10, [0.6, 0.6, 0.6], 4, 260);
   sparks(sx, sy, [1, 0.85, 0.5], 14, 320);
   sfx.signClang(sx, sy);
@@ -202,7 +229,7 @@ function signKnocked(e) {
   e.stunT = Math.max(e.stunT || 0, 0.9);
   showStreak('Sign knocked loose', 'Shoot it apart before it gets it back');
 }
-function hitSign(e, dmg, x, y) {
+export function hitSign(e, dmg, x, y) {
   const sa = e.signAt;
   if (!sa) return;
   sa.hp -= dmg;
@@ -222,12 +249,12 @@ function hitSign(e, dmg, x, y) {
     showStreak('Sign destroyed', 'It charges blind now · stand in front of a car');
   }
 }
-function tailHit(e, b, tx, ty) {
-  HITB = b;
+export function tailHit(e, b, tx, ty) {
+  GS.HITB = b;
   try {
     hurtEnemy(e, b.dmg, true, b.vx, b.vy, 0.3, 'bolt', tx, ty);
   } finally {
-    HITB = null;
+    GS.HITB = null;
   }
   b.hits.push(e.id);
   b.life = 0;
@@ -249,7 +276,7 @@ function tailHit(e, b, tx, ty) {
     }
   }
 }
-function bossProj(b, dt, p) {
+export function bossProj(b, dt, p) {
   // the bosses' own thrown things: tyres that roll and bounce, the sign that flies flat and sticks in the road
   if (b.k === 'tire') return tireProj(b, dt, p);
   const ox = b.x,
@@ -273,8 +300,8 @@ function bossProj(b, dt, p) {
   if (b.k === 'sign' && Math.random() < dt * 30) sparks(b.x, b.y, [1, 0.85, 0.5], 1, 120);
   if (b.life <= 0) {
     if (b.k === 'sign') {
-      if (b.owner && !b.owner.dead && b.owner === boss)
-        b.owner.signAt = { x: b.x, y: b.y, a: (b.a || 0) + (b.spin || 0), t: time, hp: SIGN_HP(), max: SIGN_HP() };
+      if (b.owner && !b.owner.dead && b.owner === GS.boss)
+        b.owner.signAt = { x: b.x, y: b.y, a: (b.a || 0) + (b.spin || 0), t: GS.time, hp: SIGN_HP(), max: SIGN_HP() };
       else decal(R.rk_sign, b.x, b.y, 1.05, [0.9, 0.9, 0.9, 1], [0, 0, 0], 600);
       chips(b.x, b.y, 8, [0.5, 0.5, 0.5], 4, 200);
       dust(b.x, b.y, 6, 60, 1, 0.8);
@@ -302,7 +329,7 @@ function bossProj(b, dt, p) {
     }
   }
 }
-function bossSlam(e) {
+export function bossSlam(e) {
   const R0 = 150;
   for (const L of lamps)
     if (!L.down && !L.lantern && d2(L.bx, L.by, e.x, e.y) < 230 * 230) {
@@ -314,20 +341,21 @@ function bossSlam(e) {
   /* it lands on the light: the street goes darker */ sfx.boom(e.x, e.y);
   sfx.gib(e.x, e.y);
   shake(0.7);
-  hitstop = Math.max(hitstop, 0.06);
+  GS.hitstop = Math.max(GS.hitstop, 0.06);
   distort(e.x, e.y, 0.06, 1.1, 0.6);
   ring(e.x, e.y, 20, R0 * 1.2, 0.45, [1.6, 1.38, 1.1], 1.4);
   dust(e.x, e.y, 22, 220, 2, 1.6);
   chips(e.x, e.y, 22, null, 4, 460);
   decal(R.hole, e.x, e.y, 3.6, [1, 1, 1, 0.95], [0, 0, 0], 40);
   flashLight(e.x, e.y, 420, [1.4, 0.4, 0.2], 0.35);
-  if (state === 'play' && d2(e.x, e.y, P.x, P.y) < (R0 + P.r * 0.3) ** 2) hurtPlayer(e.dmg * 1.35, e.x, e.y);
+  if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (R0 + GS.P.r * 0.3) ** 2)
+    hurtPlayer(e.dmg * 1.35, e.x, e.y);
   crushCrystals(e.x, e.y, R0);
-  for (const b of barrels)
+  for (const b of GS.barrels)
     if (!b.dead && d2(e.x, e.y, b.x, b.y) < R0 * R0) {
       const bb = b;
       bb.hp = 0;
-      later.push({ t: 0.1, fn: () => blowBarrel(bb) });
+      GS.later.push({ t: 0.1, fn: () => blowBarrel(bb) });
     }
 }
 /* Boss AI. One big move at a time, each read before it lands, then a short opening where the boss is exposed.

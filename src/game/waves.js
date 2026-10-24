@@ -1,12 +1,19 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const bossNight = w => w % 5 === 0;
-const lastNight = w => !RUN.endless && w === FINAL_NIGHT;
-function buildWave(w) {
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { TAU, clamp, d2, rand, randi } from '../core/util.js';
+import { viewH, viewW } from '../render/sprites.js';
+import { TILE, WH, WW, isWall } from '../world/map.js';
+import { cam } from './state.js';
+import { FINAL_NIGHT, INF, TW } from './districts.js';
+export const bossNight = w => w % 5 === 0;
+export const lastNight = w => !GS.RUN.endless && w === FINAL_NIGHT;
+export function buildWave(w) {
   const q = [];
   let n = Math.round(8 + Math.min(w, 8) * 4.5 + Math.max(0, w - 8) * 3);
   if (w > 5 && (w - 1) % 5 === 0) n = Math.round(n * 0.8);
   /* the night after a boss is a lighter one */ const T = [['skitter', 6]];
-  const Dn = RUN.district;
+  const Dn = GS.RUN.district;
   if (w >= 2) T.push(['hopper', 0.9], ['wasp', 1.2 * (INF(8) ? 1.8 : 1)]);
   if (w >= 3) T.push(['mini', Dn === 'cemetery' ? 2.2 : 1]);
   if (w >= 4) T.push(['beetle', 0.45 + 0.07 * w]);
@@ -38,7 +45,7 @@ function buildWave(w) {
   }
   return q;
 }
-function spawnPoint(minD = 480, edge = false) {
+export function spawnPoint(minD = 480, edge = false) {
   for (let k = 0; k < 40; k++) {
     let x, y;
     if (edge) {
@@ -49,7 +56,7 @@ function spawnPoint(minD = 480, edge = false) {
       x = rand(4 * TILE, WW - 4 * TILE);
       y = rand(4 * TILE, WH - 4 * TILE);
     }
-    if (d2(x, y, P.x, P.y) < minD * minD) continue;
+    if (d2(x, y, GS.P.x, GS.P.y) < minD * minD) continue;
     let ok = true;
     const tx = Math.floor(x / TILE),
       ty = Math.floor(y / TILE);
@@ -65,27 +72,27 @@ function spawnPoint(minD = 480, edge = false) {
   }
   const a = rand(0, TAU);
   return [
-    clamp(P.x + Math.cos(a) * 600, 4 * TILE, WW - 4 * TILE),
-    clamp(P.y + Math.sin(a) * 600, 4 * TILE, WH - 4 * TILE),
+    clamp(GS.P.x + Math.cos(a) * 600, 4 * TILE, WW - 4 * TILE),
+    clamp(GS.P.y + Math.sin(a) * 600, 4 * TILE, WH - 4 * TILE),
   ];
 }
-function underBoss(el) {
+export function underBoss(el) {
   const bb = $('bossBox');
   el.style.top = bb && !bb.hidden ? Math.max(innerHeight * 0.15, bb.getBoundingClientRect().bottom + 14) + 'px' : '';
 } // never on top of the boss panel
-function banner(t, sub, red) {
+export function banner(t, sub, red) {
   underBoss($('banner'));
-  if (streakT > 0 && streakCur) {
-    streakQ.unshift(streakCur);
-    streakT = 0;
-    streakCur = null;
+  if (GS.streakT > 0 && GS.streakCur) {
+    GS.streakQ.unshift(GS.streakCur);
+    GS.streakT = 0;
+    GS.streakCur = null;
     $('streak').classList.remove('show');
   }
   const b = $('banner');
   b.innerHTML = `${t}<small>${sub}</small>`;
   b.classList.toggle('red', !!red);
   b.classList.add('show');
-  bannerT = 2.2;
+  GS.bannerT = 2.2;
 }
 
 /* ---------- FX ---------- */

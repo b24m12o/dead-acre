@@ -12,16 +12,16 @@ const CASES = [
   ['town', 15, 'pz'],
 ];
 const FIGHT = (district, night) => `(() => {
-  begin(); RUN.district = '${district}'; newRun(); state = 'play'; __god();
-  const step = n => { for (let i = 0; i < n; i++) { if (state === 'levelup') { luOpenT = 0; choose(0); } update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60); } };
-  wave = ${night} - 1; queue = []; for (const e of enemies) e.dead = true; enemies.length = 0; interT = 99; startWave();
-  for (let i = 0; i < 600 && !boss; i++) step(1);
-  if (!boss) return { spawned: false };
-  const q = boss, out = { spawned: true, bt: q.btype, ph0: q.ph };
+  begin(); GS.RUN.district = '${district}'; newRun(); GS.state = 'play'; __god();
+  const step = n => { for (let i = 0; i < n; i++) { if (GS.state === 'levelup') { GS.luOpenT = 0; choose(0); } update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60); } };
+  GS.wave = ${night} - 1; GS.queue = []; for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.interT = 99; startWave();
+  for (let i = 0; i < 600 && !GS.boss; i++) step(1);
+  if (!GS.boss) return { spawned: false };
+  const q = GS.boss, out = { spawned: true, bt: q.btype, ph0: q.ph };
   q.hp = q.maxHp * 0.6; step(240); out.ph1 = q.ph;
   q.hp = q.maxHp * 0.3; step(240); out.ph2 = q.ph;
   q.hp = 0; killEnemy(q, 999, 'bolt'); step(300);
-  out.dead = !!q.dead; out.state = state;
+  out.dead = !!q.dead; out.state = GS.state;
   return out;
 })()`;
 export async function run(b) {

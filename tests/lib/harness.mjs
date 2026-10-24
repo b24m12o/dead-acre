@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { chromium } from 'playwright';
-import { ROOT } from '../../tools/lib/source.mjs';
+import { ROOT, bundle } from '../../tools/lib/source.mjs';
 
 export { ROOT };
 export const browser = () =>
@@ -48,17 +48,15 @@ export function serve(dir, port) {
   return new Promise(ok => srv.listen(port, '127.0.0.1', () => ok(srv)));
 }
 
-// the one-file build with the test hooks in it
+// the one-file build, with the game bundled from tests/lib/entry.js so tests can reach inside it
 let page = null;
-export function testPage() {
+export async function testPage() {
   if (page) return page;
-  const s = readFileSync(join(ROOT, 'build/dead-acre.html'), 'utf8'),
-    k = s.indexOf('\nfontsReady.then(');
-  check(k > 0, 'build/dead-acre.html has no startup line: run the build first');
-  writeFileSync(
-    join(ROOT, 'build/test.html'),
-    s.slice(0, k + 1) + readFileSync(join(ROOT, 'tests/lib/hooks.js'), 'utf8') + '\n' + s.slice(k + 1)
-  );
+  const html = readFileSync(join(ROOT, 'build/dead-acre.html'), 'utf8');
+  const k = html.lastIndexOf('<script>\n');
+  check(k > 0, 'build/dead-acre.html not found or not built: run the build first');
+  const game = await bundle({ entry: 'tests/lib/entry.js' });
+  writeFileSync(join(ROOT, 'build/test.html'), html.slice(0, k) + '<script>\n' + game + '</script>\n');
   return (page = join(ROOT, 'build/test.html'));
 }
 // opens the game at its menu; ev(code) runs code inside the game's own scope
@@ -68,7 +66,9 @@ export async function openGame(b, { noFrames = false } = {}) {
   pg.setDefaultTimeout(3600000);
   pg.on('pageerror', e => errs.push(String(e.stack || e).slice(0, 600)));
   if (noFrames) await pg.addInitScript('window.requestAnimationFrame = () => 0;');
-  await pg.goto('file://' + testPage());
+  await pg.goto('file://' + (await testPage()));
   await pg.waitForSelector('#menu:not([hidden])', { timeout: 600000 });
-  return { pg, errs, ev: code => pg.evaluate(c => window.__eval(c), code) };
+  const ev = code => pg.evaluate(c => globalThis.__eval(c), code);
+  await ev(readFileSync(join(ROOT, 'tests/lib/hooks.js'), 'utf8') + ';1');
+  return { pg, errs, ev };
 }

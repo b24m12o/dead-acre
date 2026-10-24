@@ -1,8 +1,19 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-let hintTO = 0;
-function updateHint() {
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { TAU } from '../core/util.js';
+import { TS, TSU, opt, saveMeta, store } from '../core/settings.js';
+import { DEVICE_RENDER_CAP, gfxPreset, resize } from '../render/sprites.js';
+import { initAudio, playS } from '../audio/audio.js';
+import { applyVol, setMusic } from '../audio/music.js';
+import { CH_COLS, paintCH } from './crosshair.js';
+import { PRACTICE_FROM, openPractice } from '../game/practice.js';
+import { tutHint } from '../game/tutorial.js';
+import { DIFF_DESC } from './menu.js';
+GS.hintTO = 0;
+export function updateHint() {
   const ht = 'WASD move · hold click to fire · R reload · Space roll · E ability · 1–9 swap · hold Q wheel';
-  if (typeof RUN !== 'undefined' && RUN && RUN.tut && RUN.tut.i >= 0) tutHint();
+  if (typeof GS.RUN !== 'undefined' && GS.RUN && GS.RUN.tut && GS.RUN.tut.i >= 0) tutHint();
   else {
     $('hint').textContent = ht;
     $('hint').classList.remove('tut');
@@ -11,13 +22,13 @@ function updateHint() {
   {
     const lk = $('luKeys');
     if (lk) {
-      const rr = rerolls > 0 && pickSource !== 'weapon' && pickSource !== 'job',
-        nk = `Keys 1–${Math.max(1, picks.length || 3)} pick`;
+      const rr = GS.rerolls > 0 && GS.pickSource !== 'weapon' && GS.pickSource !== 'job',
+        nk = `Keys 1–${Math.max(1, GS.picks.length || 3)} pick`;
       lk.textContent = rr ? nk + ' · R rerolls' : nk;
     }
   }
 }
-function syncOpts() {
+export function syncOpts() {
   const mark = (el, on) => {
     el.classList.toggle('on', !!on);
     el.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -29,149 +40,31 @@ function syncOpts() {
     ['goreBtn', opt.gore],
     ['grainBtn', opt.grain],
     ['losBtn', opt.los],
-    ['chLine', meta.ch.line],
+    ['chLine', GS.meta.ch.line],
   ])
     mark($(id), on);
   mark($('musicBtn'), opt.music);
-  mark($('muteBtn'), !muted);
-  mark($('tutBtn'), !!(meta && meta.tutForce));
-  $('volMaster').value = Math.round(meta.vol.master * 100);
-  $('volMusic').value = Math.round((meta.vol.music / 0.6) * 100);
-  $('volSfx').value = Math.round((meta.vol.sfx / 0.8) * 100);
-  for (const b of $('diffSeg').children) mark(b, b.dataset.d === meta.diff);
+  mark($('muteBtn'), !GS.muted);
+  mark($('tutBtn'), !!(GS.meta && GS.meta.tutForce));
+  $('volMaster').value = Math.round(GS.meta.vol.master * 100);
+  $('volMusic').value = Math.round((GS.meta.vol.music / 0.6) * 100);
+  $('volSfx').value = Math.round((GS.meta.vol.sfx / 0.8) * 100);
+  for (const b of $('diffSeg').children) mark(b, b.dataset.d === GS.meta.diff);
   {
     const dd = $('diffDesc');
-    if (dd) dd.textContent = DIFF_DESC[meta.diff] || DIFF_DESC.normal;
+    if (dd) dd.textContent = DIFF_DESC[GS.meta.diff] || DIFF_DESC.normal;
   }
-  for (const b of $('gfxSeg').children) if (b.dataset.g) mark(b, b.dataset.g === meta.hud.gfx);
-  mark($('fpsBtn'), meta.hud.fps);
-  for (const b of $('chCol').children) mark(b, b.dataset.c === meta.ch.col);
-  for (const b of $('chSize').children) if (b.dataset.s) mark(b, +b.dataset.s === meta.ch.size);
-  for (const b of $('hudSize').children) mark(b, b.dataset.h === meta.hud.size);
-  for (const b of $('hudOp').children) mark(b, +b.dataset.o === meta.hud.op);
+  for (const b of $('gfxSeg').children) if (b.dataset.g) mark(b, b.dataset.g === GS.meta.hud.gfx);
+  mark($('fpsBtn'), GS.meta.hud.fps);
+  for (const b of $('chCol').children) mark(b, b.dataset.c === GS.meta.ch.col);
+  for (const b of $('chSize').children) if (b.dataset.s) mark(b, +b.dataset.s === GS.meta.ch.size);
+  for (const b of $('hudSize').children) mark(b, b.dataset.h === GS.meta.hud.size);
+  for (const b of $('hudOp').children) mark(b, +b.dataset.o === GS.meta.hud.op);
   for (const b of $('hudTs').children) mark(b, +b.dataset.t === TSU());
   document.documentElement.style.setProperty('--ts', TS());
 }
-$('leanBtn').addEventListener('click', () => {
-  opt.lean = !opt.lean;
-  store.set('rr_lean', opt.lean ? '1' : '0');
-  syncOpts();
-});
-$('grainBtn').addEventListener('click', () => {
-  opt.grain = !opt.grain;
-  store.set('rr_grain', opt.grain ? '1' : '0');
-  syncOpts();
-});
-$('losBtn').addEventListener('click', () => {
-  opt.los = !opt.los;
-  store.set('rr_los', opt.los ? '1' : '0');
-  syncOpts();
-});
-$('goreBtn').addEventListener('click', () => {
-  opt.gore = !opt.gore;
-  store.set('rr_gore', opt.gore ? '1' : '0');
-  syncOpts();
-});
-$('shakeBtn').addEventListener('click', () => {
-  opt.shake = !opt.shake;
-  store.set('rr_shake', opt.shake ? '1' : '0');
-  if (!opt.shake) trauma = 0;
-  syncOpts();
-});
-$('musicBtn').addEventListener('click', () => {
-  initAudio();
-  setMusic(!opt.music);
-});
-$('practiceBtn').addEventListener('click', () => openPractice('settings'));
-$('practiceBack').addEventListener('click', () => {
-  $('practice').hidden = true;
-  $(PRACTICE_FROM === 'settings' ? 'settings' : 'menu').hidden = false;
-});
-$('flashBtn').addEventListener('click', () => {
-  opt.flash = !opt.flash;
-  store.set('rr_flash', opt.flash ? '1' : '0');
-  syncOpts();
-});
-$('volMaster').addEventListener('input', e => {
-  meta.vol.master = e.target.value / 100;
-  applyVol();
-  saveMeta();
-});
-$('volMusic').addEventListener('input', e => {
-  meta.vol.music = (e.target.value / 100) * 0.6;
-  applyVol();
-  saveMeta();
-});
-$('volSfx').addEventListener('input', e => {
-  initAudio();
-  meta.vol.sfx = (e.target.value / 100) * 0.8;
-  applyVol();
-  saveMeta();
-  playS('dry', 0.4, 1.6, 0, 0);
-});
-for (const b of $('chCol').children)
-  b.addEventListener('click', () => {
-    meta.ch.col = b.dataset.c;
-    saveMeta();
-    syncOpts();
-  });
-for (const b of $('chSize').children)
-  if (b.dataset.s)
-    b.addEventListener('click', () => {
-      meta.ch.size = +b.dataset.s;
-      saveMeta();
-      syncOpts();
-    });
-$('chLine').addEventListener('click', () => {
-  meta.ch.line = !meta.ch.line;
-  saveMeta();
-  syncOpts();
-});
-for (const b of $('hudSize').children)
-  b.addEventListener('click', () => {
-    meta.hud.size = b.dataset.h;
-    saveMeta();
-    syncOpts();
-  });
-for (const b of $('hudTs').children)
-  b.addEventListener('click', () => {
-    meta.hud.ts = +b.dataset.t;
-    saveMeta();
-    syncOpts();
-    for (const id of ['gauge', 'wavePlate', 'scorePlate', 'bossBox', 'radio']) $(id).dataset.hf = '';
-  });
-for (const b of $('hudOp').children)
-  b.addEventListener('click', () => {
-    meta.hud.op = +b.dataset.o;
-    saveMeta();
-    syncOpts();
-    for (const id of ['gauge', 'wavePlate', 'scorePlate', 'bossBox', 'radio']) $(id).dataset.hf = '';
-  });
-for (const b of $('diffSeg').children)
-  b.addEventListener('click', () => {
-    meta.diff = b.dataset.d;
-    saveMeta();
-    syncOpts();
-  });
-for (const b of $('gfxSeg').children)
-  if (b.dataset.g)
-    b.addEventListener('click', () => {
-      if (meta.hud.gfx === b.dataset.g) return;
-      meta.hud.gfx = b.dataset.g;
-      saveMeta();
-      syncOpts();
-      RS_MAX = Math.min(DEVICE_RENDER_CAP, gfxPreset().dpr);
-      rsCap = RS_MAX;
-      rsDropT = 0;
-      resize();
-    });
-$('fpsBtn').addEventListener('click', () => {
-  meta.hud.fps = !meta.hud.fps;
-  saveMeta();
-  syncOpts();
-});
 /* live crosshair preview in Settings: a patch of night street, a shambler drifting under the reticle, a shot every so often */
-let chPrevRaf = 0;
+let chPrevRaf;
 function chPreview() {
   const cv = $('chPrev');
   if (!cv || $('settings').hidden || !cv.offsetWidth) {
@@ -232,7 +125,7 @@ function chPreview() {
   c.fill();
   const hot = Math.abs(zx - mx) < 14 ? 1 : 0;
   chPrevSt.hot = (chPrevSt.hot || 0) + (hot - (chPrevSt.hot || 0)) * 0.3;
-  const ch = meta.ch,
+  const ch = GS.meta.ch,
     col = CH_COLS[ch.col] || CH_COLS.lime,
     k = ch.size * 0.72,
     kick = Math.max(0, 1 - (t % 1.4) / 0.18);
@@ -268,8 +161,8 @@ function chPreview() {
   );
   chPrevRaf = requestAnimationFrame(chPreview);
 }
-const chPrevSt = { hot: 0 };
-let settingsFrom = 'menu';
+let chPrevSt;
+let settingsFrom;
 function openSettings(from) {
   settingsFrom = from;
   for (const el of document.querySelectorAll('.pracRow')) el.hidden = from !== 'menu';
@@ -278,14 +171,139 @@ function openSettings(from) {
   $('settings').hidden = false;
   if (!chPrevRaf) chPrevRaf = requestAnimationFrame(chPreview);
 }
-$('settingsBtn').addEventListener('click', () => openSettings('menu'));
-$('settingsBtn2').addEventListener('click', () => openSettings('pause'));
-$('settingsBack').addEventListener('click', () => {
-  $('settings').hidden = true;
-  if (state === 'pause' || state === 'menu') $(settingsFrom).hidden = false;
-  const returnId = settingsFrom === 'pause' ? 'settingsBtn2' : 'settingsBtn';
-  const returnTarget = $(returnId);
-  if (returnTarget && !returnTarget.hidden) returnTarget.focus({ preventScroll: true });
-});
 
 /* ---------- Profile export/import ---------- */
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  $('leanBtn').addEventListener('click', () => {
+    opt.lean = !opt.lean;
+    store.set('rr_lean', opt.lean ? '1' : '0');
+    syncOpts();
+  });
+  $('grainBtn').addEventListener('click', () => {
+    opt.grain = !opt.grain;
+    store.set('rr_grain', opt.grain ? '1' : '0');
+    syncOpts();
+  });
+  $('losBtn').addEventListener('click', () => {
+    opt.los = !opt.los;
+    store.set('rr_los', opt.los ? '1' : '0');
+    syncOpts();
+  });
+  $('goreBtn').addEventListener('click', () => {
+    opt.gore = !opt.gore;
+    store.set('rr_gore', opt.gore ? '1' : '0');
+    syncOpts();
+  });
+  $('shakeBtn').addEventListener('click', () => {
+    opt.shake = !opt.shake;
+    store.set('rr_shake', opt.shake ? '1' : '0');
+    if (!opt.shake) GS.trauma = 0;
+    syncOpts();
+  });
+  $('musicBtn').addEventListener('click', () => {
+    initAudio();
+    setMusic(!opt.music);
+  });
+  $('practiceBtn').addEventListener('click', () => openPractice('settings'));
+  $('practiceBack').addEventListener('click', () => {
+    $('practice').hidden = true;
+    $(PRACTICE_FROM === 'settings' ? 'settings' : 'menu').hidden = false;
+  });
+  $('flashBtn').addEventListener('click', () => {
+    opt.flash = !opt.flash;
+    store.set('rr_flash', opt.flash ? '1' : '0');
+    syncOpts();
+  });
+  $('volMaster').addEventListener('input', e => {
+    GS.meta.vol.master = e.target.value / 100;
+    applyVol();
+    saveMeta();
+  });
+  $('volMusic').addEventListener('input', e => {
+    GS.meta.vol.music = (e.target.value / 100) * 0.6;
+    applyVol();
+    saveMeta();
+  });
+  $('volSfx').addEventListener('input', e => {
+    initAudio();
+    GS.meta.vol.sfx = (e.target.value / 100) * 0.8;
+    applyVol();
+    saveMeta();
+    playS('dry', 0.4, 1.6, 0, 0);
+  });
+  for (const b of $('chCol').children)
+    b.addEventListener('click', () => {
+      GS.meta.ch.col = b.dataset.c;
+      saveMeta();
+      syncOpts();
+    });
+  for (const b of $('chSize').children)
+    if (b.dataset.s)
+      b.addEventListener('click', () => {
+        GS.meta.ch.size = +b.dataset.s;
+        saveMeta();
+        syncOpts();
+      });
+  $('chLine').addEventListener('click', () => {
+    GS.meta.ch.line = !GS.meta.ch.line;
+    saveMeta();
+    syncOpts();
+  });
+  for (const b of $('hudSize').children)
+    b.addEventListener('click', () => {
+      GS.meta.hud.size = b.dataset.h;
+      saveMeta();
+      syncOpts();
+    });
+  for (const b of $('hudTs').children)
+    b.addEventListener('click', () => {
+      GS.meta.hud.ts = +b.dataset.t;
+      saveMeta();
+      syncOpts();
+      for (const id of ['gauge', 'wavePlate', 'scorePlate', 'bossBox', 'radio']) $(id).dataset.hf = '';
+    });
+  for (const b of $('hudOp').children)
+    b.addEventListener('click', () => {
+      GS.meta.hud.op = +b.dataset.o;
+      saveMeta();
+      syncOpts();
+      for (const id of ['gauge', 'wavePlate', 'scorePlate', 'bossBox', 'radio']) $(id).dataset.hf = '';
+    });
+  for (const b of $('diffSeg').children)
+    b.addEventListener('click', () => {
+      GS.meta.diff = b.dataset.d;
+      saveMeta();
+      syncOpts();
+    });
+  for (const b of $('gfxSeg').children)
+    if (b.dataset.g)
+      b.addEventListener('click', () => {
+        if (GS.meta.hud.gfx === b.dataset.g) return;
+        GS.meta.hud.gfx = b.dataset.g;
+        saveMeta();
+        syncOpts();
+        GS.RS_MAX = Math.min(DEVICE_RENDER_CAP, gfxPreset().dpr);
+        GS.rsCap = GS.RS_MAX;
+        GS.rsDropT = 0;
+        resize();
+      });
+  $('fpsBtn').addEventListener('click', () => {
+    GS.meta.hud.fps = !GS.meta.hud.fps;
+    saveMeta();
+    syncOpts();
+  });
+  chPrevRaf = 0;
+  chPrevSt = { hot: 0 };
+  settingsFrom = 'menu';
+  $('settingsBtn').addEventListener('click', () => openSettings('menu'));
+  $('settingsBtn2').addEventListener('click', () => openSettings('pause'));
+  $('settingsBack').addEventListener('click', () => {
+    $('settings').hidden = true;
+    if (GS.state === 'pause' || GS.state === 'menu') $(settingsFrom).hidden = false;
+    const returnId = settingsFrom === 'pause' ? 'settingsBtn2' : 'settingsBtn';
+    const returnTarget = $(returnId);
+    if (returnTarget && !returnTarget.hidden) returnTarget.focus({ preventScroll: true });
+  });
+}

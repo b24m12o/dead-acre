@@ -1,5 +1,9 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const DLOOK = {
+import { GS } from './gs.js';
+import { clamp } from './util.js';
+import { META_DEF, META_VER, saveMeta } from './settings.js';
+import { HEROES, PERKS } from '../game/arsenal.js';
+export const DLOOK = {
   town: {
     ground: '#7a7458',
     tones: [
@@ -42,68 +46,68 @@ const DIFFS = {
   normal: { hp: 1, dmg: 1, seeds: 1 },
   hard: { hp: 1.3, dmg: 1.4, seeds: 1.5 },
 };
-const DIFF = () => DIFFS[meta.diff] || DIFFS.normal;
-function normalizeMeta() {
+export const DIFF = () => DIFFS[GS.meta.diff] || DIFFS.normal;
+export function normalizeMeta() {
   const record = v => !!v && typeof v === 'object' && !Array.isArray(v);
-  meta.seeds = Number.isFinite(Number(meta.seeds))
-    ? clamp(Math.floor(Number(meta.seeds)), 0, Number.MAX_SAFE_INTEGER)
+  GS.meta.seeds = Number.isFinite(Number(GS.meta.seeds))
+    ? clamp(Math.floor(Number(GS.meta.seeds)), 0, Number.MAX_SAFE_INTEGER)
     : 0;
-  meta.diff = Object.prototype.hasOwnProperty.call(DIFFS, meta.diff) ? meta.diff : 'normal';
+  GS.meta.diff = Object.prototype.hasOwnProperty.call(DIFFS, GS.meta.diff) ? GS.meta.diff : 'normal';
   const districtIds = ['town', 'highway', 'cemetery'];
-  if (!districtIds.includes(meta.district)) meta.district = 'town';
-  meta.infMax = clamp(Number.isFinite(Number(meta.infMax)) ? Math.floor(Number(meta.infMax)) : 0, 0, 10);
-  meta.inf = clamp(Number.isFinite(Number(meta.inf)) ? Math.floor(Number(meta.inf)) : 0, 0, meta.infMax);
-  for (const id of Object.keys(HEROES)) meta.unlocked[id] = id === 'ranger' ? true : meta.unlocked[id] === true;
-  for (const id of Object.keys(meta.unlocked))
-    if (!Object.prototype.hasOwnProperty.call(HEROES, id)) delete meta.unlocked[id];
-  if (!HEROES[meta.hero] || !meta.unlocked[meta.hero]) meta.hero = 'ranger';
+  if (!districtIds.includes(GS.meta.district)) GS.meta.district = 'town';
+  GS.meta.infMax = clamp(Number.isFinite(Number(GS.meta.infMax)) ? Math.floor(Number(GS.meta.infMax)) : 0, 0, 10);
+  GS.meta.inf = clamp(Number.isFinite(Number(GS.meta.inf)) ? Math.floor(Number(GS.meta.inf)) : 0, 0, GS.meta.infMax);
+  for (const id of Object.keys(HEROES)) GS.meta.unlocked[id] = id === 'ranger' ? true : GS.meta.unlocked[id] === true;
+  for (const id of Object.keys(GS.meta.unlocked))
+    if (!Object.prototype.hasOwnProperty.call(HEROES, id)) delete GS.meta.unlocked[id];
+  if (!HEROES[GS.meta.hero] || !GS.meta.unlocked[GS.meta.hero]) GS.meta.hero = 'ranger';
   const cleanPerks = {};
   for (const pk of PERKS) {
-    const v = Number(meta.perks[pk.id] || 0);
+    const v = Number(GS.meta.perks[pk.id] || 0);
     if (Number.isFinite(v) && v > 0) cleanPerks[pk.id] = clamp(Math.floor(v), 0, pk.max);
   }
-  meta.perks = cleanPerks;
-  meta.perkOff = record(meta.perkOff) ? meta.perkOff : {};
-  for (const k of Object.keys(meta.perkOff)) if (!PERKS.some(pk => pk.id === k)) delete meta.perkOff[k];
-  for (const pk of PERKS) meta.perkOff[pk.id] = meta.perkOff[pk.id] === true;
+  GS.meta.perks = cleanPerks;
+  GS.meta.perkOff = record(GS.meta.perkOff) ? GS.meta.perkOff : {};
+  for (const k of Object.keys(GS.meta.perkOff)) if (!PERKS.some(pk => pk.id === k)) delete GS.meta.perkOff[k];
+  for (const pk of PERKS) GS.meta.perkOff[pk.id] = GS.meta.perkOff[pk.id] === true;
   for (const k of ['master', 'music', 'sfx']) {
-    const v = Number(meta.vol[k]);
-    meta.vol[k] = Number.isFinite(v) ? clamp(v, 0, 1) : META_DEF().vol[k];
+    const v = Number(GS.meta.vol[k]);
+    GS.meta.vol[k] = Number.isFinite(v) ? clamp(v, 0, 1) : META_DEF().vol[k];
   }
-  if (!['white', 'amber', 'red', 'green'].includes(meta.ch.col)) meta.ch.col = 'white';
-  meta.ch.size = clamp(Number.isFinite(Number(meta.ch.size)) ? Number(meta.ch.size) : 1.15, 0.65, 1.8);
-  meta.ch.line = meta.ch.line !== false;
-  if (!['compact', 'full'].includes(meta.hud.size)) meta.hud.size = 'compact';
-  meta.hud.op = clamp(Number.isFinite(Number(meta.hud.op)) ? Number(meta.hud.op) : 1, 0.45, 1);
-  if (meta.hud.gfx !== 'balanced') meta.hud.gfx = 'ultra';
-  meta.hud.fps = meta.hud.fps === true;
-  meta.hud.ts = clamp(Number.isFinite(Number(meta.hud.ts)) ? Number(meta.hud.ts) : 1, 0.75, 1.5);
-  for (const k of ['stats', 'chal', 'trophies', 'evacDist', 'tips']) if (!record(meta[k])) meta[k] = {};
+  if (!['white', 'amber', 'red', 'green'].includes(GS.meta.ch.col)) GS.meta.ch.col = 'white';
+  GS.meta.ch.size = clamp(Number.isFinite(Number(GS.meta.ch.size)) ? Number(GS.meta.ch.size) : 1.15, 0.65, 1.8);
+  GS.meta.ch.line = GS.meta.ch.line !== false;
+  if (!['compact', 'full'].includes(GS.meta.hud.size)) GS.meta.hud.size = 'compact';
+  GS.meta.hud.op = clamp(Number.isFinite(Number(GS.meta.hud.op)) ? Number(GS.meta.hud.op) : 1, 0.45, 1);
+  if (GS.meta.hud.gfx !== 'balanced') GS.meta.hud.gfx = 'ultra';
+  GS.meta.hud.fps = GS.meta.hud.fps === true;
+  GS.meta.hud.ts = clamp(Number.isFinite(Number(GS.meta.hud.ts)) ? Number(GS.meta.hud.ts) : 1, 0.75, 1.5);
+  for (const k of ['stats', 'chal', 'trophies', 'evacDist', 'tips']) if (!record(GS.meta[k])) GS.meta[k] = {};
   {
-    const tw = record(meta.twists) ? meta.twists : {};
-    meta.twists = {};
-    for (const t of ['pistol', 'nomeds', 'dark', 'glass', 'horde']) if (tw[t] === true) meta.twists[t] = true;
+    const tw = record(GS.meta.twists) ? GS.meta.twists : {};
+    GS.meta.twists = {};
+    for (const t of ['pistol', 'nomeds', 'dark', 'glass', 'horde']) if (tw[t] === true) GS.meta.twists[t] = true;
   } // only known twists, only true
-  meta.tutDone = meta.tutDone === true;
-  meta.tutForce = meta.tutForce === true;
-  meta.v = META_VER;
+  GS.meta.tutDone = GS.meta.tutDone === true;
+  GS.meta.tutForce = GS.meta.tutForce === true;
+  GS.meta.v = META_VER;
   // Challenge state and lifetime counters come from local storage; coerce malformed values safely.
-  for (const k of Object.keys(meta.chal)) meta.chal[k] = meta.chal[k] === true;
-  for (const k of Object.keys(meta.stats)) {
-    const n = Number(meta.stats[k]);
-    if (!Number.isFinite(n) || n < 0) delete meta.stats[k];
-    else meta.stats[k] = Math.floor(Math.min(n, 1e9));
+  for (const k of Object.keys(GS.meta.chal)) GS.meta.chal[k] = GS.meta.chal[k] === true;
+  for (const k of Object.keys(GS.meta.stats)) {
+    const n = Number(GS.meta.stats[k]);
+    if (!Number.isFinite(n) || n < 0) delete GS.meta.stats[k];
+    else GS.meta.stats[k] = Math.floor(Math.min(n, 1e9));
   }
   const districts = ['town', 'highway', 'cemetery'];
-  for (const k of Object.keys(meta.evacDist)) {
-    if (!districts.includes(k) || meta.evacDist[k] !== true) delete meta.evacDist[k];
+  for (const k of Object.keys(GS.meta.evacDist)) {
+    if (!districts.includes(k) || GS.meta.evacDist[k] !== true) delete GS.meta.evacDist[k];
   }
-  for (const k of Object.keys(meta.trophies)) {
-    if (!record(meta.trophies[k])) {
-      delete meta.trophies[k];
+  for (const k of Object.keys(GS.meta.trophies)) {
+    if (!record(GS.meta.trophies[k])) {
+      delete GS.meta.trophies[k];
       continue;
     }
-    const t = meta.trophies[k];
+    const t = GS.meta.trophies[k];
     for (const f of ['best', 'pbest']) {
       const n = Number(t[f]);
       if (t[f] != null && (!Number.isFinite(n) || n < 0)) delete t[f];
@@ -113,10 +117,14 @@ function normalizeMeta() {
     if (t.n != null && (!Number.isFinite(count) || count < 0)) delete t.n;
     else if (t.n != null) t.n = Math.floor(Math.min(count, 1e9));
   }
-  for (const k of Object.keys(meta.tips)) meta.tips[k] = meta.tips[k] === true || meta.tips[k] === 1;
-  if (!record(meta.daily)) meta.daily = {};
-  if (typeof meta.outfit !== 'string') meta.outfit = 'std';
+  for (const k of Object.keys(GS.meta.tips)) GS.meta.tips[k] = GS.meta.tips[k] === true || GS.meta.tips[k] === 1;
+  if (!record(GS.meta.daily)) GS.meta.daily = {};
+  if (typeof GS.meta.outfit !== 'string') GS.meta.outfit = 'std';
 }
-normalizeMeta();
-setTimeout(saveMeta, 0); // a first write right away: if this browser won't keep the profile, the player is told now, not after a run
-let RUN = { hero: meta.hero, district: 'town', inf: 0, endless: false };
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  normalizeMeta();
+  setTimeout(saveMeta, 0); // a first write right away: if this browser won't keep the profile, the player is told now, not after a run
+  GS.RUN = { hero: GS.meta.hero, district: 'town', inf: 0, endless: false };
+}

@@ -1,5 +1,14 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const ZSKIN = [
+import { GS } from '../core/gs.js';
+import { TAU, angDiff, clamp, lerp, rand } from '../core/util.js';
+import { lineQ, quad, setH } from './sprites.js';
+import { R } from './atlas.js';
+import { drawLegs, ik2 } from '../actors/legs.js';
+import { dust, part } from './effects.js';
+import { shieldUp } from '../game/combat.js';
+import { queenTail, toWorld } from '../actors/projectiles.js';
+import { drawBody } from './draw-bodies.js';
+export const ZSKIN = [
     [0.6, 0.66, 0.5],
     [0.66, 0.6, 0.5],
     [0.55, 0.61, 0.58],
@@ -27,11 +36,11 @@ const ZSKIN = [
     [0.48, 0.42, 0.34],
     [0.17, 0.15, 0.19],
   ];
-const BLOOD = [0.31, 0.022, 0.02],
+export const BLOOD = [0.31, 0.022, 0.02],
   BILE = [0.42, 0.38, 0.14];
 let ZP = 'z_'; // which set of arm parts zArm draws with: painted (z_) or 3D-baked (zs_)
 const LONGSL = { 0: 1, 1: 1, 2: 1, 3: 1, 5: 1, 7: 1, 8: 1, 9: 1, 11: 1, 12: 1, 13: 1, 14: 1, 17: 1, 18: 1 }; // outfits whose sleeves reach the wrist
-function sleeveLen(e) {
+export function sleeveLen(e) {
   if (e.slv === undefined)
     e.slv =
       e.type === 'hopper'
@@ -43,7 +52,7 @@ function sleeveLen(e) {
           : 0;
   return e.slv;
 } // 1 down to the wrist, 0.45 rolled up or torn, 0 a bare forearm
-function armSeg(shx, shy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, handSc, ls) {
+export function armSeg(shx, shy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, handSc, ls) {
   // shoulder to elbow to hand: a sleeve over the upper arm and, for long sleeves, over the forearm too
   lineQ(shx, shy, ex, ey, w1 * 1.05, sleeve[0], sleeve[1], sleeve[2], 1, 0, 0, 0, fl, R[ZP + 'upper']);
   if (ls > 0) {
@@ -134,7 +143,7 @@ function armSeg(shx, shy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, handSc
     fl
   );
 }
-function natElbow(sx, sy, hx, hy, L, cx, cy) {
+export function natElbow(sx, sy, hx, hy, L, cx, cy) {
   // a relaxed human elbow seen from above: a soft bend that always points away from the body; when the hand comes close the arm drops toward the ground (looks shorter) instead of folding into a sharp V
   const dx = hx - sx,
     dy = hy - sy,
@@ -166,7 +175,7 @@ function zArm(W, sh, hand, L, w1, w2, side, skin, sleeve, fl, handSc, gone, ls =
     [ex, ey] = nat ? natElbow(shx, shy, hx, hy, L, ...W(-2, 0)) : ik2(shx, shy, hx, hy, L, L, -side);
   armSeg(shx, shy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, handSc, ls);
 }
-function drawEnemy(e) {
+export function drawEnemy(e) {
   const dead = e.dying !== undefined && !e.__std,
     fl =
       e.flash > 0 && !dead
@@ -181,34 +190,34 @@ function drawEnemy(e) {
     (e.__std ? e.__ss || 1 : 1);
   if (e.elite) {
     if (e.trait === 'bloater') {
-      gR = 0.94;
-      gG = 0.98;
-      gB = 0.7;
+      GS.gR = 0.94;
+      GS.gG = 0.98;
+      GS.gB = 0.7;
     } else if (e.trait === 'armored') {
-      gR = 0.86;
-      gG = 0.88;
-      gB = 0.94;
+      GS.gR = 0.86;
+      GS.gG = 0.88;
+      GS.gB = 0.94;
     } else if (e.trait === 'screamer') {
-      gR = 1.1;
-      gG = 0.96;
-      gB = 0.92;
+      GS.gR = 1.1;
+      GS.gG = 0.96;
+      GS.gB = 0.92;
     } else {
-      gR = 1.04;
-      gG = 0.86;
-      gB = 0.8;
+      GS.gR = 1.04;
+      GS.gG = 0.86;
+      GS.gB = 0.8;
     }
   } // an elite has been dead longer and fed more: bigger, darker with old blood
   const sq = e.squash > 0 ? Math.sin((e.squash / 0.18) * Math.PI) * 0.14 : 0;
-  gT = e.lurk === 'lie' ? 0.58 : 1 - fall * 0.42;
-  gA = fade * (0.3 + 0.7 * (e.sv ?? 1)) * (e.__std ? e.__sa : 1);
-  if (gA < 0.01) {
-    gT = 1;
-    gA = 1;
-    gR = gG = gB = 1;
+  GS.gT = e.lurk === 'lie' ? 0.58 : 1 - fall * 0.42;
+  GS.gA = fade * (0.3 + 0.7 * (e.sv ?? 1)) * (e.__std ? e.__sa : 1);
+  if (GS.gA < 0.01) {
+    GS.gT = 1;
+    GS.gA = 1;
+    GS.gR = GS.gG = GS.gB = 1;
     return;
   }
   const sink = e.emerge < 1 ? 1 - e.emerge : 0;
-  const ta = e.a + (dead ? 0 : Math.sin(time * 40) * e.wob * 0.08),
+  const ta = e.a + (dead ? 0 : Math.sin(GS.time * 40) * e.wob * 0.08),
     c = Math.cos(ta),
     s = Math.sin(ta);
   const W = (lx, ly) => [e.x + (lx * c - ly * s) * em, e.y - e.z + (lx * s + ly * c) * em + sink * 6];
@@ -221,30 +230,30 @@ function drawEnemy(e) {
     e.type === 'skitter' || e.type === 'wasp' || e.type === 'flower' || e.type === 'beetle' || e.type === 'hopper';
   if (dead && humanoid && e.type !== 'hopper') {
     drawBody(e, fl, fall, em, skin, shirt);
-    gT = 1;
-    gA = 1;
-    gR = gG = gB = 1;
+    GS.gT = 1;
+    GS.gA = 1;
+    GS.gR = GS.gG = GS.gB = 1;
     return;
   }
   if (e.type === 'mini' && !e.__std) {
     drawBody(e, fl, 0, em, skin, shirt);
-    gT = 1;
-    gA = 1;
-    gR = gG = gB = 1;
+    GS.gT = 1;
+    GS.gA = 1;
+    GS.gR = GS.gG = GS.gB = 1;
     return;
   } // half a body, dragging itself
   if (e.crawl && !dead && !e.__std) {
     drawBody(e, fl, 0, em, skin, shirt);
-    gT = 1;
-    gA = 1;
-    gR = gG = gB = 1;
+    GS.gT = 1;
+    GS.gA = 1;
+    GS.gR = GS.gG = GS.gB = 1;
     return;
   }
   if (e.down > 0 && humanoid && e.type !== 'hopper' && !e.__std) {
     drawBody(e, fl, 0, em, skin, shirt);
-    gT = 1;
-    gA = 1;
-    gR = gG = gB = 1;
+    GS.gT = 1;
+    GS.gA = 1;
+    GS.gR = GS.gG = GS.gB = 1;
     return;
   }
   switch (e.type) {
@@ -263,7 +272,7 @@ function drawEnemy(e) {
         lurch = run ? 0 : Math.sin(ph) * (limp ? 0.14 : 0.09) * mv;
       const sway =
           (run ? 0.8 : limp ? 2.8 : 1.6) * Math.sin(ph) * mv * K +
-          (e.wbT > 0 ? Math.sin(time * 9 + (e.id || 0)) * 3.4 * Math.min(1, e.wbT / 0.5) * K : 0),
+          (e.wbT > 0 ? Math.sin(GS.time * 9 + (e.id || 0)) * 3.4 * Math.min(1, e.wbT / 0.5) * K : 0),
         fk = e.flT > 0 && !dead ? e.flT / 0.16 : 0,
         fwx = (e.fdx || 0) * 4 * fk * em,
         fwy = (e.fdy || 0) * 4 * fk * em; // weight rolling from foot to foot; a hit knocks the upper body back
@@ -284,7 +293,7 @@ function drawEnemy(e) {
         if (bad && mv > 0.3 && Math.random() < 0.02) dust(fx, fy, 1, 14, 0.5, 0.35);
       } // the bad foot drags behind, turned out, scuffing
       // arms (pose per type)
-      const tw = dead ? 0 : Math.sin(time * 2.2 + e.id) * 3;
+      const tw = dead ? 0 : Math.sin(GS.time * 2.2 + e.id) * 3;
       let hands;
       if (brute) {
         const st = e.st,
@@ -377,8 +386,8 @@ function drawEnemy(e) {
           [11 + Math.sin(ph) * 3 * mv, -21],
           [11 - Math.sin(ph) * 3 * mv, 21],
         ]; // arms out round the swollen gut
-      if (!dead && e.trait === 'screamer' && (e.scrPose || 0) > time) {
-        const k3 = Math.sin(clamp((e.scrPose - time) / 0.9, 0, 1) * Math.PI);
+      if (!dead && e.trait === 'screamer' && (e.scrPose || 0) > GS.time) {
+        const k3 = Math.sin(clamp((e.scrPose - GS.time) / 0.9, 0, 1) * Math.PI);
         hands = hands.map(h => [lerp(h[0], -8, k3), lerp(h[1], (h[1] < 0 ? -1 : 1) * 27, k3)]);
       } // the scream: arms flung back and out, chest up
       if (e.shield && !dead)
@@ -447,12 +456,12 @@ function drawEnemy(e) {
       // torso + head
       setH(20 * K);
       if (brute) {
-        const rear = e.st === 'rear' ? 1.06 + Math.sin(time * 40) * 0.02 : 1;
+        const rear = e.st === 'rear' ? 1.06 + Math.sin(GS.time * 40) * 0.02 : 1;
         quad(
           R.z_brute,
           e.x + fwx,
           e.y - e.z + fwy,
-          ta + lurch + fk * 0.08 * (e.flS || 1) + (e.st === 'stun' ? Math.sin(time * 22) * 0.08 : 0),
+          ta + lurch + fk * 0.08 * (e.flS || 1) + (e.st === 'stun' ? Math.sin(GS.time * 22) * 0.08 : 0),
           em * rear * (1 + sq * 0.4),
           em * rear,
           1,
@@ -467,14 +476,14 @@ function drawEnemy(e) {
         const [hx, hy] = Wb(12, look * 2);
         e.__hx = hx;
         e.__hy = hy;
-        e.__ht = time;
+        e.__ht = GS.time;
         e.__ha = ta + look * 0.8;
         setH(40);
         quad(
           R.z_bhead,
           hx + fwx * 0.5,
           hy + fwy * 0.5,
-          ta + look * 0.8 + (dead ? 0 : Math.sin(time * 1.3 + e.id) * 0.08),
+          ta + look * 0.8 + (dead ? 0 : Math.sin(GS.time * 1.3 + e.id) * 0.08),
           em * 1.32,
           em * 1.32,
           1,
@@ -486,7 +495,7 @@ function drawEnemy(e) {
           1,
           fl
         );
-        if (e.st === 'stun' && !SHMODE && Math.random() < 0.15)
+        if (e.st === 'stun' && !GS.SHMODE && Math.random() < 0.15)
           part({
             k: 8,
             x: e.x + Math.cos(ta) * 30,
@@ -503,7 +512,7 @@ function drawEnemy(e) {
           }); // dazed: drool and blood, not cartoon stars
       } else if (bloat) {
         const sw = e.swell || 0,
-          pu = 1 + Math.sin(time * (3 + sw * 20) + e.id) * (0.025 + sw * 0.05) + sw * 0.28 + sq;
+          pu = 1 + Math.sin(GS.time * (3 + sw * 20) + e.id) * (0.025 + sw * 0.05) + sw * 0.28 + sq;
         quad(
           R.z_bloat,
           e.x,
@@ -523,7 +532,7 @@ function drawEnemy(e) {
         const [hx, hy] = W(-2 * pu + look * 0.5, look * 2.5);
         e.__hx = hx;
         e.__hy = hy;
-        e.__ht = time;
+        e.__ht = GS.time;
         e.__ha = ta + look * 0.6;
         setH(38);
         quad(R.z_bhead, hx, hy, ta + look * 0.6, em * 0.98, em * 0.98, 0.92, 1.02, 0.9, 1, 1.4, 1.4, 1.4, fl); // the head sits on the shoulders, a bald swollen skull
@@ -535,7 +544,7 @@ function drawEnemy(e) {
           ? e.__kn || 0
           : 0; /* kneeling, the back is bent forward: from above the torso shows longer and sits ahead of the hips */
         const [tbx, tby] = Wb(3 * kn, 0);
-        const gut = e.trait === 'bloater' ? 1.2 + Math.sin(time * 2.6 + e.id) * 0.025 : 1;
+        const gut = e.trait === 'bloater' ? 1.2 + Math.sin(GS.time * 2.6 + e.id) * 0.025 : 1;
         quad(
           torso,
           tbx,
@@ -559,16 +568,16 @@ function drawEnemy(e) {
           }
         if (!e.headless) {
           const head = spit ? R.z_head_spit : scream ? R.z_shead : R['z_head' + (e.hv || 0)];
-          const tilt = dead ? 0 : Math.sin(time * 1.7 + e.id * 2.3) * 0.35 + (e.tilt || 0),
+          const tilt = dead ? 0 : Math.sin(GS.time * 1.7 + e.id * 2.3) * 0.35 + (e.tilt || 0),
             hf = scream ? lerp(4, -2, e.open || 0) : run ? 7 : 4;
-          const [hx0, hy0] = Wb(hf + 5 * kn - fk * 2, Math.sin(time * 1.1 + e.id) * 1.2 + look * 2.2),
+          const [hx0, hy0] = Wb(hf + 5 * kn - fk * 2, Math.sin(GS.time * 1.1 + e.id) * 1.2 + look * 2.2),
             hx = hx0 + fwx * 0.6,
             hy = hy0 + fwy * 0.6;
           setH(30); /* the head snaps back further than the shoulders */
           const glowE = scream ? 1 + (e.open || 0) * 3 : spit && e.charging > 0 ? 3.2 : 1.5;
           e.__hx = hx;
           e.__hy = hy;
-          e.__ht = time;
+          e.__ht = GS.time;
           e.__ha = ta + look * 0.85;
           quad(
             head,
@@ -609,7 +618,7 @@ function drawEnemy(e) {
         [bx, by] = W(-12, 0);
       setH(3);
       for (let i = 0; i < 3; i++) {
-        const sw = dead ? 0 : Math.sin(time * 3 + i * 2 + e.id) * 4,
+        const sw = dead ? 0 : Math.sin(GS.time * 3 + i * 2 + e.id) * 4,
           [gx, gy] = W(-24 - i * 3, (i - 1) * 4 + sw);
         lineQ(bx, by, gx, gy, 3.2 - i * 0.6, 0.62 - i * 0.08, 0.16, 0.18, 1, 0, 0, 0, fl);
       }
@@ -627,8 +636,8 @@ function drawEnemy(e) {
       break;
     }
     case 'egg': {
-      const jg = (e.wob || 0) * Math.sin(time * 55) * 0.05,
-        sw = 1 + Math.sin(time * (e.hatch < 2 ? 9 : 3) + e.id) * (e.hatch < 2 ? 0.08 : 0.04) + jg,
+      const jg = (e.wob || 0) * Math.sin(GS.time * 55) * 0.05,
+        sw = 1 + Math.sin(GS.time * (e.hatch < 2 ? 9 : 3) + e.id) * (e.hatch < 2 ? 0.08 : 0.04) + jg,
         k = dead ? 0.6 : 1;
       /* a hit makes the sac quiver in place, nothing more */ setH(6);
       quad(
@@ -674,7 +683,7 @@ function drawEnemy(e) {
           lineQ(kx, ky, fx, fy, 2.4 * em, 0.24, 0.19, 0.15, 1, 0, 0, 0, fl);
         }
       const [t0x, t0y] = W(-19, 0),
-        [t1x, t1y] = W(-30, dead ? 3 : Math.sin(time * 9 + e.id) * 5);
+        [t1x, t1y] = W(-30, dead ? 3 : Math.sin(GS.time * 9 + e.id) * 5);
       /* a dead dog's tail lies still */ lineQ(t0x, t0y, t1x, t1y, 3, 0.3, 0.24, 0.2, 1, 0, 0, 0, fl);
       setH(12);
       quad(
@@ -696,7 +705,7 @@ function drawEnemy(e) {
       const [hx, hy] = W(22 + lunge * 4, 0);
       e.__hx = hx;
       e.__hy = hy;
-      e.__ht = time;
+      e.__ht = GS.time;
       e.__ha = ta;
       e.__hk = 0.75;
       setH(16);
@@ -704,7 +713,7 @@ function drawEnemy(e) {
         R.z_hhead,
         hx,
         hy,
-        ta + (dead ? 0.15 : Math.sin(time * 4 + e.id) * 0.12),
+        ta + (dead ? 0.15 : Math.sin(GS.time * 4 + e.id) * 0.12),
         em,
         em,
         1,
@@ -724,9 +733,9 @@ function drawEnemy(e) {
         break;
       }
       if (e.tint) {
-        gR = e.tint[0];
-        gG = e.tint[1];
-        gB = e.tint[2];
+        GS.gR = e.tint[0];
+        GS.gG = e.tint[1];
+        GS.gB = e.tint[2];
       }
       const sv = e.a,
         svy = e.y,
@@ -794,7 +803,7 @@ function drawEnemy(e) {
           const tip = pts[pts.length - 1],
             [mx2, my2] = W2(tip[0], tip[1]),
             charge = e.tailT < 0.4 || hr > 0.3 ? 2.6 : 0.35,
-            aim = hr > 0.3 && e.hoseNow !== undefined ? e.hoseNow : Math.atan2(P.y - my2, P.x - mx2);
+            aim = hr > 0.3 && e.hoseNow !== undefined ? e.hoseNow : Math.atan2(GS.P.y - my2, GS.P.x - mx2);
           setH(50 + hr * 40);
           quad(
             R.ab_mouth,
@@ -821,7 +830,7 @@ function drawEnemy(e) {
           [hx, hy] = W2(70 + Math.cos(tw) * 0, Math.sin(tw) * 10);
         setH(30);
         lineQ(nx0, ny0, hx, hy, 46 * em * kz, 0.58, 0.51, 0.51, 1, 0, 0, 0, fl, R.ab_limb);
-        const rage = e.ph === 2 ? 2.6 + Math.sin(time * 12) * 0.6 : 1.6;
+        const rage = e.ph === 2 ? 2.6 + Math.sin(GS.time * 12) * 0.6 : 1.6;
         setH(36);
         const hv =
           e.st === 'act' && e.act === 'volley' ? 1 + 0.1 * Math.sin(clamp(1 - e.stT / 0.45, 0, 1) * Math.PI) : 1;
@@ -843,7 +852,7 @@ function drawEnemy(e) {
         );
       }
       setH(34);
-      const br = 1 + Math.sin(time * 2.2) * 0.015 + sq * 0.2 + (e.st === 'crouch' ? 0.06 : 0);
+      const br = 1 + Math.sin(GS.time * 2.2) * 0.015 + sq * 0.2 + (e.st === 'crouch' ? 0.06 : 0);
       quad(R.ab_body, e.x, e.y, e.a, em * kz * br, em * kz * br, 1, 1, 1, 1, 1, 1, 1, fl);
       if (hr >= 0.5) tailDraw();
       e.a = sv;
@@ -851,25 +860,25 @@ function drawEnemy(e) {
       break;
     }
   }
-  if (e.elite && !(e.dying !== undefined) && !e.__std && !SHMODE && e.__ht === time && !(e.down > 0)) {
-    const sv = gA;
-    gR = gG = gB = 1;
-    gT = 1;
+  if (e.elite && !(e.dying !== undefined) && !e.__std && !GS.SHMODE && e.__ht === GS.time && !(e.down > 0)) {
+    const sv = GS.gA;
+    GS.gR = GS.gG = GS.gB = 1;
+    GS.gT = 1;
     setH(46);
     for (let i = 0; i < 9; i++) {
-      const t = time * (2.6 + i * 0.43) + i * 2.1 + e.id,
-        r = (10 + 6 * Math.sin(time * 3.1 + i * 1.3)) * (e.sc || 1),
-        fx = e.__hx + Math.cos(t) * r + Math.sin(time * 17 + i * 5) * 1.4,
+      const t = GS.time * (2.6 + i * 0.43) + i * 2.1 + e.id,
+        r = (10 + 6 * Math.sin(GS.time * 3.1 + i * 1.3)) * (e.sc || 1),
+        fx = e.__hx + Math.cos(t) * r + Math.sin(GS.time * 17 + i * 5) * 1.4,
         fy = e.__hy + Math.sin(t * 1.3) * r * 0.75 - 4;
       quad(R.pixel, fx, fy, t * 3, 0.55, 0.38, 0.05, 0.05, 0.04, 0.9 * sv, 0, 0, 0, 0);
     }
   } // flies: it has been dead the longest, and they follow it
-  gT = 1;
-  gA = 1;
-  gR = gG = gB = 1;
+  GS.gT = 1;
+  GS.gA = 1;
+  GS.gR = GS.gG = GS.gB = 1;
 }
 /* the three humanoid bosses: one rig, dressed and armed per district */
-const GIANT = {
+export const GIANT = {
   roadkill: {
     K: 2.7,
     sh: 56,
@@ -1018,7 +1027,7 @@ function drawGiant(e, fl, em, ta) {
     ];
   // arms up and out: the whole weight comes down
   else if (st === 'act' && e.act === 'pull') {
-    const j = Math.sin(time * 18) * 5;
+    const j = Math.sin(GS.time * 18) * 5;
     hands = [
       [G.reach * 0.95 + j, -G.sh * 0.3],
       [G.reach * 0.95 + j, G.sh * 0.3],
@@ -1038,7 +1047,7 @@ function drawGiant(e, fl, em, ta) {
   // spent: arms hanging, head down
   else if (e.stunT > 0)
     hands = [
-      [G.reach * 0.2, -G.sh * 1.25 + Math.sin(time * 9) * 6],
+      [G.reach * 0.2, -G.sh * 1.25 + Math.sin(GS.time * 9) * 6],
       [G.reach * 0.05, G.sh * 1.2],
     ];
   else if (st === 'act' && e.act === 'signthrow')
@@ -1118,7 +1127,7 @@ function drawGiant(e, fl, em, ta) {
         [G.reach * 0.8, G.sh * 0.5],
       ];
   }
-  if (bt === 'pz' && !dying && st === 'move') hands[0] = [G.reach * 0.78 + Math.sin(time * 1.3) * 6, -G.sh * 0.72]; // one arm always reaching
+  if (bt === 'pz' && !dying && st === 'move') hands[0] = [G.reach * 0.78 + Math.sin(GS.time * 1.3) * 6, -G.sh * 0.72]; // one arm always reaching
   if (bt === 'pz' && st === 'pswing') {
     const a0 = e.spin || 0;
     hands[1] = [Math.cos(a0) * G.reach * 1.3, Math.sin(a0) * G.reach * 1.3];
@@ -1156,7 +1165,7 @@ function drawGiant(e, fl, em, ta) {
             ? ta - 0.12
             : swing
               ? Math.atan2(h1y - y0, h1x - x0)
-              : ta + 0.5 + Math.sin(time * 1.6 + (e.stride || 0) * TAU) * 0.06,
+              : ta + 0.5 + Math.sin(GS.time * 1.6 + (e.stride || 0) * TAU) * 0.06,
       len = 62 * E; // carried out in front, face first, the way it swings it; held point-first like a ram on the charge
     setH(swing ? 40 : 30);
     quad(
@@ -1239,9 +1248,9 @@ function drawGiant(e, fl, em, ta) {
       setH(50);
       quad(
         R.pz_bag,
-        bx + 1 + Math.sin(time * 2.2) * 2,
+        bx + 1 + Math.sin(GS.time * 2.2) * 2,
         by - 66 * E,
-        Math.sin(time * 2.2) * 0.15,
+        Math.sin(GS.time * 2.2) * 0.15,
         E * 1.15,
         E * 1.15,
         1,
@@ -1260,7 +1269,7 @@ function drawGiant(e, fl, em, ta) {
       [h0x, h0y, 0],
       [h1x, h1y, 1],
     ]) {
-      const tw = Math.sin(time * 3 + k * 2) * 6,
+      const tw = Math.sin(GS.time * 3 + k * 2) * 6,
         bxx = hx - c * 30 * E - s * tw,
         byy = hy - s * 30 * E + c * tw;
       lineQ(hx, hy, bxx, byy, 3.4 * E, 0.42, 0.3, 0.2, 1, 0, 0, 0, fl, R.pixel);
@@ -1338,18 +1347,18 @@ function drawGiant(e, fl, em, ta) {
   setH(30 * G.K);
   const rear =
       st === 'rear' || st === 'roar'
-        ? 1.05 + Math.sin(time * 40) * 0.012
+        ? 1.05 + Math.sin(GS.time * 40) * 0.012
         : st === 'inhale'
           ? 1 + 0.1 * clamp(1.3 - e.stT, 0, 1)
           : st === 'act' && e.act === 'retch'
-            ? 1.04 + Math.sin(time * 30) * 0.015
+            ? 1.04 + Math.sin(GS.time * 30) * 0.015
             : 1,
-    /* the chest swells on the breath in */ br = 1 + Math.sin(time * 1.6 + e.id) * 0.012;
+    /* the chest swells on the breath in */ br = 1 + Math.sin(GS.time * 1.6 + e.id) * 0.012;
   quad(
     R[G.torso],
     x0,
     y0,
-    ta + (e.stunT > 0 ? Math.sin(time * 18) * 0.05 : 0),
+    ta + (e.stunT > 0 ? Math.sin(GS.time * 18) * 0.05 : 0),
     E * rear * br * (1 + sq) * (1 + 0.18 * fe),
     E * rear * br,
     1,
@@ -1361,7 +1370,7 @@ function drawGiant(e, fl, em, ta) {
     1,
     fl
   );
-  if ((e.ph || 0) >= 1 && !SHMODE) {
+  if ((e.ph || 0) >= 1 && !GS.SHMODE) {
     const wc =
         bt === 'pz'
           ? [0.5, 0.55, 0.16]
@@ -1405,7 +1414,7 @@ function drawGiant(e, fl, em, ta) {
     quad(
       R.gk_lantern,
       lx,
-      ly + Math.sin(time * 2) * 1.5 * E,
+      ly + Math.sin(GS.time * 2) * 1.5 * E,
       ta * 0.2,
       E * 1.2,
       E * 1.2,
@@ -1436,7 +1445,7 @@ function drawGiant(e, fl, em, ta) {
     R[G.head],
     hx,
     hy,
-    ta + look + (bt === 'grave' ? 0 : Math.sin(time * 1.2 + e.id) * 0.06),
+    ta + look + (bt === 'grave' ? 0 : Math.sin(GS.time * 1.2 + e.id) * 0.06),
     E * G.hs,
     E * G.hs,
     1,

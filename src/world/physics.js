@@ -1,10 +1,28 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-let WINDX = 14,
-  TDMG = new Float32Array(1),
-  grassFire = [],
+import { GS } from '../core/gs.js';
+import { TAU, angDiff, d2, rand, randi } from '../core/util.js';
+import { gl } from '../render/gl.js';
+import { viewH, viewW } from '../render/sprites.js';
+import { R } from '../render/atlas.js';
+import { MH, MW, NM, TILE, WW, cars, fires, grassCells, grid, lamps, mapA, texMapA, texMapN, ttype } from './map.js';
+import { collide, query, solidPt } from './nav.js';
+import { playS, thr } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { cam } from '../game/state.js';
+import { HUMAN, bleed, bloodOf, chips, decal, dust, flashLight, part, shake, sparks } from '../render/effects.js';
+import { hurtPlayer } from '../game/combat.js';
+import { BILE } from '../render/draw-enemies.js';
+import { LYB } from '../render/draw-bodies.js';
+import { WHOLES } from './wear.js';
+import { radarBg } from '../ui/radar.js';
+import { WHT, windows } from '../render/blocks.js';
+import { carAt, flame, ignite, smoke } from './fire.js';
+export let WINDX = 14,
   hazeSrc = [],
   physT = 0,
   stepT = 0;
+GS.TDMG = new Float32Array(1);
+GS.grassFire = [];
 const PUSH = {
   trash: { m: 1.6, r: 12, fr: 6, tip: 340 },
   cone: { m: 0.5, r: 9, fr: 6, tip: 220 },
@@ -12,7 +30,7 @@ const PUSH = {
   tire: { m: 1.2, r: 11, fr: 3.5, roll: true },
   news: { m: 4, r: 12, fr: 9, tip: 600, fixed: true },
 };
-function ragKick(e, ux, uy, imp, pop) {
+export function ragKick(e, ux, uy, imp, pop) {
   // throw a body
   e.rvx = (e.rvx || 0) + ux * imp;
   e.rvy = (e.rvy || 0) + uy * imp;
@@ -24,7 +42,7 @@ function ragKick(e, ux, uy, imp, pop) {
       L.vy += uy * imp * rand(0.6, 1.6) + rand(-1, 1) * imp * 0.5;
     }
 }
-function corpseMass(e) {
+export function corpseMass(e) {
   return e.big || e.type === 'queen' || e.r >= 40 ? Infinity : e.type === 'beetle' ? 5 : e.type === 'hopper' ? 2 : 1;
 }
 function corpsePhys(e, dt) {
@@ -89,14 +107,14 @@ function corpsePhys(e, dt) {
       [0, 0, 0],
       40
     );
-  if (P && state === 'play' && corpseMass(e) === 1 && !e.z) {
-    const dd = d2(e.x, e.y, P.x, P.y);
+  if (GS.P && GS.state === 'play' && corpseMass(e) === 1 && !e.z) {
+    const dd = d2(e.x, e.y, GS.P.x, GS.P.y);
     if (dd < 18 * 18) {
-      const sp = Math.hypot(P.vx, P.vy);
-      if (sp > 170 && !(e.shoveT > time)) {
-        e.shoveT = time + 0.8;
-        e.rvx += P.vx * 0.3;
-        e.rvy += P.vy * 0.3;
+      const sp = Math.hypot(GS.P.vx, GS.P.vy);
+      if (sp > 170 && !(e.shoveT > GS.time)) {
+        e.shoveT = GS.time + 0.8;
+        e.rvx += GS.P.vx * 0.3;
+        e.rvy += GS.P.vy * 0.3;
         e.rw += rand(-0.6, 0.6);
       }
     }
@@ -153,7 +171,7 @@ function bloodPool(x, y, scale, col, life = 60) {
 function propsTick(dt) {
   const cx = cam.x + viewW / 2,
     cy = cam.y + viewH / 2;
-  for (const d of decor) {
+  for (const d of GS.decor) {
     const D = PUSH[d.kind];
     if (!D || Math.abs(d.x - cx) > viewW + 400 || Math.abs(d.y - cy) > viewH + 400) continue;
     d.vx = d.vx || 0;
@@ -180,7 +198,7 @@ function propsTick(dt) {
         if (D.tip && (vn * k) / D.m > D.tip && !d.down) tipProp(d, ux, uy);
       }
     };
-    if (P && state === 'play') bump(P, 0.55, 1.2);
+    if (GS.P && GS.state === 'play') bump(GS.P, 0.55, 1.2);
     query(d.x, d.y, D.r + 40, e => {
       if (!e.dead && !e.fly && e.z < 10) bump(e, e.type === 'beetle' ? 1.4 : 0.35, e.type === 'beetle' ? 5 : 0.6);
     });
@@ -246,9 +264,9 @@ function tipProp(d, ux, uy) {
   if (d.kind === 'trash') chips(d.x, d.y, 5, [0.8, 0.78, 0.7], 3, 160);
   playS('dry', 0.15, d.kind === 'cone' ? 1.8 : 0.9, 0, 0);
 }
-function propShot(b) {
+export function propShot(b) {
   // bullets shove light props
-  for (const d of decor) {
+  for (const d of GS.decor) {
     const D = PUSH[d.kind];
     if (!D || D.fixed || b.pp === d || d2(b.x, b.y, d.x, d.y - 4) > (D.r + 3) ** 2) continue;
     b.pp = d;
@@ -273,16 +291,16 @@ function damageTile(i, amt) {
   if (t !== 9 && t !== 5) return;
   if (tx < 3 || ty < 3 || tx > MW - 4 || ty > MH - 4) return;
   const lim = t === 9 ? 70 : 170;
-  TDMG[i] += amt;
+  GS.TDMG[i] += amt;
   const x = (tx + 0.5) * TILE,
     y = (ty + 0.5) * TILE;
   if (Math.random() < 0.4) {
     if (t === 9) sparks(x, y - 10, [1, 0.85, 0.5], 2, 120);
     else chips(x, y, 2, null, 4, 140);
   }
-  if (TDMG[i] >= lim) breakTile(i);
+  if (GS.TDMG[i] >= lim) breakTile(i);
 }
-function breakTile(i) {
+export function breakTile(i) {
   const t = ttype[i],
     tx = i % MW,
     ty = (i / MW) | 0,
@@ -293,7 +311,7 @@ function breakTile(i) {
   WHT[i] = 0;
   WHOLES.delete(i);
   for (const w of windows) if (w.i === i) w.broke = true;
-  flowTile = -1;
+  GS.flowTile = -1;
   repaintGround(tx, ty, t);
   if (t === 9) {
     for (let k = 0; k < 2; k++) {
@@ -321,8 +339,8 @@ function breakTile(i) {
     shake(0.15);
   }
 }
-let mipDirty = false,
-  mipT = 0;
+GS.mipDirty = false;
+GS.mipT = 0;
 function repaintGround(tx, ty, t) {
   // the baked ground still showed the wall's footprint: paint it over with the surrounding ground and refresh the minimap
   try {
@@ -361,7 +379,7 @@ function repaintGround(tx, ty, t) {
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, x0, y0, gl.RGBA, gl.UNSIGNED_BYTE, img);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-    mipDirty = true; // mipmaps are rebuilt at most twice a second, not per broken tile
+    GS.mipDirty = true; // mipmaps are rebuilt at most twice a second, not per broken tile
     const kN = NM / WW,
       nx0 = Math.floor(tx * TILE * kN) - 1,
       ny0 = Math.floor(ty * TILE * kN) - 1,
@@ -385,7 +403,7 @@ function repaintGround(tx, ty, t) {
     /* cosmetic only */
   }
 }
-function blastWorld(x, y, R0, dmg) {
+export function blastWorld(x, y, R0, dmg) {
   // what an explosion does to the street around it
   const rr = R0 * 0.8;
   for (let ty = Math.floor((y - rr) / TILE); ty <= Math.floor((y + rr) / TILE); ty++)
@@ -395,14 +413,14 @@ function blastWorld(x, y, R0, dmg) {
         d = Math.hypot((tx + 0.5) * TILE - x, (ty + 0.5) * TILE - y);
       if (d < rr && dmg > 0) damageTile(i, 300 * (1 - d / rr));
     }
-  for (const e of corpses) {
+  for (const e of GS.corpses) {
     const m = corpseMass(e),
       dx = e.x - x,
       dy = e.y - y,
       d = Math.hypot(dx, dy);
     if (m < Infinity && d < R0 * 1.5 && d > 0.1) ragKick(e, dx / d, dy / d, (460 * (1 - d / (R0 * 1.5))) / m, m < 2);
   }
-  for (const d of decor) {
+  for (const d of GS.decor) {
     const D = PUSH[d.kind];
     if (D) {
       const dx = d.x - x,
@@ -429,7 +447,7 @@ function blastWorld(x, y, R0, dmg) {
       sparks(L.hx, L.hy, [1, 0.9, 0.6], 14, 300);
       flashLight(L.hx, L.hy, 200, [1.4, 1.2, 0.8], 0.15);
       sfx.crunch(L.hx, L.hy);
-      later.push({
+      GS.later.push({
         t: 0.35,
         fn: () => {
           playS('dry', 0.4, 0.4, 0, 0.3);
@@ -453,10 +471,10 @@ function blastWorld(x, y, R0, dmg) {
 }
 function fencePressure() {
   // a crowd leaning on a fence will bring it down
-  if (!P || state !== 'play') return;
-  for (const e of enemies) {
-    if (e.dead || e.dormant || e.fly || !HUMAN[e.type] || d2(e.x, e.y, P.x, P.y) > 340 * 340) continue;
-    const a0 = Math.atan2(P.y - e.y, P.x - e.x);
+  if (!GS.P || GS.state !== 'play') return;
+  for (const e of GS.enemies) {
+    if (e.dead || e.dormant || e.fly || !HUMAN[e.type] || d2(e.x, e.y, GS.P.x, GS.P.y) > 340 * 340) continue;
+    const a0 = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
     for (const da of [0, -0.8, 0.8]) {
       const a = a0 + da,
         tx = Math.floor((e.x + Math.cos(a) * (e.r + 14)) / TILE),
@@ -484,8 +502,8 @@ function fencePressure() {
   } // a crowd shoving at a parked car rocks it on its springs
 }
 /* ---- fire in the dry grass ---- */
-function grassIgnite(x, y, r, chance = 1) {
-  if (ev === 'storm' || grassFire.length > 220) return;
+export function grassIgnite(x, y, r, chance = 1) {
+  if (GS.ev === 'storm' || GS.grassFire.length > 220) return;
   for (let ty = Math.floor((y - r) / TILE); ty <= Math.floor((y + r) / TILE); ty++)
     for (let tx = Math.floor((x - r) / TILE); tx <= Math.floor((x + r) / TILE); tx++) {
       if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) continue;
@@ -493,16 +511,16 @@ function grassIgnite(x, y, r, chance = 1) {
         if (!g.burnt && !(g.burn > 0) && d2(g.x, g.y, x, y) < r * r && Math.random() < chance) {
           g.burn = rand(1.6, 2.8);
           g.sp = rand(0.2, 0.5);
-          grassFire.push(g);
+          GS.grassFire.push(g);
         }
     }
 }
 function grassTick(dt) {
-  for (const fp of firePools) grassIgnite(fp.x, fp.y, fp.r + 6, dt * 6);
+  for (const fp of GS.firePools) grassIgnite(fp.x, fp.y, fp.r + 6, dt * 6);
   for (const c of cars) if (c.fire && !c.dead) grassIgnite(c.x, c.y, 60, dt * 3);
-  for (const e of enemies) if (e.burn > 0 && !e.dead) grassIgnite(e.x, e.y, 16, dt * 4);
-  for (const g of grassFire) {
-    g.burn -= dt * (ev === 'storm' ? 3 : 1);
+  for (const e of GS.enemies) if (e.burn > 0 && !e.dead) grassIgnite(e.x, e.y, 16, dt * 4);
+  for (const g of GS.grassFire) {
+    g.burn -= dt * (GS.ev === 'storm' ? 3 : 1);
     g.sp -= dt;
     if (Math.random() < dt * 5) flame(g.x, g.y - 2, 1, 4, 0.75);
     if (Math.random() < dt * 1.6)
@@ -539,9 +557,9 @@ function grassTick(dt) {
       g.sp = rand(0.3, 0.5);
       grassIgnite(g.x, g.y, 66, 0.2);
     }
-    if (state === 'play') {
-      if (P.inv <= 0 && d2(P.x, P.y, g.x, g.y) < 16 * 16 && Math.random() < dt * 3)
-        hurtPlayer(3 + wave * 0.2, g.x, g.y, 'fire');
+    if (GS.state === 'play') {
+      if (GS.P.inv <= 0 && d2(GS.P.x, GS.P.y, g.x, g.y) < 16 * 16 && Math.random() < dt * 3)
+        hurtPlayer(3 + GS.wave * 0.2, g.x, g.y, 'fire');
       if (Math.random() < dt * 4)
         query(g.x, g.y, 30, e => {
           if (!e.dead && e.z < 10 && d2(e.x, e.y, g.x, g.y) < (e.r * 0.6 + 8) ** 2) ignite(e, 1.6);
@@ -549,73 +567,73 @@ function grassTick(dt) {
     }
     if (g.burn <= 0) {
       g.burnt = true;
-      if (Math.random() < 0.3 && decals.length < 380)
+      if (Math.random() < 0.3 && GS.decals.length < 380)
         decal(R.scorch, g.x, g.y, rand(0.18, 0.3), [1, 1, 1, 0.6], [0, 0, 0], 90);
     }
   }
-  grassFire = grassFire.filter(g => g.burn > 0);
+  GS.grassFire = GS.grassFire.filter(g => g.burn > 0);
 }
 /* ---- footprints, wind, heat haze ---- */
 function footTick(dt) {
-  if (!P || state !== 'play') return;
+  if (!GS.P || GS.state !== 'play') return;
   stepT -= dt;
   if (stepT <= 0) {
     stepT = 0.12;
-    for (const d of decals)
+    for (const d of GS.decals)
       if (
         d.blood &&
         d.life > 6 &&
-        Math.abs(d.x - P.x) < 40 &&
-        Math.abs(d.y - P.y) < 40 &&
-        d2(d.x, d.y, P.x, P.y) < (d.s * 26) ** 2
+        Math.abs(d.x - GS.P.x) < 40 &&
+        Math.abs(d.y - GS.P.y) < 40 &&
+        d2(d.x, d.y, GS.P.x, GS.P.y) < (d.s * 26) ** 2
       ) {
-        P.bloodSteps = 12;
+        GS.P.bloodSteps = 12;
         break;
       }
   }
-  if (P.bloodSteps > 0) {
-    const st = Math.floor(P.stride * 2);
-    if (P.lastStep === undefined) P.lastStep = st;
-    if (st !== P.lastStep && Math.hypot(P.vx, P.vy) > 40) {
-      P.lastStep = st;
+  if (GS.P.bloodSteps > 0) {
+    const st = Math.floor(GS.P.stride * 2);
+    if (GS.P.lastStep === undefined) GS.P.lastStep = st;
+    if (st !== GS.P.lastStep && Math.hypot(GS.P.vx, GS.P.vy) > 40) {
+      GS.P.lastStep = st;
       const side = st & 1 ? 1 : -1,
-        a = P.moveA,
-        x = P.x - Math.sin(a) * 6 * side,
-        y = P.y + Math.cos(a) * 6 * side;
-      if (decals.length > 410) decals.shift();
-      decals.push({
+        a = GS.P.moveA,
+        x = GS.P.x - Math.sin(a) * 6 * side,
+        y = GS.P.y + Math.cos(a) * 6 * side;
+      if (GS.decals.length > 410) GS.decals.shift();
+      GS.decals.push({
         reg: R.fprint,
         x,
         y,
         rot: a + Math.PI / 2,
         s: 1,
-        tint: [0.42, 0.04, 0.03, 0.75 * Math.min(1, P.bloodSteps / 6)],
+        tint: [0.42, 0.04, 0.03, 0.75 * Math.min(1, GS.P.bloodSteps / 6)],
         emit: [0, 0, 0],
         life: 40,
         max: 40,
       });
-      P.bloodSteps--;
+      GS.P.bloodSteps--;
     }
   }
 }
-function hazeCollect() {
+export function hazeCollect() {
   hazeSrc.length = 0;
-  const vis = (x, y) => x > camX - 60 && x < camX + viewW + 60 && y > camY - 60 && y < camY + viewH + 60;
+  const vis = (x, y) => x > GS.camX - 60 && x < GS.camX + viewW + 60 && y > GS.camY - 60 && y < GS.camY + viewH + 60;
   const add = (x, y, r, k) => {
     if (hazeSrc.length < 6 && vis(x, y)) hazeSrc.push([x, y, r, k]);
   };
   for (const c of cars) if (c.fire && !c.dead) add(c.x, c.y - 40, 90, 1);
-  for (const fp of firePools) add(fp.x, fp.y - 30, fp.r * 1.4, Math.min(1, fp.life / 1.5));
+  for (const fp of GS.firePools) add(fp.x, fp.y - 30, fp.r * 1.4, Math.min(1, fp.life / 1.5));
   for (const f of fires) add(f.x, f.y - 30, 50, 0.6);
-  for (let i = 0; i < grassFire.length; i += 9) add(grassFire[i].x, grassFire[i].y - 20, 60, 0.7);
+  for (let i = 0; i < GS.grassFire.length; i += 9) add(GS.grassFire[i].x, GS.grassFire[i].y - 20, 60, 0.7);
 }
-function physTick(dt) {
-  WINDX = 14 + Math.sin(time * 0.2) * 10;
+export function physTick(dt) {
+  WINDX = 14 + Math.sin(GS.time * 0.2) * 10;
   // Keep ordinary frames cheap, but use bounded semi-fixed substeps after a hitch so corpses and loose props are less likely to tunnel through walls.
   const physSteps = dt > 1 / 45 ? Math.min(3, Math.max(2, Math.ceil(dt / (1 / 60)))) : 1;
   const pdt = dt / physSteps;
   for (let i = 0; i < physSteps; i++) {
-    for (const e of corpses) corpsePhys(e, pdt);
+    for (const e of GS.corpses) corpsePhys(e, pdt);
     propsTick(pdt);
   }
   for (const L of lamps)

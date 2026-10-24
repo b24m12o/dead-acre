@@ -1,23 +1,19 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { TAU, rand } from '../core/util.js';
+import { gl } from './gl.js';
+import { BAKE, bakeRun } from './bake.js';
 /* =====================================================================
    Painted atlas + generated normal maps
    ===================================================================== */
-const MAXTEX = gl ? gl.getParameter(gl.MAX_TEXTURE_SIZE) : 2048;
-const AS = MAXTEX < 4096 ? 1.5 : 3,
-  ATL = MAXTEX >= 4096 ? 4096 : 2048;
-const atlA = document.createElement('canvas'),
-  atlE = document.createElement('canvas'),
-  atlN = document.createElement('canvas');
-atlA.width = atlA.height = atlE.width = atlE.height = atlN.width = atlN.height = ATL;
-const xa = atlA.getContext('2d', { willReadFrequently: true }),
-  xe = atlE.getContext('2d'),
-  xn = atlN.getContext('2d');
-const R = {},
-  META = [];
-const SHELVES = [];
-let SHELF_Y = 4;
+export let MAXTEX;
+export let AS, ATL;
+export let atlA, atlE, atlN;
+let xa, xe, xn;
+export let R, META;
+let SHELVES;
+let SHELF_Y;
 // spec: shininess, soft: how rounded the generated volume is, det: how much painted detail turns into relief
-function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
+export function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
   const pw = Math.ceil(w * AS) + 14,
     ph = Math.ceil(h * AS) + 14;
   // best-fit shelf packing: drop into the existing row that wastes the least height, else open a new row
@@ -103,7 +99,7 @@ function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
     META[META.length - 1].hm = hm;
   } // the bake's exact heights replace the guess from paint
 }
-function boxBlur(src, w, h, r) {
+export function boxBlur(src, w, h, r) {
   const tmp = new Float32Array(w * h),
     out = new Float32Array(w * h),
     inv = 1 / (2 * r + 1);
@@ -132,7 +128,7 @@ function boxBlur(src, w, h, r) {
   }
   return out;
 }
-function heightToNormals(H, w, h, K, od, ow, ox, oy, specArr, alphaArr) {
+export function heightToNormals(H, w, h, K, od, ow, ox, oy, specArr, alphaArr) {
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
@@ -177,7 +173,7 @@ function normalsInto(img, rows, meta, od) {
     heightToNormals(H, pw, ph, r * 2.15, od, ATL, px, py, sp, al);
   }
 }
-function genNormals(done) {
+export function genNormals(done) {
   // the slowest part of loading runs in a worker when the page allows one, so the menu comes up while it finishes
   const rows = Math.min(ATL, SHELF_Y + 8),
     meta = META.map(m => ({
@@ -223,9 +219,9 @@ function genNormals(done) {
     sync();
   }
 }
-const OUT = '#24252a';
-let CHARK = false; // people (the hero, survivors, the dead) get a thinner, translucent outline that takes on the colour beneath it
-function rr(c, x, y, w, h, r) {
+export let OUT;
+let CHARK; // people (the hero, survivors, the dead) get a thinner, translucent outline that takes on the colour beneath it
+export function rr(c, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   c.beginPath();
   c.moveTo(x + r, y);
@@ -235,31 +231,31 @@ function rr(c, x, y, w, h, r) {
   c.arcTo(x, y, x + w, y, r);
   c.closePath();
 }
-function circ(c, x, y, r) {
+export function circ(c, x, y, r) {
   c.beginPath();
   c.arc(x, y, Math.max(0.01, r), 0, TAU);
 }
-function ell(c, x, y, rx, ry, rot = 0) {
+export function ell(c, x, y, rx, ry, rot = 0) {
   c.beginPath();
   c.ellipse(x, y, Math.max(0.01, rx), Math.max(0.01, ry), rot, 0, TAU);
 }
-function grad(c, x0, y0, x1, y1, stops) {
+export function grad(c, x0, y0, x1, y1, stops) {
   const g = c.createLinearGradient(x0, y0, x1, y1);
   stops.forEach(([o, col]) => g.addColorStop(o, col));
   return g;
 }
-function rgrad(c, x, y, r, stops, fx = x, fy = y) {
+export function rgrad(c, x, y, r, stops, fx = x, fy = y) {
   const g = c.createRadialGradient(fx, fy, 0, x, y, r);
   stops.forEach(([o, col]) => g.addColorStop(o, col));
   return g;
 }
-function radial(c, x, y, r, stops) {
+export function radial(c, x, y, r, stops) {
   c.fillStyle = rgrad(c, x, y, r, stops);
   circ(c, x, y, r);
   c.fill();
 }
 // paint a shape: fill, speckle texture, inner occlusion along the edge, outline
-function shape(c, path, fill, o = {}) {
+export function shape(c, path, fill, o = {}) {
   path(c);
   c.fillStyle = fill;
   c.fill();
@@ -282,4 +278,24 @@ function shape(c, path, fill, o = {}) {
   c.strokeStyle = o.out || (CHARK ? 'rgba(12,12,16,0.55)' : 'rgba(14,15,18,0.62)');
   c.lineWidth = CHARK ? (o.lw ?? 0.9) : (o.lw ?? 1.2) * 0.7;
   c.stroke(); // painted props get a thin, soft edge, not a cartoon outline
+}
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  MAXTEX = gl ? gl.getParameter(gl.MAX_TEXTURE_SIZE) : 2048;
+  AS = MAXTEX < 4096 ? 1.5 : 3;
+  ATL = MAXTEX >= 4096 ? 4096 : 2048;
+  atlA = document.createElement('canvas');
+  atlE = document.createElement('canvas');
+  atlN = document.createElement('canvas');
+  atlA.width = atlA.height = atlE.width = atlE.height = atlN.width = atlN.height = ATL;
+  xa = atlA.getContext('2d', { willReadFrequently: true });
+  xe = atlE.getContext('2d');
+  xn = atlN.getContext('2d');
+  R = {};
+  META = [];
+  SHELVES = [];
+  SHELF_Y = 4;
+  OUT = '#24252a';
+  CHARK = false;
 }

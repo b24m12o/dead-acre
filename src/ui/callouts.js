@@ -1,9 +1,12 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-let streakQ = [],
-  streakCur = null;
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { clamp } from '../core/util.js';
+GS.streakQ = [];
+GS.streakCur = null;
 const STREAK_URGENT = { 'Man down': 1, "They didn't make it": 1, Pinned: 1, Choked: 1 };
 const HUDR = { t: -1, boss: null };
-function hudDomRects() {
+export function hudDomRects() {
   const n = performance.now();
   if (n - HUDR.t < 220) return HUDR;
   HUDR.t = n;
@@ -15,7 +18,7 @@ function hudDomRects() {
   }
   return HUDR;
 }
-function placeStreak() {
+export function placeStreak() {
   const el = $('streak'),
     r = hudDomRects().boss,
     top = r
@@ -23,31 +26,31 @@ function placeStreak() {
       : '';
   if (el.style.top !== top) el.style.top = top;
 } // follows the boss panel as it appears, grows or moves, so the two never overlap
-function showStreak(t, sub, urgent = STREAK_URGENT[t], valid = null) {
-  if (urgent && state === 'play' && streakT > 0.25 && streakCur && !STREAK_URGENT[streakCur[0]]) {
-    streakQ.unshift(streakCur);
-    streakT = 0;
+export function showStreak(t, sub, urgent = STREAK_URGENT[t], valid = null) {
+  if (urgent && GS.state === 'play' && GS.streakT > 0.25 && GS.streakCur && !STREAK_URGENT[GS.streakCur[0]]) {
+    GS.streakQ.unshift(GS.streakCur);
+    GS.streakT = 0;
   } // urgent news cuts in front
-  if (state !== 'play' || streakT > 0.25 || bannerT > -0.45) {
-    if (!streakQ.some(q => q[0] === t) && (!streakCur || streakCur[0] !== t || streakT <= 0))
-      streakQ.push([t, sub, valid]);
-    if (streakQ.length > 4) streakQ.shift();
+  if (GS.state !== 'play' || GS.streakT > 0.25 || GS.bannerT > -0.45) {
+    if (!GS.streakQ.some(q => q[0] === t) && (!GS.streakCur || GS.streakCur[0] !== t || GS.streakT <= 0))
+      GS.streakQ.push([t, sub, valid]);
+    if (GS.streakQ.length > 4) GS.streakQ.shift();
     return;
   }
-  streakCur = [t, sub, valid];
+  GS.streakCur = [t, sub, valid];
   const el = $('streak');
   HUDR.t = -1;
   placeStreak();
   el.innerHTML = `${t}<small>${sub}</small>`;
   el.classList.add('show');
-  streakT = clamp(1.3 + (String(t).length + String(sub || '').length) * 0.04, 1.6, 4.5);
+  GS.streakT = clamp(1.3 + (String(t).length + String(sub || '').length) * 0.04, 1.6, 4.5);
 } // long lines stay up long enough to read
-function hideCallouts() {
-  if (streakT > 0 && streakCur) streakQ.unshift(streakCur);
-  streakT = 0;
-  streakCur = null;
+export function hideCallouts() {
+  if (GS.streakT > 0 && GS.streakCur) GS.streakQ.unshift(GS.streakCur);
+  GS.streakT = 0;
+  GS.streakCur = null;
   $('streak').classList.remove('show');
-  bannerT = -1;
+  GS.bannerT = -1;
   $('banner').classList.remove('show');
 }
 

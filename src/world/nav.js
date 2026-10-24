@@ -1,5 +1,9 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function texFromCanvas(c, mip, premul = true) {
+import { GS } from '../core/gs.js';
+import { clamp, d2 } from '../core/util.js';
+import { gl } from '../render/gl.js';
+import { MH, MW, TILE, TRAD, WH, WW, grid, isWall, ttype } from './map.js';
+export function texFromCanvas(c, mip, premul = true) {
   const t = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, t);
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premul);
@@ -45,7 +49,7 @@ function unstick(o) {
   if (o.kx !== undefined) o.kx = o.ky = 0;
   return true;
 }
-function collide(o) {
+export function collide(o) {
   const r = o.cr || o.r;
   let hit = false;
   {
@@ -111,7 +115,7 @@ function collide(o) {
     }
   return hit;
 }
-function solidPt(x, y) {
+export function solidPt(x, y) {
   const tx = Math.floor(x / TILE),
     ty = Math.floor(y / TILE);
   if (!isWall(tx, ty)) return false;
@@ -120,7 +124,7 @@ function solidPt(x, y) {
   if (t === 1) return true;
   return Math.hypot(x - (tx + 0.5) * TILE, y - (ty + 0.5) * TILE) < TRAD(t) + 1;
 }
-function los(x0, y0, x1, y1) {
+export function los(x0, y0, x1, y1) {
   const dx = x1 - x0,
     dy = y1 - y0,
     L = Math.hypot(dx, dy),
@@ -131,14 +135,12 @@ function los(x0, y0, x1, y1) {
   }
   return true;
 }
-const flow = new Uint16Array(MW * MH);
-let flowTile = -1,
-  flowAt = -9;
-const dens = new Uint8Array(MW * MH),
-  heap = new Int32Array(MW * MH * 5);
+export let flow;
+let flowAt;
+let dens, heap;
 // crowd-aware flow field: Dijkstra from the target where a tile costs more the more zombies already stand in it,
 // so a crowd spills into side streets and alleys and comes at you from several sides instead of in one queue
-function dijk(out, seeds, crowd) {
+export function dijk(out, seeds, crowd) {
   out.fill(65535);
   let n = 0;
   const push = k => {
@@ -211,35 +213,26 @@ function dijk(out, seeds, crowd) {
     }
   }
 }
-function buildFlow(px, py) {
+export function buildFlow(px, py) {
   const st = Math.floor(py / TILE) * MW + Math.floor(px / TILE);
-  if (st === flowTile && time - flowAt < 0.35 && time >= flowAt) return;
-  flowTile = st;
-  flowAt = time;
+  if (st === GS.flowTile && GS.time - flowAt < 0.35 && GS.time >= flowAt) return;
+  GS.flowTile = st;
+  flowAt = GS.time;
   dens.fill(0);
-  for (const e of enemies)
+  for (const e of GS.enemies)
     if (!e.dead && !e.fly && !e.big) {
       const t = Math.floor(e.y / TILE) * MW + Math.floor(e.x / TILE);
       if (t >= 0 && t < MW * MH && dens[t] < 250) dens[t]++;
     }
   dijk(flow, [st], true);
 }
-const N8 = [
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-  [1, 1],
-  [1, -1],
-  [-1, 1],
-  [-1, -1],
-];
-function steer(e, tx, ty, fld, inView) {
+export let N8;
+export function steer(e, tx, ty, fld, inView) {
   const dx = tx - e.x,
     dy = ty - e.y,
     d = Math.hypot(dx, dy) || 1;
   if (e.fly || e.big || inView) return [dx / d, dy / d, d];
-  if ((fld ? d < 150 : e.los && d < 520) && !(time < (e.flowT || 0)))
+  if ((fld ? d < 150 : e.los && d < 520) && !(GS.time < (e.flowT || 0)))
     return d < e.r * 2 + 24 ? [dx / d, dy / d, d] : crowdDir(e, dx, dy, d, tx, ty);
   const F = fld || flow,
     cx = Math.floor(e.x / TILE),
@@ -280,8 +273,8 @@ function crowdDir(e, dx, dy, d, tx, ty) {
       uy = gy / gl;
     }
   }
-  if (!(time - (e.blkAt ?? -9) < 0.12) || time < e.blkAt) {
-    e.blkAt = time;
+  if (!(GS.time - (e.blkAt ?? -9) < 0.12) || GS.time < e.blkAt) {
+    e.blkAt = GS.time;
     const ax = e.x + ux * (e.r + 12),
       ay = e.y + uy * (e.r + 12);
     e.blk = false;
@@ -302,17 +295,15 @@ function crowdDir(e, dx, dy, d, tx, ty) {
   }
   return [ux, uy, d];
 }
-const HC = 80,
-  HW = Math.ceil(WW / HC),
-  cells = Array.from({ length: HW * HW }, () => []);
-function rebuildHash() {
+let HC, HW, cells;
+export function rebuildHash() {
   for (const c of cells) c.length = 0;
-  for (const e of enemies) {
+  for (const e of GS.enemies) {
     if (e.dead) continue;
     cells[clamp(Math.floor(e.y / HC), 0, HW - 1) * HW + clamp(Math.floor(e.x / HC), 0, HW - 1)].push(e);
   }
 }
-function query(x, y, r, cb) {
+export function query(x, y, r, cb) {
   const x0 = clamp(Math.floor((x - r) / HC), 0, HW - 1),
     x1 = clamp(Math.floor((x + r) / HC), 0, HW - 1),
     y0 = clamp(Math.floor((y - r) / HC), 0, HW - 1),
@@ -325,3 +316,25 @@ function query(x, y, r, cb) {
 }
 
 /* ---------- IK legs ---------- */
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  flow = new Uint16Array(MW * MH);
+  GS.flowTile = -1;
+  flowAt = -9;
+  dens = new Uint8Array(MW * MH);
+  heap = new Int32Array(MW * MH * 5);
+  N8 = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+    [1, 1],
+    [1, -1],
+    [-1, 1],
+    [-1, -1],
+  ];
+  HC = 80;
+  HW = Math.ceil(WW / HC);
+  cells = Array.from({ length: HW * HW }, () => []);
+}

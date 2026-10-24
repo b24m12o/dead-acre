@@ -1,5 +1,55 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-let HITB = null; // the player's bullet being resolved right now (gun family for boss armour)
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { TAU, angDiff, clamp, d2, rand, randi } from '../core/util.js';
+import { opt, saveMeta } from '../core/settings.js';
+import { GUNS } from './arsenal.js';
+import { DIFF } from '../core/profile.js';
+import { R } from '../render/atlas.js';
+import { MH, MW, TILE, WH, WW, cars, crystals, grid, isWall, ttype } from '../world/map.js';
+import { query, solidPt } from '../world/nav.js';
+import { noise, playS, spat, thr, tone } from '../audio/audio.js';
+import { sfx } from '../audio/sfx.js';
+import { S, ammoNeed, dropAmmo, giveGun } from './state.js';
+import { offerGuns, offerUpgrades } from './upgrades.js';
+import { showStreak } from '../ui/callouts.js';
+import { ET, TRAIT, makeEnemy } from '../actors/enemies.js';
+import {
+  HUMAN,
+  bleed,
+  bloodOf,
+  chips,
+  decal,
+  distort,
+  dust,
+  flashLight,
+  floatText,
+  gib,
+  glowBurst,
+  part,
+  pool,
+  ring,
+  shake,
+  sparks,
+  splatterScreen,
+} from '../render/effects.js';
+import { gameOver } from '../ui/screens.js';
+import { hitSign, signKnocked, toWorld } from '../actors/projectiles.js';
+import { STAGGERABLE, breakLantern, interruptBoss, tankHit } from '../actors/bosses.js';
+import { BILE, BLOOD, ZSKIN } from '../render/draw-enemies.js';
+import { DOWN_T, lyAngle, pantsOf, supOK } from '../render/draw-bodies.js';
+import { scorchWalls, wallHit } from '../world/wear.js';
+import { WINDX, blastWorld } from '../world/physics.js';
+import { chuteGeom } from '../render/draw-props.js';
+import { isBlock } from '../render/blocks.js';
+import { carAt, damageCar, firePool, fireball, flame, hitCar, ignite, smoke } from '../world/fire.js';
+import { makeNoise } from './noise.js';
+import { INF, TW } from './districts.js';
+import { bump, checkChal, stat, statMax } from './challenges.js';
+import { tip } from '../audio/radio.js';
+import { finishObjective } from './objective-flow.js';
+import { bossDown, bossName } from './boss-flow.js';
+GS.HITB = null; // the player's bullet being resolved right now (gun family for boss armour)
 const CHOKE_W = { hunter: 4, lever: 3, pistol: 1.6 }; // so every gun can choke Patient Zero in a 1.3 s inhale
 const BOSS_DEF = {
   // grounded counters: what the armour is, what gets through it
@@ -13,7 +63,7 @@ function bossDefense(e, dmg, src, hx, hy) {
   // returns { dmg, armor, crit }
   const D = BOSS_DEF[e.btype] || BOSS_DEF.abom,
     bt = e.btype,
-    b = HITB,
+    b = GS.HITB,
     fam = b ? b.fam : null,
     gun = !(
       src === 'boom' ||
@@ -55,7 +105,7 @@ function bossDefense(e, dmg, src, hx, hy) {
     let fr = D.front;
     if (bt === 'chief' && e.tankGone) fr = D.torn;
     if (bt === 'roadkill' && !e.sign) fr = 1;
-    if (bt === 'abom' && fam === 'shotgun' && P && d2(P.x, P.y, e.x, e.y) < (D.crack + e.r) ** 2) {
+    if (bt === 'abom' && fam === 'shotgun' && GS.P && d2(GS.P.x, GS.P.y, e.x, e.y) < (D.crack + e.r) ** 2) {
       fr = 0.9;
       if (front) tag = ['Plates crack', '#ffd08a'];
     }
@@ -99,13 +149,13 @@ function bossDefense(e, dmg, src, hx, hy) {
   } // the air pack on its back
   if (tag && (b || src === 'fire') && thr('btag' + tag[0], tag[0] === 'Armoured' ? 2600 : 1600)) {
     floatText(e.x, e.y - (e.z || 0) - e.r - 34, tag[0], tag[1], 15);
-    texts[texts.length - 1].nf = true;
-    texts[texts.length - 1].life = 1.1;
+    GS.texts[GS.texts.length - 1].nf = true;
+    GS.texts[GS.texts.length - 1].life = 1.1;
   } // tells you what is working (above the boss, never faded by the cursor)
   return { dmg, armor, crit };
 }
-const SHIELD_TURN = 2.1; // how fast a riot cop can swing its shield round to you (rad/s): circle faster than that and you are behind it
-function makeLurker(x, y) {
+export const SHIELD_TURN = 2.1; // how fast a riot cop can swing its shield round to you (rad/s): circle faster than that and you are behind it
+export function makeLurker(x, y) {
   // a body in the road that isn't dead: it lies among the others and waits for your feet
   const e = makeEnemy('skitter', x, y);
   e.lurk = 'lie';
@@ -123,26 +173,26 @@ function makeLurker(x, y) {
   e.aw = 0;
   return e;
 }
-function releaseGrab(push = 1) {
-  const e = P && P.held;
-  if (!P) return;
-  P.held = null;
+export function releaseGrab(push = 1) {
+  const e = GS.P && GS.P.held;
+  if (!GS.P) return;
+  GS.P.held = null;
   if (e && !e.dead) {
     e.lurk = null;
     e.aw = 9;
     e.down = Math.min(e.down, e.dT - 0.95);
-    const dx = e.x - P.x,
-      dy = e.y - P.y,
+    const dx = e.x - GS.P.x,
+      dy = e.y - GS.P.y,
       dl = Math.hypot(dx, dy) || 1;
     e.kx += (dx / dl) * 160 * push;
     e.ky += (dy / dl) * 160 * push;
   }
 }
-const SIGHT = () => (ev === 'fog' ? 330 : ev === 'blackout' ? 420 : 640); // how far the dead can see you: fog and a dead grid hide you, so you can slip past or pick your moment
-function shieldUp(e) {
+export const SIGHT = () => (GS.ev === 'fog' ? 330 : GS.ev === 'blackout' ? 420 : 640); // how far the dead can see you: fog and a dead grid hide you, so you can slip past or pick your moment
+export function shieldUp(e) {
   return e.shield && !(e.stag > 0) && !(e.down > 0) && e.st !== 'bash';
 }
-function makeShield(e) {
+export function makeShield(e) {
   e.v = e.hv = 3;
   e.run = false;
   e.pose = 0;
@@ -167,7 +217,7 @@ function breakShield(e, kx, ky) {
   e.stag = Math.max(e.stag || 0, 0.6);
   if (thr('shieldDown', 900)) floatText(e.x, e.y - 40, 'Shield broken', '#ffd08a', 15);
 }
-function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
+export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   if (e.dead) return;
   if (hx === undefined || hy === undefined) {
     const kl = Math.hypot(kx, ky) || 1;
@@ -180,10 +230,10 @@ function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   if (e.trait === 'armored') {
     kb *= 0.25;
     if (src === 'bolt' || src === 'buddy') {
-      dmg *= HITB && (HITB.ap || HITB.heavy) ? 0.88 : 0.7;
-      if (HITB) {
-        HITB.pierce = 0;
-        HITB.bounce = 0;
+      dmg *= GS.HITB && (GS.HITB.ap || GS.HITB.heavy) ? 0.88 : 0.7;
+      if (GS.HITB) {
+        GS.HITB.pierce = 0;
+        GS.HITB.bounce = 0;
       }
       if (thr('armTing', 90)) {
         sparks(e.x, e.y - 20, [1, 0.9, 0.7], 2, 200);
@@ -198,10 +248,10 @@ function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       (src === 'bolt' || src === 'buddy' || src === 'frag') &&
       Math.abs(angDiff(e.a, Math.atan2(-ky, -kx))) < 1.2
     ) {
-      e.shield.hp -= dmg * (HITB && HITB.heavy ? 2 : HITB && HITB.ap ? 1.5 : src === 'frag' ? 0.5 : 1);
-      if (HITB) {
-        HITB.pierce = 0;
-        HITB.bounce = 0;
+      e.shield.hp -= dmg * (GS.HITB && GS.HITB.heavy ? 2 : GS.HITB && GS.HITB.ap ? 1.5 : src === 'frag' ? 0.5 : 1);
+      if (GS.HITB) {
+        GS.HITB.pierce = 0;
+        GS.HITB.bounce = 0;
       }
       const [sx, sy] = toWorld(e, 26, 0);
       sparks(sx, sy, [1, 0.92, 0.7], 3, 240);
@@ -211,9 +261,9 @@ function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       e.kx += (kx / kl) * 30 * kb;
       e.ky += (ky / kl) * 30 * kb;
       e.wob = 0.4;
-      if (!(meta.tips && meta.tips.shield)) {
-        meta.tips = meta.tips || {};
-        meta.tips.shield = 1;
+      if (!(GS.meta.tips && GS.meta.tips.shield)) {
+        GS.meta.tips = GS.meta.tips || {};
+        GS.meta.tips.shield = 1;
         saveMeta();
         showStreak('Riot shield', 'Get round it, blow it up, or flash it');
       }
@@ -236,9 +286,9 @@ function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
     e.inhDmg =
       (e.inhDmg || 0) +
       (src === 'bolt'
-        ? HITB && HITB.fam === 'shotgun'
+        ? GS.HITB && GS.HITB.fam === 'shotgun'
           ? 0.6
-          : CHOKE_W[HITB && HITB.gun] || 1
+          : CHOKE_W[GS.HITB && GS.HITB.gun] || 1
         : src === 'shell'
           ? 4
           : src === 'boom'
@@ -271,9 +321,9 @@ function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
     e.rcx = clamp((e.rcx || 0) + (kx / kl) * 2.5, -7, 7);
     e.rcy = clamp((e.rcy || 0) + (ky / kl) * 2.5, -7, 7); // a hit rocks the body back
     e.stg = (e.stg || 0) + dmg;
-    if (e.stg > e.maxHp * 0.05 && time > (e.stgCd || 0) && !(e.stunT > 0) && !(e.spinT > 0) && STAGGERABLE[e.st]) {
+    if (e.stg > e.maxHp * 0.05 && GS.time > (e.stgCd || 0) && !(e.stunT > 0) && !(e.spinT > 0) && STAGGERABLE[e.st]) {
       e.stg = 0;
-      e.stgCd = time + 8;
+      e.stgCd = GS.time + 8;
       interruptBoss(e);
       e.st = 'move';
       e.stunT = Math.max(e.stunT || 0, 0.8);
@@ -287,13 +337,14 @@ function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
     e.type !== 'queen' &&
     !e.big &&
     src === 'bolt' &&
-    !(HITB && HITB.noAmb) &&
-    (!(e.aw > 0) || time - (e.wokeT ?? -9) < 0.4 || (e.dazedT || 0) > time || e.down > 0 || e.stunT > 0)
+    !(GS.HITB && GS.HITB.noAmb) &&
+    (!(e.aw > 0) || GS.time - (e.wokeT ?? -9) < 0.4 || (e.dazedT || 0) > GS.time || e.down > 0 || e.stunT > 0)
   ) {
     dmg *= 1.8;
     if (thr('ambush', 400)) floatText(hx, hy - 24, 'Ambush', '#ffd08a', 14);
   } // caught before it turned: a gunshot takes a moment to register
-  if (RUN && RUN.metrics && state === 'play') RUN.metrics.damageDealt += Math.min(Math.max(0, e.hp), Math.max(0, dmg));
+  if (GS.RUN && GS.RUN.metrics && GS.state === 'play')
+    GS.RUN.metrics.damageDealt += Math.min(Math.max(0, e.hp), Math.max(0, dmg));
   if (e.type !== 'queen' && e.type !== 'egg') {
     const fl2 = Math.hypot(kx, ky) || 1;
     e.flT = 0.16;
@@ -397,7 +448,7 @@ function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   e.kx += (kx / kl) * 170 * kb * mass;
   e.ky += (ky / kl) * 170 * kb * mass;
   if (src !== 'fire' && (crit || dmg >= 60)) {
-    const tt = texts.find(t => t.eid === e.id && t.life > 0.35);
+    const tt = GS.texts.find(t => t.eid === e.id && t.life > 0.35);
     if (tt) {
       tt.dv += dmg;
       tt.txt = Math.round(tt.dv);
@@ -414,7 +465,7 @@ function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
         src === 'fire' ? '#ffa860' : armor ? '#9aa4ae' : crit ? '#ffcf3a' : '#ffffff',
         src === 'fire' ? 12 : armor ? 13 : crit ? 22 : 15
       );
-      const t = texts[texts.length - 1];
+      const t = GS.texts[GS.texts.length - 1];
       t.eid = e.id;
       t.dv = dmg;
     }
@@ -475,15 +526,15 @@ function gibAll(e, dx, dy, col) {
   pool(ex + dx * 30, ey + dy * 30, Math.min(1.4, e.r / 18), col);
   sfx.gib(ex, ey);
 }
-function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
-  if (P && opt.gore && e.type !== 'queen' && d2(e.x, e.y, P.x, P.y) < 70 * 70) {
-    P.stains = P.stains || [];
+export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
+  if (GS.P && opt.gore && e.type !== 'queen' && d2(e.x, e.y, GS.P.x, GS.P.y) < 70 * 70) {
+    GS.P.stains = GS.P.stains || [];
     for (let i = 0; i < (src === 'boom' ? 3 : 1); i++) {
-      P.stains.push({ u: rand(4, 10), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.35, 0.75), c: 0.5, a: 0.85 });
-      if (P.stains.length > 22) P.stains.shift();
+      GS.P.stains.push({ u: rand(4, 10), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.35, 0.75), c: 0.5, a: 0.85 });
+      if (GS.P.stains.length > 22) GS.P.stains.shift();
     }
   } // close kills spatter you
-  if (P && P.held === e) P.held = null;
+  if (GS.P && GS.P.held === e) GS.P.held = null;
   if (e.shield) {
     const [sx, sy] = toWorld(e, 26, 0);
     decal(R.riotflat, sx, sy, 0.62, [1, 1, 1, 1], [0, 0, 0], 60);
@@ -492,54 +543,54 @@ function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   e.dead = true;
   e.dying = 0;
   e.dieDir = Math.random() < 0.5 ? -1 : 1;
-  kills++;
-  combo++;
-  comboT = 2.4;
-  if (RUN && RUN.metrics) RUN.metrics.peakCombo = Math.max(RUN.metrics.peakCombo, combo);
+  GS.kills++;
+  GS.combo++;
+  GS.comboT = 2.4;
+  if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.peakCombo = Math.max(GS.RUN.metrics.peakCombo, GS.combo);
   bump('kills');
-  statMax('bestChain', combo);
-  if (src === 'bolt' && P && P.gun) bump(GUNS[P.gun].fam);
+  statMax('bestChain', GS.combo);
+  if (src === 'bolt' && GS.P && GS.P.gun) bump(GUNS[GS.P.gun].fam);
   if (src === 'fire') bump('fire');
   if (e.type === 'queen') bump('bosses');
   if (stat('kills') % 50 === 0) checkChal();
   const STREAKS = { 20: 'Killing spree', 40: 'Rampage', 75: 'Butcher', 120: 'Corpse collector', 200: 'Massacre' };
-  if (STREAKS[combo]) {
-    showStreak(STREAKS[combo], `${combo} chain`);
+  if (STREAKS[GS.combo]) {
+    showStreak(STREAKS[GS.combo], `${GS.combo} chain`);
     sfx.streak();
   }
-  if (e.mark && obj && obj.type === 'hunt' && !obj.done) {
-    obj.got++;
-    floatText(e.x, e.y - 50, `Marked ${obj.got} / ${obj.need}`, '#ff9a7a', 18);
-    if (obj.got >= obj.need) {
-      const o = obj;
-      later.push({
+  if (e.mark && GS.obj && GS.obj.type === 'hunt' && !GS.obj.done) {
+    GS.obj.got++;
+    floatText(e.x, e.y - 50, `Marked ${GS.obj.got} / ${GS.obj.need}`, '#ff9a7a', 18);
+    if (GS.obj.got >= GS.obj.need) {
+      const o = GS.obj;
+      GS.later.push({
         t: 0.6,
         fn: () => {
-          if (obj === o && state === 'play') finishObjective(true);
+          if (GS.obj === o && GS.state === 'play') finishObjective(true);
         },
       });
     }
   }
   if (e.elite) {
-    runSeeds += 15;
-    slowmo = Math.max(slowmo, 0.25);
+    GS.runSeeds += 15;
+    GS.slowmo = Math.max(GS.slowmo, 0.25);
     showStreak('Elite down', e.trait ? `${TRAIT[e.trait].name} · +15 scrap` : '+15 scrap');
     sfx.elite();
-    xp += 9;
+    GS.xp += 9;
     if (ammoNeed() > 0.6) dropAmmo(e.x, e.y, 1.5, 80);
-    if (!TW('nomeds') && (!INF(4) || Math.random() < 0.5) && P && P.hp < S.maxHp * 0.9)
-      pickups.push({ k: 'hp', v: 25, x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
+    if (!TW('nomeds') && (!INF(4) || Math.random() < 0.5) && GS.P && GS.P.hp < S.maxHp * 0.9)
+      GS.pickups.push({ k: 'hp', v: 25, x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
     glowBurst(e.x, e.y, [1, 0.85, 0.3], 30, 320, 0.8, 0.7);
   }
-  const mult = 1 + Math.min(4, Math.floor(combo / 10) * 0.5);
-  score += Math.round(e.score * mult * (1 + wave * 0.1));
-  if (S.leech) P.hp = Math.min(S.maxHp, P.hp + S.leech);
+  const mult = 1 + Math.min(4, Math.floor(GS.combo / 10) * 0.5);
+  GS.score += Math.round(e.score * mult * (1 + GS.wave * 0.1));
+  if (S.leech) GS.P.hp = Math.min(S.maxHp, GS.P.hp + S.leech);
   const big = e.type === 'queen',
     ex = e.x,
     ey = e.y - e.z,
     col = bloodOf(e);
   if (!dx && !dy) {
-    const a = Math.atan2(e.y - P.y, e.x - P.x);
+    const a = Math.atan2(e.y - GS.P.y, e.x - GS.P.x);
     dx = Math.cos(a);
     dy = Math.sin(a);
   }
@@ -566,7 +617,7 @@ function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
         c: [0.45, 0.55, 0.2],
       });
     sfx.wet(e.x, e.y);
-    xp += e.xp;
+    GS.xp += e.xp;
     return;
   } // a sac bursts where it sits: no tumbling body, just the split membrane and the bile
   const overkill =
@@ -611,8 +662,8 @@ function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       e.kx = e.ky = 0;
       e.vz = src === 'boom' || imp > 330 ? imp * 0.45 : 0;
     }
-    corpses.push(e);
-    if (corpses.length > 70) corpses.shift();
+    GS.corpses.push(e);
+    if (GS.corpses.length > 70) GS.corpses.shift();
     if (!big) sfx.fall(e.x, e.y);
     if (HUMAN[e.type] && e.type !== 'mini' && crit && Math.random() < 0.55) {
       e.headless = true;
@@ -625,7 +676,7 @@ function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     bleed(ex, ey, 14, dx, dy, big ? 40 : 10, col, big ? 420 : 300, big ? 1.6 : 1);
     if (Math.random() < 0.25) gib(ex, ey, R['g_meat' + randi(0, 1)], [1, 1, 1], col, 200, dx, dy);
     if (big)
-      later.push({
+      GS.later.push({
         t: 0.5,
         fn: () =>
           pool(
@@ -646,18 +697,18 @@ function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     distort(ex, ey, 0.03, 0.8, 0.45);
     shake(0.2);
     sfx.retch && sfx.retch(e.x, e.y);
-    pools.push({
+    GS.pools.push({
       x: e.x,
       y: e.y,
       r: 70,
       life: 6,
       max: 6,
-      dmg: 7 * (1 + 0.04 * wave),
+      dmg: 7 * (1 + 0.04 * GS.wave),
       rot: rand(0, TAU),
       v: randi(0, 3),
     });
-    if (state === 'play' && d2(e.x, e.y, P.x, P.y) < (95 + P.r) ** 2)
-      hurtPlayer(16 * (1 + 0.04 * wave), e.x, e.y, 'a bloater');
+    if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (95 + GS.P.r) ** 2)
+      hurtPlayer(16 * (1 + 0.04 * GS.wave), e.x, e.y, 'a bloater');
   }
   if (e.type === 'hopper') {
     ring(ex, ey, 8, 100, 0.45, [0.42, 0.4, 0.26], 0.5);
@@ -680,18 +731,18 @@ function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       });
     distort(ex, ey, 0.03, 0.8, 0.45);
     shake(0.25);
-    pools.push({
+    GS.pools.push({
       x: e.x,
       y: e.y,
       r: 64,
       life: 6,
       max: 6,
-      dmg: 7 * (1 + 0.04 * wave),
+      dmg: 7 * (1 + 0.04 * GS.wave),
       rot: rand(0, TAU),
       v: randi(0, 3),
     });
-    if (state === 'play' && d2(e.x, e.y, P.x, P.y) < (100 + P.r) ** 2)
-      hurtPlayer(16 * (1 + 0.04 * wave), e.x, e.y, 'a bloater');
+    if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (100 + GS.P.r) ** 2)
+      hurtPlayer(16 * (1 + 0.04 * GS.wave), e.x, e.y, 'a bloater');
     query(e.x, e.y, 110, o => {
       if (!o.dead && o !== e && d2(e.x, e.y, o.x, o.y) < 100 * 100)
         hurtEnemy(o, 30, false, o.x - e.x, o.y - e.y, 2, 'boom');
@@ -702,11 +753,11 @@ function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       m.kx = s * 160;
     }
   }
-  xp += e.xp;
+  GS.xp += e.xp;
   const ac =
     (big ? 3 : e.type === 'beetle' ? 0.4 : e.type === 'hopper' || e.type === 'wasp' ? 0.14 : 0.08) *
     (INF(7) && !big ? 0.65 : 1);
-  const ac2 = big ? ac : ac * 1.25 * ammoNeed() * (wave <= 4 ? 1.25 : wave >= 10 ? 0.8 : 1);
+  const ac2 = big ? ac : ac * 1.25 * ammoNeed() * (GS.wave <= 4 ? 1.25 : GS.wave >= 10 ? 0.8 : 1);
   /* a little more early, before the drops can keep up with a new gun; a little less late, when every calibre is stocked */ for (
     let i = 0;
     i < Math.floor(ac2) + (Math.random() < ac2 % 1 ? 1 : 0);
@@ -717,28 +768,28 @@ function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     (big
       ? 1
       : (e.type === 'beetle' ? 0.2 : e.type === 'flower' || e.type === 'hopper' ? 0.15 : 0.025) *
-        clamp(0.35 + 1.1 * (1 - P.hp / S.maxHp), 0.35, 1.2)) * (INF(4) && !big ? 0.5 : 1); // like ammo: fewer medkits while you are healthy, more when you are hurt
+        clamp(0.35 + 1.1 * (1 - GS.P.hp / S.maxHp), 0.35, 1.2)) * (INF(4) && !big ? 0.5 : 1); // like ammo: fewer medkits while you are healthy, more when you are hurt
   if (!TW('nomeds') && Math.random() < hc)
-    pickups.push({ k: 'hp', v: 25, x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
+    GS.pickups.push({ k: 'hp', v: 25, x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
   if (e.type === 'beetle' || big) {
     shake(big ? 0.8 : 0.3);
-    hitstop = Math.max(hitstop, big ? 0.3 : 0.05);
+    GS.hitstop = Math.max(GS.hitstop, big ? 0.3 : 0.05);
     distort(ex, ey, big ? 0.05 : 0.02, big ? 1.1 : 0.6, big ? 1.1 : 0.45);
   } else shake(overkill ? 0.1 : 0.05);
   if (big) {
-    boss = enemies.find(o => o !== e && !o.dead && o.type === 'queen') || null;
-    if (!boss) $('bossBox').hidden = true; // on Ground Zero two can come: the bar stays while either lives
-    slowmo = 1.4;
-    if (RUN.practice) for (const z of enemies) if (!z.dead && z.type !== 'queen') killEnemy(z, 999, 'boom');
-    bossDown(e, !boss);
-    if (!boss) {
-      for (const b of ebullets) glowBurst(b.x, b.y, [0.5, 0.9, 0.15], 3, 80, 0.3, 0.4);
-      ebullets.length = 0;
-      mortars.length = 0;
-      warns.length = 0;
+    GS.boss = GS.enemies.find(o => o !== e && !o.dead && o.type === 'queen') || null;
+    if (!GS.boss) $('bossBox').hidden = true; // on Ground Zero two can come: the bar stays while either lives
+    GS.slowmo = 1.4;
+    if (GS.RUN.practice) for (const z of GS.enemies) if (!z.dead && z.type !== 'queen') killEnemy(z, 999, 'boom');
+    bossDown(e, !GS.boss);
+    if (!GS.boss) {
+      for (const b of GS.ebullets) glowBurst(b.x, b.y, [0.5, 0.9, 0.15], 3, 80, 0.3, 0.4);
+      GS.ebullets.length = 0;
+      GS.mortars.length = 0;
+      GS.warns.length = 0;
     }
     for (let i = 0; i < 7; i++)
-      later.push({
+      GS.later.push({
         t: i * 0.14,
         fn: () => {
           const x = e.x + rand(-70, 70),
@@ -770,7 +821,7 @@ const BOSS_THE = {
   chief: 'the Fire Chief',
   pz: 'Patient Zero',
 };
-function bossOf(e) {
+export function bossOf(e) {
   return BOSS_THE[e.btype] || bossName();
 }
 function killerAt(sx, sy) {
@@ -778,7 +829,7 @@ function killerAt(sx, sy) {
   if (sx === undefined) return 'the dead';
   let best = null,
     bd = 140 * 140;
-  for (const e of enemies) {
+  for (const e of GS.enemies) {
     if (e.dead) continue;
     const dd = d2(e.x, e.y, sx, sy) - (e.type === 'queen' ? 60 * 60 : 0);
     if (dd < bd) {
@@ -792,42 +843,43 @@ function killerAt(sx, sy) {
       : best.type === 'skitter' && best.run
         ? 'a runner'
         : FOE_NAME[best.type] || 'the dead';
-  return boss && !boss.dead ? bossOf(boss) : 'the dead';
+  return GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead';
 }
-function hurtPlayer(dmg, sx, sy, why) {
-  if (P.inv > 0 || state !== 'play') return;
-  P.lastBy = why || killerAt(sx, sy);
+export function hurtPlayer(dmg, sx, sy, why) {
+  if (GS.P.inv > 0 || GS.state !== 'play') return;
+  GS.P.lastBy = why || killerAt(sx, sy);
   dmg *= DIFF().dmg;
-  if (RUN && RUN.metrics) RUN.metrics.damageTaken += Math.max(0, dmg);
-  nightHit = true;
+  if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.damageTaken += Math.max(0, dmg);
+  GS.nightHit = true;
   if (sx !== undefined) {
-    hitDirs.push({ a: Math.atan2(sy - P.y, sx - P.x), life: 0.8 });
-    if (hitDirs.length > 6) hitDirs.shift();
+    GS.hitDirs.push({ a: Math.atan2(sy - GS.P.y, sx - GS.P.x), life: 0.8 });
+    if (GS.hitDirs.length > 6) GS.hitDirs.shift();
   }
-  P.stains = P.stains || [];
-  if (P.stains.length < 22) P.stains.push({ u: rand(-9, 9), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.9, 1.6) });
-  P.hp -= dmg;
-  if (P.hp > 0 && P.hp < S.maxHp * 0.35) tip('hurt');
-  if (RUN.practice) RUN.taken = (RUN.taken || 0) + dmg;
-  P.inv = 0.9;
-  P.hurt = 0.18;
+  GS.P.stains = GS.P.stains || [];
+  if (GS.P.stains.length < 22)
+    GS.P.stains.push({ u: rand(-9, 9), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.9, 1.6) });
+  GS.P.hp -= dmg;
+  if (GS.P.hp > 0 && GS.P.hp < S.maxHp * 0.35) tip('hurt');
+  if (GS.RUN.practice) GS.RUN.taken = (GS.RUN.taken || 0) + dmg;
+  GS.P.inv = 0.9;
+  GS.P.hurt = 0.18;
   shake(0.35);
-  hitstop = Math.max(hitstop, 0.05);
-  chroma = 0.008;
+  GS.hitstop = Math.max(GS.hitstop, 0.05);
+  GS.chroma = 0.008;
   sfx.hurt();
-  sparks(P.x, P.y, [1, 0.6, 0.4], 12, 340);
-  floatText(P.x, P.y - 34, '-' + Math.round(dmg), '#ff3d5a', 20);
-  combo = 0;
+  sparks(GS.P.x, GS.P.y, [1, 0.6, 0.4], 12, 340);
+  floatText(GS.P.x, GS.P.y - 34, '-' + Math.round(dmg), '#ff3d5a', 20);
+  GS.combo = 0;
   if (sx !== undefined) {
-    const a = Math.atan2(P.y - sy, P.x - sx);
-    P.vx += Math.cos(a) * 380;
-    P.vy += Math.sin(a) * 380;
+    const a = Math.atan2(GS.P.y - sy, GS.P.x - sx);
+    GS.P.vx += Math.cos(a) * 380;
+    GS.P.vy += Math.sin(a) * 380;
   }
-  if (P.hp <= 0) gameOver();
+  if (GS.P.hp <= 0) gameOver();
 }
 /* what a round does when it meets something solid: chain-link barely stops anything, rifle rounds go through car bodies,
    and a shallow hit on concrete or steel skips off with a whine. Returns true when the round flies on. */
-function passSolid(b, dt) {
+export function passSolid(b, dt) {
   const tx = Math.floor(b.x / TILE),
     ty = Math.floor(b.y / TILE);
   if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return false;
@@ -885,13 +937,13 @@ function passSolid(b, dt) {
   b.life = Math.min(b.life, 0.3);
   b.pierce = 0;
   sparks(px, py, [1, 0.9, 0.6], 6, 380, Math.atan2(b.vy, b.vx), 0.5);
-  if (P && thr('ric', 90)) {
-    const v = clamp(1 - Math.hypot(px - P.x, py - P.y) / 900, 0, 1);
+  if (GS.P && thr('ric', 90)) {
+    const v = clamp(1 - Math.hypot(px - GS.P.x, py - GS.P.y) / 900, 0, 1);
     if (v > 0) tone(rand(1900, 2700), 0.24, 'sine', 0.03 * v, 0.42, 0, 4200);
   }
   return true;
 }
-function impact(x, y, b) {
+export function impact(x, y, b) {
   const tx = Math.floor((x + b.vx * 0.02) / TILE),
     ty = Math.floor((y + b.vy * 0.02) / TILE),
     t = tx >= 0 && ty >= 0 && tx < MW && ty < MH ? ttype[ty * MW + tx] : 1,
@@ -910,14 +962,14 @@ function impact(x, y, b) {
     sparks(x, y, [1, 0.8, 0.6], 2, 160, back, 0.7);
   }
 }
-function explode(x, y, R0, dmg, hurtsPlayer = true) {
+export function explode(x, y, R0, dmg, hurtsPlayer = true) {
   makeNoise(x, y, 1300);
   scorchWalls(x, y, R0);
   blastWorld(x, y, R0, dmg);
-  if (boss && boss.signAt && d2(x, y, boss.signAt.x, boss.signAt.y) < (R0 + 20) ** 2) hitSign(boss, dmg);
+  if (GS.boss && GS.boss.signAt && d2(x, y, GS.boss.signAt.x, GS.boss.signAt.y) < (R0 + 20) ** 2) hitSign(GS.boss, dmg);
   sfx.boom(x, y);
   {
-    const pd = P ? Math.hypot(x - P.x, y - P.y) : 0;
+    const pd = GS.P ? Math.hypot(x - GS.P.x, y - GS.P.y) : 0;
     shake(0.4 * clamp(1.25 - pd / 600, 0.2, 1));
   }
   distort(x, y, 0.022, 0.9, 0.55);
@@ -944,31 +996,31 @@ function explode(x, y, R0, dmg, hurtsPlayer = true) {
   } // burning bits
   dust(x, y, 10, R0 * 1.4, 1.8, 1.6);
   chips(x, y, 14, null, 4, 420);
-  later.push({ t: 0.12, fn: () => smoke(x, y, 14, R0, true) });
+  GS.later.push({ t: 0.12, fn: () => smoke(x, y, 14, R0, true) });
   decal(R.scorch, x, y, R0 / 50, [1, 1, 1, 0.9], [0, 0, 0], 40);
   ring(x, y, 10, R0 * 1.3, 0.22, [0.5, 0.42, 0.32], 0.22); // the shock front: a faint, quick ripple, the distortion does the rest
   if (dmg > 0) {
     query(x, y, R0 + 70, e => {
       if (!e.dead && d2(x, y, e.x, e.y) < (R0 + e.r) ** 2) hurtEnemy(e, dmg, false, e.x - x, e.y - y, 2.5, 'boom');
     });
-    if (hurtsPlayer && d2(x, y, P.x, P.y) < (R0 + P.r) ** 2) hurtPlayer(dmg * 0.3, x, y, 'an explosion');
+    if (hurtsPlayer && d2(x, y, GS.P.x, GS.P.y) < (R0 + GS.P.r) ** 2) hurtPlayer(dmg * 0.3, x, y, 'an explosion');
   }
-  for (const b of barrels)
+  for (const b of GS.barrels)
     if (!b.dead && d2(x, y, b.x, b.y) < (R0 + 10) ** 2) {
       b.hp = 0;
-      later.push({ t: 0.1, fn: () => blowBarrel(b) });
+      GS.later.push({ t: 0.1, fn: () => blowBarrel(b) });
     }
   if (dmg > 0) for (const c of cars) if (!c.dead && d2(x, y, c.x, c.y) < (R0 + 50) ** 2) damageCar(c, dmg * 1.5 + 40);
   for (const c of crystals)
     if (c.alive && d2(x, y, c.x, c.y) < (R0 + 18) ** 2) {
       const cc = c;
-      later.push({ t: 0.08, fn: () => hitCrystal(cc, 999, cc.x - x, cc.y - y) });
+      GS.later.push({ t: 0.08, fn: () => hitCrystal(cc, 999, cc.x - x, cc.y - y) });
     }
 }
 function crystalCol(c) {
   return [1, 0.8, 0.4];
 }
-function hitCrystal(c, dmg, kx, ky) {
+export function hitCrystal(c, dmg, kx, ky) {
   if (!c.alive || c.grow < 1) return;
   c.hp -= dmg;
   c.flash = 0.08;
@@ -983,7 +1035,7 @@ function shatterCrystal(c) {
   const i = c.ty * MW + c.tx;
   grid[i] = 0;
   ttype[i] = 0;
-  flowTile = -1;
+  GS.flowTile = -1;
   const col = crystalCol(c),
     R0 = 150;
   sfx.boom(c.x, c.y);
@@ -991,10 +1043,10 @@ function shatterCrystal(c) {
   shake(0.3);
   distort(c.x, c.y, 0.035, 0.9, 0.5);
   if (c.hue === 2) {
-    later.push({
+    GS.later.push({
       t: 0.05,
       fn: () => {
-        explode(c.x, c.y, 140, 80 + wave * 10, true);
+        explode(c.x, c.y, 140, 80 + GS.wave * 10, true);
         firePool(c.x, c.y, 90, 8);
       },
     });
@@ -1012,31 +1064,31 @@ function shatterCrystal(c) {
     0.4
   );
   decal(R.scorch, c.x, c.y, 1, [1, 1, 1, 0.9], [0, 0, 0], 40);
-  if (state === 'play') {
+  if (GS.state === 'play') {
     query(c.x, c.y, R0 + 40, e => {
       if (!e.dead && d2(c.x, c.y, e.x, e.y) < (R0 + e.r) ** 2) {
-        hurtEnemy(e, 40 + wave * 6, false, e.x - c.x, e.y - c.y, 3, 'crystal');
+        hurtEnemy(e, 40 + GS.wave * 6, false, e.x - c.x, e.y - c.y, 3, 'crystal');
         e.slowT = 2.5;
       }
     });
-    for (const b of ebullets) if (d2(c.x, c.y, b.x, b.y) < R0 * R0) b.life = 0;
-    xp += 4;
+    for (const b of GS.ebullets) if (d2(c.x, c.y, b.x, b.y) < R0 * R0) b.life = 0;
+    GS.xp += 4;
     if (Math.random() < 0.35 * ammoNeed()) dropAmmo(c.x, c.y, 1, 60);
     if (Math.random() < 0.3)
-      pickups.push({ k: 'hp', v: 20, x: c.x, y: c.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
+      GS.pickups.push({ k: 'hp', v: 20, x: c.x, y: c.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
     floatText(c.x, c.y - 30, 'Short circuit', '#ffe08a', 18);
   }
 }
-function dropCrate(gun, alt) {
+export function dropCrate(gun, alt) {
   for (let k = 0; k < 40; k++) {
     const a = rand(0, TAU),
       d = gun ? rand(170, 320) : rand(240, 480),
-      x = clamp(P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
-      y = clamp(P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
+      x = clamp(GS.P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
+      y = clamp(GS.P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
     if (solidPt(x, y) || solidPt(x + 20, y) || solidPt(x - 20, y) || solidPt(x, y + 20) || solidPt(x, y - 20)) continue;
     const cr = { x, y, z: 640, landed: false, t: 0, gun, alt };
-    crates.push(cr);
-    const live = () => crates.includes(cr) && !cr.open;
+    GS.crates.push(cr);
+    const live = () => GS.crates.includes(cr) && !cr.open;
     if (gun && alt)
       showStreak(
         'Convoy airdrop',
@@ -1053,8 +1105,8 @@ function dropCrate(gun, alt) {
     return cr;
   }
 }
-function updateCrates(dt) {
-  for (const c of crates) {
+export function updateCrates(dt) {
+  for (const c of GS.crates) {
     c.t += dt;
     if (!c.landed) {
       // out of the aircraft: a short free fall, the canopy snaps open, the drop slows to a steady descent and the load swings on its lines like a pendulum
@@ -1071,8 +1123,8 @@ function updateCrates(dt) {
       if (dep > 0 && was === 0) {
         c.wx += (Math.random() < 0.5 ? -1 : 1) * rand(0.7, 1.1);
         c.wy += rand(-0.5, 0.5);
-        if (P) {
-          const v = clamp(1 - Math.hypot(c.x - P.x, c.y - P.y) / 1000, 0, 1);
+        if (GS.P) {
+          const v = clamp(1 - Math.hypot(c.x - GS.P.x, c.y - GS.P.y) / 1000, 0, 1);
           if (v > 0) noise(0.35, 0.09 * v, 1400, 260, 'bandpass');
         }
       } // the snatch as the canopy fills
@@ -1120,24 +1172,24 @@ function updateCrates(dt) {
           4,
           160
         );
-        for (const e of enemies)
+        for (const e of GS.enemies)
           if (!e.dead && e.type !== 'queen' && d2(e.x, e.y, c.x, c.y) < (e.r + 20) ** 2) {
-            hurtEnemy(e, 60 + wave * 4, false, e.x - c.x, e.y - c.y, 2.5, 'boom');
+            hurtEnemy(e, 60 + GS.wave * 4, false, e.x - c.x, e.y - c.y, 2.5, 'boom');
             if (!e.dead && HUMAN[e.type] && e.type !== 'beetle') {
               e.down = 1.15;
               e.fallA = Math.atan2(e.y - c.y, e.x - c.x);
               e.splay = 1;
             }
           } // nothing survives a crate on the head
-        if (P && d2(P.x, P.y, c.x, c.y) < (P.r + 20) ** 2) {
-          const dx = P.x - c.x,
-            dy = P.y - c.y,
+        if (GS.P && d2(GS.P.x, GS.P.y, c.x, c.y) < (GS.P.r + 20) ** 2) {
+          const dx = GS.P.x - c.x,
+            dy = GS.P.y - c.y,
             dl = Math.hypot(dx, dy) || 1;
-          P.vx += (dx / dl) * 420;
-          P.vy += (dy / dl) * 420;
+          GS.P.vx += (dx / dl) * 420;
+          GS.P.vy += (dy / dl) * 420;
           hurtPlayer(8, c.x, c.y, 'a falling supply crate');
         }
-        chutesDown.push({
+        GS.chutesDown.push({
           x: g.cx,
           y: c.y + 4,
           z: c.y - g.cy,
@@ -1151,11 +1203,11 @@ function updateCrates(dt) {
           a: rand(-0.35, 0.35),
           dx: 34 + WINDX,
         });
-        later.push({
+        GS.later.push({
           t: 0.5,
           fn: () => {
-            if (!P) return;
-            const v = clamp(1 - Math.hypot(c.x - P.x, c.y - P.y) / 900, 0, 1);
+            if (!GS.P) return;
+            const v = clamp(1 - Math.hypot(c.x - GS.P.x, c.y - GS.P.y) / 900, 0, 1);
             if (v > 0) noise(0.6, 0.07 * v, 700, 160, 'lowpass');
           },
         });
@@ -1189,30 +1241,30 @@ function updateCrates(dt) {
         dust(c.x - Math.sign(c.vx) * 14, c.y + 6, 1, 20, 0.5, 0.5);
       c.ang += (c.vx || 0) * 0.0015 * dt * 60 * (c.z === 0 ? 1 : 0.2);
       if (Math.abs(c.vx) < 2 && Math.abs(c.vy) < 2 && !c.vz) c.vx = c.vy = 0;
-    } else if (state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, P.x, P.y) < 40 * 40 && c.gun) {
+    } else if (GS.state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40 && c.gun) {
       c.open = true;
-      if (c.alt && !P.owned.includes(c.alt) && !P.owned.includes(c.gun)) {
+      if (c.alt && !GS.P.owned.includes(c.alt) && !GS.P.owned.includes(c.gun)) {
         const gs = [c.gun, c.alt];
         const go = () => {
-          if (state === 'play') {
-            const left = gs.filter(g => !P.owned.includes(g));
+          if (GS.state === 'play') {
+            const left = gs.filter(g => !GS.P.owned.includes(g));
             if (left.length > 1) offerGuns(left);
             else left.forEach(giveGun);
-          } else if (state === 'levelup' || state === 'pause') later.push({ t: 0.1, fn: go });
+          } else if (GS.state === 'levelup' || GS.state === 'pause') GS.later.push({ t: 0.1, fn: go });
           else
-            gs.filter(g => !P.owned.includes(g))
+            gs.filter(g => !GS.P.owned.includes(g))
               .slice(0, 1)
               .forEach(giveGun);
         };
-        later.push({ t: 0.15, fn: go });
+        GS.later.push({ t: 0.15, fn: go });
       } /* a level-up card on the same tick waits its turn: the case is never lost */ else
-        giveGun(c.alt && P.owned.includes(c.gun) ? c.alt : c.gun);
+        giveGun(c.alt && GS.P.owned.includes(c.gun) ? c.alt : c.gun);
       glowBurst(c.x, c.y, [1, 0.8, 0.3], 22, 240, 0.5, 0.6);
       chips(c.x, c.y, 10, [0.45, 0.5, 0.3], 3, 260);
-    } else if (state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, P.x, P.y) < 40 * 40) {
+    } else if (GS.state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40) {
       c.open = true;
-      for (const t of new Set(P.owned.map(g => GUNS[g].ammo).filter(Boolean)))
-        pickups.push({ k: 'ammo', at: t, v: 1.35, x: c.x, y: c.y, vx: rand(-140, 140), vy: rand(-140, 140), t: 0 });
+      for (const t of new Set(GS.P.owned.map(g => GUNS[g].ammo).filter(Boolean)))
+        GS.pickups.push({ k: 'ammo', at: t, v: 1.35, x: c.x, y: c.y, vx: rand(-140, 140), vy: rand(-140, 140), t: 0 });
       /* a box for every kind of round you carry: about what the crate used to add invisibly */ glowBurst(
         c.x,
         c.y,
@@ -1224,13 +1276,13 @@ function updateCrates(dt) {
       );
       chips(c.x, c.y, 10, [0.85, 0.7, 0.45], 3, 260);
       const go = () => {
-        if (state === 'play') offerUpgrades('crate');
-        else if (state === 'levelup' || state === 'pause') later.push({ t: 0.1, fn: go });
+        if (GS.state === 'play') offerUpgrades('crate');
+        else if (GS.state === 'levelup' || GS.state === 'pause') GS.later.push({ t: 0.1, fn: go });
       };
-      later.push({ t: 0.15, fn: go });
+      GS.later.push({ t: 0.15, fn: go });
     } /* the ammo spills out where you can see it, and the free pick waits behind any card already on screen instead of vanishing */
   }
-  for (const c of crates) {
+  for (const c of GS.crates) {
     if (c.squash > 0) c.squash = Math.max(0, c.squash - dt * 5);
     if (c.flare > 0) {
       c.flare -= dt;
@@ -1268,19 +1320,19 @@ function updateCrates(dt) {
         });
     }
   }
-  crates = crates.filter(c => !c.open);
-  for (const h of chutesDown) {
+  GS.crates = GS.crates.filter(c => !c.open);
+  for (const h of GS.chutesDown) {
     h.t += dt;
     if (h.t > 1) h.life -= dt;
   }
-  chutesDown = chutesDown.filter(h => h.life > 0);
+  GS.chutesDown = GS.chutesDown.filter(h => h.life > 0);
 }
-function crushCrystals(x, y, r) {
+export function crushCrystals(x, y, r) {
   for (const c of crystals) if (c.alive && d2(x, y, c.x, c.y) < (r + 10) ** 2) shatterCrystal(c);
 }
-function blowBarrel(b) {
+export function blowBarrel(b) {
   if (b.dead) return;
   b.dead = true;
   tip('barrel');
-  explode(b.x, b.y, 105, 70 + wave * 6);
+  explode(b.x, b.y, 105, 70 + GS.wave * 6);
 }

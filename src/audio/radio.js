@@ -1,7 +1,14 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-const EV_NAME = { blood: 'Blood moon', fog: 'Fog', blackout: 'Blackout', storm: 'Storm' };
-const atSign = () => ((RUN && RUN.district) || 'town') === 'town'; /* the painted HELP is only at the town crossroads */
-const RADIO = {
+import { GS } from '../core/gs.js';
+import { $ } from '../core/errors.js';
+import { rand } from '../core/util.js';
+import { saveMeta } from '../core/settings.js';
+import { AC, musDuck, noiseBuf, radBus, sfxBus, sfxDuck, thr } from './audio.js';
+import { TRAIT } from '../actors/enemies.js';
+export const EV_NAME = { blood: 'Blood moon', fog: 'Fog', blackout: 'Blackout', storm: 'Storm' };
+const atSign = () =>
+  ((GS.RUN && GS.RUN.district) || 'town') === 'town'; /* the painted HELP is only at the town crossroads */
+export const RADIO = {
   // Channel 9: the convoy talking to whoever is still out there
   get n1() {
     return atSign()
@@ -30,7 +37,7 @@ const RADIO = {
   },
   obj: {
     box: () =>
-      `The truck went over somewhere ${obj && obj.dir ? 'to the ' + obj.dir : 'out there'}. Look for the smoke. The beacon will not last long.`,
+      `The truck went over somewhere ${GS.obj && GS.obj.dir ? 'to the ' + GS.obj.dir : 'out there'}. Look for the smoke. The beacon will not last long.`,
     hale: 'Hale is pinned near you, nine. She is all we have. Please.',
     relay: 'That generator is the only thing keeping this channel alive. Stay by it.',
     scouts: 'Three tagged on my board. The ones that got our scouts. They will run.',
@@ -85,9 +92,9 @@ const RADIO = {
   loud: 'Nine, that gunfire carries for blocks. Everything out there knows where you are now.',
   alarm: 'Car alarm on your street. That racket pulls them in from blocks away. Use it.',
 };
-let radioQ = [],
-  radioT = -1;
-const STORY = {
+GS.radioQ = [];
+GS.radioT = -1;
+export const STORY = {
   // Channel 9 over fifteen nights: the convoy you are holding the relay for, and the people on it
   1: [
     'Reyes',
@@ -107,7 +114,7 @@ const STORY = {
   7: [
     'Reyes',
     () =>
-      haleAlive() && buddies.some(b => b.nm === 'Dr. Hale')
+      haleAlive() && GS.buddies.some(b => b.nm === 'Dr. Hale')
         ? 'Hale is with you? Good. Keep her breathing, she is the only doctor for fifty miles.'
         : haleAlive()
           ? 'Hale is on the trucks with us. She went straight back to work. Thank you, nine.'
@@ -127,20 +134,20 @@ const STORY = {
   13: ['Reyes', 'Nine? Reyes. We lost two trucks at the quarry, but we are across. Hold on. Please.'],
   14: ['Reyes', 'Last night tomorrow. Whatever walks out of that hospital, Hale said it is where this began.'],
 };
-const haleAlive = () => RUN.haleOk && !(RUN.lost || []).includes('Dr. Hale');
-const haleOut = () => haleAlive() && !buddies.some(b => b.nm === 'Dr. Hale'); // aboard, or safe with the convoy; not left behind
-function storyDawn(w) {
-  if (RUN.endless || RUN.practice) return;
+const haleAlive = () => GS.RUN.haleOk && !(GS.RUN.lost || []).includes('Dr. Hale');
+const haleOut = () => haleAlive() && !GS.buddies.some(b => b.nm === 'Dr. Hale'); // aboard, or safe with the convoy; not left behind
+export function storyDawn(w) {
+  if (GS.RUN.endless || GS.RUN.practice) return;
   const S9 = STORY[w];
   if (!S9) return;
   const t = typeof S9[1] === 'function' ? S9[1]() : S9[1];
   radio(t, S9[0], 2);
-  if (w === 10) RUN.voice = 'Hawk';
-  if (w === 13) RUN.voice = 'Reyes';
+  if (w === 10) GS.RUN.voice = 'Hawk';
+  if (w === 13) GS.RUN.voice = 'Reyes';
 }
-function storyEnd() {
-  const f = RUN.favours || 0,
-    crew = (RUN.aboard || []).length; // the last transmission, as the bird lifts off
+export function storyEnd() {
+  const f = GS.RUN.favours || 0,
+    crew = (GS.RUN.aboard || []).length; // the last transmission, as the bird lifts off
   if (f >= 3)
     return [
       'Reyes',
@@ -154,7 +161,8 @@ function storyEnd() {
   return ['Hawk', 'Convoy has gone quiet, nine. It is just us now. Strap in. We are going home.'];
 }
 // Channel 9 voices for every line: [id, the exact words on screen, seconds, mp3, speaker R/H]. Everyday lines exist in both voices, since Hawk takes the channel on nights 11 and 12; lines are matched piece by piece, longest first
-let VOX = []; // filled in by the build (one-file version) or loaded from assets/
+// the radio voices: built into the one-file version, or loaded from assets/
+GS.VOX = (window.__DA_DATA && window.__DA_DATA.vox) || [];
 let radioCurve = null;
 const RADIO_VOL = 0.11,
   VOX_IN = 0.75,
@@ -170,7 +178,7 @@ function voxFor(line, who) {
       continue;
     }
     let f = null;
-    for (const v of VOX) if ((v[4] || 'R') === w && r.startsWith(v[1]) && (!f || v[1].length > f[1].length)) f = v;
+    for (const v of GS.VOX) if ((v[4] || 'R') === w && r.startsWith(v[1]) && (!f || v[1].length > f[1].length)) f = v;
     if (!f) return null;
     ids.push(f[0]);
     r = r.slice(f[1].length).trim();
@@ -178,11 +186,11 @@ function voxFor(line, who) {
   return ids;
 } /* the clips that say exactly this line in this speaker's voice (longest piece first), or null */
 function voxDur(ids) {
-  return ids ? ids.reduce((a, id) => a + (id === '#' ? 1.1 : VOX.find(v => v[0] === id)[2] + 0.12), 0.2) : 0;
+  return ids ? ids.reduce((a, id) => a + (id === '#' ? 1.1 : GS.VOX.find(v => v[0] === id)[2] + 0.12), 0.2) : 0;
 }
 function voxLoad(id) {
   if (!voxBuf[id]) {
-    const v = VOX.find(q => q[0] === id),
+    const v = GS.VOX.find(q => q[0] === id),
       b = typeof v[3] === 'string' ? Uint8Array.from(atob(v[3]), c => c.charCodeAt(0)).buffer : v[3].slice(0);
     voxBuf[id] = AC.decodeAudioData(b).catch(() => null);
   }
@@ -231,7 +239,7 @@ function radioChain(hawk, life, k = 1) {
   );
   return inp;
 }
-async function radioVoice(line, who) {
+export async function radioVoice(line, who) {
   /* Channel 9 on air: the key-up click, the words (real voices for the story, Reyes and Hawk), the carrier hiss under them, then the release. Everyday chatter is just the click and a breath of static, the text carries it. A line that ends in static really does break up */
   if (!AC || !noiseBuf || !sfxBus) return;
   const hawk = who === 'Hawk',
@@ -322,21 +330,21 @@ async function radioVoice(line, who) {
   } /* release: the closing kssh, and a pilot's roger beep */
   radioDuck(t0, tE + 0.3); /* the music and the street lean back while someone is talking */
 }
-const RD_MUS = 0.42,
+export const RD_MUS = 0.42,
   RD_SFX = 0.6;
 function radioDuck(t0, t1) {
   if (!musDuck || !sfxDuck || musDuck.context !== AC) return;
-  radDuckEnd = Math.max(radDuckEnd, t1);
+  GS.radDuckEnd = Math.max(GS.radDuckEnd, t1);
   for (const [n, lv] of [
     [musDuck, RD_MUS],
     [sfxDuck, RD_SFX],
   ]) {
     n.gain.cancelScheduledValues(t0);
     n.gain.setTargetAtTime(lv, t0, 0.12);
-    n.gain.setTargetAtTime(1, radDuckEnd, 0.45);
+    n.gain.setTargetAtTime(1, GS.radDuckEnd, 0.45);
   }
 } /* music down to about 40%, gunfire and the dead to about 60%, until the voice is done */
-function radioKey() {
+export function radioKey() {
   if (!AC || !noiseBuf || !sfxBus || !thr('rkey', 300)) return;
   const C = radioChain(false, 1),
     t = AC.currentTime + 0.01,
@@ -356,69 +364,77 @@ function radioKey() {
   sr.start(t, rand(0, 1));
   sr.stop(t + 0.2);
 } /* just the click and burst of a handset keying up */
-function radio(line, who, pri = 1) {
+export function radio(line, who, pri = 1) {
   if (!line) return;
-  radioQ.push({ t: line, who: who || (RUN && RUN.voice) || 'Reyes', pri, at: time });
-  while (radioQ.length > 4) {
+  GS.radioQ.push({ t: line, who: who || (GS.RUN && GS.RUN.voice) || 'Reyes', pri, at: GS.time });
+  while (GS.radioQ.length > 4) {
     let k = 0;
-    for (let i = 1; i < radioQ.length; i++) if ((radioQ[i].pri ?? 1) < (radioQ[k].pri ?? 1)) k = i;
-    radioQ.splice(k, 1);
+    for (let i = 1; i < GS.radioQ.length; i++) if ((GS.radioQ[i].pri ?? 1) < (GS.radioQ[k].pri ?? 1)) k = i;
+    GS.radioQ.splice(k, 1);
   }
 } // a full queue drops its least important line, never the story // every line has a voice: Corporal Reyes on the convoy radio, or Hawk the pilot while she is off the air
-const TIPS = {
-  // the convoy talks you through each thing the first time it happens, once per profile; basics are skipped for players who already reached night 4
-  ammo: ['Ammo boxes are marked by round. Shells will not feed a rifle. Read the label.', 1],
-  wcase: [
-    'Weapon case on the ground. Walk over it and take one gun. The other goes back on the truck for good, so choose.',
-    0,
-  ],
-  supply: ['Supply crate down. Ammo and gear inside, no gun. Grab it while it is quiet.', 1],
-  elite: ['The big one with the yellow cast is an elite. Hits harder, takes more, drops more. Keep your distance.', 1],
-  dry: ['That gun is dry. Rounds come off the dead. Tap Q to get back to it once you have some.', 1],
-  hurt: ['You are bleeding, nine. The red kits off the dead patch you up. Back off and find one.', 1],
-  dawn: ['Sun is up. Use the quiet: open the drop, reload, patch up. Press Enter when you are ready.', 0],
-  wheel: ['Three guns now. Hold Q for the gun wheel, tap Q for the last one you used.', 0],
-  barrel: ['Barrels go up big. Let them bunch up around one, then shoot it.', 1],
-  el_runner: [TRAIT.runner.tip, 0],
-  el_bloater: [TRAIT.bloater.tip, 0],
-  el_screamer: [TRAIT.screamer.tip, 0],
-  el_armored: [TRAIT.armored.tip, 0],
-  ability: [
-    'Nine, you have a trick of your own. Press E, then wait for it to come back. The bar under your roll shows when.',
-    0,
-  ],
-  boss: ['Every one of those big ones has a weak spot and an opening after it swings. Watch, then punish.', 0],
-};
-function tip(id) {
+let TIPS;
+export function tip(id) {
   const T = TIPS[id];
-  if (!T || RUN.practice || !meta || state !== 'play') return;
-  /* never spent on the menu's background scene */ meta.tips = meta.tips || {};
-  if (meta.tips['t_' + id]) return;
-  meta.tips['t_' + id] = true;
+  if (!T || GS.RUN.practice || !GS.meta || GS.state !== 'play') return;
+  /* never spent on the menu's background scene */ GS.meta.tips = GS.meta.tips || {};
+  if (GS.meta.tips['t_' + id]) return;
+  GS.meta.tips['t_' + id] = true;
   saveMeta();
-  if (T[1] && ((meta.stats && meta.stats.maxNight) || 0) >= 4) return;
+  if (T[1] && ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 4) return;
   radio(T[0], null, 0);
 }
-function radioTick(dt) {
+export function radioTick(dt) {
   const el = $('radio');
   if (!el) return;
-  if (radioT > 0) {
-    radioT -= dt;
-    if (radioT <= 0) el.classList.remove('show');
+  if (GS.radioT > 0) {
+    GS.radioT -= dt;
+    if (GS.radioT <= 0) el.classList.remove('show');
     return;
   }
-  if (!radioQ.length || state !== 'play' || $('hint').classList.contains('show')) return;
-  if (radioT > -0.7) {
-    radioT -= dt;
+  if (!GS.radioQ.length || GS.state !== 'play' || $('hint').classList.contains('show')) return;
+  if (GS.radioT > -0.7) {
+    GS.radioT -= dt;
     return;
   }
-  while (radioQ.length && radioQ[0].pri === 0 && time - radioQ[0].at > 20) radioQ.shift();
-  if (!radioQ.length) return; // a tip that waited too long is no longer about anything
-  const q = radioQ.shift(),
+  while (GS.radioQ.length && GS.radioQ[0].pri === 0 && GS.time - GS.radioQ[0].at > 20) GS.radioQ.shift();
+  if (!GS.radioQ.length) return; // a tip that waited too long is no longer about anything
+  const q = GS.radioQ.shift(),
     l = typeof q === 'string' ? q : q.t,
     who = typeof q === 'string' ? '' : q.who;
   el.innerHTML = `<b>CH 9${who ? ' · ' + who.toUpperCase() : ''}</b>“${l}”`;
   el.classList.add('show');
-  radioT = Math.max(3.4 + l.length * 0.035, voxDur(voxFor(l, who)) + 1.2);
+  GS.radioT = Math.max(3.4 + l.length * 0.035, voxDur(voxFor(l, who)) + 1.2);
   radioVoice(l, who);
+}
+
+// runs once, in order with every other part's init, when the game starts (see src/index.js)
+export function init() {
+  TIPS = {
+    // the convoy talks you through each thing the first time it happens, once per profile; basics are skipped for players who already reached night 4
+    ammo: ['Ammo boxes are marked by round. Shells will not feed a rifle. Read the label.', 1],
+    wcase: [
+      'Weapon case on the ground. Walk over it and take one gun. The other goes back on the truck for good, so choose.',
+      0,
+    ],
+    supply: ['Supply crate down. Ammo and gear inside, no gun. Grab it while it is quiet.', 1],
+    elite: [
+      'The big one with the yellow cast is an elite. Hits harder, takes more, drops more. Keep your distance.',
+      1,
+    ],
+    dry: ['That gun is dry. Rounds come off the dead. Tap Q to get back to it once you have some.', 1],
+    hurt: ['You are bleeding, nine. The red kits off the dead patch you up. Back off and find one.', 1],
+    dawn: ['Sun is up. Use the quiet: open the drop, reload, patch up. Press Enter when you are ready.', 0],
+    wheel: ['Three guns now. Hold Q for the gun wheel, tap Q for the last one you used.', 0],
+    barrel: ['Barrels go up big. Let them bunch up around one, then shoot it.', 1],
+    el_runner: [TRAIT.runner.tip, 0],
+    el_bloater: [TRAIT.bloater.tip, 0],
+    el_screamer: [TRAIT.screamer.tip, 0],
+    el_armored: [TRAIT.armored.tip, 0],
+    ability: [
+      'Nine, you have a trick of your own. Press E, then wait for it to come back. The bar under your roll shows when.',
+      0,
+    ],
+    boss: ['Every one of those big ones has a weak spot and an opening after it swings. Watch, then punish.', 0],
+  };
 }

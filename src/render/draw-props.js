@@ -1,7 +1,18 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GS } from '../core/gs.js';
+import { TAU, clamp, lerp } from '../core/util.js';
+import { lineQ, quad, setH, viewH, viewW } from './sprites.js';
+import { R } from './atlas.js';
+import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
+import { drawRanger, lampHot } from './draw-player.js';
+import { drawEnemy } from './draw-enemies.js';
+import { drawBlock } from './blocks.js';
+import { carKey, drawCar, drawWreck } from './cars.js';
+import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawTrunk } from './decor.js';
+import { drawPile } from '../game/objectives.js';
 const DQ = [];
 function drawCrate(c) {
-  if (SHMODE && !c.landed) return;
+  if (GS.SHMODE && !c.landed) return;
   setH(c.landed ? 10 : 0);
   const sq = c.squash > 0 ? Math.sin(c.squash * Math.PI) * 0.12 : 0,
     a = c.landed ? c.ang || 0 : (c.thx || 0) * 0.5;
@@ -26,9 +37,9 @@ function drawCrate(c) {
     );
   } /* a little bigger than before: an air-dropped supply box is about waist-high */ /* lit like the street, not glowing: the long case and the square box stay readable under a lamp */
 } // airborne crates cast a landing shadow instead (contact-shadow pass); the canopy is drawn overhead
-let chutesDown = [];
+GS.chutesDown = [];
 const CHUTE_L = 92; // suspension lines: how far the canopy hangs above its load, in screen height
-function chuteGeom(c) {
+export function chuteGeom(c) {
   const dep = c.dep ?? 1,
     op = dep >= 1 ? 1 : 1 - Math.pow(1 - dep, 3) + Math.sin(dep * Math.PI) * 0.14;
   return {
@@ -38,9 +49,9 @@ function chuteGeom(c) {
     op,
   };
 } // the canopy rides the wind; the load swings beneath it
-function drawChutes() {
+export function drawChutes() {
   // overhead: the canopy breathes, the load swings under it on a fan of lines
-  for (const c of crates)
+  for (const c of GS.crates)
     if (!c.landed) {
       const { cx, cy, br, op } = chuteGeom(c),
         s0 = c.gun ? 1.2 : 1,
@@ -77,7 +88,7 @@ function drawChuteDown(h) {
     z = h.z * (1 - e),
     axn = x - ca * 60 * h.s,
     ayn = y - sa * 60 * h.s;
-  if (SHMODE) {
+  if (GS.SHMODE) {
     if (e > 0.6) {
       setH(4);
       quad(R.chutedn, x, y, h.a, h.s, h.s * e, 1, 1, 1, fade, 0, 0, 0, 0);
@@ -108,8 +119,8 @@ function drawChuteDown(h) {
 function drawCrystal(c) {
   const g = c.grow < 1 ? c.grow * (2 - c.grow) : 1,
     f = c.flash > 0 ? 1 : 0,
-    pu = Math.sin(time * 5 + c.x) > 0 ? 1.6 : 0.6;
-  if (SHMODE) {
+    pu = Math.sin(GS.time * 5 + c.x) > 0 ? 1.6 : 0.6;
+  if (GS.SHMODE) {
     setH(26 * g);
     quad(R['crystal' + c.hue], c.x, c.y, c.rot, c.s * g, c.s * g, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
@@ -123,7 +134,7 @@ function drawCrystal(c) {
   quad(R['crystal' + c.hue], c.x, c.y - 20 * g, c.rot, c.s * g, c.s * g, 1, 1, 1, 1, pu, pu, pu, f);
 } // plain metal sides rising to the painted top: no stack of repeated hazard stripes
 function drawBurnBarrel(f) {
-  if (SHMODE) {
+  if (GS.SHMODE) {
     setH(18);
     quad(R.rustdisc, f.x, f.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
@@ -132,11 +143,11 @@ function drawBurnBarrel(f) {
     const sh = 0.4 + (0.6 * k) / 17;
     quad(R.rustdisc, f.x, f.y - k, f.ph, 1, 1, sh, sh, sh, 1, 0, 0, 0, 0);
   }
-  const fk = 0.8 + Math.sin(time * 13 + f.ph) * 0.2;
+  const fk = 0.8 + Math.sin(GS.time * 13 + f.ph) * 0.2;
   quad(R.bbtop, f.x, f.y - 18, f.ph, 1, 1, 1, 1, 1, 1, 1.6 * fk, 1.2 * fk, 1 * fk, 0);
 }
 function drawBarrel(b) {
-  if (SHMODE) {
+  if (GS.SHMODE) {
     setH(16);
     quad(R.canister, b.x, b.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
@@ -150,21 +161,21 @@ function drawPillar(p) {
   drawPole(p[0], p[1], 56, 6, 0.75);
 }
 function drawGen() {
-  if (SHMODE) {
+  if (GS.SHMODE) {
     setH(18);
-    quad(R.gen, obj.x, obj.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+    quad(R.gen, GS.obj.x, GS.obj.y, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
   }
-  const ok = obj.hp / obj.max,
-    fl = Math.sin(time * 9) > 0 ? 1 : 0.3;
+  const ok = GS.obj.hp / GS.obj.max,
+    fl = Math.sin(GS.time * 9) > 0 ? 1 : 0.3;
   for (let k = 0; k <= 9; k++) {
     const sh = 0.45 + (0.5 * k) / 9;
-    quad(R.gen, obj.x, obj.y - k * 2, 0, 1, 1, sh, sh, sh, 1, 0, 0, 0, 0);
+    quad(R.gen, GS.obj.x, GS.obj.y - k * 2, 0, 1, 1, sh, sh, sh, 1, 0, 0, 0, 0);
   }
   quad(
     R.glow,
-    obj.x + 13,
-    obj.y - 10,
+    GS.obj.x + 13,
+    GS.obj.y - 10,
     0,
     0.07,
     0.07,
@@ -197,13 +208,13 @@ function drawCan(c) {
     0
   );
 }
-function drawCasters() {
+export function drawCasters() {
   DQ.length = 0;
   const push = (y, f, a) => DQ.push({ y, f, a });
-  const tx0 = Math.max(0, Math.floor((camX - 60) / TILE)),
-    tx1 = Math.min(MW - 1, Math.floor((camX + viewW + 60) / TILE)),
-    ty0 = Math.max(0, Math.floor((camY - 60) / TILE)),
-    ty1 = Math.min(MH - 1, Math.floor((camY + viewH + 120) / TILE));
+  const tx0 = Math.max(0, Math.floor((GS.camX - 60) / TILE)),
+    tx1 = Math.min(MW - 1, Math.floor((GS.camX + viewW + 60) / TILE)),
+    ty0 = Math.max(0, Math.floor((GS.camY - 60) / TILE)),
+    ty1 = Math.min(MH - 1, Math.floor((GS.camY + viewH + 120) / TILE));
   for (let ty = ty0; ty <= ty1; ty++)
     for (let tx = tx0; tx <= tx1; tx++) {
       const i = ty * MW + tx,
@@ -211,10 +222,11 @@ function drawCasters() {
       if (t === 5 || t === 1 || t === 9) push((ty + 1) * TILE - 0.5, drawBlock, i);
       else if (t === 8) push((ty + 0.5) * TILE - 2, drawGrave, i);
     }
-  const vis = (x, y, m = 130) => x > camX - m && x < camX + viewW + m && y > camY - m && y < camY + viewH + m * 1.4;
+  const vis = (x, y, m = 130) =>
+    x > GS.camX - m && x < GS.camX + viewW + m && y > GS.camY - m && y < GS.camY + viewH + m * 1.4;
   for (const c of cars) if (!c.dead && vis(c.x, c.y)) push(carKey(c), drawCar, c);
-  for (const w of wrecks) if (vis(w.x, w.y)) push(w.y + 20, drawWreck, w);
-  for (const d of decor) if (vis(d.x, d.y)) push(decorKey(d), drawDecor, d);
+  for (const w of GS.wrecks) if (vis(w.x, w.y)) push(w.y + 20, drawWreck, w);
+  for (const d of GS.decor) if (vis(d.x, d.y)) push(decorKey(d), drawDecor, d);
   for (const L of lamps) if (vis(L.bx, L.by)) push(L.by, drawLampPole, L);
   for (const t of trees) if (vis(t.x, t.y)) push(t.y, drawTrunk, t);
   for (const r of roofs)
@@ -226,48 +238,48 @@ function drawCasters() {
         [110, 40],
       ])
         push(r.y + oy, drawPillar, [r.x + ox, r.y + oy]);
-  for (const c of crates) push(c.y, drawCrate, c);
-  for (const h of chutesDown) if (vis(h.x, h.y, 160)) push(h.cy - 30, drawChuteDown, h);
-  if (!NOHERO || SHMODE === 1) for (const b of buddies) push(b.y, drawRanger, b);
+  for (const c of GS.crates) push(c.y, drawCrate, c);
+  for (const h of GS.chutesDown) if (vis(h.x, h.y, 160)) push(h.cy - 30, drawChuteDown, h);
+  if (!GS.NOHERO || GS.SHMODE === 1) for (const b of GS.buddies) push(b.y, drawRanger, b);
   for (const c of crystals) if (c.alive && vis(c.x, c.y)) push(c.y + 16, drawCrystal, c);
   for (const f of fires) if (vis(f.x, f.y)) push(f.y + 12, drawBurnBarrel, f);
-  for (const b of barrels) if (!b.dead && vis(b.x, b.y)) push(b.y + 10, drawBarrel, b);
-  for (const e of corpses) if (vis(e.x, e.y)) push(e.y - 18, drawEnemy, e);
-  for (const e of enemies) if (!e.fly && vis(e.x, e.y)) push(e.y + (e.type === 'queen' ? 240 : 0), drawEnemy, e); // bosses tower over the cars and clutter they wade through
-  if (state !== 'over' && P && !NOHERO) push(P.y, drawRanger, P);
-  if (obj && obj.type === 'gen' && obj.hp > 0) push(obj.y, drawGen, null);
-  if (obj && obj.type === 'rescue' && obj.s.hp > 0 && !obj.joined) push(obj.s.y, drawRanger, obj.s);
-  if (obj && obj.type === 'fuel') for (const c of obj.cans) if (!c.got) push(c.y, drawCan, c);
-  if (obj && obj.type === 'box') for (const q of obj.piles) if (vis(q.x, q.y)) push(q.y - 30, drawPile, q);
+  for (const b of GS.barrels) if (!b.dead && vis(b.x, b.y)) push(b.y + 10, drawBarrel, b);
+  for (const e of GS.corpses) if (vis(e.x, e.y)) push(e.y - 18, drawEnemy, e);
+  for (const e of GS.enemies) if (!e.fly && vis(e.x, e.y)) push(e.y + (e.type === 'queen' ? 240 : 0), drawEnemy, e); // bosses tower over the cars and clutter they wade through
+  if (GS.state !== 'over' && GS.P && !GS.NOHERO) push(GS.P.y, drawRanger, GS.P);
+  if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) push(GS.obj.y, drawGen, null);
+  if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && !GS.obj.joined) push(GS.obj.s.y, drawRanger, GS.obj.s);
+  if (GS.obj && GS.obj.type === 'fuel') for (const c of GS.obj.cans) if (!c.got) push(c.y, drawCan, c);
+  if (GS.obj && GS.obj.type === 'box') for (const q of GS.obj.piles) if (vis(q.x, q.y)) push(q.y - 30, drawPile, q);
   DQ.sort((a, b) => a.y - b.y);
   for (const q of DQ) q.f(q.a);
-  for (const g of bangs) {
+  for (const g of GS.bangs) {
     setH(g.z + 3);
     quad(R.flashbang, g.x, g.y - g.z, g.spin, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0);
   }
-  for (const m of molos) {
+  for (const m of GS.molos) {
     setH(m.z);
     quad(R.molotov, m.x, m.y - m.z, m.spin, 1, 1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);
   }
-  for (const b of pbullets)
+  for (const b of GS.pbullets)
     if (b.shell && b.t >= 0) {
       setH(b.z);
       quad(R.grenade, b.x, b.y - b.z, b.spin, b.mini ? 0.7 : 1, b.mini ? 0.7 : 1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);
     }
-  for (const m of darts)
+  for (const m of GS.darts)
     if (m.t >= 0) {
       setH(m.z + 4);
       quad(R.pipebomb, m.x, m.y - m.z, m.spin, 1, 1, 1, 1, 1, 1, 1.4, 1.4, 1.4, 0);
     }
-  for (const e of enemies) if (e.fly) drawEnemy(e);
-  for (const m of mortars) {
+  for (const e of GS.enemies) if (e.fly) drawEnemy(e);
+  for (const m of GS.mortars) {
     setH(m.z);
     if (m.slab) {
-      quad(R['grave' + m.gk], m.x, m.y - m.z, time * 6, 1.25, 1.25, 1, 1, 1, 1, 0, 0, 0, 0);
+      quad(R['grave' + m.gk], m.x, m.y - m.z, GS.time * 6, 1.25, 1.25, 1, 1, 1, 1, 0, 0, 0, 0);
       continue;
     }
     if (m.walker) {
-      const a = time * 9;
+      const a = GS.time * 9;
       quad(R['z_torso' + Math.min(2, m.walker.v || 0)], m.x, m.y - m.z, a, 1.15, 1.15, 1, 1, 1, 1, 0.6, 0.6, 0.6, 0);
       quad(
         R['z_head' + Math.min(2, m.walker.hv || 0)],
@@ -288,14 +300,14 @@ function drawCasters() {
       continue;
     }
     if (m.flare) {
-      quad(R.pixel, m.x, m.y - m.z, time * 9, 5, 1.6, 0.8, 0.12, 0.1, 1, 2.6, 0.5, 0.35, 0);
+      quad(R.pixel, m.x, m.y - m.z, GS.time * 9, 5, 1.6, 0.8, 0.12, 0.1, 1, 2.6, 0.5, 0.35, 0);
       continue;
     }
-    if (m.ext) quad(R.cf_ext, m.x, m.y - m.z, time * 7, 1.6, 1.6, 1, 1, 1, 1, 0, 0, 0, 0);
-    else if (m.rock) quad(R.rockchip, m.x, m.y - m.z, time * 5, 3.4, 3.4, 0.62, 0.6, 0.56, 1, 0, 0, 0, 0);
-    else quad(R.acid, m.x, m.y - m.z, time * 6, 1.4, 1.4, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);
+    if (m.ext) quad(R.cf_ext, m.x, m.y - m.z, GS.time * 7, 1.6, 1.6, 1, 1, 1, 1, 0, 0, 0, 0);
+    else if (m.rock) quad(R.rockchip, m.x, m.y - m.z, GS.time * 5, 3.4, 3.4, 0.62, 0.6, 0.56, 1, 0, 0, 0, 0);
+    else quad(R.acid, m.x, m.y - m.z, GS.time * 6, 1.4, 1.4, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);
   }
-  for (const b of butterflies) {
+  for (const b of GS.butterflies) {
     setH(b.z);
     const f = Math.abs(Math.sin(b.t * 16));
     for (const sd of [-1, 1])
@@ -316,8 +328,8 @@ function drawCasters() {
         0
       );
   }
-  if (evac && (SHMODE || evac.z < 20)) {
-    const e = evac;
+  if (GS.evac && (GS.SHMODE || GS.evac.z < 20)) {
+    const e = GS.evac;
     setH(e.z + 60);
     {
       const hk = e.t >= e.land ? 0.8 : 1.4;
@@ -326,17 +338,17 @@ function drawCasters() {
     heliRotor(e);
   } // in the air it is drawn later, over roofs and trees
 }
-function heliRotor(e) {
+export function heliRotor(e) {
   // four main blades smeared by their own speed into a soft disc, the hub on the mast ahead of centre
   const S = 1 + e.z / 900,
     ha = e.ha ?? 2.4,
     cx = e.hx + Math.cos(ha) * 48 * S,
     cy = e.hy - e.z * 0.35 + Math.sin(ha) * 48 * S,
     L = 134 * S,
-    spin = time * 24;
+    spin = GS.time * 24;
   setH(e.z + 72);
   for (let b = 0; b < 4; b++)
-    for (let k = 0; k < (SHMODE ? 1 : 4); k++) {
+    for (let k = 0; k < (GS.SHMODE ? 1 : 4); k++) {
       const a = spin + (b * Math.PI) / 2 - k * 0.06;
       lineQ(
         cx + Math.cos(a) * 6 * S,
@@ -347,7 +359,7 @@ function heliRotor(e) {
         0.07,
         0.075,
         0.07,
-        SHMODE ? 0.4 : [0.55, 0.32, 0.18, 0.09][k],
+        GS.SHMODE ? 0.4 : [0.55, 0.32, 0.18, 0.09][k],
         0,
         0,
         0,
@@ -356,6 +368,6 @@ function heliRotor(e) {
       );
     }
 }
-const PREG = () => [null, null, null, R.chip, R.rockchip, R.leafbit, R.petalbit, R.shell, R.drop, R.g_meat0];
-let PARTREG = null,
-  WETV = 0.42;
+export const PREG = () => [null, null, null, R.chip, R.rockchip, R.leafbit, R.petalbit, R.shell, R.drop, R.g_meat0];
+GS.PARTREG = null;
+GS.WETV = 0.42;

@@ -1,5 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function paintAtlas() {
+import { TAU, lerp, pick, rand, randi } from '../core/util.js';
+import { OUT, circ, ell, grad, radial, region, rgrad, rr, shape } from './atlas.js';
+import { ZSHIRT } from './draw-enemies.js';
+export function paintAtlas() {
   region(
     'pixel',
     4,
