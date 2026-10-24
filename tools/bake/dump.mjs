@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // Step 1 of rebuilding the 3D pictures: opens the one-file build in a software-rendering browser with the live
-// bake on, so every part is drawn from its shapes (src/render/bake-shapes.js), and saves each picture and its
+// bake on, so every part is drawn from its shapes (src/render/shapes/), and saves each picture and its
 // height field to build/bake/ (one JSON file per part, plus key.txt, the hash the game checks pictures against).
 // Run after npm run build: node tools/bake/dump.mjs, then python3 tools/bake/pack.py
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';

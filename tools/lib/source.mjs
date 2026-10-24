@@ -18,7 +18,7 @@ export const strip = t => {
 };
 
 // players never rebuild the 3D character pictures, so dist leaves out the shapes they are built from
-const LEAN = /src[\\/]render[\\/]bake(-shapes)?\.js$/;
+const LEAN = /src[\\/]render[\\/](bake\.js|shapes[\\/]\w+\.js)$/;
 const leanPlugin = {
   name: 'lean',
   setup(b) {

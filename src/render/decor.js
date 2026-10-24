@@ -103,7 +103,7 @@ const DECOR = {
   tire: { reg: 'p_tire', n: 3, step: 2, o: 'o_tyre' },
   coffin: { reg: 'p_coffin', n: 4, step: 2, o: 'o_coffin' },
   wreath: { reg: 'p_wreath', n: 1, step: 1 },
-}; // o: the 3D picture (bake-shapes.js) drawn instead of the stacked slices when it is there
+}; // o: the 3D picture (shapes/props.js) drawn instead of the stacked slices when it is there
 export function genDecor() {
   GS.decor = [];
   GS.jets = [];

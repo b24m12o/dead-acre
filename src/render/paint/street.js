@@ -4,7 +4,7 @@ import { circ, grad, region, rgrad, rr, shape } from '../atlas.js';
 import { O_SIZES } from '../bake.js';
 import { TAU, pick, rand } from '../../core/util.js';
 export function paintStreet() {
-  /* ----- street props as 3D pictures, seen at the game's angle (bake-shapes.js); the sliced versions below are the fallback ----- */
+  /* ----- street props as 3D pictures, seen at the game's angle (shapes/props.js); the sliced versions below are the fallback ----- */
   for (const [n, [w, h]] of Object.entries(O_SIZES)) region(n, w, h, () => {}, 0.3, 0.4, 0.8);
   /* ----- street props (top view slices, stacked when drawn) ----- */
   region(

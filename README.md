@@ -24,6 +24,7 @@ src/
                 the asset pack (assets.js); gs.js holds GS, the shared game state
   render/       WebGL, sprites, lighting, the painted atlas, the 3D bake (characters, cars, props), drawing
     paint/      the painted atlas, one file per area (survivors, the town, props, people, gore...)
+    shapes/     the 3D shapes the shipped pictures are built from (infected, bosses, cars, props...)
   world/        the map, navigation, physics, wear, fire, weather, sight lines
   actors/       zombies and their AI, bosses, the player's weapons, backups, legs
   game/         runs, waves, surges, combat, upgrades, objectives and jobs, story, evac
