@@ -34,7 +34,7 @@ const VOX = JSON.stringify(pack.vox.list.map(([id, t, d, o, n, w]) => [id, t, d,
 const GUN = JSON.stringify(pack.gun.list.map(([n, o, l]) => [n, gun.subarray(o, o + l).toString('base64')]));
 let full = swap(script, 'let BAKE_IMG = ', 'null', BAKE); full = swap(full, 'let VOX = ', '[]', VOX); full = swap(full, 'let GUNHD = ', 'null', GUN);
 
-const css = strip(rd('css/style.css')), markup = strip(rd('src/markup.html')), head = rd('src/head.html').trim();
+const css = strip(rd('css/style.css')), markup = strip(rd('src/markup.html')), head = strip(rd('src/head.html')).trim();
 const cssFull = css.replace(/url\(\.\.\/assets\/fonts\/([\w.-]+)\)/g, (_, f) => 'url(data:font/woff2;base64,' + b64('assets/fonts/' + f) + ')');
 wr('build/dead-acre.html', head + '\n' + '<style>' + cssFull + '</style>\n\n' + markup + '\n<script>' + full + '</script>\n');
 
