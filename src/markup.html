@@ -1,0 +1,212 @@
+<!-- Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. -->
+<canvas id="gl" role="img" aria-label="Dead Acre game world"></canvas>
+<canvas id="ui" aria-hidden="true"></canvas>
+<div id="loading">Checking the perimeter…</div>
+
+<div class="hud" id="hud" hidden>
+  <div class="top">
+    <div class="gauge plate" id="gauge">
+      <div class="hprow"><div class="hpbar" id="hpBar"><i id="hpFill"></i></div><b id="hpTxt">100</b></div>
+      <div class="rollrow"><span>Roll</span><div class="thin" id="dashBar" title="Roll"><i id="dashFill"></i></div></div>
+      <div class="rollrow abrow" id="abRow"><span id="abLbl">Ability · E</span><div class="thin" id="abBar"><i id="abFill"></i></div></div>
+      <div class="gcur" id="gunCur"><span class="gn" id="gunName"></span><span class="ga" id="gunAmmo"></span></div>
+      <div class="gchips" id="gunChips"></div>
+      <div class="gunrow" id="gunRow"></div>
+      <div class="squad" id="squad"></div>
+    </div>
+    <div class="wave plate" id="wavePlate">
+      <div class="wave-num" id="waveTxt">Night 1</div><span class="wx" id="wxTag" hidden></span>
+      <div class="wave-sub" id="waveSub">Get ready</div>
+      <div class="wave-obj" id="objTxt"></div>
+    </div>
+    <div class="score" id="scorePlate">
+      <div id="chain"></div>
+      <div class="score-num" id="scoreTxt">0</div>
+    </div>
+  </div>
+  <div></div>
+  <div class="bottom">
+    <div class="xpline"><span id="lv">Level 1</span><div class="thin" id="xpBar"><i id="xpFill"></i></div></div>
+  </div>
+  <div id="muteChip" hidden><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 5.5l4 5M15 5.5l-4 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Sound off · M</div>
+</div>
+<div id="saveWarn" role="alert" hidden>Progress is not being saved · browser storage is blocked or full · Settings › Export save keeps a copy</div>
+<div id="hint" class="hinttip">Hold click to fire</div>
+<div id="radio" aria-live="polite"></div>
+<div id="bossBox" hidden><div></div><div class="thin"><i id="bossFill"></i><b class="tick" style="left:33.3%"></b><b class="tick" style="left:66.6%"></b></div><div class="stgrow"><span class="lbl">Stagger</span><div class="stg"><i id="bossStg"></i></div><span class="lbl" id="tankLbl" hidden>Air tank</span><div class="stg tank" id="tankWrap" hidden><i id="bossTank"></i></div></div><div class="bhint" id="bossHint"></div></div>
+<div id="banner"></div>
+
+<div class="overlay" id="menu" hidden>
+  <div class="panel">
+    <div class="eyebrow">Dead Acre County · Day 3 of the outbreak · Radio channel 9</div>
+    <h1>Dead <span>Acre</span></h1>
+    <p class="lede">Three days ago the county went dark. A National Guard convoy still talks on channel 9, and it needs the radio relay held. Start with a pistol, grab the weapons the convoy airdrops as the nights go on, scavenge ammo off the dead, and last 15 nights until the Guard chopper comes for you.</p>
+    <div class="btns">
+      <button class="btn" id="survBtn" type="button">Play</button>
+      <button class="btn ghost" id="hangarBtn" type="button">Armory</button>
+      <button class="btn ghost" id="chalBtn" type="button">Challenges</button>
+      <button class="btn ghost" id="settingsBtn" type="button">Settings</button>
+    </div>
+    <div class="sec">Your character</div>
+    <div class="heroes" id="heroes"></div>
+    <p class="rec keysline">WASD move · Mouse aim · Hold click to fire · Space, Shift or right-click roll · E ability · 1–9 or mouse wheel swap guns · Q last gun, hold Q for the gun wheel · R reload · Esc pause · M sound · N music</p>
+    <div class="btns"><span class="seeds" id="menuSeeds"></span><span class="rec" id="menuRec">No runs logged yet</span></div>
+  </div>
+</div>
+
+<div class="overlay" id="survSetup" hidden>
+  <div class="panel">
+    <div class="eyebrow">Hold the radio relay</div>
+    <h2>Pick your ground</h2>
+    <p class="lede small">Fifteen nights at one relay. The convoy airdrops heavier guns as the nights go on, a boss comes every fifth night, and on the last one the Guard chopper lands for you.</p>
+    <div class="sec">District</div>
+    <div class="heroes" id="districts"></div>
+    <div class="infrow"><span class="sec">Infection</span><div class="seg" id="infSeg"></div></div>
+    <p class="rec" id="infDesc"></p>
+    <div class="sec">Twists</div>
+    <div class="twists" id="twists"></div>
+    <p class="rec" id="twDesc"></p>
+    <div class="btns"><button class="btn" id="startBtn" type="button">Hold the line</button><button class="btn ghost" id="survBack" type="button">Back</button></div>
+  </div>
+</div>
+<div class="overlay" id="levelup" hidden>
+  <div class="panel">
+    <div class="eyebrow" id="luEye">Level 2</div>
+    <h2 id="luTitle">Pick your gear</h2>
+    <div class="cards" id="cards"></div>
+    <div class="lu-foot"><button class="opt" id="rerollBtn" type="button">Reroll</button><span class="rec" id="luKeys">Keys 1–3 pick · R rerolls</span></div>
+  </div>
+</div>
+
+<div class="overlay" id="pause" hidden>
+  <div class="panel">
+    <div class="eyebrow">Catching your breath</div>
+    <h2>Paused</h2>
+    <div class="sec">Your guns</div>
+    <div id="pGuns"></div>
+    <div class="sec">Your gear</div>
+    <div id="mods"><span class="none">Nothing picked up yet</span></div>
+    <p class="rec" id="pauseHint"></p>
+    <div class="btns"><span class="seg"><button id="musicBtn" type="button">Music</button><button id="muteBtn" type="button">Sound</button></span></div>
+    <div class="btns">
+      <button class="btn" id="resumeBtn" type="button">Resume</button>
+      <button class="btn ghost" id="settingsBtn2" type="button">Settings</button>
+      <button class="btn ghost" id="quitBtn" type="button">Quit run</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <div class="panel">
+    <div class="eyebrow">They got you · The radio is still on</div>
+    <h2 id="overTitle">Eaten on night 4 of 15</h2>
+    <dl class="stats">
+      <div><dt>Score</dt><dd id="oScore">0</dd></div>
+      <div><dt id="oWaveL">Night</dt><dd id="oWave">0</dd></div>
+      <div><dt>Kills</dt><dd id="oKills">0</dd></div>
+      <div><dt>Level</dt><dd id="oLevel">1</dd></div>
+    </dl>
+    <div class="seeds" id="oSeeds"></div>
+    <p class="rec plain" id="oCrew" hidden></p>
+    <p class="lastcall" id="oRadio" hidden></p>
+    <div class="rec" id="oRec"></div>
+    <div class="runreport" id="oBreakdown" aria-label="Run performance"></div>
+    <div id="oChal"></div>
+    <div class="btns"><button class="btn" id="againBtn" type="button">Try again</button><button class="btn ghost" id="toMenuBtn" type="button">Menu</button></div>
+  </div>
+</div>
+<div class="overlay" id="won" hidden>
+  <div class="panel">
+    <div class="eyebrow">Evac complete · The rotors are still spinning</div>
+    <h2 id="wTitle">You made it out</h2>
+    <dl class="stats">
+      <div><dt>Score</dt><dd id="wScore">0</dd></div>
+      <div><dt>Kills</dt><dd id="wKills">0</dd></div>
+      <div><dt>Level</dt><dd id="wLevel">1</dd></div>
+      <div><dt>Infection</dt><dd id="wInf">0</dd></div>
+    </dl>
+    <div class="seeds" id="wSeeds"></div>
+    <p class="rec plain" id="wCrew" hidden></p>
+    <p class="lastcall" id="wRadio"></p>
+    <div class="runreport" id="wBreakdown" aria-label="Run performance"></div>
+    <p class="rec plain" id="wUnlock"></p>
+    <div class="btns"><button class="btn" id="wonMenuBtn" type="button">Armory</button><button class="btn ghost" id="endlessBtn" type="button">Stay behind · Endless nights</button></div>
+  </div>
+</div>
+<div class="overlay" id="chal" hidden>
+  <div class="panel">
+    <div class="eyebrow">Notes scrawled on the back-room wall</div>
+    <h2>Challenges</h2>
+    <p class="chal-intro">Challenges count across <b>every run</b>, even ones where you die. Finish one and you get its scrap straight away. Many also unlock something new: a <span class="tag t-perk">perk</span> you can then buy in the Armory, an <span class="tag t-outfit">outfit</span> to wear, or a whole new <span class="tag t-district">district</span> to play.</p>
+    <div class="chal-sum" id="chalSum"></div>
+    <div id="chalList"></div>
+    <div class="btns"><button class="btn" id="chalBack" type="button">Back</button></div>
+  </div>
+</div>
+<div class="overlay" id="hangar" hidden>
+  <div class="panel">
+    <div class="eyebrow">Gas station back room · Workbench</div>
+    <h2>Armory</h2>
+    <div class="seeds" id="hangarSeeds"></div>
+    <div class="pv"><canvas id="heroPv" width="200" height="200"></canvas><div class="pvt"><span class="pvk">Preview</span><b id="pvName"></b><span id="pvSub"></span></div></div>
+    <div class="sec">Characters</div>
+    <div class="perks" id="hangarHeroes"></div>
+    <div class="sec">Perks</div>
+    <p class="secnote" id="perkNote"></p>
+    <div class="perks" id="hangarPerks"></div>
+    <div class="sec">Outfits</div>
+    <div class="perks" id="hangarOutfits"></div>
+    <div class="btns"><button class="btn" id="hangarBack" type="button">Back</button><button class="btn ghost" id="chalBtn2" type="button">Challenges</button></div>
+  </div>
+</div>
+<div class="overlay" id="practice" hidden>
+  <div class="panel">
+    <div class="eyebrow">Testing · no scrap and no challenge progress</div>
+    <h2>Boss practice</h2>
+    <p class="lede small">Straight into a boss fight with the guns and the level you would normally have by that night. Your perks and character apply.</p>
+    <div class="perks" id="practiceList"></div>
+    <div class="btns"><button class="btn" id="practiceBack" type="button">Back</button></div>
+  </div>
+</div>
+<div class="overlay" id="settings" hidden>
+  <div class="panel">
+    <div class="eyebrow">Field settings</div>
+    <h2>Settings</h2>
+    <div class="set">
+      <label for="volMaster">Master</label><input type="range" id="volMaster" min="0" max="100">
+      <label for="volMusic">Music</label><input type="range" id="volMusic" min="0" max="100">
+      <label for="volSfx">Effects</label><input type="range" id="volSfx" min="0" max="100">
+      <label>Difficulty</label><div class="seg" id="diffSeg" role="group" aria-label="Difficulty"><button type="button" data-d="relaxed">Relaxed · ×0.7 scrap</button><button type="button" data-d="normal">Normal</button><button type="button" data-d="hard">Hard · ×1.5 scrap</button></div>
+      <span></span><p class="segnote" id="diffDesc" style="grid-column:2 / -1;margin:-4px 0 0"></p>
+      <label>Crosshair</label><div class="seg" id="chCol" role="group" aria-label="Crosshair color"><button type="button" data-c="white">White</button><button type="button" data-c="amber">Amber</button><button type="button" data-c="red">Red</button><button type="button" data-c="green">Green</button></div><canvas id="chPrev" aria-label="Crosshair preview" title="Preview"></canvas>
+      <label>Crosshair size</label><div class="seg" id="chSize" role="group" aria-label="Crosshair size"><button type="button" data-s="0.9">Small</button><button type="button" data-s="1.15">Medium</button><button type="button" data-s="1.45">Large</button></div>
+      <label>Aim line</label><div class="seg"><button type="button" class="tog" id="chLine">Show aim line</button></div>
+      <label>HUD</label><div class="seg" id="hudSize" role="group" aria-label="HUD layout"><button type="button" data-h="compact">Compact</button><button type="button" data-h="full">Full weapon list</button></div>
+      <label>Text size</label><div class="seg" id="hudTs" role="group" aria-label="HUD text size"><button type="button" data-t="1">100%</button><button type="button" data-t="1.25">125%</button><button type="button" data-t="1.5">150%</button></div>
+      <label>HUD opacity</label><div class="seg" id="hudOp" role="group" aria-label="HUD opacity"><button type="button" data-o="1">100%</button><button type="button" data-o="0.8">80%</button><button type="button" data-o="0.6">60%</button></div>
+      <label>Comfort</label><div class="seg"><button type="button" class="tog" id="leanBtn">Camera lean</button><button type="button" class="tog" id="shakeBtn">Screen shake</button><button type="button" class="tog" id="flashBtn">Reduce flashes</button></div>
+      <label>Graphics</label><div class="seg" id="gfxSeg" role="group" aria-label="Graphics quality"><button type="button" data-g="ultra">Ultra</button><button type="button" data-g="balanced">Balanced</button><button type="button" class="tog" id="fpsBtn">Show FPS</button><span class="segnote">Balanced suits older laptops</span></div>
+      <label>Look</label><div class="seg"><button type="button" class="tog" id="goreBtn">Full gore</button><button type="button" class="tog" id="grainBtn">Film grain</button></div>
+      <label>Gameplay</label><div class="seg"><button type="button" class="tog" id="losBtn">Line of sight</button><button type="button" class="tog" id="tutBtn">Training on next run</button><span class="segnote">Walls hide whatever is behind them</span></div>
+      <label class="pracRow">Testing</label><div class="seg pracRow"><button type="button" id="practiceBtn">Boss practice</button><span class="segnote">Fight any boss straight away · B on the main menu</span></div>
+    </div>
+    <div class="save-tools" aria-label="Profile backup">
+      <div><strong>Profile backup</strong><p>Keep a copy of your scrap, unlocks, challenges, records, and settings. Importing a backup replaces this browser's profile.</p></div>
+      <div class="btns"><button class="btn ghost" id="exportSave" type="button">Export save</button><button class="btn ghost" id="importSave" type="button">Import save</button><input id="importSaveFile" type="file" accept=".json,application/json" hidden></div>
+      <p class="save-status" id="saveStatus" role="status" aria-live="polite"></p>
+    </div>
+    <div class="btns"><button class="btn" id="settingsBack" type="button">Back</button></div>
+    <div class="rec" style="margin-top:10px">Gun recordings (Walther PPQ 9mm, AR-15, Benelli Nova, Tikka .30-06 and more): The Free Firearm Sound Library by Still North Media (CC0)</div>
+  </div>
+</div>
+<div id="streak"></div>
+<div class="overlay" id="deskOnly" hidden>
+  <div class="panel">
+    <div class="eyebrow">Dead Acre County · Radio channel 9</div>
+    <h1>Dead <span>Acre</span></h1>
+    <p class="lede">This game is built for a computer with a keyboard and mouse. There are no touch controls, so it won't run on a phone or tablet.</p>
+    <p class="lede">Open this page on a computer to play.</p>
+    <p class="rec">Have a mouse and keyboard connected to this device? Move the mouse and the game will load.</p>
+  </div>
+</div>
+<div id="nogl" hidden>This game needs WebGL 2, which this browser or device has turned off.</div>

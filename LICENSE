@@ -1,0 +1,18 @@
+Copyright (c) 2026 b24m12o. All rights reserved.
+
+This repository is public so that the game can be played and its source can be read.
+No licence is granted. Without prior written permission from the copyright holder,
+you may not copy, modify, merge, publish, distribute, sublicense, sell, or create
+derivative works from any part of this repository (code, text, story, art, voices,
+audio or any other asset), in whole or in part.
+
+Viewing this repository, and forking it on GitHub as GitHub's Terms of Service allow,
+does not grant any other rights.
+
+Third-party recordings
+Some sounds in assets/ were made from recordings their authors released under
+CC0 1.0 (public domain): The Free Firearm Sound Library; Kenney Impact Sounds and
+Kenney Voiceover Pack (kenney.nl); 80 CC0 creature SFX (OpenGameArt); Warfork sound
+assets (Team Forbidden). Those original recordings remain CC0. This notice covers
+everything else, including the selection, editing and arrangement of those sounds.
+The radio voices were generated with the Kokoro text-to-speech model (Apache-2.0).
