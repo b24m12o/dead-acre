@@ -102,8 +102,8 @@ export function init() {
       ) {
         GS.interT = 0.6;
         GS.RUN.dawnX = 99;
-      }
-      /* the number is the gun's place in your row, as the HUD shows it */ if (k === 'q' && !e.repeat) {
+      } // the number is the gun's place in your row, as the HUD shows it
+      if (k === 'q' && !e.repeat) {
         WHEEL.downT = performance.now();
         WHEEL.held = 'kbm';
       }

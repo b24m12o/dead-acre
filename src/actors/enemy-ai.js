@@ -361,8 +361,8 @@ export function updateEnemy(e, dt, p) {
             c.emerge = 0.6;
             c.aw = 9;
           }
-        }
-        /* the sac splits and two infected crawlers spill out */ break;
+        } // the sac splits and two infected crawlers spill out
+        break;
       }
       case 'hound': {
         e.stT -= dt;
@@ -613,13 +613,13 @@ export function updateEnemy(e, dt, p) {
           const tg = Math.atan2(p.y - e.y, p.x - e.x);
           e.a += clamp(angDiff(e.a, tg), -2.2 * dt, 2.2 * dt);
         }
-      }
-    } /* up on its knees it starts to turn toward you, the head first, before it is even standing */ else {
+      } // up on its knees it starts to turn toward you, the head first, before it is even standing
+    } else {
       e.lyG = 0;
       e.stag = Math.max(e.stag || 0, 0.45);
       e.wbT = 0.75;
-    }
-  } /* back up, facing the way its head lay, then a few unsteady steps */ else if (e.stag > 0) {
+    } // back up, facing the way its head lay, then a few unsteady steps
+  } else if (e.stag > 0) {
     e.stag -= dt;
     tvx *= 0.2;
     tvy *= 0.2;

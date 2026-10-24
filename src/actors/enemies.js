@@ -209,8 +209,8 @@ export function makeEnemy(type, x, y) {
     }
     if (e.btype === 'pz') {
       e.hp *= 2.2;
-      e.maxHp = e.hp;
-      /* no armour, but it can be choked */ e.sc = 1.12;
+      e.maxHp = e.hp; // no armour, but it can be choked
+      e.sc = 1.12;
     } // the last boss is the longest fight
     if (e.btype === 'roadkill') {
       e.hp *= 1.2;

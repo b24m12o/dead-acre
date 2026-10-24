@@ -34,8 +34,8 @@ function drawCrate(c) {
       0.55,
       0.55,
       0
-    );
-  } /* a little bigger than before: an air-dropped supply box is about waist-high */ /* lit like the street, not glowing: the long case and the square box stay readable under a lamp */
+    ); // a little bigger than before: an air-dropped supply box is about waist-high
+  } /* lit like the street, not glowing: the long case and the square box stay readable under a lamp */
 } // airborne crates cast a landing shadow instead (contact-shadow pass); the canopy is drawn overhead
 GS.chutesDown = [];
 const CHUTE_L = 92; // suspension lines: how far the canopy hangs above its load, in screen height

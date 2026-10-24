@@ -153,8 +153,8 @@ export function firePlayer(cwx, cwy, p, target) {
         const cc = Math.cos(aa),
           ss = Math.sin(aa),
           br = g === 'rifle' && Math.hypot(q.vx, q.vy) < 40,
-          a = aa + rand(-G.spread, G.spread) * (0.35 + 0.65 * (q.heat || 0)) * (S.spreadMul || 1) * (br ? 0.5 : 1);
-        /* stand still and the rifle is braced: tighter, and through one more body */ GS.pbullets.push({
+          a = aa + rand(-G.spread, G.spread) * (0.35 + 0.65 * (q.heat || 0)) * (S.spreadMul || 1) * (br ? 0.5 : 1); // stand still and the rifle is braced: tighter, and through one more body
+        GS.pbullets.push({
           x: q.x + cc * 14,
           y: q.y + ss * 14,
           sx: q.x + cc * 14,
@@ -316,8 +316,8 @@ export function updatePBullet(b, dt) {
         shellBoom(b.x, b.y, b.R || S.blast || 95, b.dmg, true);
         return;
       }
-    }
-    /* low in its arc a round bursts on the first body it meets */ if (Math.random() < 0.6)
+    } // low in its arc a round bursts on the first body it meets
+    if (Math.random() < 0.6)
       part({
         k: 2,
         x: b.x,
@@ -611,8 +611,8 @@ export function updateBang(g, dt, p) {
           if (g.big && GS.time > (e.bangCd || 0)) {
             e.bangCd = GS.time + 6;
             e.stunT = Math.max(e.stunT || 0, 0.8);
-          }
-        } /* a boss shrugs off the little ones; the big bang buys a moment, not a crawl */ else {
+          } // a boss shrugs off the little ones; the big bang buys a moment, not a crawl
+        } else {
           e.stag = Math.max(e.stag || 0, st);
           e.dazedT = GS.time + st;
         }

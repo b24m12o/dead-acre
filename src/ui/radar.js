@@ -136,11 +136,8 @@ export function drawRadar() {
       ui.lineTo(ex, ey + q);
       ui.lineTo(ex - q, ey);
       ui.closePath();
-    } else ui.arc(ex, ey, r, 0, TAU);
-    /* shape as well as colour: spitters and bloaters are diamonds, the screamer a ring; elite traits too: armored a square, runner a triangle */ if (
-      e.type === 'flower' ||
-      tr === 'screamer'
-    ) {
+    } else ui.arc(ex, ey, r, 0, TAU); // shape as well as colour: spitters and bloaters are diamonds, the screamer a ring; elite traits too: armored a square, runner a triangle
+    if (e.type === 'flower' || tr === 'screamer') {
       ui.strokeStyle = col;
       ui.lineWidth = 1.6;
       ui.stroke();

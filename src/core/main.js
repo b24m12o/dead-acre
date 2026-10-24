@@ -195,11 +195,8 @@ function fitOverlays() {
         Math.min(browse ? Math.max((innerHeight - 56) / h, 0.94) : (innerHeight - 56) / h, (innerWidth - 24) / w, up),
         0.62,
         1.35
-      );
-    /* a long list you browse scrolls rather than shrinking its text; a screen with a decision on it still fits whole */ if (
-      Math.abs(z - 1) > 0.004
-    )
-      pn.style.zoom = z.toFixed(3);
+      ); // a long list you browse scrolls rather than shrinking its text; a screen with a decision on it still fits whole
+    if (Math.abs(z - 1) > 0.004) pn.style.zoom = z.toFixed(3);
   }
 }
 let fontsReady;

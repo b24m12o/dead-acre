@@ -6589,8 +6589,8 @@ export function paintAtlas() {
       a.beginPath();
       a.moveTo(D * 0.5, W * 0.8);
       a.quadraticCurveTo(-D * 0.2, W * 0.94, -D * 0.6, W * 0.5);
-      a.stroke();
-      /* rain-worn highlight on the cape shoulders */ a.strokeStyle = '#7a6440';
+      a.stroke(); // rain-worn highlight on the cape shoulders
+      a.strokeStyle = '#7a6440';
       a.lineWidth = 3;
       a.beginPath();
       a.moveTo(D * 0.55, -W * 0.7);
@@ -6605,8 +6605,8 @@ export function paintAtlas() {
         a.moveTo(x - 1.5, y - 1.5);
         a.lineTo(x + 1.5, y + 1.5);
         a.stroke();
-      }
-      /* a coil of grave rope slung across the back */ a.fillStyle = '#2e2a22';
+      } // a coil of grave rope slung across the back
+      a.fillStyle = '#2e2a22';
       a.beginPath();
       a.ellipse(D * 0.44, 0, 9, 15, 0, 0, TAU);
       a.fill();
@@ -8852,8 +8852,8 @@ export function paintAtlas() {
           [0.85, '#c2b292'],
           [1, '#7a3a2a'],
         ]);
-        a.fill();
-        /* old bone, bloodied toward the point */ a.strokeStyle = 'rgba(60,40,30,0.6)';
+        a.fill(); // old bone, bloodied toward the point
+        a.strokeStyle = 'rgba(60,40,30,0.6)';
         a.lineWidth = 0.7;
         a.stroke();
         a.strokeStyle = 'rgba(120,100,80,0.5)';

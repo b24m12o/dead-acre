@@ -111,10 +111,9 @@ export function buddyShoot(s, dt, slow) {
     if (e.dead || e.emerge < 1) return;
     let dd = d2(s.x, s.y, e.x, e.y);
     if (dd > rng * rng) return;
-    if (e.lure && e.lure.alarm > 0 && dd > 200 * 200) return;
-    /* leave the ones pounding on a car alone: that bait is yours */ if (mm)
-      dd /= (e.elite ? 4 : 1) * (e.maxHp > 150 ? 2 : 1);
-    /* the marksman picks the big ones */ if (dd < bd && los(s.x, s.y, e.x, e.y)) {
+    if (e.lure && e.lure.alarm > 0 && dd > 200 * 200) return; // leave the ones pounding on a car alone: that bait is yours
+    if (mm) dd /= (e.elite ? 4 : 1) * (e.maxHp > 150 ? 2 : 1); // the marksman picks the big ones
+    if (dd < bd && los(s.x, s.y, e.x, e.y)) {
       bd = dd;
       tgt = e;
     }

@@ -241,8 +241,8 @@ export function updateEvac(dt) {
     if (d2(GS.P.x, GS.P.y, e.x, e.y) < 80 * 80) {
       e.hold += dt;
       const late = GS.buddies.find(b => !(b.down > 0) && d2(b.x, b.y, e.x, e.y) < 500 * 500);
-      if (late && e.hold >= 2.4 && (e.waitT = (e.waitT || 0) + dt) < 8) e.hold = 2.4;
-      /* the pilot holds for a teammate on the way */ e.waiting = late && e.hold >= 2.4 && e.waitT < 8 ? late.nm : null;
+      if (late && e.hold >= 2.4 && (e.waitT = (e.waitT || 0) + dt) < 8) e.hold = 2.4; // the pilot holds for a teammate on the way
+      e.waiting = late && e.hold >= 2.4 && e.waitT < 8 ? late.nm : null;
       if (e.hold >= 2.5) winRun();
     } else e.hold = Math.max(0, e.hold - dt * 0.6);
   }
@@ -328,8 +328,8 @@ function winRun() {
       if (GS.state === 'won') radioVoice(t, who);
     }, 1100);
   } /* and you hear it, over the win screen */
-  GS.RUN.paid = { k: GS.kills, w: GS.wave, s: GS.runSeeds };
-  /* what the win already paid: endless only pays on top of this */ const earned = Math.round(
+  GS.RUN.paid = { k: GS.kills, w: GS.wave, s: GS.runSeeds }; // what the win already paid: endless only pays on top of this
+  const earned = Math.round(
     (GS.kills * 0.5 + GS.wave * 10 + GS.runSeeds + 200 + inf * 60) *
       (1 + 0.15 * (PK().vault || 0)) *
       (GS.RUN.clean ? 1.25 : 1) *

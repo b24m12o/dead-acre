@@ -11,8 +11,8 @@ export const lastNight = w => !GS.RUN.endless && w === FINAL_NIGHT;
 export function buildWave(w) {
   const q = [];
   let n = Math.round(8 + Math.min(w, 8) * 4.5 + Math.max(0, w - 8) * 3);
-  if (w > 5 && (w - 1) % 5 === 0) n = Math.round(n * 0.8);
-  /* the night after a boss is a lighter one */ const T = [['skitter', 6]];
+  if (w > 5 && (w - 1) % 5 === 0) n = Math.round(n * 0.8); // the night after a boss is a lighter one
+  const T = [['skitter', 6]];
   const Dn = GS.RUN.district;
   if (w >= 2) T.push(['hopper', 0.9], ['wasp', 1.2 * (INF(8) ? 1.8 : 1)]);
   if (w >= 3) T.push(['mini', Dn === 'cemetery' ? 2.2 : 1]);

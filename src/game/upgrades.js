@@ -364,8 +364,8 @@ function rollPicks() {
   const wt = u => {
     let w = 1;
     const lv = LV[u.id] || 0;
-    if (lv > 0) w *= 1.5;
-    /* you started down this road */ if (
+    if (lv > 0) w *= 1.5; // you started down this road
+    if (
       EVOS.some(
         v =>
           !LV[v.id] &&
@@ -374,13 +374,10 @@ function rollPicks() {
           Object.entries(v.need).some(([k, m]) => k !== u.id && (LV[k] || 0) > 0)
       )
     )
-      w *= 1.7;
-    /* half a combo already in hand */ if (
-      u.only &&
-      u.only.some(g => (g === 'pistol' ? GS.P && GS.P.gun === 'pistol' : GS.P && GS.P.owned.includes(g)))
-    )
-      w *= 1.4;
-    /* made for a gun you carry */ if (u.id === 'buddy' && !GS.buddies.length && GS.wave >= 4) w *= 1.3;
+      w *= 1.7; // half a combo already in hand
+    if (u.only && u.only.some(g => (g === 'pistol' ? GS.P && GS.P.gun === 'pistol' : GS.P && GS.P.owned.includes(g))))
+      w *= 1.4; // made for a gun you carry
+    if (u.id === 'buddy' && !GS.buddies.length && GS.wave >= 4) w *= 1.3;
     return w;
   };
   while (GS.picks.length < 3 && pool.length) {

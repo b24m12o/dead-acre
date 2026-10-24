@@ -264,8 +264,8 @@ export function updateHud() {
       }
       HUDF.t = 0;
     }
-  }
-  /* the weather, as a small tag */ setT('scoreTxt', GS.score.toLocaleString());
+  } // the weather, as a small tag
+  setT('scoreTxt', GS.score.toLocaleString());
   const mult = 1 + Math.min(4, Math.floor(GS.combo / 10) * 0.5);
   setT(
     'chain',

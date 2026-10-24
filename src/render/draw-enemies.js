@@ -638,8 +638,8 @@ export function drawEnemy(e) {
     case 'egg': {
       const jg = (e.wob || 0) * Math.sin(GS.time * 55) * 0.05,
         sw = 1 + Math.sin(GS.time * (e.hatch < 2 ? 9 : 3) + e.id) * (e.hatch < 2 ? 0.08 : 0.04) + jg,
-        k = dead ? 0.6 : 1;
-      /* a hit makes the sac quiver in place, nothing more */ setH(6);
+        k = dead ? 0.6 : 1; // a hit makes the sac quiver in place, nothing more
+      setH(6);
       quad(
         R.ab_egg,
         e.x,
@@ -683,8 +683,8 @@ export function drawEnemy(e) {
           lineQ(kx, ky, fx, fy, 2.4 * em, 0.24, 0.19, 0.15, 1, 0, 0, 0, fl);
         }
       const [t0x, t0y] = W(-19, 0),
-        [t1x, t1y] = W(-30, dead ? 3 : Math.sin(GS.time * 9 + e.id) * 5);
-      /* a dead dog's tail lies still */ lineQ(t0x, t0y, t1x, t1y, 3, 0.3, 0.24, 0.2, 1, 0, 0, 0, fl);
+        [t1x, t1y] = W(-30, dead ? 3 : Math.sin(GS.time * 9 + e.id) * 5); // a dead dog's tail lies still
+      lineQ(t0x, t0y, t1x, t1y, 3, 0.3, 0.24, 0.2, 1, 0, 0, 0, fl);
       setH(12);
       quad(
         R.z_hound,
@@ -692,8 +692,8 @@ export function drawEnemy(e) {
         e.y - e.z,
         ta + gal * 0.05,
         em * (1 + lunge * 0.12 + sq + gal * 0.03 * mv),
-        em * (1 - lunge * 0.06) * 0.86,
-        /* a lean, deep-chested dog, not a sausage: the back flexes with each bound */ 1,
+        em * (1 - lunge * 0.06) * 0.86, // a lean, deep-chested dog, not a sausage: the back flexes with each bound
+        1,
         1,
         1,
         1,
@@ -833,8 +833,8 @@ export function drawEnemy(e) {
         const rage = e.ph === 2 ? 2.6 + Math.sin(GS.time * 12) * 0.6 : 1.6;
         setH(36);
         const hv =
-          e.st === 'act' && e.act === 'volley' ? 1 + 0.1 * Math.sin(clamp(1 - e.stT / 0.45, 0, 1) * Math.PI) : 1;
-        /* the head swells as it hacks up the bile */ quad(
+          e.st === 'act' && e.act === 'volley' ? 1 + 0.1 * Math.sin(clamp(1 - e.stT / 0.45, 0, 1) * Math.PI) : 1; // the head swells as it hacks up the bile
+        quad(
           R.ab_head,
           hx,
           hy,
@@ -1352,8 +1352,8 @@ function drawGiant(e, fl, em, ta) {
           ? 1 + 0.1 * clamp(1.3 - e.stT, 0, 1)
           : st === 'act' && e.act === 'retch'
             ? 1.04 + Math.sin(GS.time * 30) * 0.015
-            : 1,
-    /* the chest swells on the breath in */ br = 1 + Math.sin(GS.time * 1.6 + e.id) * 0.012;
+            : 1, // the chest swells on the breath in
+    br = 1 + Math.sin(GS.time * 1.6 + e.id) * 0.012;
   quad(
     R[G.torso],
     x0,

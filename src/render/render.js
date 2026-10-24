@@ -310,10 +310,8 @@ export function render() {
   for (const k of GS.pickups) {
     const bob = Math.sin(k.t * 5 + k.x) * 2.5,
       hot = lampHot(k.x, k.y),
-      dm = 1 / (1 + 3.2 * hot);
-    /* right under a lamp the light pool is several times brighter than the street: dim the paint there so the kit keeps its colour */ if (
-      k.k === 'ammo'
-    )
+      dm = 1 / (1 + 3.2 * hot); // right under a lamp the light pool is several times brighter than the street: dim the paint there so the kit keeps its colour
+    if (k.k === 'ammo')
       quad(
         R['ammo_' + k.at] || R.ammo,
         k.x,
@@ -452,8 +450,8 @@ export function render() {
         quad(R.p_tire, b.x, b.y, b.fa + w, 1.9, 1.9 * (0.35 + 0.65 * k), 1.1, 1.1, 1.1, k, 0.1, 0.1, 0.1, 0);
       }
       continue;
-    }
-    /* upright and rolling; then it tips, wobbling down like a dropped coin, and lies flat */ if (b.k === 'sign') {
+    } // upright and rolling; then it tips, wobbling down like a dropped coin, and lies flat
+    if (b.k === 'sign') {
       setH(20);
       quad(R.rk_sign, b.x, b.y - 14, b.spin, 1.05, 1.05, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0);
       continue;
@@ -508,9 +506,8 @@ export function render() {
       near =
         GS.buddies.some(b => d2(cx, cy, b.x, b.y) < R2 * R2) ||
         GS.enemies.some(e => !e.dead && e.emerge >= 1 && d2(cx, cy, e.x, e.y) < R2 * R2);
-    }
-    /* the whole canopy, and anything hiding under it near you, not just its trunk */ t.fade +=
-      ((near ? 0.3 : 0.98) - t.fade) * 0.15;
+    } // the whole canopy, and anything hiding under it near you, not just its trunk
+    t.fade += ((near ? 0.3 : 0.98) - t.fade) * 0.15;
     quad(
       R['canopy' + t.v],
       t.x,
@@ -662,8 +659,8 @@ export function render() {
       if (b.t >= 0) quad(R.glow, b.x, b.y - b.z, 0, 0.3, 0.3, 0, 0, 0, 1, 1.2, 0.6, 0.2, 0);
       continue;
     }
-    if (b.mz && d2(b.x, b.y, b.sx, b.sy) < b.mz * b.mz) continue;
-    /* the round is only seen once it has left the barrel */ const a = Math.atan2(b.vy, b.vx),
+    if (b.mz && d2(b.x, b.y, b.sx, b.sy) < b.mz * b.mz) continue; // the round is only seen once it has left the barrel
+    const a = Math.atan2(b.vy, b.vx),
       sc = b.small ? 0.65 : b.pellet ? 0.55 : b.heavy ? 1.6 : 1,
       gc = S.evo.gold && !b.small ? [2.8, 2.2, 0.8] : b.pellet ? [2.4, 1.6, 0.7] : [2.8, 1.7, 0.6];
     if (b.tr === undefined) b.tr = S.evo.gold || Math.random() < (b.pellet ? 0.12 : b.small ? 0.2 : 0.3);
@@ -946,12 +943,8 @@ export function render() {
         const k = e.cueT > 0 && e.dying === undefined ? clamp(1 - e.cueT / e.cueMax, 0, 1) : 0,
           kk = Math.min(1, k * 1.4) * (0.85 + 0.15 * Math.sin(GS.time * 40));
         addLight(e.x, e.y, 300, 0.45 * (1 - kk), 0.08 * (1 - kk), 0.05 * (1 - kk));
-        if (kk > 0) addLight(e.x, e.y, 190 + 70 * k, 0.24 * kk, 0.7 * kk, 0.09 * kk);
-      } /* the Abomination's tell: its sacs light up bile-green from inside as a move winds up */ else if (
-        e.btype === 'grave' &&
-        e.dying === undefined &&
-        e.lant
-      ) {
+        if (kk > 0) addLight(e.x, e.y, 190 + 70 * k, 0.24 * kk, 0.7 * kk, 0.09 * kk); // the Abomination's tell: its sacs light up bile-green from inside as a move winds up
+      } else if (e.btype === 'grave' && e.dying === undefined && e.lant) {
         const fk = 0.85 + Math.sin(GS.time * 9 + e.id) * 0.1,
           a = e.a;
         addLight(e.x + Math.sin(a) * 39, e.y - Math.cos(a) * 39, 210, 0.62 * fk, 0.34 * fk, 0.1 * fk);

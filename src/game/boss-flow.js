@@ -114,8 +114,8 @@ function stageSpot(d0, d1) {
   for (let k = 0; k < 80; k++) {
     const a = rand(0, TAU),
       r = rand(d0, d1);
-    if (k < 50 && Math.abs(Math.sin(a)) > 0.55) continue;
-    /* the screen is wider than tall: arrive from the side where it can be seen */ const x = GS.P.x + Math.cos(a) * r,
+    if (k < 50 && Math.abs(Math.sin(a)) > 0.55) continue; // the screen is wider than tall: arrive from the side where it can be seen
+    const x = GS.P.x + Math.cos(a) * r,
       y = GS.P.y + Math.sin(a) * r;
     if (!freeAround(x, y, 30)) continue;
     const tx = Math.floor(x / TILE),
@@ -244,8 +244,8 @@ function bossArrive(x, y, walk) {
   bossArrive_tip();
   const e = makeEnemy('queen', x, y);
   GS.nightLive = true;
-  if (GS.RUN.practice) GS.RUN.t0 = GS.time;
-  /* the practice clock starts when it shows up */ e.a = Math.atan2(GS.P.y - y, GS.P.x - x);
+  if (GS.RUN.practice) GS.RUN.t0 = GS.time; // the practice clock starts when it shows up
+  e.a = Math.atan2(GS.P.y - y, GS.P.x - x);
   if (walk) {
     e.emerge = 1;
     e.st = 'roar';
@@ -272,8 +272,8 @@ function bossArrive(x, y, walk) {
     MUS.bph = 0;
     MUS.phJump = null;
     MUS.sec = null;
-  }
-  /* its own music, from the top */ cam.peek = { x, y, t: 1.6 };
+  } // its own music, from the top
+  cam.peek = { x, y, t: 1.6 };
   if (lastNight(GS.wave) && INF(10) && !GS.RUN.practice && !GS.RUN.gzDone) {
     GS.RUN.gzDone = true;
     GS.RUN.gzDue = true;
@@ -537,8 +537,8 @@ export function bossDown(e, alone) {
   if (!GS.RUN.practice) {
     const sc = GS.wave <= 5 ? 40 : GS.wave <= 10 ? 80 : 150;
     GS.runSeeds += sc;
-    GS.RUN.lvHold = GS.time + 1.1;
-    /* the cards wait until the kill has landed */ banner(
+    GS.RUN.lvHold = GS.time + 1.1; // the cards wait until the kill has landed
+    banner(
       `${nm} is dead`,
       `+${sc} scrap · ${fmtT(secs)}${tr.first ? ' · first kill' : tr.nb ? ' · best time' : ''}`,
       false

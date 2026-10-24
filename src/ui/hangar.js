@@ -206,8 +206,8 @@ export function begin() {
       return a;
     };
     GS.RUN.gunPath = sh(GUN_PATH.slice(0, 3)).concat(sh(GUN_PATH.slice(3)));
-  }
-  /* the cases come in a different order each run, light guns before heavy */ GS.RUN.aboard = [];
+  } // the cases come in a different order each run, light guns before heavy
+  GS.RUN.aboard = [];
   GS.RUN.lost = [];
   GS.RUN.nextBud = null;
   GS.RUN.voice = 'Reyes';

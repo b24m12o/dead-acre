@@ -51,7 +51,8 @@ function dawnDrops() {
       t: WEAPON_NIGHTS[nx] ? 4.2 : 3.2,
       fn: () => {
         if (GS.state === 'play' && !GS.crates.some(c => !c.gun && !c.open)) {
-          /* a boss's own reward crate counts as tonight's supply */ const c = dropCrate();
+          // a boss's own reward crate counts as tonight's supply
+          const c = dropCrate();
           if (c) {
             c.dawn = true;
             if (bossNight(nx)) showStreak('Supply drop', 'Stock up · something big comes tonight');
@@ -114,8 +115,8 @@ export function nightCleared() {
         floatText(b.x, b.y - 40, 'Back on their feet', '#8ef0b8', 14);
       }
       b.max = Math.max(b.max, budMax(b));
-    }
-    /* at dawn the downed are patched up, and your people toughen with every night */ GS.FOGBT = 0;
+    } // at dawn the downed are patched up, and your people toughen with every night
+    GS.FOGBT = 0;
     for (const L of lamps) {
       if (L.bflick) L.broken = L.bflick = false;
       if (L.off) {

@@ -376,8 +376,8 @@ export function radio(line, who, pri = 1) {
 let TIPS;
 export function tip(id) {
   const T = TIPS[id];
-  if (!T || GS.RUN.practice || !GS.meta || GS.state !== 'play') return;
-  /* never spent on the menu's background scene */ GS.meta.tips = GS.meta.tips || {};
+  if (!T || GS.RUN.practice || !GS.meta || GS.state !== 'play') return; // never spent on the menu's background scene
+  GS.meta.tips = GS.meta.tips || {};
   if (GS.meta.tips['t_' + id]) return;
   GS.meta.tips['t_' + id] = true;
   saveMeta();

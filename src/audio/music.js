@@ -371,8 +371,8 @@ function scheduleMusic() {
           const lv = MUS.want === 'boss' ? 0.75 : 1;
           if (MUS.level === 'none') g.setValueAtTime(lv, t0);
           else g.setTargetAtTime(lv, t0, 0.4);
-        }
-      } /* the boss song sits a little under the fight so your guns stay on top */ // a stop is a real stop: pads and ringing chords are cut too
+        } // the boss song sits a little under the fight so your guns stay on top
+      } // a stop is a real stop: pads and ringing chords are cut too
       MUS.level = MUS.want;
       MUS.fresh = true;
     } else if (MUS.level === 'boss' && MUS.phJump != null && MUS.step % 16 === 0) {
@@ -606,8 +606,8 @@ function playStep(st, t) {
     if (L === 'fight' && !sparse && (MUS.heat || 0) > 0.7)
       mGtr(+tok.slice(1) + K + 12, t, palm ? spb * 0.8 : spb * n * 0.95, palm, 0.3);
   } // the thick of it: a second guitar an octave up joins in
-  if (s === 0) MUS.leadOn = !(L === 'fight' && (MUS.heat || 0) < (MUS.leadOn ? 0.35 : 0.45));
-  /* decided once a bar, with a little hysteresis */ if (MUS.lead && MUS.leadOn !== false) {
+  if (s === 0) MUS.leadOn = !(L === 'fight' && (MUS.heat || 0) < (MUS.leadOn ? 0.35 : 0.45)); // decided once a bar, with a little hysteresis
+  if (MUS.lead && MUS.leadOn !== false) {
     const m = MUS.lead[st];
     if (m > 0) {
       let n = 1;

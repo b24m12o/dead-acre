@@ -428,8 +428,8 @@ export function bossAbom(dist, dt, e, lead, ph) {
     e.tx = clamp(tx, 3 * TILE + 40, WW - 3 * TILE - 40);
     e.ty = clamp(ty, 3 * TILE + 40, WH - 3 * TILE - 40);
     bossWarn({ x: e.tx, y: e.ty, r: 150, dur: e.stT + e.ldur, k: 'dust' });
-    sfx.chitter(e.x, e.y, 0.7);
-    /* where it will land, in the colour of the dust it throws up */ return;
+    sfx.chitter(e.x, e.y, 0.7); // where it will land, in the colour of the dust it throws up
+    return;
   }
   if (ph >= 1 && e.chargeT <= 0 && e.los && dist > 160) {
     e.chargeT = [9, 7, 5][ph];
@@ -533,8 +533,8 @@ export function bossAbom(dist, dt, e, lead, ph) {
             while (e.hoseAcc > 0.03) {
               e.hoseAcc -= 0.03;
               e.hoseN++;
-              const [sx, sy] = [mx0 + Math.cos(a) * 12, my0 + Math.sin(a) * 12],
-                /* out of the tail's mouth, reared over its back */ v = rand(400, 460),
+              const [sx, sy] = [mx0 + Math.cos(a) * 12, my0 + Math.sin(a) * 12], // out of the tail's mouth, reared over its back
+                v = rand(400, 460),
                 aa = a + rand(-0.04, 0.04);
               GS.ebullets.push({
                 k: 'acid',

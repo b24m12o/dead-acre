@@ -31,8 +31,8 @@ export function updateWeather(dt) {
           if (!z.dead && d2(z.x, z.y, GS.P.x, GS.P.y) < 900 * 900) {
             if (!(z.aw > 0)) z.wokeT = GS.time;
             z.aw = Math.max(z.aw || 0, 4);
-          }
-      /* every flash shows you to the whole street */ GS.later.push({
+          } // every flash shows you to the whole street
+      GS.later.push({
         t: rand(0.4, 1.6),
         fn: () => {
           if (!AC) return;

@@ -13,8 +13,8 @@ export function lyThud(e) {
     a = e.fallA ?? 0,
     c = Math.cos(a),
     s = Math.sin(a);
-  for (const t of [-32, -4, 26]) dust(e.x + c * t * K, e.y + s * t * K, 1, 16 * K, 0.42, 0.32);
-  /* a little grit kicked up, not a cloud */ if (thr('thud', 45)) playS('dry', 0.1, 0.5, 0, 0);
+  for (const t of [-32, -4, 26]) dust(e.x + c * t * K, e.y + s * t * K, 1, 16 * K, 0.42, 0.32); // a little grit kicked up, not a cloud
+  if (thr('thud', 45)) playS('dry', 0.1, 0.5, 0, 0);
 } // the body slaps down along its whole length
 export const downEl = e => (((e.dT || DOWN_T) - e.down) * DOWN_T) / (e.dT || DOWN_T); // time since it went down, on the standard clock (each zombie gets up at its own pace)
 export const DOWN_T = 1.55,
@@ -134,8 +134,8 @@ export function drawBody(e, fl, _f, em, skin, shirt) {
     const r = lyS(1.24, 1.52, el0),
       sl = 22 * (1 - r),
       al = lyS(1.06, 1.16, el0),
-      ba0 = el0 > 1.26 ? e.a : (e.fallA ?? e.a),
-      /* the knees pivot with it as it turns */ c0 = Math.cos(ba0),
+      ba0 = el0 > 1.26 ? e.a : (e.fallA ?? e.a), // the knees pivot with it as it turns
+      c0 = Math.cos(ba0),
       s0 = Math.sin(ba0),
       km = K * em * LY_SC,
       pc0 = pantsOf(e),
@@ -185,9 +185,8 @@ export function drawBody(e, fl, _f, em, skin, shirt) {
     const sv = [GS.gT, GS.gA, GS.gR, GS.gG, GS.gB];
     e.__std = true;
     e.__sa = rising ? lyS(1.04, 1.14, el0) : 1 - st.s;
-    e.__ss = live0 && !e.crawl && el0 > 1 ? lerp(LY_SC * 1.04, 1, lyS(1.04, 1.55, el0)) : 1;
-    /* it comes up at the size of the body on the ground and grows as it rises toward the camera, so there is no jump in size when the two drawings swap */ e.__kn =
-      live0 && !e.crawl && el0 > 1 ? 1 - lyS(1.22, 1.55, el0) : 0;
+    e.__ss = live0 && !e.crawl && el0 > 1 ? lerp(LY_SC * 1.04, 1, lyS(1.04, 1.55, el0)) : 1; // it comes up at the size of the body on the ground and grows as it rises toward the camera, so there is no jump in size when the two drawings swap
+    e.__kn = live0 && !e.crawl && el0 > 1 ? 1 - lyS(1.22, 1.55, el0) : 0;
     drawEnemy(e);
     e.__std = false;
     [GS.gT, GS.gA, GS.gR, GS.gG, GS.gB] = sv;

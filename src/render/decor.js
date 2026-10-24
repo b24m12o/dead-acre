@@ -66,23 +66,8 @@ export function drawLampPole(L) {
       0,
       0,
       R.pixel
-    );
-    /* the snapped stump stays bolted down; the pole lies away from it, a highlight along its top */ quad(
-      R.lamp,
-      ex,
-      ey,
-      L.fa,
-      1.1,
-      1.1,
-      0.85,
-      0.85,
-      0.85,
-      1,
-      0,
-      0,
-      0,
-      0
-    );
+    ); // the snapped stump stays bolted down; the pole lies away from it, a highlight along its top
+    quad(R.lamp, ex, ey, L.fa, 1.1, 1.1, 0.85, 0.85, 0.85, 1, 0, 0, 0, 0);
     return;
   }
   if (GS.SHMODE) {
@@ -249,18 +234,12 @@ export function genDecor() {
 }
 export function decorKey(d) {
   const D = DECOR[d.kind];
-  if (D && D.n * D.step <= 12 && !d.down) return d.y - 34;
-  /* knee-high: a bench or a cone sits under anyone standing at it, so it never covers a gun */ return d.kind ===
-    'tlight' || d.kind === 'stop'
-    ? d.y
-    : d.kind === 'bus'
-      ? d.y + 16
-      : d.y + 6;
+  if (D && D.n * D.step <= 12 && !d.down) return d.y - 34; // knee-high: a bench or a cone sits under anyone standing at it, so it never covers a gun
+  return d.kind === 'tlight' || d.kind === 'stop' ? d.y : d.kind === 'bus' ? d.y + 16 : d.y + 6;
 }
 function tlightState(d) {
-  if (GS.ev === 'blackout') return -1;
-  /* no mains power: the signals go dark with the street lights */ if (d.broken)
-    return Math.sin(GS.time * 9 + d.ph) > 0.4 ? 1 : -1;
+  if (GS.ev === 'blackout') return -1; // no mains power: the signals go dark with the street lights
+  if (d.broken) return Math.sin(GS.time * 9 + d.ph) > 0.4 ? 1 : -1;
   const t = (GS.time + d.ph) % 14;
   return t < 6 ? 2 : t < 8 ? 1 : 0;
 }

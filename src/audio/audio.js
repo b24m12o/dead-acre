@@ -185,9 +185,8 @@ export function playS(k, vol, rate = 1, delay = 0, rev = 0.25) {
     src = AC.createBufferSource(),
     g = AC.createGain();
   src.buffer = hv ? hv[randi(0, hv.length - 1)] : SB[k];
-  if (hv) vol *= 1.33;
-  /* the stereo takes keep their natural dynamics, so they sit a little lower than the old squashed mono ones */ src.playbackRate.value =
-    rate * rand(0.96, 1.04);
+  if (hv) vol *= 1.33; // the stereo takes keep their natural dynamics, so they sit a little lower than the old squashed mono ones
+  src.playbackRate.value = rate * rand(0.96, 1.04);
   g.gain.value = vol;
   src.connect(g);
   g.connect(sfxBus);

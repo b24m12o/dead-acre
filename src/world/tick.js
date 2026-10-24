@@ -232,11 +232,10 @@ export function tickWorld(dt) {
       th = th / 5 + (GS.time - NOISE.t < 1.2 ? 0.18 : 0) + (GS.P.hp < S.maxHp * 0.35 ? 0.2 : 0);
     }
     let ht = clamp(th, 0, 1);
-    if (GS.state === 'play' && GS.RUN.sg && GS.RUN.sg.lull > 0) ht *= 0.45;
-    /* between surges the band drops back */ if (GS.time < (MUS.floorT || 0)) ht = Math.max(ht, MUS.floor || 0);
-    if (GS.evac && GS.state === 'play') ht = Math.max(ht, 0.6 + 0.4 * clamp(GS.evac.t / (GS.evac.land || 36), 0, 1));
-    /* the evac builds to full tilt as the bird comes in */ /* a surge kicks the band in at once, a horde at full tilt */ MUS.heat =
-      (MUS.heat || 0) + (ht - (MUS.heat || 0)) * Math.min(1, dt * (ht > (MUS.heat || 0) ? 1.6 : 0.22));
+    if (GS.state === 'play' && GS.RUN.sg && GS.RUN.sg.lull > 0) ht *= 0.45; // between surges the band drops back
+    if (GS.time < (MUS.floorT || 0)) ht = Math.max(ht, MUS.floor || 0);
+    if (GS.evac && GS.state === 'play') ht = Math.max(ht, 0.6 + 0.4 * clamp(GS.evac.t / (GS.evac.land || 36), 0, 1)); // the evac builds to full tilt as the bird comes in; a surge kicks the band in at once, a horde at full tilt
+    MUS.heat = (MUS.heat || 0) + (ht - (MUS.heat || 0)) * Math.min(1, dt * (ht > (MUS.heat || 0) ? 1.6 : 0.22));
     if (AC && musLP) {
       const f = MUS.level === 'fight' ? 1800 + Math.pow(MUS.heat, 1.5) * 16000 : 18000;
       if (Math.abs(f - (MUS.lpF || 0)) > (MUS.lpF || 1) * 0.05) {

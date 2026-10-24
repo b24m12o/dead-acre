@@ -98,8 +98,8 @@ function bossDefense(e, dmg, src, hx, hy) {
         tone(95, 0.12, 'sine', 0.07, 0.55, 0, 0, sb);
         noise(0.07, 0.07, 700, 200, 'lowpass', 0, sb);
       }
-    }
-    /* a heavier, wetter hit you can hear */ if (e.stunT > 0 && bt === 'roadkill') dmg *= 1.15;
+    } // a heavier, wetter hit you can hear
+    if (e.stunT > 0 && bt === 'roadkill') dmg *= 1.15;
   } // an opening: armour is down, and its back is wide open
   else if (gun) {
     let fr = D.front;
@@ -297,7 +297,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
               ? 0.5
               : 0);
     if (e.inhDmg >= 8) {
-      /* eight good hits while it breathes in choke it */ interruptBoss(e);
+      // eight good hits while it breathes in choke it
+      interruptBoss(e);
       e.st = 'move';
       e.stunT = Math.max(e.stunT || 0, 2);
       e.busyT = Math.max(e.busyT || 0, 2.4);
@@ -310,8 +311,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       la = Math.atan2(ly - e.y, lx - e.x),
       ha = Math.atan2(hy - e.y, hx - e.x);
     if (Math.abs(angDiff(la, ha)) < 0.5) {
-      e.lantHits = (e.lantHits || 0) + dmg / 28;
-      /* damage-based: a heavy round smashes it, buckshot chips at it */ sparks(lx, ly, [1, 0.8, 0.4], 4, 160);
+      e.lantHits = (e.lantHits || 0) + dmg / 28; // damage-based: a heavy round smashes it, buckshot chips at it
+      sparks(lx, ly, [1, 0.8, 0.4], 4, 160);
       if (thr('lanttink', 70)) tone(rand(2600, 3200), 0.06, 'sine', 0.02, 0.98);
       if (e.lantHits >= 6) breakLantern(e);
     }
@@ -367,7 +368,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       e.hp < e.maxHp * 0.7 &&
       Math.random() < (src === 'boom' ? 0.45 : clamp((dmg - 10) / 60, 0.03, 0.35) + (e.hp < e.maxHp * 0.55 ? 0.12 : 0))
     ) {
-      /* blasts and heavy rounds take legs: the walker keeps coming on its hands */ e.crawl = true;
+      // blasts and heavy rounds take legs: the walker keeps coming on its hands
+      e.crawl = true;
       e.sup = false;
       e.down = 0;
       e.fallA = e.a;
@@ -398,9 +400,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       e.dT = DOWN_T * rand(0.92, 1.3);
       e.down = e.dT;
       e.fallA = lyAngle(e.x, e.y, Math.atan2(ky, kx) + rand(-0.4, 0.4), 100);
-      e.sup = supOK(e) && Math.random() < 0.75;
-      /* knocked back away from you: mostly onto its back, face up, so it sits up and gets up already facing you; now and then it twists and lands face down */ e.splay =
-        rand(0.2, 1);
+      e.sup = supOK(e) && Math.random() < 0.75; // knocked back away from you: mostly onto its back, face up, so it sits up and gets up already facing you; now and then it twists and lands face down
+      e.splay = rand(0.2, 1);
       e.apose = randi(0, 3);
       e.lyG = 0;
     } else {
@@ -757,13 +758,8 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   const ac =
     (big ? 3 : e.type === 'beetle' ? 0.4 : e.type === 'hopper' || e.type === 'wasp' ? 0.14 : 0.08) *
     (INF(7) && !big ? 0.65 : 1);
-  const ac2 = big ? ac : ac * 1.25 * ammoNeed() * (GS.wave <= 4 ? 1.25 : GS.wave >= 10 ? 0.8 : 1);
-  /* a little more early, before the drops can keep up with a new gun; a little less late, when every calibre is stocked */ for (
-    let i = 0;
-    i < Math.floor(ac2) + (Math.random() < ac2 % 1 ? 1 : 0);
-    i++
-  )
-    dropAmmo(e.x, e.y, 1, 90); // fewer drops while you are well stocked
+  const ac2 = big ? ac : ac * 1.25 * ammoNeed() * (GS.wave <= 4 ? 1.25 : GS.wave >= 10 ? 0.8 : 1); // a little more early, before the drops can keep up with a new gun; a little less late, when every calibre is stocked
+  for (let i = 0; i < Math.floor(ac2) + (Math.random() < ac2 % 1 ? 1 : 0); i++) dropAmmo(e.x, e.y, 1, 90); // fewer drops while you are well stocked
   const hc =
     (big
       ? 1
@@ -1055,14 +1051,8 @@ function shatterCrystal(c) {
   chips(c.x, c.y, 18, col, 3, 380);
   sparks(c.x, c.y, [col[0] + 0.3, col[1] + 0.3, 1], 30, 520);
   smoke(c.x, c.y, 6, 60, true);
-  ring(c.x, c.y, 10, R0, 0.3, [col[0] * 1.4, col[1] * 1.4, col[2] * 1.6], 0.35);
-  /* the box blows: a spray of sparks and a puff of smoke, not a glowing wheel */ flashLight(
-    c.x,
-    c.y,
-    R0 * 2.2,
-    [col[0] * 2, col[1] * 2, col[2] * 2.2],
-    0.4
-  );
+  ring(c.x, c.y, 10, R0, 0.3, [col[0] * 1.4, col[1] * 1.4, col[2] * 1.6], 0.35); // the box blows: a spray of sparks and a puff of smoke, not a glowing wheel
+  flashLight(c.x, c.y, R0 * 2.2, [col[0] * 2, col[1] * 2, col[2] * 2.2], 0.4);
   decal(R.scorch, c.x, c.y, 1, [1, 1, 1, 0.9], [0, 0, 0], 40);
   if (GS.state === 'play') {
     query(c.x, c.y, R0 + 40, e => {
@@ -1163,15 +1153,8 @@ export function updateCrates(dt) {
         sfx.crate(c.x, c.y);
         shake(0.08);
         c.flare = 9;
-        makeNoise(c.x, c.y, 560);
-        /* a road flare strapped to the crate pops on landing: you can find it, and so can they */ chips(
-          c.x,
-          c.y,
-          5,
-          [0.55, 0.5, 0.42],
-          4,
-          160
-        );
+        makeNoise(c.x, c.y, 560); // a road flare strapped to the crate pops on landing: you can find it, and so can they
+        chips(c.x, c.y, 5, [0.55, 0.5, 0.42], 4, 160);
         for (const e of GS.enemies)
           if (!e.dead && e.type !== 'queen' && d2(e.x, e.y, c.x, c.y) < (e.r + 20) ** 2) {
             hurtEnemy(e, 60 + GS.wave * 4, false, e.x - c.x, e.y - c.y, 2.5, 'boom');
@@ -1256,24 +1239,15 @@ export function updateCrates(dt) {
               .slice(0, 1)
               .forEach(giveGun);
         };
-        GS.later.push({ t: 0.15, fn: go });
-      } /* a level-up card on the same tick waits its turn: the case is never lost */ else
-        giveGun(c.alt && GS.P.owned.includes(c.gun) ? c.alt : c.gun);
+        GS.later.push({ t: 0.15, fn: go }); // a level-up card on the same tick waits its turn: the case is never lost
+      } else giveGun(c.alt && GS.P.owned.includes(c.gun) ? c.alt : c.gun);
       glowBurst(c.x, c.y, [1, 0.8, 0.3], 22, 240, 0.5, 0.6);
       chips(c.x, c.y, 10, [0.45, 0.5, 0.3], 3, 260);
     } else if (GS.state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40) {
       c.open = true;
       for (const t of new Set(GS.P.owned.map(g => GUNS[g].ammo).filter(Boolean)))
-        GS.pickups.push({ k: 'ammo', at: t, v: 1.35, x: c.x, y: c.y, vx: rand(-140, 140), vy: rand(-140, 140), t: 0 });
-      /* a box for every kind of round you carry: about what the crate used to add invisibly */ glowBurst(
-        c.x,
-        c.y,
-        [1, 0.7, 0.3],
-        18,
-        220,
-        0.5,
-        0.5
-      );
+        GS.pickups.push({ k: 'ammo', at: t, v: 1.35, x: c.x, y: c.y, vx: rand(-140, 140), vy: rand(-140, 140), t: 0 }); // a box for every kind of round you carry: about what the crate used to add invisibly
+      glowBurst(c.x, c.y, [1, 0.7, 0.3], 18, 220, 0.5, 0.5);
       chips(c.x, c.y, 10, [0.85, 0.7, 0.45], 3, 260);
       const go = () => {
         if (GS.state === 'play') offerUpgrades('crate');

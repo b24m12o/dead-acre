@@ -87,11 +87,11 @@ export function gameOver() {
   }
   $('overTitle').textContent = GS.RUN.endless
     ? `Eaten on endless night ${GS.wave}`
-    : `Eaten on night ${GS.wave} of ${FINAL_NIGHT}`;
+    : `Eaten on night ${GS.wave} of ${FINAL_NIGHT}`; // the title already says the night
   $('oScore').textContent = GS.score.toLocaleString();
   $('oWaveL').textContent = 'Scrap';
   $('oWave').textContent = `+${earned}`;
-  /* the title already says the night */ $('oKills').textContent = GS.kills;
+  $('oKills').textContent = GS.kills;
   $('oLevel').textContent = GS.level;
   renderRunReport('oBreakdown');
   {

@@ -295,8 +295,8 @@ export function update(dt) {
       let ux = dx / dd,
         uy = dy / dd;
       if (pd > 110 && (s.flowT > 0 || !los(s.x, s.y, tx, ty))) {
-        const cx = Math.floor(s.x / TILE),
-          /* the flow field leads to you, so it only helps from further out */ cy = Math.floor(s.y / TILE);
+        const cx = Math.floor(s.x / TILE), // the flow field leads to you, so it only helps from further out
+          cy = Math.floor(s.y / TILE);
         let best = flow[cy * MW + cx],
           bx = cx,
           by = cy; // no clear line: walk the player's flow field round the obstacle
@@ -417,8 +417,8 @@ export function update(dt) {
       GS.spawnT = Math.max(0.22, 1.0 - GS.wave * 0.05) * (1 - 0.07 * ((GS.wave - 1) % 5)) * (SG && SG.horde ? 0.7 : 1); // spawns quicken toward each boss; a surge comes faster, a horde faster still
       let t = GS.queue.shift();
       const mark = t === 'hunt';
-      if (mark) t = GS.wave >= 6 && Math.random() < 0.5 ? 'beetle' : 'skitter';
-      /* a marked elite for the hunt job */ const edge = false,
+      if (mark) t = GS.wave >= 6 && Math.random() < 0.5 ? 'beetle' : 'skitter'; // a marked elite for the hunt job
+      const edge = false,
         [sx, sy] = SG && SG.horde && t !== 'queen' ? hordeSpot(SG.horde) : spawnPoint(t === 'queen' ? 520 : 460, edge);
       if (SG) {
         SG.n++;
@@ -468,8 +468,8 @@ export function update(dt) {
       GS.interT < 4 &&
       GS.crates.some(c => c.dawn && !c.open) &&
       (GS.RUN.dawnX = (GS.RUN.dawnX || 0) + dt) < 14;
-    if (!waitDrop) GS.interT -= dt;
-    /* the countdown holds at 4 while the dawn drop sits unopened, for up to 14 s more */ if (GS.interT <= 0) {
+    if (!waitDrop) GS.interT -= dt; // the countdown holds at 4 while the dawn drop sits unopened, for up to 14 s more
+    if (GS.interT <= 0) {
       GS.interT = 2.6;
       if (!GS.RUN.endless && GS.wave >= FINAL_NIGHT) startEvac();
       else startWave();
@@ -695,7 +695,8 @@ export function update(dt) {
     !GS.bossDue &&
     !(GS.RUN.practice && (!GS.boss || GS.boss.dead))
   ) {
-    /* never during the evac or a boss's entrance: the cards wait */ GS.xp -= GS.xpNeed;
+    // never during the evac or a boss's entrance: the cards wait
+    GS.xp -= GS.xpNeed;
     GS.level++;
     GS.xpNeed = need(GS.level);
     statMax('maxLevel', GS.level);

@@ -1284,7 +1284,8 @@ function bakeMap() {
       ],
     };
     const roll = (pts, w, al) => {
-      /* one roller pass: a soft base coat, then dry streaks along it where the sleeve ran thin */ a.lineCap = 'round';
+      // one roller pass: a soft base coat, then dry streaks along it where the sleeve ran thin
+      a.lineCap = 'round';
       a.lineJoin = 'round';
       const jp = pts.map(([x, y]) => [x + rand(-1.5, 1.5), y + rand(-1.5, 1.5)]),
         path = (ox, oy) => {
@@ -1359,8 +1360,8 @@ function bakeMap() {
       x += ht * 0.62 + (ch === 'L' ? 10 : 18);
     }
     a.save();
-    a.translate(x + 10, 26);
-    /* the tipped can, its spill, and the roller dropped beside it */ a.fillStyle = 'rgba(222,216,196,0.42)';
+    a.translate(x + 10, 26); // the tipped can, its spill, and the roller dropped beside it
+    a.fillStyle = 'rgba(222,216,196,0.42)';
     a.beginPath();
     a.ellipse(-8, 4, 15, 8, 0.4, 0, TAU);
     a.fill();

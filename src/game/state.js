@@ -193,8 +193,8 @@ function wheelGeom() {
     ch = 2 * Math.sin(Math.PI / Math.max(n, 3)) * 0.92,
     R0 = Math.min(Math.max(clamp(n * 26, 110, 215) * k, need / ch), VH * 0.42),
     sw = Math.max(Math.min(136 * k, R0 * ch), Math.min(need, R0 * ch)),
-    sh = 44 * k;
-  /* every slot wide enough for the full name; the ring grows to make room */ const px = (GS.P.x - GS.camX) * ZOOM,
+    sh = 44 * k; // every slot wide enough for the full name; the ring grows to make room
+  const px = (GS.P.x - GS.camX) * ZOOM,
     py = (GS.P.y - GS.camY) * ZOOM;
   return {
     n,
@@ -323,8 +323,8 @@ export function drawWheel() {
         : hasAmmo(sg)
           ? `Release ${key} · draw the ${GUNS[sg].name}`
           : `${GUNS[sg].name} · no ammo`
-      : `Holding the ${cn} · ${WHEEL.held === 'pad' ? 'point the right stick' : 'point at a gun'}`,
-    /* the caption always names the gun it means */ lw = ui.measureText(lb).width + 16 * k,
+      : `Holding the ${cn} · ${WHEEL.held === 'pad' ? 'point the right stick' : 'point at a gun'}`, // the caption always names the gun it means
+    lw = ui.measureText(lb).width + 16 * k,
     ly = W.cy + W.R0 + W.sh / 2 + 18 * k;
   rr(W.cx - lw / 2, ly - 11 * k, lw, 22 * k, 11 * k);
   ui.fillStyle = 'rgba(14,16,20,0.85)';
@@ -484,8 +484,8 @@ export function giveGun(g) {
     G = GUNS[g];
   if (!p.owned.includes(g)) {
     p.owned.push(g);
-    if (p.owned.length === 3) GS.later.push({ t: 2.5, fn: () => tip('wheel') });
-    /* new guns join the end of the row, so the number keys you know never move */ p.mag[g] = magSize(g);
+    if (p.owned.length === 3) GS.later.push({ t: 2.5, fn: () => tip('wheel') }); // new guns join the end of the row, so the number keys you know never move
+    p.mag[g] = magSize(g);
   }
   if (G.ammo) p.ammo[G.ammo] = Math.floor(Math.min(ammoMax(G.ammo), p.ammo[G.ammo] + G.give));
   equip(g);

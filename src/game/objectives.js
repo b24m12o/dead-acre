@@ -226,8 +226,8 @@ export function drawPile(q) {
     setH(1);
     for (const s of [-1, 1])
       quad(R.pixel, q.x, q.y + 2, q.r * 0.2 + s * 0.785, 6, 0.8, 0.95, 0.42, 0.12, 0.9, 0.5, 0.2, 0.04, 0);
-    setH(3);
-  } /* searched: a spray-paint X on the ground, the way scavengers mark a cleared spot */ else {
+    setH(3); // searched: a spray-paint X on the ground, the way scavengers mark a cleared spot
+  } else {
     setH(1);
     quad(R.pixel, q.x, q.y + 1, q.r, 8.5, 5.5, 0.62, 0.5, 0.3, 0.75, 0.12, 0.09, 0.05, 0);
     setH(8);

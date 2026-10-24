@@ -309,8 +309,8 @@ export function updateFire(dt) {
           if (Math.random() < dt * 36 * k) {
             const d = (u - 0.5) * 60 + rand(-10, 10);
             flame(c.x + Math.cos(c.a) * d, c.y + Math.sin(c.a) * d - 8, 1, 11 * k, rand(1.2, 1.7) * k);
-          }
-      /* many smaller tongues licking out of the car, not one sheet */ if (GS.state === 'play') {
+          } // many smaller tongues licking out of the car, not one sheet
+      if (GS.state === 'play') {
         c.hp -= dt * c.max * 0.12;
         if (c.hp <= 0) blowCar(c);
       }

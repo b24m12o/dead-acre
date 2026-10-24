@@ -80,8 +80,8 @@ export function updateQueen(e, dt, ux, uy, dist) {
     const b = spat(e.x, e.y);
     noise(0.3, 0.09, 520, 140, 'lowpass', 0, b);
     tone(70, 0.25, 'sine', 0.05, 0.7, 0, 0, b);
-  } else if (!(e.recT > 0)) e.huff = 0;
-  /* a heavy breath out: it is about to turn back on you */ e.rcx = (e.rcx || 0) * Math.exp(-dt * 9);
+  } else if (!(e.recT > 0)) e.huff = 0; // a heavy breath out: it is about to turn back on you
+  e.rcx = (e.rcx || 0) * Math.exp(-dt * 9);
   e.rcy = (e.rcy || 0) * Math.exp(-dt * 9);
   e.wind = e.clawT > (e.clawW || 0.75) - 0.55 ? ((e.clawW || 0.75) - e.clawT) / 0.55 : 0;
   e.stg = Math.max(0, (e.stg || 0) - dt * e.maxHp * 0.008);
@@ -108,9 +108,8 @@ export function updateQueen(e, dt, ux, uy, dist) {
           0.8,
           0.6
         );
-      }
-      /* kicked up beside the foot, not over the body */ if (thr('gstep', 160))
-        noise(0.14, 0.12 * clamp(1 - d / 900, 0, 1), 180, 50, 'lowpass', 0, spat(e.x, e.y));
+      } // kicked up beside the foot, not over the body
+      if (thr('gstep', 160)) noise(0.14, 0.12 * clamp(1 - d / 900, 0, 1), 180, 50, 'lowpass', 0, spat(e.x, e.y));
     }
   } // weight: every footfall
   if (e.spinT > 0) {
@@ -165,8 +164,8 @@ export function updateQueen(e, dt, ux, uy, dist) {
   // ---- the charge (Abomination from phase 2, Roadkill always): rear up, a lane on the ground shows the line, then it comes
   if (e.st === 'rear') {
     if (Math.random() < 0.5)
-      dust(e.x - e.lx * e.r * 0.8 + rand(-14, 14), e.y - e.ly * e.r * 0.8 + rand(-14, 14), 1, 50, 1, 0.6);
-    /* pawing the ground before it goes */ e.stT -= dt;
+      dust(e.x - e.lx * e.r * 0.8 + rand(-14, 14), e.y - e.ly * e.r * 0.8 + rand(-14, 14), 1, 50, 1, 0.6); // pawing the ground before it goes
+    e.stT -= dt;
     if (!e.bait && GS.state === 'play') {
       const a = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
       e.lx = Math.cos(a);

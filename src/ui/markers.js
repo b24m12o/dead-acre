@@ -13,8 +13,8 @@ import { BOX_SEARCH } from '../game/objectives.js';
 import { drawRainUI } from '../world/weather.js';
 export function drawObjectiveGlow() {
   if (GS.evac) {
-    const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1);
-    /* once it is down, the ring fades so the chopper itself reads */ quad(
+    const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1); // once it is down, the ring fades so the chopper itself reads
+    quad(
       R.ring,
       GS.evac.x,
       GS.evac.y,
@@ -65,8 +65,8 @@ export function objectiveLights() {
     );
   if (GS.evac) {
     const landed = GS.evac.t >= GS.evac.land;
-    addLight(GS.evac.x + 40, GS.evac.y + 30, 200, 0.95, 0.17, 0.1);
-    /* the flare: a red glow on the tarmac, not a blob */ addLight(
+    addLight(GS.evac.x + 40, GS.evac.y + 30, 200, 0.95, 0.17, 0.1); // the flare: a red glow on the tarmac, not a blob
+    addLight(
       GS.evac.hx,
       GS.evac.hy,
       landed ? 300 : 360,
