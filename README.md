@@ -10,13 +10,10 @@ See [LICENSE](LICENSE).
 
 ## Play
 
-- **CodePen:** the Pen's HTML panel holds a single line, pinned to one released version:
-  ```html
-  <script src="https://cdn.jsdelivr.net/gh/b24m12o/dead-acre@COMMIT/dist/game.js"></script>
-  ```
-  Leave the CSS and JS panels empty. The game adds its own markup and styles and loads its art,
-  voices and sounds from `assets/` at the same version.
-- **GitHub Pages** (optional): turn on Pages for the `main` branch, root folder, and open the site.
+- **On your computer:** run the build (below), then open `build/dead-acre.html` in a browser. It is the whole
+  game in one file, with every asset inside it.
+- **GitHub Pages** (optional): turn on Pages for the `main` branch, root folder, and open the site. It plays
+  `dist/game.js`, which loads its art, voices and sounds from `assets/`.
 
 ## Layout
 

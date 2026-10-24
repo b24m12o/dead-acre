@@ -173,11 +173,11 @@ function bakeKey() {
   }
   return 'bake3d-' + (h >>> 0).toString(36) + '-' + src.length;
 } // changes whenever any shape or colour does, so a stale copy is never used
-// where the asset pack lives (a pinned version on the CDN). Empty means everything is built into this file, as in the claude.ai build; the CodePen build fills it in
+// where the asset pack lives (next to dist/game.js). Empty means everything is built into this file, as in the one-file version
 // where assets/ is: next to dist/game.js, which records its own address in window.__DA_BASE. Empty in the one-file version
 const ASSET_URL = window.__DA_BASE ? window.__DA_BASE.replace(/dist\/$/, 'assets/') : '';
 export async function assetsPrep() {
-  /* the CodePen build keeps its heavy pieces off the Pen: the character pictures and the radio voices come from the asset pack. If it can't be reached the game still starts, with painted characters and a radio of clicks and static */
+  /* dist/game.js keeps its heavy pieces out of the script: the character pictures, the radio voices and the recorded sounds come from the asset pack. If it can't be reached the game still starts, with painted characters and a radio of clicks and static */
   if (!ASSET_URL) return;
   const ld = $('loading'),
     get = async (f, how, ms) => {

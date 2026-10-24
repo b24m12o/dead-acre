@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// The CodePen way: a page from another site holding only the one script tag. The game must add its own
+// dist/game.js on its own: a page from another site holding only the one script tag. The game must add its own
 // markup and styles, load every asset from the pack and reach play, with no errors.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,7 +10,7 @@ export async function run(b) {
   const pack = JSON.parse(readFileSync(join(ROOT, 'assets/pack.json'), 'utf8'));
   const guns = new Set(pack.gun.list.map(([n]) => n.replace(/\d+$/, ''))).size;
   writeFileSync(
-    join(ROOT, 'build/pen.html'),
+    join(ROOT, 'build/embed.html'),
     '<!doctype html><html><head><meta charset="utf-8"></head><body>\n<script src="http://127.0.0.1:8781/dist/game.js"></script>\n</body></html>\n'
   );
   const cdn = await serve(ROOT, 8781),
@@ -19,7 +19,7 @@ export async function run(b) {
     const pg = await b.newPage({ viewport: { width: 1280, height: 760 } }),
       errs = [];
     pg.on('pageerror', e => errs.push(String(e).slice(0, 300)));
-    await pg.goto('http://127.0.0.1:8782/pen.html');
+    await pg.goto('http://127.0.0.1:8782/embed.html');
     await pg.waitForSelector('#menu:not([hidden])', { timeout: 300000 });
     await pg.click('#survBtn');
     await pg.waitForTimeout(800);
