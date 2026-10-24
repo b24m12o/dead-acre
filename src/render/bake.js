@@ -1,10 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { gl, progFinish, program } from './gl.js';
 import { AS } from './atlas.js';
-import { SBV, gunHD } from '../audio/audio.js';
-import { MSN, loadMusic } from '../audio/music.js';
+import { PACK } from '../core/assets.js';
 export const FS_VS = `#version 300 es
 out vec2 vUv; void main(){ vec2 p=vec2((gl_VertexID<<1)&2, gl_VertexID&2); vUv=p; gl_Position=vec4(p*2.0-1.0,0.0,1.0); }`;
 /* ---------- the 3D bake: body parts are modelled as signed-distance shapes and photographed straight down on the graphics card at load.
@@ -184,8 +182,6 @@ export const O_SIZES = Object.fromEntries(
 );
 let BAKE_SIZES; // every baked part's size, so all of them can be built during the loading screen (a part whose size changes is simply built when the atlas reaches it)
 // the 3D characters, built once from the shapes above and shipped as pictures, so every machine shows exactly the same thing without doing any 3D work itself
-// the 3D character pictures: built into the one-file version (window.__DA_DATA), or loaded from assets/ by assetsPrep
-let BAKE_IMG = window.__DA_DATA ? window.__DA_DATA.bake : undefined;
 function bakeKey() {
   let h = 2166136261;
   const src =
@@ -196,62 +192,8 @@ function bakeKey() {
   }
   return 'bake3d-' + (h >>> 0).toString(36) + '-' + src.length;
 } // changes whenever any shape or colour does, so a stale copy is never used
-// where assets/ is: next to dist/game.js, which records its own address in window.__DA_BASE. Empty in the one-file version
-const ASSET_URL = window.__DA_BASE ? window.__DA_BASE.replace(/dist\/$/, 'assets/') : '';
-export async function assetsPrep() {
-  /* dist/game.js keeps its heavy pieces out of the script: the character pictures, the radio voices and the recorded sounds come from the asset pack. If it can't be reached the game still starts, with painted characters and a radio of clicks and static */
-  if (!ASSET_URL) return;
-  const ld = $('loading'),
-    get = async (f, how, ms) => {
-      const c = new AbortController(),
-        t = setTimeout(() => c.abort(), ms);
-      try {
-        const r = await fetch(ASSET_URL + f, { signal: c.signal, mode: 'cors' });
-        if (!r.ok) throw new Error(f + ' ' + r.status);
-        return await r[how]();
-      } finally {
-        clearTimeout(t);
-      }
-    };
-  if (ld) ld.textContent = 'Bringing in the convoy’s gear…';
-  try {
-    const j = await get('pack.json', 'json', 12000);
-    BAKE_IMG = { key: j.bake.key, hs: j.bake.hs, pos: j.bake.pos, a: ASSET_URL + j.bake.a, h: ASSET_URL + j.bake.h };
-    ASSETS.v = j.v;
-    if (j.gun)
-      get(j.gun.file, 'arrayBuffer', 90000)
-        .then(gb => {
-          GS.GUNHD = j.gun.list.map(([n, o, l]) => [n, gb.slice(o, o + l)]);
-          ASSETS.gun = true;
-          gunHD();
-        })
-        .catch(e =>
-          console.warn('Dead Acre: full-quality gun sounds unavailable, using the built-in ones', e)
-        ); /* the recorded gun set, swapped in as it arrives */
-    if (j.mus)
-      get(j.mus.file, 'arrayBuffer', 120000)
-        .then(mb => {
-          GS.MUSHD = j.mus.list.map(([n, o, l, ...x]) => [n, mb.slice(o, o + l), ...x]);
-          ASSETS.mus = true;
-          loadMusic();
-        })
-        .catch(e => console.warn('Dead Acre: the recorded band is unavailable, playing the synth one', e));
-    get(j.vox.file, 'arrayBuffer', 90000)
-      .then(vb => {
-        GS.VOX = j.vox.list.map(([id, t, d, o, n, w]) => [id, t, d, vb.slice(o, o + n), w || 'R']);
-        ASSETS.vox = true;
-      })
-      .catch(e =>
-        console.warn('Dead Acre: no radio voices this time', e)
-      ); /* the voices come in behind the game; until then the radio is clicks and static */
-  } catch (e) {
-    ASSETS.err = String((e && e.message) || e);
-    console.warn('Dead Acre: the asset pack could not be reached, playing with the built-in basics', e);
-  }
-}
-let ASSETS;
 export async function bakePrep() {
-  // the 3D characters ship as two pictures (BAKE_IMG); loading them is the same quick step on every machine, with no 3D work on the player's graphics card
+  // the 3D characters ship as two pictures (PACK.bake, see core/assets.js); loading them is the same quick step on every machine, with no 3D work on the player's graphics card
   const D = (BAKE.diag = { on: false, why: '', ms: 0, n: 0 }),
     T0 = performance.now(),
     nap = () => new Promise(r => setTimeout(r, 0));
@@ -260,11 +202,11 @@ export async function bakePrep() {
   } catch (e) {} // the browser copy kept by version 86 is no longer needed
   const names = Object.keys(BAKE_SIZES).filter(n => BAKE.parts[n]);
   if (window.__liveBake === true) return bakeLive(names, D, T0, nap); // only for rebuilding the pictures after a shape changes
-  if (typeof BAKE_IMG === 'undefined') {
+  if (!PACK.bake) {
     D.why = 'no character pictures in this build';
     return;
   }
-  if (Object.values(BAKE.groups).some(Boolean) && BAKE_IMG.key !== bakeKey()) {
+  if (Object.values(BAKE.groups).some(Boolean) && PACK.bake.key !== bakeKey()) {
     D.stale = true;
     console.warn('Dead Acre: the shipped character pictures are older than the shapes (rebuild them)');
   }
@@ -282,19 +224,19 @@ export async function bakePrep() {
   };
   let A, Hm;
   try {
-    [A, Hm] = await Promise.all([pic(BAKE_IMG.a), pic(BAKE_IMG.h)]);
+    [A, Hm] = await Promise.all([pic(PACK.bake.a), pic(PACK.bake.h)]);
   } catch (err) {
     D.why = 'this browser could not open the character pictures';
     console.warn('Dead Acre:', err);
     return;
   }
   for (const n of names) {
-    const q = BAKE_IMG.pos[n];
+    const q = PACK.bake.pos[n];
     if (!q) continue;
     const [sx, sy, sw, sh] = q,
       W = q[4] || sw,
       H = q[5] || sh,
-      hs = BAKE_IMG.hs || 1,
+      hs = PACK.bake.hs || 1,
       hx0 = Math.floor(sx * hs),
       hy0 = Math.floor(sy * hs),
       hw = Math.max(2, Math.round(sw * hs)),
@@ -345,7 +287,7 @@ export async function bakePrep() {
   if (!D.on) D.why = 'no character pictures found';
 }
 async function bakeLive(names, D, T0, nap) {
-  // builds the parts on this machine's graphics card: the tool that makes BAKE_IMG, never used in normal play
+  // builds the parts on this machine's graphics card: the tool that makes the shipped pictures (tools/bake), never used in normal play
   const ld = $('loading'),
     ext = gl.getExtension('KHR_parallel_shader_compile'),
     pend = [];
@@ -529,13 +471,4 @@ export function init() {
   for (let v = 0; v <= 18; v++) BAKE_SIZES['z_lu' + v] = BAKE_SIZES['z_ly' + v];
   BAKE_SIZES.z_lhipu = BAKE_SIZES.z_lhip;
   for (let v = 0; v <= 17; v++) BAKE_SIZES['z_headu' + v] = [28, 28]; // the bodies lying face up
-  ASSETS = { v: null, vox: false, err: '' };
-  window.DA_STATUS = () => ({
-    pack: ASSET_URL ? ASSETS.v || 'unreachable: ' + ASSETS.err : 'built in',
-    art:
-      BAKE.diag && BAKE.diag.on ? BAKE.diag.n + ' parts' : 'painted (' + ((BAKE.diag && BAKE.diag.why) || 'none') + ')',
-    voices: GS.VOX.length,
-    guns: Object.keys(SBV).length,
-    band: MSN(),
-  }); /* type DA_STATUS() in the browser console to see where the art and voices came from */
 }

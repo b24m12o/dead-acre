@@ -74,6 +74,7 @@ import './game/evac.js';
 import './world/weather.js';
 import './ui/markers.js';
 import './ui/menu.js';
+import { init as initAssets } from './core/assets.js';
 import { init as init74 } from './core/main.js';
 
 init0();
@@ -98,4 +99,5 @@ init50();
 init53();
 init59();
 init62();
+initAssets();
 init74();

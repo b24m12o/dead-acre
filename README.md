@@ -20,9 +20,9 @@ See [LICENSE](LICENSE).
 ```
 src/
   index.js      the start: imports every part, then runs each part's init() in order
-  core/         errors, utilities, settings, profile, input, the update loop, startup;
-                gs.js holds GS, the shared game state
-  render/       WebGL, sprites, lighting, the painted atlas, the 3D character bake, drawing
+  core/         errors, utilities, settings, profile, input, the update loop, startup,
+                the asset pack (assets.js); gs.js holds GS, the shared game state
+  render/       WebGL, sprites, lighting, the painted atlas, the 3D bake (characters, cars, props), drawing
   world/        the map, navigation, physics, wear, fire, weather, sight lines
   actors/       zombies and their AI, bosses, the player's weapons, backups, legs
   game/         runs, waves, surges, combat, upgrades, objectives and jobs, story, evac
@@ -31,7 +31,7 @@ src/
   markup.html   the page markup the game runs in
   head.html     the page head (title, meta)
 css/style.css   styles (fonts in assets/fonts)
-assets/         art, voices and recorded sounds (pack.json lists them), fonts
+assets/         3D pictures, voices, recorded sounds, the band's instruments (pack.json lists them), fonts
 tools/          the build, fingerprint, and the scripts that make the assets
 tests/          the tests and the bot that plays the campaign test
 dist/           built files: game.js and style.css (do not edit; run the build)
