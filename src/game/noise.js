@@ -21,7 +21,6 @@ const LOUD = {
 };
 let noiseRings = [],
   lastRingT = -9,
-  alarmFlow = null,
   loudSaid = false,
   alarmSaid = false;
 function makeNoise(x, y, r, soft) {

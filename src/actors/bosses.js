@@ -668,8 +668,7 @@ function bossRoadkill(dist, dt, e, lead, ph, spMul) {
   }
   if (e.tailT <= 0 && dist > 150 && dist < 680) {
     e.tailT = [2.6, 2.2, 1.8][ph];
-    const base = Math.atan2(P.y - e.y, P.x - e.x),
-      n = 2 + ph; // tyres, rolled underarm: they bounce off walls and cars
+    const n = 2 + ph; // tyres, rolled underarm: they bounce off walls and cars
     bossAct(
       e,
       'tyre',
@@ -1261,38 +1260,6 @@ function bossChop(dt, e, ph) {
     const c = Math.cos(e.ga),
       s2 = Math.sin(e.ga),
       L = 300;
-    if (false && ph >= 2 && !e.chop2) {
-      e.chop2 = true;
-      later.push({
-        t: 0.25,
-        fn: () => {
-          if (e.dead || e.stunT > 0) return;
-          e.ga = Math.atan2(P.y - e.y, P.x - e.x);
-          e.st = 'chop';
-          e.stT = 0.5;
-          e.recT = 0;
-          e.stuckT = 0;
-          e.busyT = 0.5 + 1.4;
-          bossWarn({ lane: true, x: e.x, y: e.y, a: e.ga, len: 300, w: 56, dur: 0.5, k: 'slam' });
-          sfx.windup(e.x, e.y);
-        },
-      });
-    } else e.chop2 = false; // frenzied, it pulls the axe free and goes again
-    sfx.crunch(e.x, e.y);
-    sfx.boom2(e.x, e.y);
-    shake(0.4);
-    hitstop = Math.max(hitstop, 0.04);
-    const [ax, ay] = [e.x + c * 150, e.y + s2 * 150];
-    sparks(ax, ay, [1, 0.85, 0.5], 22, 380);
-    chips(ax, ay, 10, [0.5, 0.5, 0.48], 4, 300);
-    for (let d = 60; d <= L; d += 24) {
-      const x = e.x + c * d + rand(-4, 4),
-        y = e.y + s2 * d + rand(-4, 4);
-      decal(R.hole, x, y, rand(0.6, 0.9), [1, 1, 1, 0.8], [0, 0, 0], 25);
-      dust(x, y, 2, 50, 1, 0.7);
-      const ti = Math.floor(y / TILE) * MW + Math.floor(x / TILE);
-      if (ttype[ti] === 9 || ttype[ti] === 5) damageTile(ti, 400);
-    }
     for (const car of cars) {
       if (car.dead) continue;
       const px = car.x - e.x,

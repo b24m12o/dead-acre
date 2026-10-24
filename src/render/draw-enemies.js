@@ -26,8 +26,7 @@ const ZSKIN = [
     [0.53, 0.56, 0.48],
     [0.48, 0.42, 0.34],
     [0.17, 0.15, 0.19],
-  ],
-  ZPANTS = [0.27, 0.29, 0.36];
+  ];
 const BLOOD = [0.31, 0.022, 0.02],
   BILE = [0.42, 0.38, 0.14];
 let ZP = 'z_'; // which set of arm parts zArm draws with: painted (z_) or 3D-baked (zs_)
@@ -665,10 +664,7 @@ function drawEnemy(e) {
             lift = Math.max(0, Math.cos(p)) * Math.min(1, mv * 1.4),
             reach = (front ? 19 : 17) * mv;
           const f = sw * reach + lunge * (front ? 12 : -10),
-            L = (front ? 20 : 19) * (1 - 0.35 * lift),
-            fx0 = hipX + f,
-            fl0 = Math.max(4, Math.abs(f)),
-            k0 = Math.min(1, L / Math.max(fl0, 1));
+            L = (front ? 20 : 19) * (1 - 0.35 * lift);
           const footX = hipX + Math.sign(f || (front ? 1 : -1)) * Math.min(Math.abs(f), L),
             footY = sd * (8.2 - lift * 2);
           const [hx, hy] = W(hipX, sd * 5.5),

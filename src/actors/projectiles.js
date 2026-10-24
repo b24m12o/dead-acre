@@ -89,19 +89,6 @@ function fragBurst(x, y, b, skipId) {
       hurtEnemy(e, b.dmg * (0.12 + 0.16 * S.frag) * (b.pellet ? 0.5 : 1), false, e.x - x, e.y - y, 0.4, 'frag');
   });
 }
-function autoTarget(range) {
-  let best = null,
-    bd = range * range;
-  query(P.x, P.y, range, e => {
-    if (e.dead || e.emerge < 1 || e.lurk === 'lie') return;
-    const dd = d2(P.x, P.y, e.x, e.y);
-    if (dd < bd && los(P.x, P.y, e.x, e.y)) {
-      bd = dd;
-      best = e;
-    }
-  });
-  return best;
-}
 function queenTail(e) {
   const pts = [];
   let x = -80,

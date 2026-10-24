@@ -333,8 +333,7 @@ const EVOS = [
     },
   },
 ];
-let picks = [],
-  selCard = 0;
+let picks = [];
 function upgradePool() {
   const w = S.weapon,
     pool = UP.filter(
@@ -408,7 +407,6 @@ function renderPicks() {
       }<span class="ds">${ds}</span>${!u.evo && cb ? `<span class="need combo">Combo part · ${cb.name}</span>` : ''}${u.gun ? '' : `<span class="pips">${Array.from({ length: u.max }, (_, k) => `<i class="${k < lv ? 'on' : k === lv && !u.evo ? 'next' : u.evo ? 'on' : ''}"></i>`).join('')}</span>`}`;
     b.addEventListener('click', () => choose(i));
     b.addEventListener('mouseenter', () => {
-      selCard = i;
       markSel();
     });
     box.appendChild(b);
@@ -416,7 +414,6 @@ function renderPicks() {
   $('rerollBtn').textContent = `Reroll · ${rerolls} left`;
   $('rerollBtn').hidden = rerolls <= 0;
   updateHint();
-  selCard = 0;
   markSel();
 }
 function offerUpgrades(source = 'level') {

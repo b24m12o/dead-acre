@@ -5,10 +5,14 @@
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
-    "build": "node tools/build.mjs"
+    "build": "node tools/build.mjs",
+    "lint": "node tools/lint.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^9.12.0",
     "csso": "5.0.5",
+    "eslint": "^9.12.0",
+    "globals": "^15.11.0",
     "prettier": "^3.3.3",
     "terser": "5.31.0"
   }

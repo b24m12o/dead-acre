@@ -37,20 +37,6 @@ function drawUI() {
     ui.drawImage(sp, -64 * sc, -64 * sc, 128 * sc, 128 * sc);
     ui.restore();
     continue;
-    /* the old discs below are never reached */ ui.fillStyle = `rgba(110,4,6,${a})`;
-    for (let i = 0; i < 7; i++) {
-      const g = b.seed + i * 2.4,
-        d = (i ? 0.55 : 0) * b.r * (0.5 + 0.5 * Math.sin(g * 3.1));
-      ui.beginPath();
-      ui.arc(
-        x + Math.cos(g) * d,
-        y + Math.sin(g) * d + (1 - b.life / b.max) * 30 * (i % 2),
-        b.r * (i ? 0.28 : 0.5),
-        0,
-        TAU
-      );
-      ui.fill();
-    }
   }
   const toS = (x, y) => [(x - camX) * ZOOM, (y - camY) * ZOOM];
   ui.textAlign = 'center';

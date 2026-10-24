@@ -91,7 +91,6 @@ function renderTwists() {
     `<br>This run: <b>${{ relaxed: 'Relaxed', normal: 'Normal', hard: 'Hard' }[meta.diff] || 'Normal'}</b> difficulty · Infection <b>${Math.min(meta.inf || 0, meta.infMax || 0)}</b>${on.length ? ` · <b>${on.length}</b> twist${on.length > 1 ? 's' : ''}` : ''} · scrap <b>×${runScrapK().toFixed(2)}</b>`;
 }
 function renderChallenges() {
-  const done = CHAL.filter(c => chalDone(c.id)).length;
   $('hangarOutfits').innerHTML = Object.entries(OUTFITS)
     .map(([id, o]) => {
       const open = !o.req || chalDone(o.req),

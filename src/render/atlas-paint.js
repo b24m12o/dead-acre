@@ -307,7 +307,7 @@ function paintAtlas() {
         const g = rand(0, TAU),
           r0 = rand(16, 24),
           r1 = rand(34, 50),
-          w = rand(2.5, 5);
+          w = rand(2.5, 5); // eslint-disable-line no-unused-vars -- unused, but drawing it keeps the random sequence the rest of this art depends on
         a.fillStyle = 'rgba(24,18,14,0.35)';
         a.beginPath();
         a.moveTo(Math.cos(g - 0.12) * r0, Math.sin(g - 0.12) * r0);
@@ -825,7 +825,6 @@ function paintAtlas() {
     0.6,
     1
   );
-  const torsoPath = c => rr(c, -10, -19, 20, 38, 9);
   // 0: Soldier · olive fatigues under a tan plate carrier
   /* superseded: hb0 */
   // 1: Deputy · khaki shirt, leather vest, badge
@@ -2776,8 +2775,6 @@ function paintAtlas() {
   );
   /* ----- interiors: plaster walls, furniture seen from above ----- */
 
-  const pshape = (a, path, fill, lw = 0.8) => shape(a, path, fill, { lw, out: 'rgba(14,10,12,0.9)', aoW: 2 });
-
   region(
     'fprint',
     10,
@@ -2807,14 +2804,6 @@ function paintAtlas() {
     34,
     (a, e) => {
       // a single tongue of flame (emissive only): round base, licking tip, hotter core
-      const t = (c, s) => {
-        c.beginPath();
-        c.moveTo(0, -15 * s);
-        c.bezierCurveTo(3 * s, -8 * s, 7 * s, -2 * s, 6.5 * s, 4 * s);
-        c.arc(0, 4 * s, 6.5 * s, 0, Math.PI);
-        c.bezierCurveTo(-7 * s, -1 * s, -2.5 * s, -7 * s, 0, -15 * s);
-        c.closePath();
-      };
       // soft all the way through: a tall glowing teardrop that fades out at the edges, brightest low in the body, no hard outlines
       e.save();
       e.scale(1, 2.1);
@@ -3293,52 +3282,13 @@ function paintAtlas() {
   );
 
   /* ----- The dead (all face +x) ----- */
-  const shirts = [
-    ['#5d7084', '#36475a'],
-    ['#8a3a32', '#5a2420'],
-    ['#8c8a78', '#5a594c'],
-  ];
   /* superseded: z_torso0, z_torso1, z_torso2 */
-  const skins = [
-    ['#9aa882', '#5d6a48'],
-    ['#a89a82', '#6a5c48'],
-    ['#8a9a92', '#56625c'],
-  ];
   /* superseded: z_head0, z_head1, z_head2 */
   // 3 cop · 4 nurse · 5 firefighter · 6 construction worker
-  const tpath = c => {
-    c.beginPath();
-    c.ellipse(-1, 0, 10, 15.5, 0, 0, TAU);
-  };
-  const zgore = a => {
-    a.save();
-    tpath(a);
-    a.clip();
-    for (let i = 0; i < 4; i++) {
-      a.fillStyle = `rgba(${randi(70, 110)},10,10,0.75)`;
-      ell(a, rand(-8, 7), rand(-12, 12), rand(2.5, 6), rand(2, 4.5), rand(0, 3));
-      a.fill();
-    }
-    a.restore();
-    shape(a, c => ell(c, 6, 0, 3.4, 4.6), '#7d8a6a', { lw: 1.3 });
-  };
   /* superseded: z_torso3 */
   /* superseded: z_torso4 */
   /* superseded: z_torso5 */
   /* superseded: z_torso6 */
-  const zface = (a, e) => {
-    a.fillStyle = '#2a0808';
-    ell(a, 7.5, 0, 1.8, 3.6);
-    a.fill();
-    for (const y of [-3.6, 3.6]) {
-      a.fillStyle = '#e8e090';
-      circ(a, 5, y, 1.3);
-      a.fill();
-      e.fillStyle = 'rgba(255,240,140,0.9)';
-      circ(e, 5, y, 1.3);
-      e.fill();
-    }
-  };
   /* superseded: z_head3 */
   /* superseded: z_head4 */
   /* superseded: z_head5 */
@@ -3536,7 +3486,7 @@ function paintAtlas() {
       const x = rand(-hd * 0.8, hd * 0.9),
         y = rand(-hw * 0.8, hw * 0.8),
         r = rand(1.6, 4.6),
-        rot = rand(0, TAU);
+        rot = rand(0, TAU); // eslint-disable-line no-unused-vars -- unused, but drawing it keeps the random sequence the rest of this art depends on
       for (let k = 0; k < 6; k++) {
         const ox = rand(-r, r) * 0.5,
           oy = rand(-r, r) * 0.5;
@@ -7543,13 +7493,6 @@ function paintAtlas() {
         a.fillStyle = '#8c9070';
         a.fill();
       }
-      const clipAll = () => {
-        a.beginPath();
-        SHP(a, W, D, 0.05);
-        a.save();
-        a.beginPath();
-        a.ellipse(8, 0, 17, 22, 0, 0, TAU);
-      };
       for (const path of [p, belly]) {
         a.save();
         path(a);
@@ -8189,27 +8132,6 @@ function paintAtlas() {
         a.fill();
       }
       a.restore();
-    };
-    const stitch = (a, x0, y0, x1, y1) => {
-      a.strokeStyle = 'rgba(40,10,10,0.8)';
-      a.lineWidth = 1.1;
-      a.beginPath();
-      a.moveTo(x0, y0);
-      a.lineTo(x1, y1);
-      a.stroke();
-      const L = Math.hypot(x1 - x0, y1 - y0),
-        nx = -(y1 - y0) / L,
-        ny = (x1 - x0) / L;
-      a.strokeStyle = 'rgba(30,20,16,0.85)';
-      a.lineWidth = 0.7;
-      for (let t = 0.06; t < 1; t += 5 / L) {
-        const x = lerp(x0, x1, t),
-          y = lerp(y0, y1, t);
-        a.beginPath();
-        a.moveTo(x - nx * 2.6, y - ny * 2.6);
-        a.lineTo(x + nx * 2.6, y + ny * 2.6);
-        a.stroke();
-      }
     };
     const spineBack = (a, x, y, g, s) => {
       // one human back fused into the mass: shoulder blades and vertebrae

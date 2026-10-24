@@ -14,9 +14,6 @@ const xa = atlA.getContext('2d', { willReadFrequently: true }),
   xn = atlN.getContext('2d');
 const R = {},
   META = [];
-let shX = 4,
-  shY = 4,
-  shH = 0;
 const SHELVES = [];
 let SHELF_Y = 4;
 // spec: shininess, soft: how rounded the generated volume is, det: how much painted detail turns into relief
@@ -38,8 +35,6 @@ function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
   const x = best.x + 7,
     y = best.y + 7;
   best.x += pw;
-  shY = SHELF_Y;
-  shH = 0;
   for (const c of [xa, xe]) {
     c.save();
     c.beginPath();
@@ -287,31 +282,4 @@ function shape(c, path, fill, o = {}) {
   c.strokeStyle = o.out || (CHARK ? 'rgba(12,12,16,0.55)' : 'rgba(14,15,18,0.62)');
   c.lineWidth = CHARK ? (o.lw ?? 0.9) : (o.lw ?? 1.2) * 0.7;
   c.stroke(); // painted props get a thin, soft edge, not a cartoon outline
-}
-function eye(c, e, x, y, r, col) {
-  circ(c, x, y, r);
-  c.fillStyle = '#120c14';
-  c.fill();
-  circ(c, x, y, r * 0.78);
-  c.fillStyle = rgrad(
-    c,
-    x,
-    y,
-    r,
-    [
-      [0, col],
-      [1, '#3a0d10'],
-    ],
-    x - r * 0.3,
-    y - r * 0.3
-  );
-  c.fill();
-  c.fillStyle = 'rgba(255,255,255,0.9)';
-  circ(c, x - r * 0.35, y - r * 0.35, r * 0.28);
-  c.fill();
-  if (e) {
-    e.fillStyle = col;
-    circ(e, x, y, r * 0.8);
-    e.fill();
-  }
 }

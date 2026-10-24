@@ -5,10 +5,8 @@ let nightLive = false,
   evac = null,
   nightHit = false,
   nightDone = false,
-  rain = [],
   lightning = 0,
-  lightT = 0,
-  heliSnd = null;
+  lightT = 0;
 // buddies can be hurt: contact with the dead hurts them (less than you), they patch up when it is quiet, and at zero they go down
 // a downed buddy bleeds out in 12 s unless you stand next to them for 1.5 s; bled out, they are gone and the Backup card can be offered again
 const BUD_NAMES = [

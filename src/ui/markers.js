@@ -1,41 +1,4 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-function drawObjectives() {
-  if (obj && obj.type === 'gen' && obj.hp > 0) {
-    setH(26);
-    quad(R.gen, obj.x, obj.y, 0, 1, 1, 1, 1, 1, 1, 1.6, 1.6, 1.6, 0);
-  }
-  if (obj && obj.type === 'rescue' && obj.s.hp > 0 && !obj.joined) drawRanger(obj.s);
-  if (obj && obj.type === 'fuel')
-    for (const c of obj.cans)
-      if (!c.got) {
-        setH(14);
-        quad(
-          R[c.reg || 'fuelcan'],
-          c.x,
-          c.y - 4 + Math.sin(c.t * 3) * 2,
-          Math.sin(c.t) * 0.2,
-          c.reg ? 1.35 : 1,
-          c.reg ? 1.35 : 1,
-          1,
-          1,
-          1,
-          1,
-          1.4,
-          1.4,
-          1.4,
-          0
-        );
-      }
-  if (evac) {
-    const e = evac;
-    setH(e.z + 60);
-    {
-      const hk = e.t >= e.land ? 0.8 : 1.4;
-      quad(R.heli, e.hx, e.hy - e.z * 0.35, e.ha ?? 2.4, 1 + e.z / 900, 1 + e.z / 900, 1, 1, 1, 1, hk, hk, hk, 0);
-    }
-    heliRotor(e);
-  }
-}
 function drawObjectiveGlow() {
   if (evac) {
     const pu = (0.6 + Math.sin(time * 6) * 0.3) * (evac.t >= evac.land ? 0.16 : 1);

@@ -165,11 +165,3 @@ function drawLegs(e, sc, fl, curl = 0) {
     } // a dead, bruised hand walking on its knuckles: darker than the arm, never a pale glove
   }
 }
-function antenna(x, y, a, len, wob, w, col) {
-  const x1 = x + Math.cos(a + wob * 0.5) * len * 0.55,
-    y1 = y + Math.sin(a + wob * 0.5) * len * 0.55,
-    x2 = x1 + Math.cos(a + wob) * len * 0.5,
-    y2 = y1 + Math.sin(a + wob) * len * 0.5;
-  lineQ(x, y, x1, y1, w, col[0], col[1], col[2], 1, 0, 0, 0, 0);
-  lineQ(x1, y1, x2, y2, w * 0.75, col[0], col[1], col[2], 1, 0, 0, 0, 0);
-}

@@ -39,7 +39,6 @@ let crates = [],
   hitDirs = [],
   slowmo = 0,
   runSeeds = 0,
-  queenKills = 0,
   rerolls = 0,
   streakT = 0,
   pickSource = 'level';
@@ -399,12 +398,6 @@ function ammoRoomK() {
   for (const t of ts) best = Math.max(best, (ammoMax(t) - P.ammo[t]) / Math.max(1, AMMO_BOX[t]));
   return best;
 } // in boxes: how much the emptiest type could take
-function ammoFull() {
-  const ts = new Set(P.owned.map(g => GUNS[g].ammo).filter(Boolean));
-  if (!ts.size) return false;
-  for (const t of ts) if (P.ammo[t] < ammoMax(t)) return false;
-  return true;
-}
 // ammo boxes carry one calibre. Which one is decided when it drops: mostly what you are short of, with a lean toward the gun in your hands.
 // Drops also thin out while you are well stocked. Supply crates and objectives still refill everything (addAmmo).
 const AMMO_NAME = { light: '9mm', shells: '12-gauge', rifle: '5.56', heavy: 'heavy rifle', gren: '40mm' };

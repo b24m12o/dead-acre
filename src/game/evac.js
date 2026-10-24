@@ -288,7 +288,7 @@ function winRun() {
   const out = RUN.aboard.slice(),
     left = buddies.slice();
   runSeeds += 40 * out.length;
-  for (const b of out) bump('saved'); // every one you bring out pays
+  for (const _ of out) bump('saved'); // every one you bring out pays
   $('wCrew').innerHTML =
     out.length || left.length
       ? (out.length

@@ -4,7 +4,6 @@ const TEMPO = { none: 70, menu: 70, calm: 84, fight: 150, boss: 172 };
 const BOSS_TEMPO = { abom: 1, roadkill: 1.1, grave: 0.74, chief: 0.94, pz: 0.88 }; // each boss gets its own take on the boss theme: Roadkill gallops, the Gravekeeper drags
 function tempoOf(L) {
   if (L !== 'boss') return TEMPO[L];
-  const b = boss && !boss.dead ? boss : null;
   return TEMPO.boss * (BOSS_TEMPO[MUS.bt] || 1) * (1 + 0.04 * (MUS.bph || 0));
 }
 let gtrIn = null;
@@ -93,20 +92,6 @@ function mGtr(fret, t, dur, palm, vol = 1) {
   bg.connect(musBus);
   b.start(t);
   b.stop(t + dur + 0.2);
-}
-function mLeadT(m, t, dur, vol) {
-  ensureGtr();
-  const o = AC.createOscillator(),
-    g = AC.createGain();
-  o.type = 'square';
-  o.frequency.value = mtof(m);
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(vol, t + 0.004);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g);
-  g.connect(gtrIn);
-  o.start(t);
-  o.stop(t + dur + 0.05);
 }
 function vEnv(g, t, a, peak, d, sus, rel, end) {
   if (end < t + a + 0.01) end = t + a + 0.01;

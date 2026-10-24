@@ -454,29 +454,6 @@ function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   }
   if (e.hp <= 0) killEnemy(e, dmg, src, kx / kl, ky / kl, crit);
 }
-function chainArc(from, dmg, n) {
-  const hit = [from.id];
-  let cur = from;
-  for (let i = 0; i < n; i++) {
-    let best = null,
-      bd = 230 * 230;
-    query(cur.x, cur.y, 230, o => {
-      if (o.dead || hit.includes(o.id)) return;
-      const dd = d2(cur.x, cur.y, o.x, o.y);
-      if (dd < bd) {
-        bd = dd;
-        best = o;
-      }
-    });
-    if (!best) break;
-    arcs.push({ x0: cur.x, y0: cur.y - cur.z, x1: best.x, y1: best.y - best.z, life: 0.14, seed: Math.random() * 100 });
-    hit.push(best.id);
-    const b = best;
-    cur = best;
-    hurtEnemy(b, dmg, false, b.x - from.x, b.y - from.y, 0.5, 'arc');
-  }
-  if (hit.length > 1) sfx.zap();
-}
 function gibAll(e, dx, dy, col) {
   const ex = e.x,
     ey = e.y,
@@ -753,7 +730,6 @@ function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     if (!boss) $('bossBox').hidden = true; // on Ground Zero two can come: the bar stays while either lives
     slowmo = 1.4;
     if (RUN.practice) for (const z of enemies) if (!z.dead && z.type !== 'queen') killEnemy(z, 999, 'boom');
-    queenKills++;
     bossDown(e, !boss);
     if (!boss) {
       for (const b of ebullets) glowBurst(b.x, b.y, [0.5, 0.9, 0.15], 3, 80, 0.3, 0.4);

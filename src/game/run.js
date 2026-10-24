@@ -4,7 +4,6 @@ function newRun(forMenu = false) {
   noiseRings = [];
   loudSaid = false;
   alarmSaid = false;
-  alarmFlow = null;
   {
     HUDF.gun = null;
     HUDF.own = 0;
@@ -142,7 +141,6 @@ function newRun(forMenu = false) {
   hitDirs = [];
   slowmo = 0;
   runSeeds = 0;
-  queenKills = 0;
   streakT = 0;
   obj = null;
   ev = null;

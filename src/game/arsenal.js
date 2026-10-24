@@ -207,7 +207,6 @@ const GUNS = {
     lob: true,
   },
 };
-const BURST_K = 0.4; // Burst Fire's follow-up rounds: free of ammo, so lighter than the round you paid for
 const GUN_ORDER = ['pistol', 'shotgun', 'smg', 'rifle', 'auto', 'hunter', 'lever', 'lmg', 'launcher'];
 const AMMO_MAX = { light: 480, shells: 90, rifle: 400, heavy: 60, gren: 18 },
   AMMO_BOX = { light: 48, shells: 10, rifle: 40, heavy: 7, gren: 2 };
