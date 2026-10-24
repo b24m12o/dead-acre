@@ -11,7 +11,7 @@ import { cam } from '../game/state.js';
 import { chips, decal, part, sparks } from './effects.js';
 import { propShot } from '../world/physics.js';
 import { WST, WSTN, hsh, windows } from './blocks.js';
-import { O_SIZES, O_TURNS } from './bake.js';
+import { O_SIZES, O_TURNS, RF_SIZES } from './bake.js';
 export function drawGrave(i) {
   const tx = i % MW,
     ty = (i / MW) | 0,
@@ -485,12 +485,72 @@ export function drawHouseRoofs() {
       x1 = (o.x + o.w) * TILE,
       y1 = (o.y + o.h) * TILE;
     if (x1 < GS.camX - 40 || x0 > GS.camX + viewW + 40 || y1 < GS.camY - 40 || y0 - RH > GS.camY + viewH + 40) continue;
-    const inside = GS.P && GS.P.x > x0 - 6 && GS.P.x < x1 + 6 && GS.P.y > y0 - RH - 10 && GS.P.y < y1 + 4;
-    o.fade += ((inside ? 0.12 : 1) - o.fade) * 0.15;
-    GS.gA = o.fade;
     const flat = o.style === 'crypt' || o.style === 'store',
       rx = o.w >= o.h,
-      tc = o.style === 'crypt' ? [0.8, 1, 1] : o.style === 'store' ? [1, 1.1, 1] : [1, 1, 1]; // houses get a pitched roof: a ridge along the long side, the slope facing the light paler than the one turned away
+      pk = !flat && rx ? 'rf_f' + o.h : !flat ? 'rf_s' + o.w : '',
+      p3 = pk && R[pk + '_0'] && R[pk + '_0'].bk && (rx ? o.h <= 6 : o.w <= 5), // a 3D pitched roof, when the pictures are in
+      D = rx ? o.h * TILE + 16 : o.w * TILE + 12,
+      rise = p3 ? D * 0.12 : 0,
+      inside = GS.P && GS.P.x > x0 - 6 && GS.P.x < x1 + 6 && GS.P.y > y0 - RH - rise - 10 && GS.P.y < y1 + 4;
+    o.fade += ((inside ? 0.12 : 1) - o.fade) * 0.15;
+    GS.gA = o.fade;
+    const tint = [
+      [0.95, 0.9, 0.86],
+      [0.82, 0.62, 0.52],
+      [0.7, 0.74, 0.8],
+      [0.86, 0.82, 0.72],
+      [0.62, 0.6, 0.58],
+    ][Math.floor(hsh(o.x * 3 + 1, o.y * 5 + 2) * 5)]; // weathered shingles: brown, rust red, slate, sand, charcoal
+    if (p3) {
+      const piece = (nm, ax, ay) => {
+        const r = R[nm],
+          z = RF_SIZES[nm][2];
+        setH(RH + z * 0.5);
+        quad(r, ax, ay - z / 2, 0, 1, 1, tint[0] * 1.55, tint[1] * 1.55, tint[2] * 1.55, 1, 0, 0, 0, 0); // a roof catches the open sky: lit like the old flat roof tiles were
+      };
+      const xc = (x0 + x1) / 2,
+        yc = (y0 + y1) / 2;
+      if (rx) {
+        for (const side of ['b', 'f'])
+          for (let k = 0; k < o.w; k++) {
+            const i = k === 0 ? 1 : k === o.w - 1 ? 2 : 0;
+            piece(
+              `rf_${side}${o.h}_${i}`,
+              x0 + k * TILE + 20 + (i === 1 ? -2 : i === 2 ? 2 : 0),
+              yc - RH + (side === 'f' ? D / 4 : -D / 4)
+            );
+          } // the far slope, then the near one over it at the ridge
+      } else
+        for (let k = 0; k < o.h; k++) {
+          const i = k === 0 ? 2 : k === o.h - 1 ? 1 : 0;
+          piece(`rf_s${o.w}_${i}`, xc, y0 + k * TILE + 20 - RH + (i === 1 ? 3 : i === 2 ? -3 : 0));
+        } // row by row toward you, the gable end last
+      const zr = (x, y) => rise * Math.max(0, 1 - Math.abs(rx ? y - yc : x - xc) / (D / 2)),
+        h = hsh(o.x * 5 + 2, o.y * 7 + 1),
+        sp = (fx, fy) => {
+          const x = x0 + fx * (x1 - x0),
+            y = y0 + fy * (y1 - y0);
+          return [x, y - RH - zr(x, y)];
+        }; // what sticks out of the roof sits on the slope
+      if (o.style !== 'chapel') {
+        const [cx, cy] = rx ? sp(0.25 + h * 0.5, 0.36) : sp(0.36, 0.25 + h * 0.5);
+        drawProp('o_chim', cx, cy + 2, 0, 1.2);
+      }
+      for (let i = 0; i < 2; i++) {
+        const a = hsh(o.x + i * 17, o.y * 3 + i);
+        if (a < 0.6) {
+          const [vx, vy] = sp(0.15 + a * 1.1, rx ? 0.7 : 0.3 + a * 0.5);
+          drawProp('o_vent', vx, vy + 1, 0, 1.25);
+        }
+      }
+      if (h > 0.68) {
+        const [dx, dy] = sp(0.8, rx ? 0.62 : 0.28);
+        drawProp('o_dish', dx, dy + 2, h * 6, 1.2);
+      }
+      GS.gA = 1;
+      continue;
+    }
+    const tc = o.style === 'crypt' ? [0.8, 1, 1] : o.style === 'store' ? [1, 1.1, 1] : [1, 1, 1]; // houses get a pitched roof: a ridge along the long side, the slope facing the light paler than the one turned away
     for (let ty = o.y; ty < o.y + o.h; ty++)
       for (let tx = o.x; tx < o.x + o.w; tx++) {
         const sm = (fx, fy) => (hsh(fx, fy) + hsh(fx + 1, fy) + hsh(fx, fy + 1) + hsh(fx + 1, fy + 1)) * 0.25,

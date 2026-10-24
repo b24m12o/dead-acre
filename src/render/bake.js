@@ -1,7 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { $ } from '../core/errors.js';
 import { gl, progFinish, program } from './gl.js';
-import { AS } from './atlas.js';
+import { AS, regionScale } from './atlas.js';
 import { PACK } from '../core/assets.js';
 export const FS_VS = `#version 300 es
 out vec2 vUv; void main(){ vec2 p=vec2((gl_VertexID<<1)&2, gl_VertexID&2); vUv=p; gl_Position=vec4(p*2.0-1.0,0.0,1.0); }`;
@@ -196,6 +196,45 @@ const OS = {
   o_coffin_t: [38, 18, 8],
   o_gen_t: [52, 36, 24],
 };
+// roof pieces (shapes/roofs.js): rf_f / rf_b the front and back slope of a roof whose ridge runs across, for houses
+// 4-6 tiles deep (piece 0 middle, 1 left end, 2 right end); rf_s a row of a roof whose ridge runs up the screen, for
+// houses 4-5 tiles wide (0 middle, 1 the front end with its gable, 2 the back end). [width, height, roof height]
+export const RF_SIZES = (() => {
+  const o = {};
+  for (let n = 4; n <= 6; n++) {
+    const D = n * 40 + 16,
+      r = D * 0.12;
+    for (let i = 0; i < 3; i++) {
+      o['rf_f' + n + '_' + i] = [i ? 48 : 44, Math.ceil(D / 2 + r + 12), r + 3];
+      o['rf_b' + n + '_' + i] = [i ? 48 : 44, Math.ceil(D / 2 - r + 16), r + 3];
+    }
+  }
+  for (let n = 4; n <= 5; n++) {
+    const D = n * 40 + 12,
+      r = D * 0.12;
+    for (let i = 0; i < 3; i++) o['rf_s' + n + '_' + i] = [D + 4, Math.ceil((i ? 50 : 44) + r + 14), r + 3];
+  }
+  return o;
+})();
+// wall blocks (shapes/roofs.js), in id order: brick 28 tall (plain twice, a lit window, a dark one, boarded, a
+// poster, cracked), brick 21 and 14 tall (ruined, twice each), concrete 30 tall (plain, a shop window)
+export const WB_SIZES = Object.fromEntries(
+  [
+    ['b28a', 28],
+    ['b28b', 28],
+    ['b28win', 28],
+    ['b28dark', 28],
+    ['b28board', 28],
+    ['b28post', 28],
+    ['b28crack', 28],
+    ['b21a', 21],
+    ['b21b', 21],
+    ['b14a', 14],
+    ['b14b', 14],
+    ['c30', 30],
+    ['c30win', 30],
+  ].map(([n, z]) => ['wb_' + n, [44, 42 + z + 6, z]])
+);
 export const O_TURNS = { o_dump: 2, o_cart: 8, o_coffin: 8, o_tl: 2, o_dish: 4 };
 export const O_SIZES = Object.fromEntries(
   Object.entries(OS).flatMap(([n, v]) => (O_TURNS[n] ? [...Array(O_TURNS[n]).keys()].map(i => [n + i, v]) : [[n, v]]))
@@ -343,7 +382,7 @@ async function bakeLive(names, D, T0, nap) {
   let i = 0;
   for (const n of names) {
     const [w, h] = BAKE_SIZES[n],
-      r = bakeRun(n, Math.ceil(w * AS), Math.ceil(h * AS), w, h);
+      r = bakeRun(n, Math.ceil(w * regionScale(n)), Math.ceil(h * regionScale(n)), w, h);
     if (r) BAKE.pre[n] = r;
     i++;
     if (ld) ld.textContent = 'Raising the dead… ' + Math.floor((i / names.length) * 100) + '%';
@@ -483,7 +522,7 @@ export function init() {
     wcase: [64, 26],
   };
   BAKE_SIZES.heli = [272, 112];
-  Object.assign(BAKE_SIZES, O_SIZES);
+  Object.assign(BAKE_SIZES, O_SIZES, RF_SIZES, WB_SIZES);
   BAKE_SIZES.car = [84, 46];
   BAKE_SIZES.police = [84, 46];
   BAKE_SIZES.truck = [124, 52];

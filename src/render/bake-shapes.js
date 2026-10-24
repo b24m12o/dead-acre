@@ -7,6 +7,7 @@ import { shapeSurvivors } from './shapes/survivors.js';
 import { shapeVehicles } from './shapes/vehicles.js';
 import { shapePickups } from './shapes/pickups.js';
 import { shapeProps } from './shapes/props.js';
+import { shapeRoofs } from './shapes/roofs.js';
 
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
@@ -16,4 +17,5 @@ export function init() {
   shapeVehicles();
   shapePickups();
   shapeProps();
+  shapeRoofs();
 }

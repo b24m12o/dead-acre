@@ -13,7 +13,10 @@ export let R, META;
 let SHELVES;
 let SHELF_Y;
 // spec: shininess, soft: how rounded the generated volume is, det: how much painted detail turns into relief
+// big flat pictures (the roof pieces) go into the atlas at a lower resolution than everything else: there isn't room
+export const regionScale = name => (/^rf_/.test(name) ? Math.min(AS, 2) : AS);
 export function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
+  const AS = regionScale(name);
   const pw = Math.ceil(w * AS) + 14,
     ph = Math.ceil(h * AS) + 14;
   // best-fit shelf packing: drop into the existing row that wastes the least height, else open a new row
@@ -68,7 +71,8 @@ export function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
   CHARK = false;
   xa.restore();
   xe.restore();
-  R[name] = { w, h, u0: x / ATL, v0: y / ATL, u1: (x + w * AS) / ATL, v1: (y + h * AS) / ATL, bk: !!BK }; // bk: drawn from a 3D picture
+  const AS2 = regionScale(name);
+  R[name] = { w, h, u0: x / ATL, v0: y / ATL, u1: (x + w * AS2) / ATL, v1: (y + h * AS2) / ATL, bk: !!BK }; // bk: drawn from a 3D picture
   // Each atlas region gets a material response: damp infected skin and helmet/face surfaces catch a soft highlight, cloth stays matte, and metal gear retains tight speculars.
   const key = name.toLowerCase();
   let materialSpec = spec;
@@ -84,8 +88,8 @@ export function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
   META.push({
     px: x - 4,
     py: y - 4,
-    pw: Math.ceil(w * AS) + 8,
-    ph: Math.ceil(h * AS) + 8,
+    pw: Math.ceil(w * AS2) + 8,
+    ph: Math.ceil(h * AS2) + 8,
     spec: materialSpec,
     soft,
     det,

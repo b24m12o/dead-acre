@@ -4,6 +4,7 @@ import { lineQ, quad, setH } from './sprites.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, houses, ttype } from '../world/map.js';
 import { WBURN, WHOLES } from '../world/wear.js';
+import { WB_SIZES } from './bake.js';
 /* =====================================================================
    2.5D: extruded blocks, stacked props, cars, roofs, decor
    ===================================================================== */
@@ -112,7 +113,14 @@ export function drawBlock(i) {
   const below = ty + 1 < MH ? i + MW : -1,
     faceShown = below < 0 || !(isBlock(ttype[below]) && WHT[below] >= H);
   const bu = 1 - WBURN[i] * 0.6;
-  if (faceShown) {
+  const wb = wallBlock(st, i, H, tx, ty);
+  if (wb) {
+    const z = WB_SIZES[wb][2],
+      lit = /win$/.test(wb) ? 1.4 : 0;
+    setH(z);
+    quad(R[wb], x, y - z / 2, 0, 1, 1, bu, bu, bu, 1, lit, lit, lit, 0);
+  } // the 3D block: its top and the face toward you in one picture (the row in front covers a face that isn't shown)
+  else if (faceShown) {
     const v = WVN[st] ? WVN[st][WVAR[i]] : '',
       reg = R['wf_' + st + v] || R['wf_' + st + '0'],
       lit = v === 'win' ? 1.4 : 0;
@@ -134,7 +142,7 @@ export function drawBlock(i) {
       0
     );
   }
-  quad(R['wt_' + st], x, y - H, 0, 1, 1, bu, bu, bu, 1, 0, 0, 0, 0);
+  if (!wb) quad(R['wt_' + st], x, y - H, 0, 1, 1, bu, bu, bu, 1, 0, 0, 0, 0);
   const hl = WHOLES.get(i);
   if (hl)
     for (const h of hl)
@@ -143,6 +151,40 @@ export function drawBlock(i) {
   GS.gA = 1;
 }
 
+// the 3D picture for a brick or concrete wall tile: its height to the nearest one baked, its face's variant (a window,
+// lit or dark or boarded, a poster, a crack) as the painted version chose it. Null when the pictures aren't in
+function wallBlock(st, i, H, tx, ty) {
+  if (st !== 'brick' && st !== 'conc') return null;
+  const v = WVAR[i],
+    r = hsh(tx * 3 + 5, ty * 7 + 1),
+    n =
+      st === 'conc'
+        ? v === 1
+          ? 'wb_c30win'
+          : 'wb_c30'
+        : H < 17.5
+          ? r < 0.5
+            ? 'wb_b14a'
+            : 'wb_b14b'
+          : H < 24.5
+            ? r < 0.5
+              ? 'wb_b21a'
+              : 'wb_b21b'
+            : v === 1
+              ? 'wb_b28win'
+              : v === 2
+                ? r < 0.5
+                  ? 'wb_b28dark'
+                  : 'wb_b28board'
+                : v === 3
+                  ? 'wb_b28post'
+                  : v === 4
+                    ? 'wb_b28crack'
+                    : r < 0.5
+                      ? 'wb_b28a'
+                      : 'wb_b28b';
+  return R[n] && R[n].bk ? n : null;
+}
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
   WST = new Uint8Array(MW * MH);
