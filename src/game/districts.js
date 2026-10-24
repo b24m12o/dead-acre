@@ -1,9 +1,30 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 const FINAL_NIGHT = 15;
 const DISTRICTS = {
-  town: { name: 'Dead Acre', desc: 'Main Street crossroads, wrecked cars and ruined houses.', boss: 'Abomination', bossSub: 'Chitin in front. Buckshot up close, or get round to its tail', lock: null, camp: 0 },
-  highway: { name: 'Route 9', desc: 'Open asphalt, a gas station and far too many cars.', boss: 'Roadkill', bossSub: 'The sign stops bullets. Rifles punch through', lock: 'night10', camp: 1 },
-  cemetery: { name: 'Hollow Hill', desc: 'Graves, crypts and a fog that never lifts.', boss: 'Gravekeeper', bossSub: 'Get round to the lantern on its left hip. Then it burns', lock: 'evac1', camp: 2 }
+  town: {
+    name: 'Dead Acre',
+    desc: 'Main Street crossroads, wrecked cars and ruined houses.',
+    boss: 'Abomination',
+    bossSub: 'Chitin in front. Buckshot up close, or get round to its tail',
+    lock: null,
+    camp: 0,
+  },
+  highway: {
+    name: 'Route 9',
+    desc: 'Open asphalt, a gas station and far too many cars.',
+    boss: 'Roadkill',
+    bossSub: 'The sign stops bullets. Rifles punch through',
+    lock: 'night10',
+    camp: 1,
+  },
+  cemetery: {
+    name: 'Hollow Hill',
+    desc: 'Graves, crypts and a fog that never lifts.',
+    boss: 'Gravekeeper',
+    bossSub: 'Get round to the lantern on its left hip. Then it burns',
+    lock: 'evac1',
+    camp: 2,
+  },
 };
 const INFECTION = [
   { name: 'Clean', desc: 'The standard 15 nights.' },
@@ -16,15 +37,16 @@ const INFECTION = [
   { name: 'Dry magazines', desc: 'A third fewer ammo boxes.' },
   { name: 'Spitting season', desc: 'More of the dead that spit acid or shriek.' },
   { name: 'Hungry', desc: 'Zombies hit 25% harder.' },
-  { name: 'Ground Zero', desc: 'Night 15 brings two bosses at once.' }
+  { name: 'Ground Zero', desc: 'Night 15 brings two bosses at once.' },
 ];
-const INF = n => (RUN && RUN.inf || 0) >= n;
-const TWISTS = [ // optional rules for a run, on top of the Infection level: each one changes how you play it, and pays more scrap
+const INF = n => ((RUN && RUN.inf) || 0) >= n;
+const TWISTS = [
+  // optional rules for a run, on top of the Infection level: each one changes how you play it, and pays more scrap
   { id: 'pistol', name: 'Sidearm only', desc: 'No weapon cases. Your pistol hits 60% harder.', scrap: 0.5 },
   { id: 'nomeds', name: 'No medkits', desc: 'The dead drop no medkits. Supply crates still patch you up.', scrap: 0.4 },
   { id: 'dark', name: 'Grid down', desc: 'Every night is a blackout.', scrap: 0.3 },
   { id: 'glass', name: 'Glass cannon', desc: 'Half the health. 50% more damage.', scrap: 0.35 },
-  { id: 'horde', name: 'Horde', desc: '40% more of the dead every night.', scrap: 0.4 }
+  { id: 'horde', name: 'Horde', desc: '40% more of the dead every night.', scrap: 0.4 },
 ];
 const TW = id => !!(RUN && RUN.tw && RUN.tw[id]);
 const twistK = () => 1 + TWISTS.reduce((a, t) => a + (TW(t.id) ? t.scrap : 0), 0);

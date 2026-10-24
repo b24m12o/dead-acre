@@ -1,5 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-bakeGroup('zt', `
+bakeGroup(
+  'zt',
+  `
 const float ZD=9.5, ZW=15.5;
 float body(vec3 p){
   float d=sdEll(p,vec3(-0.9,0.0,0.0),vec3(8.4,13.2,7.0));
@@ -190,12 +192,17 @@ vec3 alb(vec3 p, vec3 n){
   if(cl) c=weave(c,p,k==1||k==13||k==7?0.12:0.08);
   c=grime(c,p,1.6); c=blood(c,p,3.2);
   return c;
-}`);
+}`
+);
 for (let v = 0; v <= 18; v++) bakePart('z_torso' + v, 'zt', v, 14, v * 3.7 + 1);
 for (let v = 0; v <= 21; v++) bakePart('z_ly' + v, 'zt', 30 + v, v === 19 ? 22 : 13, v * 5.3 + 2); // the same people lying face down
 for (let v = 0; v <= 18; v++) bakePart('z_lu' + v, 'zt', 70 + v, 13, v * 5.3 + 2); // and on their backs
-bakePart('z_lhip', 'zt', 60, 9, 4.2); bakePart('z_lleg', 'zt', 61, 9, 7.7); bakePart('z_lhipu', 'zt', 62, 9, 4.2);
-bakeGroup('zh', `
+bakePart('z_lhip', 'zt', 60, 9, 4.2);
+bakePart('z_lleg', 'zt', 61, 9, 7.7);
+bakePart('z_lhipu', 'zt', 62, 9, 4.2);
+bakeGroup(
+  'zh',
+  `
 int gPart;
 float skull(vec3 p){
   float d=sdEll(p,vec3(-0.4,0.0,0.0),vec3(6.8,5.7,6.0));
@@ -261,11 +268,14 @@ vec3 alb0(vec3 p, vec3 n){
 /* the same heads lying face up: the face looks at the sky, the crown points away from the body, the back of the skull rests on the ground */
 float map(vec3 p){ gPart=uPart; if(uPart>=40){ gPart=uPart-40; return max(map0(vec3(p.z-7.2,p.y,p.x)),-p.z); } return map0(p); }
 vec3 alb(vec3 p, vec3 n){ gPart=uPart; if(uPart>=40){ gPart=uPart-40; vec3 c=alb0(vec3(p.z-7.2,p.y,p.x),vec3(n.z,n.y,n.x)); return c*mix(0.7,1.0,smoothstep(0.0,3.0,p.z)); } return alb0(p,n); }
-`);
+`
+);
 for (let v = 0; v <= 17; v++) bakePart('z_head' + v, 'zh', v, 10, v * 4.3 + 11);
 bakePart('z_head_spit', 'zh', 18, 10, 77);
 for (let v = 0; v <= 17; v++) bakePart('z_headu' + v, 'zh', 40 + v, 16, v * 4.3 + 11); // face up
-bakeGroup('zl', `
+bakeGroup(
+  'zl',
+  `
 float map(vec3 p){
   int k=uPart; float d;
   if(k==0){ d=sdCap(p,vec3(-8.6,0.0,0.0),vec3(6.4,0.0,0.0),4.2,3.5); d-=sin(p.x*1.6+sin(p.y*2.0)*0.6)*0.2*smoothstep(-4.0,4.0,p.x); d=smin(d,sdEll(p,vec3(7.6,0.0,0.0),vec3(2.4,3.0,2.4)),1.0); } // sleeve to a frayed cuff, the arm showing past it
@@ -282,9 +292,16 @@ vec3 alb(vec3 p, vec3 n){
   if(k==2) return vec3(0.86)*(0.88+0.2*f);
   if(k==3){ vec3 c=vec3(0.86)*(0.85+0.2*f); if(p.x>2.6) c*=0.8; if(p.x>3.0&&abs(fract(p.y*0.83+0.25)-0.5)<0.22) c=mix(c,vec3(0.28,0.24,0.26),0.7); return c; }
   vec3 c=hx(0x3a2c22)*(0.8+0.4*f); if(p.x<-3.6) c=hx(0x161210); if(abs(p.y)<1.1&&p.x>-2.5&&p.x<2.0&&fract(p.x*0.8)<0.4) c=hx(0x8a7a62); return c;
-}`);
-bakePart('z_upper', 'zl', 0, 6, 3); bakePart('z_fore', 'zl', 1, 5, 5); bakePart('z_elbow', 'zl', 2, 4, 7); bakePart('z_hand', 'zl', 3, 4, 9); bakePart('z_foot', 'zl', 4, 4, 13);
-bakeGroup('zs', `
+}`
+);
+bakePart('z_upper', 'zl', 0, 6, 3);
+bakePart('z_fore', 'zl', 1, 5, 5);
+bakePart('z_elbow', 'zl', 2, 4, 7);
+bakePart('z_hand', 'zl', 3, 4, 9);
+bakePart('z_foot', 'zl', 4, 4, 13);
+bakeGroup(
+  'zs',
+  `
 float torsoB(vec3 p, float W, float D, float fat){ // a person's back and shoulders, scaled: W half width, D half depth
   float sx=D/9.5, sy=W/15.5;
   vec3 q=vec3(p.x/sx,p.y/sy,p.z);
@@ -345,10 +362,19 @@ vec3 albB(vec3 p, vec3 n){
   if(k==6){ c=hx(0x8e7a62)*(0.8+0.36*fbm(p.xy*1.1+7.0)); c=mix(c,hx(0x5a4a3a),clamp((fbm(p.xy*0.5)-0.55)*2.0,0.0,0.6)); if(fbm(p.xy*0.7+2.0)>0.68) c=mix(c,hx(0x8a6a6a),0.5); return bloodG(c,p,2.4); }
   c=hx(0x8e7a62)*(0.82+0.3*fbm(p.xy*1.6)); if(p.x>8.0) c=hx(0x2a1e16); if(p.x<-2.4&&abs(p.y)>2.0) c=hx(0x2a1e16); for(int s=-1;s<=1;s+=2){ if(length(p.xy-vec2(3.0,float(s)*2.4))<0.7) c=hx(0x101010); } return c;
 }
-vec3 alb(vec3 p, vec3 n){ vec3 c=albB(p,n); if(uPart==0||uPart==1||uPart==4||uPart==6) c*=mix(0.6,1.0,smoothstep(-1.0,uBox.z*0.8,p.z))*(0.72+0.28*smoothstep(0.1,0.85,n.z)); return c; } /* body masses get stronger form shading so they read as round */`);
-bakePart('z_torso_spit', 'zs', 0, 14, 21); bakePart('z_scream', 'zs', 1, 14, 23); bakePart('z_shead', 'zs', 2, 10, 25); bakePart('z_bhead', 'zs', 3, 10, 27);
-bakePart('z_brute', 'zs', 4, 26, 29); bakePart('z_bloat', 'zs', 5, 24, 31); bakePart('z_hound', 'zs', 6, 10, 33); bakePart('z_hhead', 'zs', 7, 6, 35);
-bakeGroup('gb', `
+vec3 alb(vec3 p, vec3 n){ vec3 c=albB(p,n); if(uPart==0||uPart==1||uPart==4||uPart==6) c*=mix(0.6,1.0,smoothstep(-1.0,uBox.z*0.8,p.z))*(0.72+0.28*smoothstep(0.1,0.85,n.z)); return c; } /* body masses get stronger form shading so they read as round */`
+);
+bakePart('z_torso_spit', 'zs', 0, 14, 21);
+bakePart('z_scream', 'zs', 1, 14, 23);
+bakePart('z_shead', 'zs', 2, 10, 25);
+bakePart('z_bhead', 'zs', 3, 10, 27);
+bakePart('z_brute', 'zs', 4, 26, 29);
+bakePart('z_bloat', 'zs', 5, 24, 31);
+bakePart('z_hound', 'zs', 6, 10, 33);
+bakePart('z_hhead', 'zs', 7, 6, 35);
+bakeGroup(
+  'gb',
+  `
 float gBody(vec3 p, float W, float D, float H){ /* a giant's back and shoulders from above, the walker's build scaled up: W half the shoulder span, D half the depth, H the height of the back */
   vec3 s=vec3(D/9.5,W/15.5,H/7.0), q=p/s;
   float d=sdEll(q,vec3(-0.9,0.0,0.0),vec3(8.4,13.2,7.0));
@@ -480,9 +506,28 @@ vec3 albB(vec3 p, vec3 n){
   c=vec3(0.86)*(0.85+0.25*fbm(p.xy*0.5+uSeed)); return c;
 }
 vec3 alb(vec3 p, vec3 n){ vec3 c=albB(p,n); return c*mix(0.58,1.0,smoothstep(-1.0,uBox.z*0.8,p.z))*(0.7+0.3*smoothstep(0.1,0.85,n.z)); }
-`); // the four giant bosses: bodies, heads and shoulder caps
-[['rk_torso', 36], ['gk_torso', 26], ['cf_torso', 30], ['pz_torso', 32], ['rk_head', 18], ['gk_head', 19], ['pz_head', 17], ['cf_head', 18], null, ['ab_body', 34], ['ab_head', 22], ['ab_limb', 8], ['ab_seg', 15]].forEach((q, i) => { if (q) bakePart(q[0], 'gb', i, q[1], 60 + i * 3.1, /torso|ab_body|ab_head|ab_limb|ab_seg/.test(q[0])); }); // ab_head too: no painted glowing dot eyes over the 3D head
-bakeGroup('hr', `
+`
+); // the four giant bosses: bodies, heads and shoulder caps
+[
+  ['rk_torso', 36],
+  ['gk_torso', 26],
+  ['cf_torso', 30],
+  ['pz_torso', 32],
+  ['rk_head', 18],
+  ['gk_head', 19],
+  ['pz_head', 17],
+  ['cf_head', 18],
+  null,
+  ['ab_body', 34],
+  ['ab_head', 22],
+  ['ab_limb', 8],
+  ['ab_seg', 15],
+].forEach((q, i) => {
+  if (q) bakePart(q[0], 'gb', i, q[1], 60 + i * 3.1, /torso|ab_body|ab_head|ab_limb|ab_seg/.test(q[0]));
+}); // ab_head too: no painted glowing dot eyes over the 3D head
+bakeGroup(
+  'hr',
+  `
 const float HW=18.5, HD=10.5;
 float bodyH(vec3 p){ // the living: straighter shoulders than the dead, a fuller chest
   vec3 q=vec3(p.x/1.1,p.y/1.19,p.z);
@@ -531,8 +576,11 @@ vec3 alb(vec3 p, vec3 n){
   else if(k==12){ c=hx(0x3a2c1e)*(0.82+0.3*fbm(p.xy*1.6)); if(p.x>4.0) c=hx(0x2a2016); if(abs(p.y)<1.3&&p.x>-4.0&&p.x<2.5&&fract(p.x*0.6)<0.35) c=hx(0x8a7a62); if(p.x<-5.0) c=hx(0x1e160e); }
   else { c=mix(hx(0x30361e),hx(0x56603c),smoothstep(-10.0,3.0,p.x))*(0.85+0.25*fbm(p.xy*1.5)); if(p.x<-6.6) c=hx(0x5a5240); if(abs(abs(p.y)-6.0)<0.9&&p.z>5.0) c=hx(0x20241a); }
   return dirt(c,p);
-}`);
-bakeGroup('cr', `
+}`
+);
+bakeGroup(
+  'cr',
+  `
 float sb(vec3 p, vec3 c, vec3 b, float r){ return sdBox(p,c,b-r,r); } /* a box whose half-size includes its rounding */
 float sdRR(vec2 p, vec2 b, float r){ vec2 q=abs(p)-b+r; return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r; }
 float wheel(vec3 p, vec3 c, float r, float hw){ vec2 d=vec2(length(p.xz-c.xz)-r,abs(p.y-c.y)-hw); return min(max(d.x,d.y),0.0)+length(max(d,0.0))-0.6; } /* a tyre: a disc on its edge, axle across the car */
@@ -589,9 +637,17 @@ vec3 albB(vec3 p, vec3 n){
   return c;
 }
 vec3 alb(vec3 p, vec3 n){ return albB(p,n)*mix(0.55,1.0,smoothstep(0.5,uBox.z*0.55,p.z))*(0.78+0.22*smoothstep(0.1,0.85,n.z)); }
-`); // cars as real objects: the same 3D pictures as the characters
-[['car', 16], ['police', 17], ['truck', 26], ['carburn', 16]].forEach(([n, z], i) => bakePart(n, 'cr', i, z, 120 + i * 3.3));
-bakeGroup('hl', `
+`
+); // cars as real objects: the same 3D pictures as the characters
+[
+  ['car', 16],
+  ['police', 17],
+  ['truck', 26],
+  ['carburn', 16],
+].forEach(([n, z], i) => bakePart(n, 'cr', i, z, 120 + i * 3.3));
+bakeGroup(
+  'hl',
+  `
 float sb(vec3 p, vec3 c, vec3 b, float r){ return sdBox(p,c,b-r,r); }
 float hull(vec3 p){ /* the fuselage lofted along its length: a blunt rounded nose, a boxy cabin, the tail cone sweeping up into the boom */
   float x=p.x, hw, zc, hh;
@@ -633,9 +689,12 @@ vec3 alb(vec3 p, vec3 n){
   c=mix(c,hx(0x2a261e),clamp((fbm(p.xy*0.25+7.0)-0.6)*1.2,0.0,0.3)*smoothstep(12.0,4.0,p.z)); /* grime low down */
   return c*mix(0.62,1.0,smoothstep(1.0,30.0,p.z))*(0.8+0.2*smoothstep(0.1,0.85,n.z));
 }
-`); // the evac helicopter: a UH-60-style medevac in olive drab, built like the cars
+`
+); // the evac helicopter: a UH-60-style medevac in olive drab, built like the cars
 bakePart('heli', 'hl', 0, 52, 140);
-bakeGroup('pk', `
+bakeGroup(
+  'pk',
+  `
 float rounds(vec3 p, vec2 c0, vec2 step, int nx, int ny, float r, float zc){ float d=1e3; for(int j=0;j<4;j++){ if(j>=ny) break; for(int i=0;i<6;i++){ if(i>=nx) break; vec2 c=c0+vec2(float(i),float(j))*step; d=min(d,sdSph(p,vec3(c,zc),r)); } } return d; } /* rows of cartridges standing in an open box: their tips, seen from above */
 float map(vec3 p){
   int k=uPart; float d;
@@ -696,6 +755,35 @@ vec3 albB(vec3 p, vec3 n){
   return c;
 }
 vec3 alb(vec3 p, vec3 n){ return albB(p,n)*mix(0.62,1.0,smoothstep(-0.5,uBox.z*0.75,p.z))*(0.74+0.26*smoothstep(0.1,0.85,n.z)); }
-`); // pickups and supply drops as real objects
-[['medkit', 8], ['ammo', 10], ['ammo_light', 6], ['ammo_shells', 6], ['ammo_rifle', 10], ['ammo_heavy', 6], ['ammo_gren', 8], ['crate', 12], ['wcase', 11]].forEach(([n, z], i) => { bakePart(n, 'pk', i, z, 90 + i * 2.7, true); BAKE.parts[n].sl = true; });
-['hb0', 'hb1', 'hb2', 'hh0', 'hh1', 'hh2', 'h_upper', 'h_fore', 'h_elbow', 'h_glove', 'h_glove2', 'h_hand', 'h_foot', 'h_pack'].forEach((n, i) => bakePart(n, 'hr', i, i <= 2 ? 16 : i <= 5 ? 10 : i === 13 ? 12 : 6, 40 + i * 2.3));
+`
+); // pickups and supply drops as real objects
+[
+  ['medkit', 8],
+  ['ammo', 10],
+  ['ammo_light', 6],
+  ['ammo_shells', 6],
+  ['ammo_rifle', 10],
+  ['ammo_heavy', 6],
+  ['ammo_gren', 8],
+  ['crate', 12],
+  ['wcase', 11],
+].forEach(([n, z], i) => {
+  bakePart(n, 'pk', i, z, 90 + i * 2.7, true);
+  BAKE.parts[n].sl = true;
+});
+[
+  'hb0',
+  'hb1',
+  'hb2',
+  'hh0',
+  'hh1',
+  'hh2',
+  'h_upper',
+  'h_fore',
+  'h_elbow',
+  'h_glove',
+  'h_glove2',
+  'h_hand',
+  'h_foot',
+  'h_pack',
+].forEach((n, i) => bakePart(n, 'hr', i, i <= 2 ? 16 : i <= 5 ? 10 : i === 13 ? 12 : 6, 40 + i * 2.3));

@@ -2,19 +2,45 @@
 /* =====================================================================
    WebGL
    ===================================================================== */
-const glc = $('gl'), uic = $('ui'), ui = uic.getContext('2d');
-const gl = glc.getContext('webgl2', { antialias: false, alpha: false, depth: false, stencil: false, premultipliedAlpha: false, powerPreference: 'high-performance' });
-if (!gl) { $('nogl').hidden = false; $('loading').hidden = true; return; }
+const glc = $('gl'),
+  uic = $('ui'),
+  ui = uic.getContext('2d');
+const gl = glc.getContext('webgl2', {
+  antialias: false,
+  alpha: false,
+  depth: false,
+  stencil: false,
+  premultipliedAlpha: false,
+  powerPreference: 'high-performance',
+});
+if (!gl) {
+  $('nogl').hidden = false;
+  $('loading').hidden = true;
+  return;
+}
 const hasCBF = !!gl.getExtension('EXT_color_buffer_float');
-function compile(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
 function program(vs, fs) {
-  const p = gl.createProgram(); gl.attachShader(p, compile(gl.VERTEX_SHADER, vs)); gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
   if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
   return progFinish(p);
 }
 function progFinish(p) {
-  const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
-  for (let i = 0; i < n; i++) { const info = gl.getActiveUniform(p, i); u[info.name.replace(/\[0\]$/, '')] = gl.getUniformLocation(p, info.name); }
+  const u = {};
+  const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) {
+    const info = gl.getActiveUniform(p, i);
+    u[info.name.replace(/\[0\]$/, '')] = gl.getUniformLocation(p, info.name);
+  }
   return { p, u };
 }
 const SPRITE_VS = `#version 300 es

@@ -1,8 +1,30 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 const PROFILE_FORMAT = 'dead-acre-profile';
 const PROFILE_VERSION = 1;
-const PROFILE_KEYS = ['rr_meta', 'rr_lean', 'rr_shake', 'rr_music', 'rr_gore', 'rr_grain', 'rr_los', 'rr_flash', 'rr_quality', 'rr_muted', 'rr_best', 'rr_wave'];
-const PROFILE_TOGGLES = new Set(['rr_lean', 'rr_shake', 'rr_music', 'rr_gore', 'rr_grain', 'rr_los', 'rr_flash', 'rr_muted']);
+const PROFILE_KEYS = [
+  'rr_meta',
+  'rr_lean',
+  'rr_shake',
+  'rr_music',
+  'rr_gore',
+  'rr_grain',
+  'rr_los',
+  'rr_flash',
+  'rr_quality',
+  'rr_muted',
+  'rr_best',
+  'rr_wave',
+];
+const PROFILE_TOGGLES = new Set([
+  'rr_lean',
+  'rr_shake',
+  'rr_music',
+  'rr_gore',
+  'rr_grain',
+  'rr_los',
+  'rr_flash',
+  'rr_muted',
+]);
 function profileStatus(message, isError = false) {
   const el = $('saveStatus');
   if (!el) return;
@@ -17,18 +39,37 @@ function buildProfileExport() {
   values.rr_quality = 'ultra';
   return { format: PROFILE_FORMAT, version: PROFILE_VERSION, exportedAt: new Date().toISOString(), values };
 }
-let dlCap; if (window.claude && typeof window.claude.use === 'function') dlCap = window.claude.use('downloads').catch(() => null); /* hosted on claude.ai: saves go through the viewer's own confirmation */
+let dlCap;
+if (window.claude && typeof window.claude.use === 'function')
+  dlCap = window.claude
+    .use('downloads')
+    .catch(() => null); /* hosted on claude.ai: saves go through the viewer's own confirmation */
 async function exportProfile() {
   const name = `dead-acre-save-${new Date().toISOString().slice(0, 10)}.json`;
   const dl = dlCap ? await dlCap : null;
-  if (dl) { try { await dl.save({ filename: name, data: JSON.stringify(buildProfileExport(), null, 2) }); profileStatus('Save exported. Store the JSON file somewhere safe.'); } catch (err) { profileStatus(err && err.code === 'declined' ? 'Export cancelled.' : 'Export is not available in this view.', err && err.code !== 'declined'); } return; }
+  if (dl) {
+    try {
+      await dl.save({ filename: name, data: JSON.stringify(buildProfileExport(), null, 2) });
+      profileStatus('Save exported. Store the JSON file somewhere safe.');
+    } catch (err) {
+      profileStatus(
+        err && err.code === 'declined' ? 'Export cancelled.' : 'Export is not available in this view.',
+        err && err.code !== 'declined'
+      );
+    }
+    return;
+  }
   try {
     const payload = JSON.stringify(buildProfileExport(), null, 2);
     const blob = new Blob([payload], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = name; a.hidden = true;
-    document.body.appendChild(a); a.click(); a.remove();
+    a.href = url;
+    a.download = name;
+    a.hidden = true;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1500);
     profileStatus('Save exported. Store the JSON file somewhere safe.');
   } catch (err) {
@@ -36,20 +77,43 @@ async function exportProfile() {
   }
 }
 function normalizeImportedProfile(doc) {
-  if (!doc || typeof doc !== 'object' || Array.isArray(doc) || doc.format !== PROFILE_FORMAT || doc.version !== PROFILE_VERSION || !doc.values || typeof doc.values !== 'object' || Array.isArray(doc.values)) {
+  if (
+    !doc ||
+    typeof doc !== 'object' ||
+    Array.isArray(doc) ||
+    doc.format !== PROFILE_FORMAT ||
+    doc.version !== PROFILE_VERSION ||
+    !doc.values ||
+    typeof doc.values !== 'object' ||
+    Array.isArray(doc.values)
+  ) {
     throw new Error('That file is not a supported Dead Acre save backup.');
   }
   if (typeof doc.values.rr_meta !== 'string') throw new Error('The backup is missing its profile data.');
   let rawMeta;
-  try { rawMeta = JSON.parse(doc.values.rr_meta); } catch (err) { throw new Error('The profile data is not valid JSON.'); }
-  if (!rawMeta || typeof rawMeta !== 'object' || Array.isArray(rawMeta) || !['seeds', 'unlocked', 'hero', 'stats', 'chal'].some(k => Object.prototype.hasOwnProperty.call(rawMeta, k))) {
+  try {
+    rawMeta = JSON.parse(doc.values.rr_meta);
+  } catch (err) {
+    throw new Error('The profile data is not valid JSON.');
+  }
+  if (
+    !rawMeta ||
+    typeof rawMeta !== 'object' ||
+    Array.isArray(rawMeta) ||
+    !['seeds', 'unlocked', 'hero', 'stats', 'chal'].some(k => Object.prototype.hasOwnProperty.call(rawMeta, k))
+  ) {
     throw new Error('The backup does not contain a valid game profile.');
   }
   // Reuse the game's allow-list and clamping rules; don't trust raw file data as runtime state.
   const previousMeta = meta;
   let sanitizedMeta;
-  try { mergeSavedMeta(doc.values.rr_meta); normalizeMeta(); sanitizedMeta = JSON.stringify(meta); }
-  finally { meta = previousMeta; }
+  try {
+    mergeSavedMeta(doc.values.rr_meta);
+    normalizeMeta();
+    sanitizedMeta = JSON.stringify(meta);
+  } finally {
+    meta = previousMeta;
+  }
   const clean = { rr_meta: sanitizedMeta };
   for (const key of PROFILE_KEYS) {
     if (key === 'rr_meta') continue;
@@ -80,28 +144,44 @@ function commitImportedProfile(values) {
   } catch (err) {
     // Roll back the partial write if quota/security policy rejects an item.
     for (const key of keys) {
-      try { if (previous[key] == null) localStorage.removeItem(key); else localStorage.setItem(key, previous[key]); } catch (rollbackErr) {}
+      try {
+        if (previous[key] == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, previous[key]);
+      } catch (rollbackErr) {}
     }
-    throw new Error('The browser could not save the imported profile. Nothing was intentionally changed; check storage permissions and free space.');
+    throw new Error(
+      'The browser could not save the imported profile. Nothing was intentionally changed; check storage permissions and free space.'
+    );
   }
 }
 $('exportSave').addEventListener('click', exportProfile);
-$('importSave').addEventListener('click', () => { $('importSaveFile').click(); });
+$('importSave').addEventListener('click', () => {
+  $('importSaveFile').click();
+});
 $('importSaveFile').addEventListener('change', async e => {
-  const file = e.target.files && e.target.files[0]; e.target.value = '';
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
   if (!file) return;
-  if (file.size > 2 * 1024 * 1024) { profileStatus('Import failed: save files must be smaller than 2 MB.', true); return; }
+  if (file.size > 2 * 1024 * 1024) {
+    profileStatus('Import failed: save files must be smaller than 2 MB.', true);
+    return;
+  }
   try {
     const doc = JSON.parse(await file.text());
     const values = normalizeImportedProfile(doc);
-    if (!window.confirm('Import this save? It replaces the profile and settings in this browser, then reloads the game. Your current valid profile will be kept as a recovery backup.')) {
-      profileStatus('Import cancelled. Your current profile is unchanged.'); return;
+    if (
+      !window.confirm(
+        'Import this save? It replaces the profile and settings in this browser, then reloads the game. Your current valid profile will be kept as a recovery backup.'
+      )
+    ) {
+      profileStatus('Import cancelled. Your current profile is unchanged.');
+      return;
     }
     commitImportedProfile(values);
     profileStatus('Import successful. Reloading the game…');
     setTimeout(() => location.reload(), 250);
   } catch (err) {
-    profileStatus(`Import failed: ${String(err && err.message || err).slice(0, 220)}`, true);
+    profileStatus(`Import failed: ${String((err && err.message) || err).slice(0, 220)}`, true);
   }
 });
 /* ---------- Hangar ---------- */

@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "csso": "5.0.5",
+    "prettier": "^3.3.3",
     "terser": "5.31.0"
   }
 }
