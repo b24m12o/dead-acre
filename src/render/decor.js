@@ -563,6 +563,32 @@ export function drawHouseRoofs() {
         const mo = clamp((0.36 - m) * 4, 0, 1) * 0.12,
           t = [1 - mo * 1.2, 1, 1 - mo * 1.6]; // moss creeping in where the roof stays damp, fading in and out
         const rot = flat ? 0 : rx ? (lit ? Math.PI : 0) : lit ? Math.PI / 2 : -Math.PI / 2;
+        const fm =
+            (ty === o.y ? 1 : 0) |
+            (ty === o.y + o.h - 1 ? 2 : 0) |
+            (tx === o.x ? 4 : 0) |
+            (tx === o.x + o.w - 1 ? 8 : 0),
+          fp = flat && R[(o.style === 'crypt' ? 'rf_c' : 'rf_t') + fm];
+        if (fp && fp.bk) {
+          setH(RH + 2);
+          quad(
+            fp,
+            (tx + 0.5) * TILE,
+            (ty + 0.5) * TILE - RH - 2.5,
+            fm ? 0 : Math.floor(hsh(tx * 13 + 7, ty * 17 + 3) * 4) * (Math.PI / 2), // inner tiles turned at random, so the gravel doesn't repeat
+            1,
+            1,
+            1.35 * t[0],
+            1.35 * t[1],
+            1.35 * t[2],
+            1,
+            0,
+            0,
+            0,
+            0
+          );
+          continue;
+        } // a flat roof from 3D tiles: gravelled tar or stone slabs, a parapet round the edge
         quad(
           R.roof_t,
           (tx + 0.5) * TILE,
@@ -592,9 +618,11 @@ export function drawHouseRoofs() {
         lineQ(rxx - 2, y0 - RH + 4, rxx - 2, y1 - RH - 4, 2, 0.7, 0.66, 0.6, 1, 0, 0, 0, 0, R.pixel);
       }
     }
-    lineQ(x0 + 2, y0 - RH + 1.5, x1 - 2, y0 - RH + 1.5, 2.2, 0.32, 0.32, 0.3, 1, 0, 0, 0, 0, R.pixel); // the far gutter
-    for (let tx = o.x; tx < o.x + o.w; tx++)
-      quad(R.roof_edge, (tx + 0.5) * TILE, y1 - RH + 4, 0, 1.02, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+    if (!(flat && R.rf_t0 && R.rf_t0.bk)) {
+      lineQ(x0 + 2, y0 - RH + 1.5, x1 - 2, y0 - RH + 1.5, 2.2, 0.32, 0.32, 0.3, 1, 0, 0, 0, 0, R.pixel); // the far gutter
+      for (let tx = o.x; tx < o.x + o.w; tx++)
+        quad(R.roof_edge, (tx + 0.5) * TILE, y1 - RH + 4, 0, 1.02, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+    } // (the 3D flat roofs have their own parapet)
     const h = hsh(o.x * 5 + 2, o.y * 7 + 1),
       sp = (fx, fy) => [x0 + fx * (x1 - x0), y0 + fy * (y1 - y0) - RH]; // the things that stick out of a roof, placed the same way every night
     if (!flat && o.style !== 'chapel') {
@@ -621,6 +649,14 @@ export function drawHouseRoofs() {
         quad(R.r_dish, dx, dy, h * 6, 1.1, 1.1, 1.3, 1.3, 1.3, 1, 0, 0, 0, 0);
       }
     }
+    if (o.style === 'store')
+      for (const [fx, fy] of [
+        [0.3, 0.3],
+        [0.62, 0.36],
+      ]) {
+        const [ax, ay] = sp(fx, fy);
+        drawProp('o_ac', ax, ay - 1, 0, 1.25);
+      } // the shop's air conditioning, on the flat roof
     if (h < 0.22 || o.style === 'store') {
       const [kx, ky] = sp(0.55, rx ? 0.68 : 0.5);
       setH(1);

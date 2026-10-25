@@ -154,35 +154,51 @@ export function drawBlock(i) {
 // the 3D picture for a brick or concrete wall tile: its height to the nearest one baked, its face's variant (a window,
 // lit or dark or boarded, a poster, a crack) as the painted version chose it. Null when the pictures aren't in
 function wallBlock(st, i, H, tx, ty) {
-  if (st !== 'brick' && st !== 'conc') return null;
+  if (st !== 'brick' && st !== 'conc' && st !== 'stone' && st !== 'barr' && st !== 'bord') return null;
   const v = WVAR[i],
     r = hsh(tx * 3 + 5, ty * 7 + 1),
     n =
-      st === 'conc'
-        ? v === 1
-          ? 'wb_c30win'
-          : 'wb_c30'
-        : H < 17.5
-          ? r < 0.5
-            ? 'wb_b14a'
-            : 'wb_b14b'
-          : H < 24.5
-            ? r < 0.5
-              ? 'wb_b21a'
-              : 'wb_b21b'
-            : v === 1
-              ? 'wb_b28win'
+      st === 'stone'
+        ? H < 24.5
+          ? 'wb_s21'
+          : r < 0.5
+            ? 'wb_s28a'
+            : 'wb_s28b'
+        : st === 'barr'
+          ? r < 0.8
+            ? 'wb_r16a'
+            : 'wb_r16b'
+          : st === 'bord'
+            ? v === 1
+              ? 'wb_h34b'
               : v === 2
+                ? 'wb_h34c'
+                : 'wb_h34a'
+            : st === 'conc'
+              ? v === 1
+                ? 'wb_c30win'
+                : 'wb_c30'
+              : H < 17.5
                 ? r < 0.5
-                  ? 'wb_b28dark'
-                  : 'wb_b28board'
-                : v === 3
-                  ? 'wb_b28post'
-                  : v === 4
-                    ? 'wb_b28crack'
-                    : r < 0.5
-                      ? 'wb_b28a'
-                      : 'wb_b28b';
+                  ? 'wb_b14a'
+                  : 'wb_b14b'
+                : H < 24.5
+                  ? r < 0.5
+                    ? 'wb_b21a'
+                    : 'wb_b21b'
+                  : v === 1
+                    ? 'wb_b28win'
+                    : v === 2
+                      ? r < 0.5
+                        ? 'wb_b28dark'
+                        : 'wb_b28board'
+                      : v === 3
+                        ? 'wb_b28post'
+                        : v === 4
+                          ? 'wb_b28crack'
+                          : r < 0.5
+                            ? 'wb_b28a'
+                            : 'wb_b28b';
   return R[n] && R[n].bk ? n : null;
 }
 // runs once, in order with every other part's init, when the game starts (see src/index.js)

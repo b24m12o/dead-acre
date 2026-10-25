@@ -12,6 +12,25 @@ export function shapeRoofs() {
      runs up the screen (one piece per 40 px row: middle, front end with its gable wall, back end). D is the roof's
      depth across the ridge, eaves included; everything along the ridge repeats every 40 px so the pieces meet */
   int KIND, PIECE; float D, RISE;
+  /* flat roofs, one tile at a time: a tarred and gravelled shop roof or a crypt's stone slabs, with a parapet along
+     whichever edges of the building the tile is on (FM bits: 1 north, 2 south, 4 west, 8 east) */
+  float flatMap(vec3 p, int fm, bool stone){
+    float d=sdBox(p,vec3(0.0,0.0,-1.5),vec3(21.0,21.0,1.5),0.0);
+    if(stone) d+=0.35*(1.0-smoothstep(0.0,0.5,min(abs(fract(p.x/20.0)-0.5)*20.0,abs(fract(p.y/20.0)-0.5)*20.0)));
+    float h=stone?3.2:4.6, w=stone?3.6:3.0;
+    if(fm-2*(fm/2)==1) d=min(d,sdBox(p,vec3(0.0,-20.0+w*0.5,h*0.5),vec3(21.0,w*0.5,h*0.5),0.3));
+    if((fm/2)-2*(fm/4)==1) d=min(d,sdBox(p,vec3(0.0,20.0-w*0.5,h*0.5),vec3(21.0,w*0.5,h*0.5),0.3));
+    if((fm/4)-2*(fm/8)==1) d=min(d,sdBox(p,vec3(-20.0+w*0.5,0.0,h*0.5),vec3(w*0.5,21.0,h*0.5),0.3));
+    if(fm/8==1) d=min(d,sdBox(p,vec3(20.0-w*0.5,0.0,h*0.5),vec3(w*0.5,21.0,h*0.5),0.3));
+    return d;
+  }
+  vec3 flatAlb(vec3 p, vec3 n, bool stone){
+    vec3 c;
+    if(p.z>0.4){ c=stone?mix(hx(0x8e8a80),hx(0x6e6a62),fbm(p.xy*0.3)):mix(hx(0x9a968c),hx(0x76726a),fbm(p.xy*0.4)); } /* the coping */
+    else if(stone){ c=mix(hx(0x7a766c),hx(0x5c5850),fbm(p.xy*0.15)); if(min(abs(fract(p.x/20.0)-0.5)*20.0,abs(fract(p.y/20.0)-0.5)*20.0)<0.6) c=hx(0x3a3832); c=mix(c,hx(0x4e5a36),clamp((fbm(p.xy*0.2+4.0)-0.55)*2.0,0.0,0.6)); }
+    else { c=mix(hx(0x5c5a56),hx(0x44423e),fbm(p.xy*0.2)); float g=h21(floor(p.xy*1.6)); if(g>0.82) c=mix(c,hx(0x9a948a),0.28); else if(g<0.1) c*=0.9; c=mix(c,hx(0x2e2c2a),0.5*step(0.7,fbm(p.xy*0.08+2.0))); } /* tar and gravel, with old puddle stains */
+    return c*(0.84+0.16*smoothstep(0.1,0.9,n.z));
+  }
   void setup(){
     int k=uPart;
     KIND=k<10?0:k<20?1:2; if(k>=20) k-=20; else if(k>=10) k-=10;
@@ -43,6 +62,7 @@ export function shapeRoofs() {
     return vec3(p.x,p.y+(PIECE==1?3.0:PIECE==2?-3.0:0.0),p.z); /* the pieces reach 2 px past their 40 px slot, so neighbours overlap and no seam shows */
   }
   float map(vec3 p0){
+    if(uPart>=30) return flatMap(p0,uPart>=50?uPart-50:uPart-30,uPart>=50);
     setup(); vec3 p=rp(p0); float d;
     if(KIND<2){
       float s=abs(p.y);
@@ -66,6 +86,7 @@ export function shapeRoofs() {
     return max(d,-p0.z-4.0);
   }
   vec3 alb(vec3 p0, vec3 n){
+    if(uPart>=30) return flatAlb(p0,n,uPart>=50);
     setup(); vec3 p=rp(p0);
     float s=KIND<2?abs(p.y):abs(p.x), u=KIND<2?p.x:p.y, T=6.2831853/40.0;
     float course=floor(s/3.2), tab=floor((u+2.0*mod(course,2.0))/4.0);
@@ -85,8 +106,9 @@ export function shapeRoofs() {
   `
   ); // roofs: shingled slopes with their ridge cap, fascia and gutters, verge boards, and the gable over a house that faces you
   for (const n in RF_SIZES) {
-    const m = /^rf_([fbs])(\d)_(\d)$/.exec(n),
-      id = (m[1] === 'f' ? 0 : m[1] === 'b' ? 10 : 20) + (+m[2] - 4) * 3 + +m[3];
+    const f = /^rf_([tc])(\d+)$/.exec(n),
+      m = /^rf_([fbs])(\d)_(\d)$/.exec(n),
+      id = f ? (f[1] === 't' ? 30 : 50) + +f[2] : (m[1] === 'f' ? 0 : m[1] === 'b' ? 10 : 20) + (+m[2] - 4) * 3 + +m[3];
     bakePart(n, 'rf', id, RF_SIZES[n][2], 201 + id, true, true);
   }
   bakeGroup(
@@ -96,8 +118,65 @@ export function shapeRoofs() {
      neighbours overlap, and the brick bond repeats every 40 px so a run of them reads as one wall */
   int K, V; float HT; bool CONC;
   void setup(){
-    K=uPart; CONC=K>=11; HT=K<=6?28.0:K<=8?21.0:K<=10?14.0:30.0; V=K;
+    K=uPart; CONC=K==11||K==12; HT=K<=6?28.0:K<=8?21.0:K<=10?14.0:30.0; V=K;
   }
+  /* the other walls: Hollow Hill's dry-stone walls, Route 9's concrete barriers, the hoardings round the edge of town */
+  float HT2(){ return K<=14?28.0:K==15?21.0:K<=17?16.0:34.0; }
+  float barrW(float z){ return z<2.5?19.0:z<8.0?19.0-(z-2.5)*1.27:12.0-(z-8.0)*0.6; } /* a jersey barrier's profile: wide foot, steep flanks, narrow crown */
+  float mapOther(vec3 p){
+    float H=HT2(), d;
+    if(K<=15){
+      float top=H-(K==15?clamp(3.0+2.6*sin(p.x*0.314+p.y*0.1)+1.2*sin(p.x*0.471+1.3),0.0,6.5):0.0);
+      d=sdBox(p,vec3(0.0,0.0,top*0.5),vec3(22.0,21.0,top*0.5),0.0);
+      float row=floor(p.z/10.0), off=mod(row,2.0)*7.0;
+      float gx=abs(fract((p.x+off)/14.0)-0.5)*14.0, gz=abs(fract(p.z/10.0)-0.5)*10.0;
+      d+=0.7*(1.0-smoothstep(0.0,0.9,min(gx,gz)))*step(20.0,p.y); /* deep joints between the dressed stones */
+      if(K!=15) d=min(d,sdBox(p,vec3(0.0,0.0,H+0.6),vec3(22.0,22.4,1.2),0.5)); /* capstones */
+    } else if(K<=17){
+      float s=abs(p.y);
+      d=max(max(s-barrW(p.z),p.z-H),-p.z)*0.62;
+      d+=0.02*sin(p.x*0.6)*step(H-0.5,p.z);
+      if(K==17) d=max(d,-sdSph(p,vec3(9.0,4.0,H),3.2)); /* a chunk knocked out of the crown */
+    } else {
+      d=sdBox(p,vec3(0.0,0.0,H*0.5),vec3(22.0,21.0,H*0.5),0.0);
+      d+=0.5*(1.0-smoothstep(0.0,0.5,abs(fract(p.x/20.0)-0.5)*20.0))*step(20.0,p.y); /* the seams between sheets */
+      d=min(d,sdBox(p,vec3(0.0,21.4,H-2.0),vec3(22.0,0.7,0.9),0.2)); /* the rail along the top */
+    }
+    return d;
+  }
+  vec3 albOther(vec3 p, vec3 n){
+    float H=HT2(); vec3 c; bool face=p.y>19.6;
+    if(K<=15){
+      float row=floor(p.z/10.0), off=mod(row,2.0)*7.0, bx=floor((p.x+off+28.0)/14.0);
+      c=mix(hx(0x8a867c),hx(0x6a665e),h21(vec2(mod(bx,3.0)+row*3.0,row+float(K))));
+      c*=0.85+0.25*fbm(p.xz*0.25+p.y*0.1);
+      float gx=abs(fract((p.x+off)/14.0)-0.5)*14.0, gz=abs(fract(p.z/10.0)-0.5)*10.0;
+      if(face&&min(gx,gz)<0.8) c=hx(0x3a3832);
+      float m=fbm(p.xy*0.18+p.z*0.12+float(K)); /* moss and lichen, thickest on the cap and low down */
+      c=mix(c,hx(0x4e5a36),clamp((m-0.5)*2.4,0.0,0.75)*(face?smoothstep(14.0,0.0,p.z)+0.25:1.0));
+      if(!face&&K!=15) c=mix(c,hx(0x9a968c),0.3);
+    } else if(K<=17){
+      c=mix(hx(0xb4b2aa),hx(0x8e8c84),fbm(vec2(p.x*0.12,p.z*0.3)));
+      c=mix(c,hx(0x4a4844),0.5*smoothstep(4.0,0.0,p.z));
+      if(p.y>0.0&&p.z>7.6&&p.z<10.4){ c=hx(0xe0b030); if(fract((p.x+(p.z-9.0)*0.8)/8.0)<0.45) c=hx(0x1a1a1a); } /* hazard chevrons */
+      c=mix(c,hx(0x3a3a38),0.5*step(0.75,fbm(p.xz*0.5+3.0))); /* tyre black and road dirt */
+      if(K==17&&length(p-vec3(9.0,4.0,H))<3.6) c=hx(0x6a6862);
+    } else {
+      c=mix(hx(0x7a766c),hx(0x5a564e),fbm(vec2(p.x*0.08,p.z*0.15)+float(K)));
+      if(abs(fract(p.x/20.0)-0.5)*20.0<0.6&&face) c=hx(0x2a2824);
+      if(face&&p.z>H-3.2&&p.z<H-0.8) c=hx(0x3a3632);
+      if(face&&K>=19&&p.z>4.0&&p.z<H-5.0){ /* spray paint: tags and drips */
+        float t=sin(p.x*0.42+float(K)*2.0)*4.0+sin(p.x*0.17+1.0)*3.0+H*0.45;
+        float dd=abs(p.z-t), dd2=abs(p.z-(t-6.0+2.0*sin(p.x*0.9)));
+        if(dd<1.3) c=K==19?hx(0xc83a3a):hx(0x3a8ac8);
+        else if(dd2<0.9&&fract(p.x*0.06+float(K))<0.6) c=K==19?hx(0xe8e0c8):hx(0xe8c040);
+        if(fract(p.x*0.23)<0.08&&p.z<t&&p.z>t-5.0&&dd>1.3) c=K==19?hx(0x8a2a2a):hx(0x2a5a8a);
+      }
+      if(!face) c=mix(hx(0x5a564e),hx(0x46423c),fbm(p.xy*0.2));
+    }
+    return c*(face?1.45:0.84+0.16*smoothstep(0.1,0.9,n.z));
+  }
+
   float jag(vec3 p){ /* the broken top of a low ruined wall: bricks knocked off a course or two at a time */
     if(K<7||CONC) return 0.0;
     float T=6.2831853/40.0, k=float(K);
@@ -106,6 +185,7 @@ export function shapeRoofs() {
   float win(vec3 p, vec3 c, vec3 b){ return sdBox(p,c,b,0.2); }
   float map(vec3 p){
     setup();
+    if(K>=13) return mapOther(p);
     float top=HT-jag(p);
     float d=sdBox(p,vec3(0.0,0.0,top*0.5),vec3(22.0,21.0,top*0.5),0.0);
     if(!CONC){
@@ -134,6 +214,7 @@ export function shapeRoofs() {
   }
   vec3 alb(vec3 p, vec3 n){
     setup(); vec3 c;
+    if(K>=13) return albOther(p,n);
     float top=HT-jag(p); bool face=p.y>19.8&&p.z<top-0.3;
     if(!CONC){
       float row=floor(p.z/3.5), off=mod(row,2.0)*4.0, bx=floor((p.x+off+22.0)/8.0);

@@ -236,6 +236,7 @@ export function shapeProps() {
     int k=uPart; K=k;
     if(k==1){ p.x=-p.x; K=0; } /* the signal across the road: its arm reaches the other way, its lamps still face the street */
     if(k>=6&&k<=9){ float a=float(k-6)*1.5707963; float c=cos(a), s=sin(a); p.xy=mat2(c,-s,s,c)*p.xy; K=6; } /* the dish, turned four ways */
+    if(k==10) K=10;
     return p;
   }
   float tlight(vec3 p){ /* a signal on a mast arm: the mast on its collar, the arm and its brace, the head hanging at the end with three hooded lamps */
@@ -301,8 +302,16 @@ export function shapeProps() {
     d=min(d,sdCap(q,vec3(0.4,0.0,-2.6),vec3(4.2,0.0,0.0),0.25,0.25));
     return min(d,sdBox(q,vec3(4.4,0.0,0.0),vec3(0.6,0.5,0.5),0.15));
   }
+  float ac(vec3 p){ /* a rooftop air-conditioning unit on its rails: louvred sides, the fan grille on top */
+    float d=sdBox(p,vec3(0.0,0.0,4.4),vec3(7.6,5.4,3.4),0.5);
+    d=max(d,-max(cylZ(p,vec2(1.5,0.0),3.8,7.2,9.0,0.2),-cylZ(p,vec2(1.5,0.0),0.9,6.0,9.0,0.0)));
+    for(int s=-1;s<=1;s+=2) d=min(d,sdBox(p,vec3(0.0,float(s)*4.0,0.5),vec3(8.4,0.6,0.5),0.2));
+    d+=0.2*step(5.2,abs(p.y))*step(abs(fract(p.z*0.9)-0.5),0.15)*step(p.z,6.8);
+    return d;
+  }
   float map(vec3 p){
     vec3 q=frame(p); float d;
+    if(K==10) return max(ac(q),-p.z);
     if(K==0) d=tlight(q); else if(K==2) d=shelter(q); else if(K==3) d=gen(q); else if(K==4) d=chimney(q); else if(K==5) d=vent(q); else d=dish(q);
     return max(d,-p.z);
   }
@@ -342,6 +351,10 @@ export function shapeProps() {
       c=mix(c,hx(0x1a1614),smoothstep(10.0,14.0,p.z)*0.35); /* soot */
     } else if(K==5){
       c=mix(hx(0x9a9c9e),hx(0x6a6c6e),w);
+    } else if(K==10){
+      c=mix(hx(0xa8aaa6),hx(0x82847e),w); c=mix(c,hx(0x5a4a38),clamp((fbm(p.xy*0.5+p.z)-0.6)*2.0,0.0,0.5)); /* galvanised casing, rust tracks */
+      if(length(p.xy-vec2(1.5,0.0))<3.9&&p.z>6.6){ c=hx(0x1e1e1e); if(abs(sin(atan(p.y,p.x-1.5)*3.0))<0.35&&length(p.xy-vec2(1.5,0.0))<3.4) c=hx(0x5a5a58); } /* the fan behind its grille */
+      if(p.z<1.2) c=hx(0x3a3a38);
     } else {
       c=mix(hx(0xd0d0cc),hx(0x9a9a96),w); if(p.z<5.0) c=hx(0x5a5c5e);
     }
@@ -360,6 +373,7 @@ export function shapeProps() {
     o_dish1: 7,
     o_dish2: 8,
     o_dish3: 9,
+    o_ac: 10,
   }))
     bakePart(n, 'ps', id, O_SIZES[n][2], 181 + id * 2, true, true);
   bakePart('o_gen_t', 'ps', 3, O_SIZES.o_gen_t[2], 187, true, false);

@@ -181,6 +181,7 @@ const OS = {
   o_chim: [12, 24, 14],
   o_vent: [10, 14, 5],
   o_dish: [16, 22, 10],
+  o_ac: [22, 26, 10],
   // seen straight down, for the shadows: [width, depth, height]
   o_hydrant_t: [22, 22, 13],
   o_bin_t: [18, 18, 16],
@@ -214,10 +215,15 @@ export const RF_SIZES = (() => {
       r = D * 0.12;
     for (let i = 0; i < 3; i++) o['rf_s' + n + '_' + i] = [D + 4, Math.ceil((i ? 50 : 44) + r + 14), r + 3];
   }
+  for (const m of [0, 1, 2, 4, 8, 5, 9, 6, 10]) {
+    o['rf_t' + m] = [44, 53, 5]; // a flat shop roof tile; m: which edges carry the parapet (1 N, 2 S, 4 W, 8 E)
+    o['rf_c' + m] = [44, 53, 5]; // a crypt's stone roof
+  }
   return o;
 })();
 // wall blocks (shapes/roofs.js), in id order: brick 28 tall (plain twice, a lit window, a dark one, boarded, a
-// poster, cracked), brick 21 and 14 tall (ruined, twice each), concrete 30 tall (plain, a shop window)
+// poster, cracked), brick 21 and 14 tall (ruined, twice each), concrete 30 tall (plain, a shop window); stone 28 (twice)
+// and 21 (ruined), jersey barriers (whole, chipped), the hoardings round the edge of town (plain, two with graffiti)
 export const WB_SIZES = Object.fromEntries(
   [
     ['b28a', 28],
@@ -233,6 +239,14 @@ export const WB_SIZES = Object.fromEntries(
     ['b14b', 14],
     ['c30', 30],
     ['c30win', 30],
+    ['s28a', 28],
+    ['s28b', 28],
+    ['s21', 21],
+    ['r16a', 16],
+    ['r16b', 16],
+    ['h34a', 34],
+    ['h34b', 34],
+    ['h34c', 34],
   ].map(([n, z]) => ['wb_' + n, [44, 42 + z + 6, z]])
 );
 export const O_TURNS = { o_dump: 2, o_cart: 8, o_coffin: 8, o_tl: 2, o_dish: 4 };
