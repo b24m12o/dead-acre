@@ -14,7 +14,8 @@ let SHELVES;
 let SHELF_Y;
 // spec: shininess, soft: how rounded the generated volume is, det: how much painted detail turns into relief
 // big flat pictures (the roof pieces) go into the atlas at a lower resolution than everything else: there isn't room
-export const regionScale = name => (/^rf_/.test(name) ? Math.min(AS, 2) : AS);
+export const regionScale = name =>
+  /^(cloud|ring$|scorch)/.test(name) ? Math.min(AS, 1.5) : /^(rf_|wb_|puddle)/.test(name) ? Math.min(AS, 2) : AS; // soft things (clouds, rings, scorch) and the big plain roof and wall pieces need less resolution: it saves atlas room
 export function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
   const AS = regionScale(name);
   const pw = Math.ceil(w * AS) + 14,

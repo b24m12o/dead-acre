@@ -24,6 +24,7 @@ void main(){
   vec3 ambient=uSky*(0.58+0.42*clamp(N.z,0.0,1.0))*(1.0-cavity);
   vec3 diffuse=uSun*ndl*lit;
   vec3 c=a*(ambient+diffuse+uSky*(rim+fresnel)+l*0.82)*(1.0-cavity*0.5)+uSun*spec*1.48+lc*ls*0.92+e;
+  c+=uSky*smoothstep(0.86,0.97,sp)*0.55; // standing water holds a little of the night sky
   o=vec4(c,1.0);
 }`;
 export const DOWN_FS = `#version 300 es

@@ -33,6 +33,7 @@ export function nightSetup() {
   if (GS.RUN.district === 'cemetery' && !GS.ev && Math.random() < 0.25) GS.ev = 'fog';
   if (GS.ev && GS.ev === GS.RUN.lastEv && !last) GS.ev = null;
   GS.RUN.lastEv = GS.ev; // never the same weather two nights running
+  GS.RUN.wet = GS.ev === 'storm' ? 1 : (GS.RUN.wet || 0) * 0.5; // after a storm the puddles linger a night or two
   if (TW('dark')) GS.ev = 'blackout';
   if (GS.ev === 'blood') {
     const extra = Math.round(GS.queue.length * 0.35);

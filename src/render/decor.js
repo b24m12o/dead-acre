@@ -107,6 +107,24 @@ const DECOR = {
 export function genDecor() {
   GS.decor = [];
   GS.jets = [];
+  GS.puddles = []; // where water stands after rain: dips in the road and the pavement, a few muddy ones in the lots
+  for (let k = 0, tries = 0; GS.puddles.length < 70 && tries < 900; tries++) {
+    const tx = randi(3, MW - 4),
+      ty = randi(3, MH - 4),
+      i = ty * MW + tx;
+    if (grid[i] || (!ROAD[i] && Math.random() < 0.7)) continue;
+    const x = (tx + 0.5) * TILE + rand(-14, 14),
+      y = (ty + 0.5) * TILE + rand(-14, 14);
+    if (GS.puddles.some(q => Math.hypot(q.x - x, q.y - y) < 60)) continue;
+    GS.puddles.push({
+      x,
+      y,
+      v: k++ % 4,
+      a: rand(-0.4, 0.4) + (Math.random() < 0.5 ? 0 : Math.PI / 2),
+      s: rand(0.55, 1.25),
+      mud: !ROAD[i],
+    });
+  }
   const D = GS.RUN.district || 'town',
     c0 = MW / 2;
   const spot = (pred, minGap = 3) => {

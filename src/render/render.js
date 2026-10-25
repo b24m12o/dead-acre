@@ -68,6 +68,7 @@ import { drawUI } from '../ui/draw-ui.js';
 import { buildVis, texVis } from '../world/vision.js';
 import { LAMPV, decorLights, drawHouseRoofs, roofShadows } from './decor.js';
 import { fireBeds } from '../world/fire.js';
+import { drawPuddles } from '../world/weather.js';
 import { WXV, drawFog } from '../world/weather.js';
 import { drawObjectiveGlow, objectiveLights } from '../ui/markers.js';
 export function render() {
@@ -172,6 +173,7 @@ export function render() {
   quad(MAPREG, WW / 2, WH / 2, 0, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1.2, 0);
   flush();
   bset(GS.texAtlA, GS.texAtlE, GS.texAtlN, false);
+  drawPuddles();
   for (const d of GS.decals) {
     const f = Math.min(1, d.life / 5),
       g = d.life / d.max;
@@ -988,7 +990,7 @@ export function render() {
   gl.uniform4f(P_LIGHT.u.uCam, GS.camX, GS.camY, viewW, viewH);
   gl.uniform1i(P_LIGHT.u.uNrm, 0);
   gl.uniform2f(P_LIGHT.u.uRes, rtLight.w, rtLight.h);
-  GS.WETV += ((GS.ev === 'storm' ? 1 : 0.42) - GS.WETV) * 0.02;
+  GS.WETV += ((GS.ev === 'storm' ? 1 : 0.42 + 0.58 * ((GS.RUN && GS.RUN.wet) || 0)) - GS.WETV) * 0.02; // still wet the night after a storm
   gl.uniform1f(P_LIGHT.u.uWet, GS.WETV);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, rtScene.texs[2]);

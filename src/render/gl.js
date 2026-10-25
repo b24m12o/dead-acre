@@ -96,7 +96,7 @@ export function init() {
     vec3 N=vec3(n2,sqrt(max(0.0,1.0-dot(n2,n2)))); vec3 Ld=normalize(vec3(L0.xy-vW,70.0));
     float sp0=nb.a>0.004?clamp(nb.b/nb.a,0.0,1.0):0.0; float sp=max(sp0,uWet*0.52*step(0.004,nb.a)); float lum=max(L1.r,max(L1.g,L1.b)); // roughness-aware response: painted cloth stays soft, metal catches a sharper point highlight
     vec3 Hh=normalize(Ld+vec3(0.0,0.0,1.0)); float gloss=mix(13.0,74.0,sp0); float spc=pow(max(dot(N,Hh),0.0),gloss)*att*(sp0*0.55+uWet*0.24);
-    if(L1.w<=0.0){ vec2 dv=(vW-L0.xy)/L0.z; vec2 q=vec2(dv.x*4.0,(dv.y-0.24)*1.05); float rp=0.62+0.38*sin(vW.y*0.21+vW.x*0.05); float reflected=pow(clamp(1.0-length(q),0.0,1.0),1.75); spc+=reflected*sp*uWet*1.5*rp; } // elongated lamp reflections broken by surface roughness
+    if(L1.w<=0.0){ vec2 dv=(vW-L0.xy)/L0.z; vec2 q=vec2(dv.x*4.0,(dv.y-0.24)*1.05); float rp=0.62+0.38*sin(vW.y*0.21+vW.x*0.05); float reflected=pow(clamp(1.0-length(q),0.0,1.0),1.75); spc+=reflected*sp*uWet*1.5*rp; float pud=smoothstep(0.86,0.97,sp0); vec2 q2=vec2(dv.x*6.5,(dv.y-0.28)*0.75); spc+=pow(clamp(1.0-length(q2),0.0,1.0),2.2)*pud*uWet*3.2*(0.8+0.2*rp); } // elongated lamp reflections broken by surface roughness; in standing water, a long bright mirror streak
     spc=min(spc*smoothstep(50.0,145.0,L0.z),0.86);
     o=vec4(L1.rgb*att*(0.3+max(dot(N,Ld),0.0)*1.1),spc*min(lum,1.2)); }`;
 }

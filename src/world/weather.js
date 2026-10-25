@@ -1,9 +1,9 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
-import { d2, lerp, rand } from '../core/util.js';
+import { TAU, d2, lerp, rand } from '../core/util.js';
 import { opt } from '../core/settings.js';
 import { ui } from '../render/gl.js';
-import { VH, VW, quad, viewH, viewW } from '../render/sprites.js';
+import { VH, VW, quad, setH, viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { AC, noise } from '../audio/audio.js';
 import { ring } from '../render/effects.js';
@@ -133,3 +133,58 @@ export function drawFog() {
   }
 }
 /* ---------- objective + evac drawing (casters) ---------- */
+
+// standing water: it gathers in the dips while it rains and lingers a night or two after. A puddle is dark, glassy
+// (it takes the street lamps' reflections from the lighting pass) and, while it rains, ringed with drops
+export function drawPuddles() {
+  const want = Math.max(GS.ev === 'storm' && GS.state !== 'menu' ? 1 : 0, (GS.RUN && GS.RUN.wet) || 0);
+  GS.pud = (GS.pud || 0) + (want - (GS.pud || 0)) * (want > (GS.pud || 0) ? 0.004 : 0.02);
+  if (GS.pud < 0.02 || !GS.puddles) return;
+  const rain = GS.ev === 'storm',
+    x0 = GS.camX - 80,
+    x1 = GS.camX + viewW + 80,
+    y0 = GS.camY - 80,
+    y1 = GS.camY + viewH + 80;
+  setH(0);
+  for (const q of GS.puddles) {
+    if (q.x < x0 || q.x > x1 || q.y < y0 || q.y > y1) continue;
+    const k = GS.pud * (q.mud ? 0.85 : 1),
+      s = q.s * (0.55 + 0.45 * GS.pud); // they spread as they fill
+    quad(
+      R['puddle' + q.v],
+      q.x,
+      q.y,
+      q.a,
+      s,
+      s,
+      q.mud ? 0.9 : 1,
+      q.mud ? 0.82 : 1,
+      q.mud ? 0.7 : 1,
+      0.88 * k,
+      0,
+      0,
+      0,
+      0
+    );
+    if (rain && Math.random() < 0.5 * q.s) {
+      const r = rand(0, 1),
+        t = rand(0, TAU);
+      GS.drips.push({
+        x: q.x + Math.cos(t) * r * 22 * s * Math.abs(Math.cos(q.a)) + Math.cos(t) * r * 8,
+        y: q.y + Math.sin(t) * r * 12 * s,
+        t: 0,
+      });
+    }
+  }
+  if (GS.drips.length > 160) GS.drips.splice(0, GS.drips.length - 160);
+  for (const d of GS.drips) {
+    d.t += 1 / 60;
+    const f = d.t / 0.45;
+    if (f < 1) {
+      const g = 0.32 * (1 - f) * GS.pud;
+      quad(R.ring, d.x, d.y, 0, 0.04 + f * 0.1, (0.04 + f * 0.1) * 0.6, 0.8, 0.85, 0.95, g, g * 0.8, g * 0.85, g, 0);
+    }
+  }
+  GS.drips = GS.drips.filter(d => d.t < 0.45); // a drop lands: a ring opens and fades
+}
+GS.drips = [];
