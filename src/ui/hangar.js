@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { soundWait } from './loading.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { pick } from '../core/util.js';
@@ -172,6 +173,7 @@ export function openHangar() {
 
 /* ---------- Flow ---------- */
 export function begin() {
+  if (soundWait()) return false; // the sounds are still coming in (see ui/loading.js)
   if (GS.PRACTICE && GS.state === 'over' && !begin.inPractice) {
     startPractice(GS.PRACTICE.bt);
     return;

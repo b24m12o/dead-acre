@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { breathe, loadStep, watchSounds } from '../ui/loading.js';
 import { GS } from './gs.js';
 import { $, fatalStopped } from './errors.js';
 import { clamp } from './util.js';
@@ -125,13 +126,17 @@ async function boot() {
     }
   });
   try {
-    await assetsPrep();
+    await assetsPrep(loadStep);
+    loadStep('Unpacking the 3D art…', 0.78);
+    await breathe();
     await bakePrep();
   } catch (err) {
     BAKE.ok = false;
     BAKE.diag.why = 'setup error';
     console.warn('Dead Acre: 3D setup failed', err);
   }
+  loadStep('Painting the town…', 0.88);
+  await breathe();
   paintAtlas();
   GS.PARTREG = PREG();
   {
@@ -174,6 +179,7 @@ async function boot() {
   menuInit();
   $('loading').hidden = true;
   $('menu').hidden = !!$('glLost'); // a reset during loading keeps its message up alone
+  watchSounds();
   GS.booted = true;
   requestAnimationFrame(t => {
     last = t;

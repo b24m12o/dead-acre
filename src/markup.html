@@ -1,7 +1,14 @@
 <!-- Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. -->
 <canvas id="gl" role="img" aria-label="Dead Acre game world"></canvas>
 <canvas id="ui" aria-hidden="true"></canvas>
-<div id="loading">Checking the perimeter…</div>
+<div id="loading">
+  <div class="ldbox">
+    <div class="ldtitle">Dead <span>Acre</span></div>
+    <div class="ldbar"><i id="ldFill"></i></div>
+    <div class="ldstat" id="ldStat">Checking the perimeter…</div>
+    <p class="ldtip" id="ldTip"></p>
+  </div>
+</div>
 
 <div class="hud" id="hud" hidden>
   <div class="top">
@@ -83,6 +90,7 @@
       <button class="btn ghost" id="chalBtn" type="button">Challenges</button>
       <button class="btn ghost" id="settingsBtn" type="button">Settings</button>
     </div>
+    <p class="loadsnd" id="loadSnd" hidden></p>
     <div class="sec">Your character</div>
     <div class="heroes" id="heroes"></div>
     <p class="rec keysline">

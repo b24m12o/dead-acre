@@ -361,7 +361,7 @@ export async function bakePrep() {
 }
 async function bakeLive(names, D, T0, nap) {
   // builds the parts on this machine's graphics card: the tool that makes the shipped pictures (tools/bake), never used in normal play
-  const ld = $('loading'),
+  const ld = $('ldStat'),
     ext = gl.getExtension('KHR_parallel_shader_compile'),
     pend = [];
   for (const g in BAKE.groups) {

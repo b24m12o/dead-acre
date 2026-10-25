@@ -1,6 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // The game starts here: every part is loaded, then each part's init() runs, in this order.
 import { init as initErrors } from './core/errors.js';
+import { init as initLoading } from './ui/loading.js';
 import './core/util.js';
 import { init as initSettings } from './core/settings.js';
 import './game/arsenal.js';
@@ -78,6 +79,7 @@ import { init as initAssets } from './core/assets.js';
 import { init as initMain } from './core/main.js';
 
 initErrors();
+initLoading();
 initSettings();
 initProfile();
 initGl();

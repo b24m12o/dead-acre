@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { soundWait } from '../ui/loading.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { pick } from '../core/util.js';
@@ -39,6 +40,7 @@ function trophyLine(bt) {
 }
 export function startPractice(bt) {
   // the fight on its own: that night's district, the guns and level you'd have by then, only the boss
+  if (soundWait()) return;
   const C = PRACTICE_SET.find(o => o.bt === bt);
   GS.PRACTICE = { bt, d: C.d, night: C.night };
   for (const id of ['practice', 'over', 'settings', 'menu']) $(id).hidden = true;

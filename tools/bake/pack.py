@@ -31,7 +31,7 @@ for k in ('a', 'h'):
     if os.path.exists(old): os.remove(old)
 fa, fh = f'bake_a.{h8(ab)}.avif', f'bake_h.{h8(hb)}.avif'
 open(os.path.join(AS, fa), 'wb').write(ab); open(os.path.join(AS, fh), 'wb').write(hb)
-pk['bake'] = {'key': open(os.path.join(BK, 'key.txt')).read().strip(), 'hs': 1.0, 'pos': pos, 'a': fa, 'h': fh}
-pk['v'] = h8((fa + fh + pk['vox']['file'] + pk['gun']['file']).encode())
+pk['bake'] = {'key': open(os.path.join(BK, 'key.txt')).read().strip(), 'hs': 1.0, 'pos': pos, 'a': fa, 'h': fh, 'an': len(ab), 'hn': len(hb)}  # an, hn: the sizes, for the loading bar
+pk['v'] = h8((fa + fh + pk['vox']['file'] + pk['gun']['file'] + (pk['mus']['file'] if pk.get('mus') else '')).encode())
 open(os.path.join(AS, 'pack.json'), 'w').write(json.dumps(pk, separators=(',', ':')))
 print('sheet %dx%d, %d parts, albedo %d B, height %d B, pack %s' % (SW, SH, len(pos), len(ab), len(hb), pk['v']))
