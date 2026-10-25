@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { MUS } from '../audio/audio.js';
 import { GS } from '../core/gs.js';
 import { pick } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
@@ -62,6 +63,7 @@ function dawnDrops() {
     });
 }
 export function nightCleared() {
+  MUS.clear = true; // the soundtrack marks it
   if (GS.RUN.practice) {
     if (!GS.nightDone) {
       GS.nightDone = true;

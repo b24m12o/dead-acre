@@ -236,8 +236,12 @@ export function tickWorld(dt) {
     if (GS.time < (MUS.floorT || 0)) ht = Math.max(ht, MUS.floor || 0);
     if (GS.evac && GS.state === 'play') ht = Math.max(ht, 0.6 + 0.4 * clamp(GS.evac.t / (GS.evac.land || 36), 0, 1)); // the evac builds to full tilt as the bird comes in; a surge kicks the band in at once, a horde at full tilt
     MUS.heat = (MUS.heat || 0) + (ht - (MUS.heat || 0)) * Math.min(1, dt * (ht > (MUS.heat || 0) ? 1.6 : 0.22));
+    const play = GS.state === 'play' && GS.P;
+    MUS.low = play ? clamp((0.3 - GS.P.hp / S.maxHp) / 0.22, 0, 1) : 0; // badly hurt: the music muffles and a heart beats
+    MUS.preT = play && !GS.enemies.length && !GS.queue.length && GS.wave > 0 && !GS.evac ? GS.interT : 99; // the seconds until the next wave
     if (AC && musLP) {
-      const f = MUS.level === 'fight' ? 1800 + Math.pow(MUS.heat, 1.5) * 16000 : 18000;
+      let f = MUS.level === 'fight' ? 1800 + Math.pow(MUS.heat, 1.5) * 16000 : 18000;
+      if (MUS.low > 0) f = Math.min(f, 18000 * Math.pow(0.04, MUS.low)); // down to 700 Hz: heard through the blood in your ears
       if (Math.abs(f - (MUS.lpF || 0)) > (MUS.lpF || 1) * 0.05) {
         MUS.lpF = f;
         musLP.frequency.cancelScheduledValues(AC.currentTime);

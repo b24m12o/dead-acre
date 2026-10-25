@@ -43,7 +43,7 @@ export function loadMusic() {
         if (--left) return;
         MSP = {};
         for (const nm in ms) {
-          const m = /^(go|gp|l|b|p|n|e)(\d+)$/.exec(nm);
+          const m = /^(go|gp|l|b|p|n|e|vc|vd|vv|vt|br)(\d+)$/.exec(nm);
           if (m) (MSP[m[1]] = MSP[m[1]] || []).push(+m[2]);
         }
         for (const k in MSP) MSP[k].sort((a, b) => a - b);
@@ -64,7 +64,12 @@ function nearest(pre, m) {
   return best;
 }
 // plays a sample at time t. dur: hold for that long, then release over rel (0: let it ring out). Returns its gain
-function sp(nm, t, vol, { rate = 1, dur = 0, rel = 0.08, rev = 0, dly = 0, att = 0, loop = false, det = 0 } = {}) {
+function sp(
+  nm,
+  t,
+  vol,
+  { rate = 1, dur = 0, rel = 0.08, rev = 0, dly = 0, att = 0, loop = false, det = 0, off = 0 } = {}
+) {
   const s = MS[nm];
   if (!s) return null;
   const src = AC.createBufferSource(),
@@ -80,7 +85,7 @@ function sp(nm, t, vol, { rate = 1, dur = 0, rel = 0.08, rev = 0, dly = 0, att =
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(vol, t + att);
   } else g.gain.setValueAtTime(vol, t);
-  let end = t + (s.b.duration - s.o) / rate;
+  let end = t + (s.b.duration - s.o - off) / rate;
   if (dur) {
     const h = Math.max(t + att + 0.005, t + dur);
     g.gain.setValueAtTime(vol, h);
@@ -110,7 +115,7 @@ function sp(nm, t, vol, { rate = 1, dur = 0, rel = 0.08, rev = 0, dly = 0, att =
       g.connect(r);
       r.connect(bus);
     }
-  src.start(t, s.o);
+  src.start(t, s.o + off);
   src.stop(end + 0.05);
   return g;
 }
@@ -338,6 +343,52 @@ function mCrash(t, vol) {
   noise(1.6, vol, 7000, 3500, 'highpass', 0, musBus, t);
   noise(1.6, vol * 0.6, 6000, 3000, 'highpass', 0, revIn, t);
 }
+// ---- the orchestra (with the sampled band only): the action-score layers over the band, the way shooters score a
+// fight: spiccato strings driving underneath, brass 'braams' and big drums on the downbeats, a swell into each wave,
+// and a stinger when the street goes quiet or a boss goes down ----
+const keyRoot = K => ((K % 12) + 12) % 12; // E = 0
+const ACC = [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0]; // the strings' accents: 3 + 3 + 2, twice a bar
+function mSpic(m, t, vol, hi) {
+  spN(hi ? 'vv' : Math.random() < 0.5 ? 'vc' : 'vd', m, t + hum() * 0.4, vol * (0.88 + Math.random() * 0.24), {
+    rev: 0.2,
+  });
+}
+function mBoom(t, vol, low = true) {
+  sp(low ? 'ti0' : 'ti1', t, vol, { rev: 0.3 });
+  sp(take('bd'), t, vol * 0.8, { rev: 0.25 });
+} // a timpani and the concert bass drum together: the big orchestral hit
+function mBraam(K, t, vol) {
+  spN('br', 28 + keyRoot(K), t, vol, { rev: 0.35 });
+  mBoom(t, vol * 0.8);
+}
+function mRiser(tEnd, vol) {
+  const s = MS.rz0;
+  if (!s) return;
+  const now = AC.currentTime + 0.02,
+    t0 = tEnd - (s.b.duration - s.o - 0.45);
+  sp('rz0', Math.max(now, t0), vol, { off: Math.max(0, now - t0), rev: 0.3 });
+  const tr = Math.max(now, tEnd - 3.2);
+  sp('tr0', tr, vol * 0.8, { att: tEnd - tr, dur: tEnd - tr, rel: 0.04 });
+} // a cymbal swell and a timpani roll timed to break on tEnd (started part-way in when there is not time for all of it)
+function mTrem(m, t, dur, vol) {
+  spN('vt', m, t, vol, { dur, att: dur * 0.45, rel: 1.6, loop: true, rev: 0.45 });
+}
+function mHeart(t, vol) {
+  sp(take('k'), t, vol, { rate: 0.5 });
+  sp(take('k'), t + 0.27, vol * 0.65, { rate: 0.5 });
+} // lub-dub
+function mStinger(win, t) {
+  if (win) {
+    sp('gg0', t, 0.42, { rev: 0.5 });
+    mBraam(0, t, 0.6);
+    sp('hj52', t + 0.5, 0.5, { rev: 0.55 });
+  } // a boss goes down: the gong, the brass, and for once a major chord
+  else {
+    mBoom(t, 0.5);
+    sp('gg1', t, 0.2, { rev: 0.4 });
+    sp('hm52', t + 0.08, 0.45, { rev: 0.55 });
+  } // the street goes quiet: one low hit and the horns settle on a minor chord
+}
 export function startMusic() {
   if (!AC || MUS.timer) return;
   MUS.nextT = AC.currentTime + 0.15;
@@ -353,8 +404,22 @@ function scheduleMusic() {
       calmOut = MUS.level === 'calm' && MUS.step % 8 === 0;
     if (
       MUS.want !== MUS.level &&
-      (MUS.step % 16 === 0 || bossIn || calmOut || MUS.level === 'none' || MUS.want === 'none')
+      (MUS.step % 16 === 0 ||
+        bossIn ||
+        calmOut ||
+        MUS.level === 'none' ||
+        MUS.want === 'none' ||
+        (MUS.riseEnd && MUS.nextT >= MUS.riseEnd - 0.03))
     ) {
+      const from = MUS.level,
+        to = MUS.want;
+      if (MS) {
+        if (from === 'boss' && MUS.win) mStinger(true, MUS.nextT);
+        else if (from === 'fight' && to === 'calm' && MUS.clear) mStinger(false, MUS.nextT);
+        MUS.braam = (to === 'fight' && (from === 'calm' || from === 'none')) || to === 'boss'; // the first downbeat lands with a braam
+      }
+      MUS.win = MUS.clear = false;
+      MUS.riseEnd = 0;
       MUS.step = 0;
       MUS.loop = 0;
       MUS.sec = null;
@@ -395,6 +460,19 @@ function scheduleMusic() {
     MUS.step = (MUS.step + 1) % 64;
     if (MUS.step === 0) MUS.loop++;
   }
+  if (!MS) return;
+  if (MUS.level === 'calm' && MUS.want === 'calm' && (MUS.preT ?? 99) < 3.5 && !MUS.riseEnd) {
+    MUS.riseEnd = AC.currentTime + MUS.preT + 0.2;
+    mRiser(MUS.riseEnd, 0.65);
+  } // the last seconds before a wave swell into it, and the band comes in on the break
+  if (MUS.riseEnd && AC.currentTime > MUS.riseEnd + 2) MUS.riseEnd = 0;
+  if ((MUS.low || 0) > 0.05 && MUS.level !== 'none' && MUS.level !== 'menu') {
+    if (!(MUS.hbT > AC.currentTime)) MUS.hbT = AC.currentTime + 0.05;
+    while (MUS.hbT < AC.currentTime + 0.14) {
+      mHeart(MUS.hbT, 0.3 + 0.35 * MUS.low);
+      MUS.hbT += 60 / (76 + 44 * MUS.low);
+    }
+  } // badly hurt, you hear your heart over the music (which is muffled: see tick.js)
 }
 // ---- the soundtrack: songs built from sections, each section 4 bars of 16ths ----
 // riff tokens: pN palm-muted chug on fret N, oN open power chord, . rest (open chords ring through rests)
@@ -681,6 +759,27 @@ function playStep(st, t) {
       if (s % 4 === 0) mHat(t, 0.05, s === 12);
       break;
   }
+  if (MS && (L === 'fight' || L === 'boss') && D !== 'none') {
+    if (tok) MUS.root = +tok.slice(1); // the strings follow the guitar's chord
+    let r = 40 + (MUS.root || 0) + K;
+    while (r > 52) r -= 12;
+    while (r < 40) r += 12;
+    const h = L === 'boss' ? 0.75 + 0.12 * (MUS.bph || 0) : MUS.heat || 0,
+      a = ACC[s];
+    if (st === 0 && MUS.braam) {
+      MUS.braam = false;
+      mBraam(K, t, 0.55);
+    } else if (L === 'boss' && st === 0 && (D === 'doom' || D === 'blast') && S2.first) mBraam(K, t, 0.45);
+    if (sparse) {
+      if (s % 4 === 0) mSpic(r, t, a ? 0.2 : 0.13);
+    } // a quiet street: just the celli ticking under the half-time groove
+    else {
+      if (h > 0.3 || L === 'boss') mSpic(a ? r + 12 : r, t, (a ? 0.3 : 0.17) * (0.7 + 0.45 * h));
+      if ((h > 0.68 || (L === 'boss' && MUS.bph >= 1)) && s % 2 === 0)
+        mSpic(r + [24, 31, 36, 31][(s >> 1) & 3], t, a ? 0.2 : 0.12, true);
+      if (s === 0 && (bar === 0 || bar === 2) && h > 0.6) mBoom(t, 0.26 + 0.2 * h, bar === 0);
+    } // more of the orchestra the closer the dead: celli, then violins over them, then big drums on the bar
+  }
   if (fill) {
     const v = 0.22 + (s - 12) * 0.06;
     if (MS && bar === 3 && MUS.loop % 2 === 1 && s < 15) mTom(t, 0.5 + v, s > 13);
@@ -690,9 +789,12 @@ function playStep(st, t) {
     mHat(t, 0.035); // and the hats double up
   if (st === 0 && MUS.sting) {
     MUS.sting = false;
+    if (MS) mBraam(K, t, 0.62); // a surge, or a boss changing its game: the brass hits with the stab
     mGtr(K, t, spb * 6, false, 0.55);
     mGtr(1 + K, t + spb * 2, spb * 6, false, 0.55);
   }
+  if (MS && L === 'calm' && st === 0 && Math.random() < 0.45)
+    mTrem(64 + keyRoot(K) + [0, 7, 12][randi(0, 2)], t + spb * randi(0, 16), spb * 40, 0.035); // now and then high strings shiver in, and fade
   if (L === 'calm' && st === 0)
     mPad(
       [40, 47, 52].map(n => n + K),

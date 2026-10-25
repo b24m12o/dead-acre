@@ -6,6 +6,8 @@
 #   drums   Karoryfer "Big Rusty Drums": close and overhead mics mixed, several velocities and takes of each hit
 #   strings VSCO 2 Community Edition cello and viola sections and solo contrabass, sustained and looped, for pads
 #   keys    VSCO 2 CE upright piano and glockenspiel
+#   orchestra  VSCO 2 CE spiccato and tremolo strings, tuba, trombones and horns (braams and chord stingers), timpani,
+#           concert bass drum, a suspended cymbal swell (risers) and a gong
 # Every sample keeps a few milliseconds of silence before its attack; the game finds the attack itself after decoding,
 # so MP3 encoder delay never puts a hit late. Run sh tools/music/fetch.sh first, then: python3 tools/music/build.py
 import os, sys, json, glob, re, hashlib, subprocess, tempfile, numpy as np, soundfile as sf
@@ -205,6 +207,49 @@ def main():
     for m in range(45, 90, 3):
         k = min(P, key=lambda k: abs(k - m)); x = P[k]; add(f'n{m}', trim(np.concatenate([np.zeros(PRE, np.float32), shift(x[onset(x):], m - k)]), 3.0, 0.8), 96)
     for k, x in vsco('Percussion/Glock/*.wav', 1).items(): add(f'e{k}', trim(x, 2.6, 0.6), 96)
+    # the orchestra, for the action layers: spiccato strings for the driving ostinatos, low brass for the 'braams',
+    # horn chords for stingers, timpani and a concert bass drum for the big hits, a cymbal swell for risers, a gong
+    V = 'Strings/Cello Section/spic/spic_*_v2_RR'
+    for rr, pre in ((1, 'vc'), (2, 'vd')):
+        C = vsco(f'{V}{rr}.wav', 1)
+        for m in range(36, 64, 3):
+            k = min(C, key=lambda k: abs(k - m)); x = C[k]; add(f'{pre}{m}', trim(np.concatenate([np.zeros(PRE, np.float32), shift(x[onset(x):], m - k)]), 0.55, 0.12), 80)
+    Vn = vsco('Strings/Violin Section/Spic/*_v2_rr1.wav', 1)
+    for m in range(55, 89, 3):
+        k = min(Vn, key=lambda k: abs(k - m)); x = Vn[k]; add(f'vv{m}', trim(np.concatenate([np.zeros(PRE, np.float32), shift(x[onset(x):], m - k)]), 0.45, 0.1), 80)
+    Tr = vsco('Strings/Violin Section/Trem/*_v1.wav', 1)
+    for m in range(64, 89, 4):
+        y, a0, b0 = pad_note(Tr, m); add(f'vt{m}', y, 72, [round(a0, 4), round(b0, 4)])
+    Tu = vsco('Brass/Tuba/sus/*_v3_rr1_Mid.wav', 1)
+    Tb = vsco('Brass/Tenor Trombone/sus/*_v3_1.wav', 1)
+    Hn = vsco('Brass/F Horn/sus/*_v3_1.wav', 1)
+    Hs = vsco('Brass/F Horn/sus/*_v2_1.wav', 1)
+    Tbs = vsco('Brass/Tenor Trombone/sus/*_v2_1.wav', 1)
+    def bnote(S, m, dur):
+        k = min(S, key=lambda k: abs(k - m)); x = S[k]; x = shift(x[onset(x, 0.02):], m - k)[:int(dur * SR)]
+        return np.pad(x, (0, max(0, int(dur * SR) - len(x))))
+    for r in range(28, 41, 3):
+        D = 3.4
+        y = bnote(Tu, r, D) * 1.0 + bnote(Tb, r + 12, D) * 0.8 + bnote(Tb, r + 19, D) * 0.6 + bnote(Hn, r + 24, D) * 0.55 + bnote(Hn, r + 31, D) * 0.4
+        t = np.arange(len(y)) / SR; env = np.minimum(1, 0.55 + t / 0.5) * np.exp(-np.maximum(0, t - 1.2) / 1.1)
+        y = chain(y * env, ('hp', 30, 0.7), ('ls', 120, 0.7, 3.0), ('lp', 3600, 0.7))
+        y = np.tanh(y / np.abs(y).max() * 2.0)  # pushed until it growls
+        st = np.stack([y, np.concatenate([np.zeros(int(0.011 * SR), np.float32), y[:-int(0.011 * SR)]])], 1)
+        add(f'br{r}', trim(np.concatenate([np.zeros((PRE, 2), np.float32), st]), 3.3, 0.9), 96)
+    for nm, third in (('hm', 3), ('hj', 4)):
+        D = 5.0; r = 52
+        y = bnote(Tbs, r - 12, D) * 0.7 + bnote(Hs, r, D) * 0.8 + bnote(Hs, r + third, D) * 0.65 + bnote(Hs, r + 7, D) * 0.65 + bnote(Hs, r + 12, D) * 0.45
+        t = np.arange(len(y)) / SR; y = y * np.minimum(1, t / 0.35) * np.exp(-np.maximum(0, t - 2.2) / 1.2)
+        add(f'{nm}{r}', trim(np.concatenate([np.zeros(PRE, np.float32), chain(y, ('hp', 50, 0.7))]), 4.9, 1.2), 88)
+    P2 = f'{LIB}/VSCO-2-CE/Percussion'
+    for i, f in enumerate(['Timpani/Timpani1_Hit_v3_rr1_Sum', 'Timpani/Timpani3_Hit_v4_rr1_Sum']): add(f'ti{i}', trim(load(f'{P2}/{f}.wav'), 2.2, 0.6), 88)
+    add('tr0', trim(load(f'{P2}/Timpani/Rolls/Timpani1_Roll_v5_rr1_Sum.wav'), 4.5, 0.5), 80)
+    for i in (1, 2): add(f'bd{i - 1}', trim(load(f'{P2}/BDrumNewhit_v7_rr{i}_Sum.wav'), 2.0, 0.5), 88)
+    for i, f in enumerate(['susCymb1-cresc-Median_v1', 'susCymb1-cresc-Long_v1']):
+        x = load(f'{P2}/{f}.wav'); a = np.abs(mono(x)); pk = int(np.argmax(a))  # the swell, cut just after its peak
+        x = x[onset(x, 0.002):pk + int(0.25 * SR)]; f2 = int(0.2 * SR); x[-f2:] *= np.linspace(1, 0, f2)[:, None] if x.ndim == 2 else np.linspace(1, 0, f2)
+        add(f'rz{i}', x, 88)
+    for i, f in enumerate(['gongHit_fff', 'gongHit_mf']): add(f'gg{i}', trim(load(f'{P2}/{f}.wav'), 5.0, 2.0), 88)
     # the bundle
     blob, lst = bytearray(), []
     for name, b, extra in items: lst.append([name, len(blob), len(b)] + extra); blob += b

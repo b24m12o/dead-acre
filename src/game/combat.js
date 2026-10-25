@@ -8,7 +8,7 @@ import { DIFF } from '../core/profile.js';
 import { R } from '../render/atlas.js';
 import { MH, MW, TILE, WH, WW, cars, crystals, grid, isWall, ttype } from '../world/map.js';
 import { query, solidPt } from '../world/nav.js';
-import { noise, playS, spat, thr, tone } from '../audio/audio.js';
+import { MUS, noise, playS, spat, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, ammoNeed, dropAmmo, giveGun } from './state.js';
 import { offerGuns, offerUpgrades } from './upgrades.js';
@@ -594,7 +594,10 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   statMax('bestChain', GS.combo);
   if (src === 'bolt' && GS.P && GS.P.gun) bump(GUNS[GS.P.gun].fam);
   if (src === 'fire') bump('fire');
-  if (e.type === 'queen') bump('bosses');
+  if (e.type === 'queen') {
+    bump('bosses');
+    MUS.win = true;
+  }
   if (stat('kills') % 50 === 0) checkChal();
   const STREAKS = { 20: 'Killing spree', 40: 'Rampage', 75: 'Butcher', 120: 'Corpse collector', 200: 'Massacre' };
   if (STREAKS[GS.combo]) {
