@@ -624,6 +624,14 @@ export function updateEnemy(e, dt, p) {
     tvx *= 0.2;
     tvy *= 0.2;
   }
+  if (e.drip > 0) {
+    e.drip -= dt;
+    e.dripT = (e.dripT || 0) - dt * Math.min(1, Math.hypot(e.vx, e.vy) / 40);
+    if (e.dripT <= 0) {
+      e.dripT = rand(0.22, 0.45);
+      pool(e.x + rand(-5, 5), e.y + rand(-5, 5), rand(0.07, 0.13), bloodOf(e), 25);
+    }
+  } // a leg wound leaves a trail
   if (e.wbT > 0 && !(e.down > 0) && (tvx || tvy)) {
     const al = Math.cos(angDiff(e.a, Math.atan2(tvy, tvx)));
     tvx *= clamp(al, 0.15, 1);

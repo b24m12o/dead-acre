@@ -217,6 +217,16 @@ function breakShield(e, kx, ky) {
   e.stag = Math.max(e.stag || 0, 0.6);
   if (thr('shieldDown', 900)) floatText(e.x, e.y - 40, 'Shield broken', '#ffd08a', 15);
 }
+// a round in the leg: it limps from now on, slower (a runner is down to a hobble), and leaves a trail of blood
+function legWound(e, slow) {
+  if (e.legW) return;
+  e.legW = true;
+  e.limp = 1;
+  if (e.run) e.run = false;
+  e.sp *= slow;
+  e.drip = 6;
+  e.stag = Math.max(e.stag || 0, 0.45);
+}
 export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   if (e.dead) return;
   if (hx === undefined || hy === undefined) {
@@ -389,6 +399,29 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       bleed(e.x, e.y, 14, Math.cos(a), Math.sin(a), 8, bloodOf(e), 200);
       sfx.gib(e.x, e.y);
     } else if (
+      e.type === 'skitter' &&
+      e.run &&
+      !e.crawl &&
+      !(e.down > 0) &&
+      e.hp > 0 &&
+      e.vx * e.vx + e.vy * e.vy > 120 * 120 &&
+      dmg >= e.maxHp * 0.2 &&
+      Math.random() < 0.5
+    ) {
+      // shot mid-stride, a runner's legs go out from under it: it pitches forward onto its face and skids on
+      const va = Math.atan2(e.vy, e.vx);
+      e.dT = DOWN_T * rand(1.05, 1.4);
+      e.down = e.dT;
+      e.fallA = lyAngle(e.x, e.y, va + rand(-0.3, 0.3), 100);
+      e.sup = false;
+      e.splay = rand(0.5, 1);
+      e.apose = randi(0, 3);
+      e.lyG = 0;
+      e.kx += e.vx * 0.7;
+      e.ky += e.vy * 0.7;
+      kb *= 0.3; // its own speed carries it, not the round
+      if (e.trait !== 'runner' && Math.random() < 0.5) legWound(e, 0.4);
+    } else if (
       !e.crawl &&
       !(e.down > 0) &&
       e.hp > 0 &&
@@ -413,7 +446,16 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
         e.kx += Math.cos(sa) * 70;
         e.ky += Math.sin(sa) * 70;
       }
-    } // heavier rounds rock them longer; a hard hit can send one stumbling sideways
+      if (
+        e.type === 'skitter' &&
+        !e.legW &&
+        !e.crawl &&
+        e.trait !== 'runner' &&
+        e.hp > 0 &&
+        Math.random() < clamp((dmg / e.maxHp) * 0.45, 0, 0.3)
+      )
+        legWound(e, e.run ? 0.42 : 0.8);
+    } // heavier rounds rock them longer; a hard hit can send one stumbling sideways; one in the leg leaves it limping
     {
       const kl0 = Math.hypot(kx, ky) || 1,
         tq = ((hx - e.x) * ky - (hy - e.y) * kx) / kl0;
@@ -627,6 +669,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       (src !== 'boom' && dmg > e.maxHp * 0.75) ||
       (src === 'boom' && e.r < 26 && Math.random() < 0.4) ||
       (src === 'crystal' && Math.random() < 0.5));
+  let fallK = 0;
   if (overkill) gibAll(e, dx, dy, col);
   else {
     e.keep = big ? 14 : 11;
@@ -639,11 +682,30 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
         e.apose = 0;
       }
     } else {
-      e.fallA = lyAngle(e.x, e.y, Math.atan2(dy, dx) + rand(-0.4, 0.4), 100 * (e.type === 'beetle' ? 1.9 : 1));
+      const spd = Math.hypot(e.vx || 0, e.vy || 0),
+        towards = spd > 110 && ((e.vx || 0) * dx + (e.vy || 0) * dy) / spd < 0.3;
+      fallK =
+        e.type !== 'skitter' || src === 'boom'
+          ? 0
+          : towards && Math.random() < 0.7
+            ? 2
+            : (crit || dmg < e.maxHp * 0.35) && Math.random() < 0.45
+              ? 1
+              : 0;
+      e.fallA = lyAngle(
+        e.x,
+        e.y,
+        fallK === 2
+          ? Math.atan2(e.vy, e.vx) + rand(-0.3, 0.3)
+          : fallK === 1
+            ? e.a + rand(-1.3, 1.3)
+            : Math.atan2(dy, dx) + rand(-0.4, 0.4),
+        100 * (e.type === 'beetle' ? 1.9 : 1)
+      ); // three ways down: thrown back by the round; folding where it stands (a head shot, or a last light hit), forward or to a side; or, killed mid-charge, carried on by its own speed onto its face
       e.splay = rand(0.2, 1);
       e.apose = randi(0, 3);
       e.lyG = 0;
-      e.sup = supOK(e) && Math.random() < 0.65;
+      e.sup = fallK === 2 ? false : fallK === 1 ? supOK(e) && Math.random() < 0.3 : supOK(e) && Math.random() < 0.65;
     }
     if (e.crawl || e.half) e.sup = false;
     e.down = 0; // a body already on the ground just stays there
@@ -654,9 +716,11 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
         imp =
           (src === 'boom' ? 440 : 100 + Math.min(300, dmg * 3.2)) *
           rand(0.8, 1.2) *
-          (e.type === 'beetle' ? 0.35 : big ? 0 : 1);
-      e.rvx = ux * imp + (e.vx || 0) * 0.3;
-      e.rvy = uy * imp + (e.vy || 0) * 0.3;
+          (e.type === 'beetle' ? 0.35 : big ? 0 : 1) *
+          (fallK ? 0.25 : 1),
+        carry = fallK === 2 ? 0.95 : 0.3;
+      e.rvx = ux * imp + (e.vx || 0) * carry;
+      e.rvy = uy * imp + (e.vy || 0) * carry;
       e.rw = (rand(-1, 1) * imp) / 90;
       e.limbs = null;
       e.lr = null;
