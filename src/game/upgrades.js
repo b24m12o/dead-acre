@@ -245,7 +245,9 @@ export const UP = [
   {
     id: 'abcd',
     cat: 'Skill',
-    name: 'Field Radio',
+    get name() {
+      return AB().cdName;
+    },
     desc: () => `${AB().name} recharges 25% faster.`,
     max: 2,
     apply() {
@@ -255,7 +257,9 @@ export const UP = [
   {
     id: 'abpow',
     cat: 'Skill',
-    name: 'Heavier Load',
+    get name() {
+      return AB().upName;
+    },
     desc: () => AB().up,
     max: 2,
     apply() {

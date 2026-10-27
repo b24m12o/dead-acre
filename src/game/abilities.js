@@ -18,18 +18,24 @@ export const AB_DEF = {
     cd: 26,
     desc: 'Calls three mortar rounds onto the cursor. They land after a second and a half.',
     up: 'Mortar strike fires 2 more rounds and hits 20% harder.',
+    cdName: 'Field Radio', // the two ability upgrades, named for what each hero would actually carry
+    upName: 'Heavier Load',
   },
   breacher: {
     name: 'Flashbang',
     cd: 20,
     desc: 'Throws a big flashbang at the cursor. Everything near it is stunned for 2.5 s.',
     up: 'Flashbang reaches 25% wider and stuns 1 s longer.',
+    cdName: 'Bandolier', // spare bangs on the belt
+    upName: 'Nine-Banger', // the multi-blast stun grenade police teams use
   },
   grenadier: {
     name: 'Fan the hammer',
     cd: 16,
     desc: 'Six fast pistol shots at everything in front of you, no ammo used.',
     up: 'Fan the hammer fires 3 more shots.',
+    cdName: 'Quick Draw',
+    upName: 'Two-Gun Rig', // a second revolver on the other hip
   },
 };
 export const AB = () => AB_DEF[GS.RUN.hero] || AB_DEF.ranger,

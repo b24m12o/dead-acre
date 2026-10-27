@@ -1122,14 +1122,16 @@ function shatterCrystal(c) {
   flashLight(c.x, c.y, R0 * 2.2, [col[0] * 2, col[1] * 2, col[2] * 2.2], 0.4);
   decal(R.scorch, c.x, c.y, 1, [1, 1, 1, 0.9], [0, 0, 0], 40);
   if (GS.state === 'play') {
+    let caught = 0;
     query(c.x, c.y, R0 + 40, e => {
       if (!e.dead && d2(c.x, c.y, e.x, e.y) < (R0 + e.r) ** 2) {
         hurtEnemy(e, 40 + GS.wave * 6, false, e.x - c.x, e.y - c.y, 3, 'crystal');
         e.slowT = 2.5;
+        caught++;
       }
     });
     for (const b of GS.ebullets) if (d2(c.x, c.y, b.x, b.y) < R0 * R0) b.life = 0;
-    GS.xp += 4;
+    GS.xp += Math.min(6, caught); // experience only for the dead it caught, a point each (their kills pay as usual): an empty street teaches you nothing
     if (Math.random() < 0.35 * ammoNeed()) dropAmmo(c.x, c.y, 1, 60);
     if (Math.random() < 0.3)
       GS.pickups.push({ k: 'hp', v: 20, x: c.x, y: c.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
