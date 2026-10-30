@@ -51,7 +51,7 @@ function size() {
   visTex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, visTex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -145,6 +145,8 @@ export function buildVisGPU(ox, oy) {
   if (n) gl.drawArrays(gl.TRIANGLES, 0, n / 2);
   gl.bindVertexArray(null);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindTexture(gl.TEXTURE_2D, visTex);
+  gl.generateMipmap(gl.TEXTURE_2D); // the smaller levels are the blur: soft edges for sight, a softer penumbra for the beam
   if (blend) gl.enable(gl.BLEND); // the light pass after this adds its lights up
 }
 // runs once, in order with every other part's init, when the game starts (see src/index.js)

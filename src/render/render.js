@@ -1125,7 +1125,7 @@ export function render() {
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, visTex || rtComp.texs[0]);
     gl.uniform1i(P_FINAL.u.uVis, 2);
-    gl.uniform2f(P_FINAL.u.uVisTx, 1.2 / visW, 1.2 / visH);
+    gl.uniform2f(P_FINAL.u.uVisTx, 9 / visW, 9 / visH);
     gl.uniform1f(P_FINAL.u.uVisOn, visTex && visNeed && GS.visOn > 0.01 ? GS.visOn : 0);
     gl.useProgram(P_FINAL.p);
   }
