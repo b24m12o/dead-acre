@@ -58,7 +58,7 @@ export function sparks(x, y, col, n, sp, dir = null, spread = Math.PI) {
     });
   }
 }
-export function dust(x, y, n, sp = 40, size = 1, life = 1) {
+export function dust(x, y, n, sp = 40, size = 1, life = 1, c = null) {
   for (let i = 0; i < n; i++) {
     const a = rand(0, TAU),
       s = rand(5, sp);
@@ -75,6 +75,7 @@ export function dust(x, y, n, sp = 40, size = 1, life = 1) {
       rot: rand(0, TAU),
       vr: rand(-1, 1),
       drag: 2,
+      c,
     });
   }
 }

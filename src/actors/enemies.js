@@ -296,6 +296,7 @@ function setTrait(e, t) {
       });
   } /* one of your people spots it first */
   if (t === 'runner') {
+    e.v = 16; // stripped to the waist: bare, lean and long in the arm, it reads at a glance
     e.sp = rand(265, 290);
     e.hp *= 0.7;
     e.run = true;

@@ -1059,9 +1059,9 @@ export function explode(x, y, R0, dmg, hurtsPlayer = true) {
       drag: 1.6,
     });
   } // burning bits
-  dust(x, y, 10, R0 * 1.4, 1.8, 1.6);
+  dust(x, y, 10, R0 * 1.4, 1.8, 1.6, [0.3, 0.27, 0.24]); // thrown-up dirt and grit, not a pale cloud
   chips(x, y, 14, null, 4, 420);
-  GS.later.push({ t: 0.12, fn: () => smoke(x, y, 14, R0, true) });
+  GS.later.push({ t: 0.45, fn: () => smoke(x, y, 9, R0, true) }); // the fireball cools into its own soot first
   decal(R.scorch, x, y, R0 / 50, [1, 1, 1, 0.9], [0, 0, 0], 40);
   ring(x, y, 10, R0 * 1.3, 0.22, [0.5, 0.42, 0.32], 0.22); // the shock front: a faint, quick ripple, the distortion does the rest
   if (dmg > 0) {

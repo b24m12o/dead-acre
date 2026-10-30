@@ -97,4 +97,7 @@ export function codeName(code) {
 export const kn = id => codeName(bindOf(id));
 // text with {action} in it, the bound key's name put in: 'Press {reload} to reload'
 export const keysIn = s => s.replace(/\{(\w+)\}/g, (m, id) => (BY_ID[id] ? kn(id) : m));
-export const moveKeys = () => ['up', 'left', 'down', 'right'].map(kn).join(' ');
+export const moveKeys = () => {
+  const k = ['up', 'left', 'down', 'right'].map(kn);
+  return k.every(n => n.length === 1) ? k.join('') : k.join(' ');
+};

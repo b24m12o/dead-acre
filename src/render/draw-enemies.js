@@ -417,10 +417,16 @@ export function drawEnemy(e) {
         const lk = Math.sin(clamp(1 - e.lunge / 0.42, 0, 1) * Math.PI);
         hands = hands.map(h => [h[0] + (brute ? 22 : 15) * lk, h[1] * (1 - 0.45 * lk)]);
       }
-      const sh = brute ? 23 : bloat ? 20 : 12.5,
-        L = brute ? 18 : bloat ? 12.5 : 12.5,
-        w1 = brute ? 12 : bloat ? 13.5 : 7.4,
-        w2 = brute ? 9 : bloat ? 10.5 : 5.5; // a person's arm tapers from the shoulder to a narrow wrist
+      // elite traits read by shape before colour: the runner is stripped lean and long-armed, the screamer gaunt with a
+      // big skull, the armored one broad in a plate carrier and helmet
+      const tr = e.elite && !brute && !bloat ? e.trait : null,
+        tW = tr === 'runner' ? 0.84 : tr === 'screamer' ? 0.88 : tr === 'armored' ? 1.08 : 1,
+        tL = tr === 'runner' ? 1.18 : tr === 'screamer' ? 1.1 : 1,
+        tA = tr === 'runner' || tr === 'screamer' ? 0.78 : tr === 'armored' ? 1.12 : 1;
+      const sh = (brute ? 23 : bloat ? 20 : 12.5) * tW,
+        L = (brute ? 18 : bloat ? 12.5 : 12.5) * tL,
+        w1 = (brute ? 12 : bloat ? 13.5 : 7.4) * tA,
+        w2 = (brute ? 9 : bloat ? 10.5 : 5.5) * tA; // a person's arm tapers from the shoulder to a narrow wrist
       const tc = e.tc || [1, 1, 1],
         sleeve = brute
           ? [0.3, 0.24, 0.2]
@@ -550,8 +556,8 @@ export function drawEnemy(e) {
           tbx,
           tby,
           ta + lurch + fk * 0.14 * (e.flS || 1),
-          em * hunch * (1 + sq) * (run ? 1.06 : 1) * (1 + 0.12 * kn) * gut,
-          em * hunch * (1 - sq * 0.5) * 1.07 * (gut > 1 ? 1.12 : 1),
+          em * hunch * (1 + sq) * (run ? 1.06 : 1) * (1 + 0.12 * kn) * gut * (tr === 'runner' ? 1.08 : 1),
+          em * hunch * (1 - sq * 0.5) * 1.07 * (gut > 1 ? 1.12 : 1) * tW,
           spit || scream ? 1 : tc[0],
           spit || scream ? 1 : tc[1],
           spit || scream ? 1 : tc[2],
@@ -566,10 +572,27 @@ export function drawEnemy(e) {
             const [wx, wy] = W(w.x, w.y);
             quad(R.wound, wx, wy, torsoA + w.r, em, em, 1, 1, 1, 1, 0, 0, 0, fl);
           }
+        if (tr === 'armored')
+          quad(
+            R.el_vest,
+            tbx,
+            tby,
+            ta + lurch + fk * 0.14 * (e.flS || 1),
+            em * 1.04,
+            em * 1.12 * tW,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            fl
+          );
         if (!e.headless) {
           const head = spit ? R.z_head_spit : scream ? R.z_shead : R['z_head' + (e.hv || 0)];
           const tilt = dead ? 0 : Math.sin(GS.time * 1.7 + e.id * 2.3) * 0.35 + (e.tilt || 0),
-            hf = scream ? lerp(4, -2, e.open || 0) : run ? 7 : 4;
+            hf = (scream ? lerp(4, -2, e.open || 0) : run ? 7 : 4) + (tr === 'runner' ? 3 : 0);
           const [hx0, hy0] = Wb(hf + 5 * kn - fk * 2, Math.sin(GS.time * 1.1 + e.id) * 1.2 + look * 2.2),
             hx = hx0 + fwx * 0.6,
             hy = hy0 + fwy * 0.6;
@@ -584,8 +607,8 @@ export function drawEnemy(e) {
             hx,
             hy,
             ta + tilt * 0.45 + look * 0.85 - fk * 0.3 * (e.flS || 1),
-            em * 0.86 * (scream ? 1 + (e.open || 0) * 0.1 : 1),
-            em * 0.86,
+            em * 0.86 * (scream ? 1 + (e.open || 0) * 0.1 : 1) * (tr === 'screamer' ? 1.14 : 1),
+            em * 0.86 * (tr === 'screamer' ? 1.1 : 1),
             1,
             1,
             1,
@@ -595,6 +618,25 @@ export function drawEnemy(e) {
             glowE,
             fl
           ); /* from above a head is about a third as wide as the shoulders */
+          if (tr === 'armored') {
+            setH(33);
+            quad(
+              R.el_helm,
+              hx,
+              hy,
+              ta + tilt * 0.45 + look * 0.85 - fk * 0.3 * (e.flS || 1),
+              em * 0.9,
+              em * 0.9,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              fl
+            );
+          }
         } else {
           const [hx, hy] = W(4, 0);
           setH(30);

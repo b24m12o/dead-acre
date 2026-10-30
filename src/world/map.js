@@ -970,6 +970,80 @@ function bakeMap() {
       a.lineTo(x + rand(60, 160), y + rand(-10, 10));
       a.stroke();
     }
+    // every wreck on the road tells how it got there: tyre streaks back along its lane (swerving on the ones that
+    // jack-knifed), fuel and oil soaked into the asphalt under it, a spray of glass off the front, bits of trim, and a
+    // black blister of scorch round the ones that burned
+    for (const c of cars) {
+      if (c.y < 26 * TILE || c.y > 35 * TILE) continue;
+      const ca = Math.cos(c.a),
+        sa = Math.sin(c.a),
+        L = c.truck ? 76 : 50,
+        lane = Math.abs(Math.sin(c.a)) < 0.6 ? (Math.cos(c.a) > 0 ? 0 : Math.PI) : c.a,
+        jack = Math.abs(Math.sin(c.a - lane)),
+        len = rand(140, 340) * (c.truck ? 1.3 : 1),
+        bx = c.x - ca * L * 0.45,
+        by = c.y - sa * L * 0.45,
+        lx = Math.cos(lane),
+        ly = Math.sin(lane),
+        sw = (jack > 0.15 ? 1 : rand(-0.3, 0.3)) * rand(18, 40) * (Math.sin(c.a - lane) < 0 ? -1 : 1);
+      if (Math.random() < 0.8)
+        for (const off of [-11, 11]) {
+          const ox = -sa * off,
+            oy = ca * off;
+          a.strokeStyle = `rgba(14,14,15,${rand(0.28, 0.42)})`;
+          a.lineWidth = rand(4.5, 6);
+          a.lineCap = 'round';
+          a.beginPath();
+          a.moveTo(bx + ox, by + oy);
+          a.quadraticCurveTo(
+            bx + ox - lx * len * 0.5 - ly * sw,
+            by + oy - ly * len * 0.5 + lx * sw,
+            bx - ox * 0.4 - lx * len,
+            by - oy * 0.4 - ly * len
+          );
+          a.stroke();
+        }
+      {
+        const g = a.createRadialGradient(c.x, c.y, 2, c.x, c.y, L * 0.8);
+        g.addColorStop(0, 'rgba(8,8,10,0.5)');
+        g.addColorStop(0.6, 'rgba(14,12,14,0.28)');
+        g.addColorStop(1, 'rgba(14,12,14,0)');
+        a.fillStyle = g;
+        a.beginPath();
+        a.ellipse(c.x + rand(-8, 8), c.y + rand(-6, 6), L * 0.8, L * 0.55, c.a, 0, TAU);
+        a.fill();
+      }
+      if (c.burnt) {
+        const g = a.createRadialGradient(c.x, c.y, L * 0.3, c.x, c.y, L * 1.25);
+        g.addColorStop(0, 'rgba(6,5,5,0.6)');
+        g.addColorStop(0.7, 'rgba(14,10,8,0.25)');
+        g.addColorStop(1, 'rgba(14,10,8,0)');
+        a.fillStyle = g;
+        a.beginPath();
+        a.arc(c.x, c.y, L * 1.25, 0, TAU);
+        a.fill();
+      }
+      const fx = c.x + ca * L * 0.55,
+        fy = c.y + sa * L * 0.55;
+      for (let i = 0; i < 46; i++) {
+        const d = Math.pow(Math.random(), 0.7) * 70,
+          t = c.a + rand(-1.1, 1.1);
+        a.fillStyle = Math.random() < 0.6 ? 'rgba(200,215,220,0.5)' : 'rgba(120,140,150,0.45)';
+        a.fillRect(fx + Math.cos(t) * d, fy + Math.sin(t) * d, rand(1, 2.4), rand(1, 2.2));
+      } // safety glass, crumbled to little cubes
+      for (let i = 0; i < randi(1, 3); i++) {
+        const t = c.a + rand(-1.4, 1.4),
+          d = rand(40, 110);
+        a.save();
+        a.translate(fx + Math.cos(t) * d, fy + Math.sin(t) * d);
+        a.rotate(rand(0, TAU));
+        a.fillStyle = Math.random() < 0.5 ? 'rgba(30,30,32,0.85)' : 'rgba(110,108,104,0.8)';
+        rr(a, -rand(6, 12), -2, rand(12, 24), rand(3, 5), 1.5);
+        a.fill();
+        a.restore();
+      } // a bumper end, a strip of trim
+    }
+    a.lineCap = 'butt';
     a.save();
     a.translate(18.5 * TILE, 24.3 * TILE);
     a.font = '900 30px Kanit, sans-serif';

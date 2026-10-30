@@ -777,11 +777,23 @@ export function render() {
       quad(R.glow, q.x, q.y - q.z, 0, q.size, q.size, 0, 0, 0, Math.min(1, q.life * 2), 0.45, 0.55, 0.65, 0);
   for (const q of GS.parts)
     if (q.k === 13) {
+      // a billow of the fireball: a lumpy puff (the smoke texture) burning from white-yellow through orange to dull
+      // red, then cooling into the soot it is made of, so the fire turns into its own smoke instead of blinking out
       const f = q.life / q.max,
-        sc = q.size * (0.55 + (1 - f) * 1.2),
-        col = f > 0.72 ? [0.75, 0.5, 0.22] : f > 0.4 ? [0.7, 0.28, 0.06] : [0.32, 0.08, 0.02],
-        al = Math.min(1, f * 2.2) * Math.min(1, 0.1 + (1 - f) * 5) * 0.8;
-      quad(R.glow, q.x, q.y, q.rot, sc * 0.55, sc * 0.5, 0, 0, 0, al, col[0], col[1], col[2], 0);
+        t = 1 - f,
+        sc = q.size * (0.5 + t * 1.5),
+        h = clamp((f - 0.15) / 0.85, 0, 1),
+        // heat to colour: yellow-white, orange, dull red, then nothing but soot
+        u = h > 0.8 ? (h - 0.8) / 0.2 : h > 0.45 ? (h - 0.45) / 0.35 : h / 0.45,
+        // the billows overlap a dozen deep, so each one is dim on its own; together they make the blaze
+        er = (h > 0.8 ? lerp(1.0, 1.1, u) : h > 0.45 ? lerp(0.62, 1.0, u) : lerp(0, 0.62, u)) * 0.3,
+        eg = (h > 0.8 ? lerp(0.34, 0.6, u) : h > 0.45 ? lerp(0.1, 0.34, u) : lerp(0, 0.1, u)) * 0.27,
+        eb = (h > 0.8 ? lerp(0.05, 0.22, u) : h > 0.45 ? lerp(0.01, 0.05, u) : lerp(0, 0.01, u)) * 0.24,
+        al = Math.min(1, t * 14) * Math.min(1, f * 2.2) * (0.62 + 0.3 * h),
+        so = 0.015 + 0.11 * (1 - h) * (1 - h); // black while it burns (the colour is all its own light), grey soot once cool
+      quad(R.dust, q.x, q.y, q.rot, sc * 0.62, sc * 0.58, so, so * 0.95, so * 0.9, al, er, eg, eb, 0);
+      if (h > 0.6)
+        quad(R.glow, q.x, q.y, 0, sc * 0.4, sc * 0.4, 0, 0, 0, al * (h - 0.6), er * 0.4, eg * 0.4, eb * 0.3, 0);
     }
   fireBeds();
   for (const q of GS.parts)

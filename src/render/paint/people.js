@@ -840,6 +840,98 @@ export function paintPeople() {
     0.55,
     1.4
   );
+  // an armored elite: a police plate carrier strapped over whatever it died in, and a riot helmet
+  region(
+    'el_vest',
+    38,
+    42,
+    a => {
+      const vw = ZW * 0.8,
+        vest = c => rr(c, -ZD * 0.86, -vw, ZD * 1.66, vw * 2, 3.2);
+      shape(
+        a,
+        vest,
+        grad(a, 0, -vw, 0, vw, [
+          [0, '#3a3f42'],
+          [0.5, '#2a2e31'],
+          [1, '#16191b'],
+        ]),
+        { lw: 0.8, out: EDGE, aoW: 2.2 }
+      );
+      a.save();
+      vest(a);
+      a.clip();
+      weave(a, ZW, ZD, 160, 0.1, 0.04);
+      a.fillStyle = 'rgba(0,0,0,0.35)'; // MOLLE webbing rows across the back plate
+      for (let y = -vw + 2; y < vw - 1; y += 2.4) a.fillRect(-ZD * 0.8, y, ZD * 0.75, 0.7);
+      a.fillStyle = 'rgba(255,255,255,0.07)';
+      a.fillRect(-ZD * 0.86, -vw, ZD * 1.66, 1.2);
+      a.restore();
+      // shoulder straps, the front plate's edge, two mag pouches and a torn POLICE patch
+      a.fillStyle = '#1c1f21';
+      for (const sd of [-1, 1]) rr(a, -ZD * 0.7, sd * (vw - 3.4) - 1.6, ZD * 1.4, 3.2, 1.2), a.fill();
+      a.strokeStyle = 'rgba(0,0,0,0.6)';
+      a.lineWidth = 0.6;
+      a.beginPath();
+      a.moveTo(ZD * 0.45, -vw + 1);
+      a.lineTo(ZD * 0.45, vw - 1);
+      a.stroke();
+      for (const y of [-4.2, 0.2]) {
+        shape(a, c => rr(c, ZD * 0.5, y, 3, 4, 0.8), '#2e3336', { lw: 0.5, out: EDGE, aoW: 0.8 });
+      }
+      a.fillStyle = 'rgba(200,200,190,0.5)';
+      a.fillRect(-ZD * 0.55, -3.6, 3.2, 7.2);
+      a.fillStyle = 'rgba(30,30,30,0.7)';
+      a.fillRect(-ZD * 0.55 + 0.6, -2.8, 2, 5.6);
+      blood(a, ZW, ZD, 2);
+    },
+    0.45,
+    0.5,
+    1.4
+  );
+  region(
+    'el_helm',
+    24,
+    24,
+    a => {
+      // riot helmet from above: a hard dome, a little longer front to back, the visor's hinge bolts at the sides
+      shape(
+        a,
+        c => ell(c, 0.4, 0, 8.6, 7.6),
+        rgrad(
+          a,
+          0.4,
+          0,
+          8.6,
+          [
+            [0, '#4a5258'],
+            [0.6, '#2c3236'],
+            [1, '#14181a'],
+          ],
+          -0.5,
+          -0.6
+        ),
+        { lw: 0.7, out: EDGE, aoW: 1.6 }
+      );
+      a.fillStyle = 'rgba(255,255,255,0.22)';
+      ell(a, -1.4, -2.6, 3.4, 1.6, -0.4);
+      a.fill();
+      a.fillStyle = 'rgba(150,170,180,0.35)'; // the visor's top edge, raised
+      rr(a, 6.4, -6, 2, 12, 1);
+      a.fill();
+      a.fillStyle = '#0c0e10';
+      for (const sd of [-1, 1]) circ(a, 3.6, sd * 7.2, 0.8), a.fill();
+      a.strokeStyle = 'rgba(0,0,0,0.4)';
+      a.lineWidth = 0.4;
+      a.beginPath();
+      a.moveTo(-6, -3);
+      a.lineTo(-2.5, 1.5);
+      a.stroke();
+    },
+    0.6,
+    0.4,
+    1
+  );
   region(
     'z_torso1',
     38,

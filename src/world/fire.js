@@ -96,6 +96,7 @@ export function smoke(x, y, n, R0 = 60, dark = false) {
 }
 export function fireball(x, y, R0) {
   // a rolling ball of flame: billowing puffs that cool from yellow to orange to dull red, a few licking tongues on top
+  let L;
   for (let i = 0; i < 18; i++) {
     const a = rand(0, TAU),
       s = rand(20, R0 * 1.5);
@@ -105,8 +106,8 @@ export function fireball(x, y, R0) {
       y: y + Math.sin(a) * R0 * 0.2,
       vx: Math.cos(a) * s,
       vy: Math.sin(a) * s - rand(10, 40),
-      life: rand(0.4, 0.85),
-      max: 0.85,
+      life: (L = rand(0.7, 1.3)),
+      max: L,
       size: (rand(0.8, 1.3) * R0) / 45,
       rot: rand(0, TAU),
       vr: rand(-2, 2),
@@ -122,8 +123,8 @@ export function fireball(x, y, R0) {
       y: y + Math.sin(a) * R0 * 0.1,
       vx: Math.cos(a) * s,
       vy: Math.sin(a) * s - rand(30, 70),
-      life: rand(0.55, 1.0),
-      max: 1.0,
+      life: (L = rand(0.9, 1.6)),
+      max: L,
       size: (rand(1.1, 1.6) * R0) / 45,
       rot: rand(0, TAU),
       vr: rand(-2, 2),
