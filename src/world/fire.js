@@ -152,7 +152,20 @@ export function buildCarMap() {
     c.hasAlarm = !c.burnt && !c.police && Math.random() < 0.6;
     c.alarm = 0;
     c.alarmUsed = false;
+    c.rig = false;
+    c.tanker = false;
   });
+  {
+    let tr = cars.filter(c => c.truck && !c.burnt);
+    if (!tr.length) tr = cars.filter(c => !c.burnt && !c.police); // no truck in this district: a fuel van, then
+    if (tr.length) {
+      const t = tr[Math.floor(Math.random() * tr.length)];
+      t.tanker = true;
+      t.hasAlarm = false;
+      t.col = '#d9d4c6';
+      t.hp = t.max = 300;
+    }
+  } // one truck on the map is a fuel tanker: the biggest bang in the district, if you can bring the horde to it
   for (let ty = 0; ty < MH; ty++)
     for (let tx = 0; tx < MW; tx++)
       if (ttype[ty * MW + tx] === 6) {
@@ -198,8 +211,15 @@ function blowCar(c) {
   c.dead = true;
   c.fire = 0;
   bump('cars');
-  explode(c.x, c.y, c.truck ? 150 : 125, 90 + GS.wave * 12, true);
-  firePool(c.x, c.y, c.truck ? 95 : 75, 7);
+  const k = c.tanker ? 2 : c.rig ? 1.45 : 1; // a rigged car goes up half again as wide; the fuel tanker twice
+  explode(c.x, c.y, (c.truck ? 150 : 125) * k, (90 + GS.wave * 12) * (c.tanker ? 2.2 : c.rig ? 1.6 : 1), true);
+  firePool(c.x, c.y, (c.truck ? 95 : 75) * k, c.tanker ? 14 : 7);
+  if (c.tanker)
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * TAU + rand(-0.2, 0.2),
+        d = rand(130, 190);
+      GS.later.push({ t: 0.1 + i * 0.05, fn: () => firePool(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d, 60, 11) });
+    } // burning fuel thrown out in a ring
   GS.wrecks.push({ x: c.x, y: c.y, a: c.a, s: c.truck ? 1.5 : 1 });
   shake(0.6);
   GS.hitstop = Math.max(GS.hitstop, 0.05);

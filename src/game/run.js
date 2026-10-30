@@ -11,6 +11,7 @@ import { HUDF } from '../ui/hud.js';
 import { stopHeli } from './evac.js';
 import { resetGadgets } from './gadgets.js';
 import { endHorde } from './horde.js';
+import { resetTraps } from './traps.js';
 let mapCache = { fresh: false, d: '' };
 export function newRun(forMenu = false) {
   GS.noiseRings = [];
@@ -101,6 +102,7 @@ export function newRun(forMenu = false) {
   GS.bangs = [];
   resetGadgets();
   endHorde();
+  resetTraps();
   GS.whiteFlash = 0;
   GS.enemies = [];
   GS.corpses = [];

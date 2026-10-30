@@ -13,6 +13,7 @@ import { begin } from '../ui/hangar.js';
 import { setPause } from '../ui/screens.js';
 import { openPractice } from '../game/practice.js';
 import { tutEnd } from '../game/tutorial.js';
+import { cycleTrap, trapDown, trapUp } from '../game/traps.js';
 /* =====================================================================
    Input
    ===================================================================== */
@@ -118,6 +119,8 @@ export function init() {
       }
       if (k === 'r') startReload();
       if (k === 'e' && !e.repeat) useAbility();
+      if (k === 'f' && !e.repeat) trapDown();
+      if (k === 'g' && !e.repeat) cycleTrap();
     } else if (GS.state === 'pause' && k === 'escape' && !$('settings').hidden) $('settingsBack').click();
     else if (GS.state === 'pause' && (k === 'escape' || k === 'p')) setPause(false);
     else if (GS.state === 'levelup' && !e.repeat && ['1', '2', '3'].includes(k)) choose(+k - 1);
@@ -155,6 +158,7 @@ export function init() {
     keys.delete(keyOf(e));
     keys.delete((e.key || '').toLowerCase());
     if (keyOf(e) === 'q' && WHEEL.held === 'kbm') wheelRelease();
+    if (keyOf(e) === 'f') trapUp();
   });
   glc.addEventListener('mousemove', e => {
     mouse.x = e.clientX;

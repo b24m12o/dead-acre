@@ -36,7 +36,7 @@ export function updateHint() {
     const kl = $('keysLine');
     if (kl)
       kl.textContent = keysIn(
-        `${moveKeys()} move · Mouse aim · Hold click to fire · {roll}, Shift or right-click roll · {ability} ability · 1–9 or mouse wheel swap guns · {wheel} last gun, hold {wheel} for the gun wheel · {reload} reload · Esc pause · M sound · N music`
+        `${moveKeys()} move · Mouse aim · Hold click to fire · {roll}, Shift or right-click roll · {ability} ability · 1–9 or mouse wheel swap guns · {wheel} last gun, hold {wheel} for the gun wheel · {reload} reload · {trap} traps, {trapNext} switch · Esc pause · M sound · N music`
       );
   }
   keyCard($('keyCard'), false);

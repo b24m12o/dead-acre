@@ -54,7 +54,7 @@ export function gameOver() {
     practiceReport(false);
     return;
   }
-  statMax('maxNight', GS.wave - 1);
+  if (!GS.RUN.hm) statMax('maxNight', GS.wave - 1); // Horde Mode's waves aren't nights of the campaign
   statMax('maxLevel', GS.level);
   checkChal(true);
   const pd = GS.RUN.paid || { k: 0, w: 1, s: 0 },
@@ -89,9 +89,17 @@ export function gameOver() {
     rec.wave = GS.wave;
     store.set('rr_wave', GS.wave);
   }
-  $('overTitle').textContent = GS.RUN.endless
-    ? `Eaten on endless night ${GS.wave}`
-    : `Eaten on night ${GS.wave} of ${FINAL_NIGHT}`; // the title already says the night
+  if (GS.RUN.hm) {
+    const m = (GS.meta.hm = GS.meta.hm || { wave: 0, score: 0 });
+    m.wave = Math.max(m.wave, GS.wave - 1);
+    m.score = Math.max(m.score, GS.score);
+    saveMeta();
+  } // Horde Mode keeps its own records
+  $('overTitle').textContent = GS.RUN.hm
+    ? `Overrun by horde ${GS.wave}`
+    : GS.RUN.endless
+      ? `Eaten on endless night ${GS.wave}`
+      : `Eaten on night ${GS.wave} of ${FINAL_NIGHT}`; // the title already says the night
   $('oScore').textContent = GS.score.toLocaleString();
   $('oWaveL').textContent = 'Scrap';
   $('oWave').textContent = `+${earned}`;
@@ -154,9 +162,11 @@ export function showMenuRec() {
     cb.hidden = !d;
     $('survBtn').classList.toggle('ghost', !!d);
     if (d) {
-      cb.textContent = d.RUN.endless
-        ? `Continue · endless night ${d.wave + 1}`
-        : `Continue · night ${d.wave + 1} of ${FINAL_NIGHT}`;
+      cb.textContent = d.RUN.hm
+        ? `Continue · horde ${d.wave + 1}`
+        : d.RUN.endless
+          ? `Continue · endless night ${d.wave + 1}`
+          : `Continue · night ${d.wave + 1} of ${FINAL_NIGHT}`;
       cb.title = `${(HEROES[d.RUN.hero] || HEROES.ranger).name} · ${(DISTRICTS[d.RUN.district] || DISTRICTS.town).name} · saved at dawn`;
     }
   } // a run saved at its last dawn: pick it up where it stopped
@@ -166,6 +176,24 @@ export function showMenuRec() {
 export function init() {
   $('startBtn').addEventListener('click', () => begin(false));
   $('contBtn').addEventListener('click', continueRun);
+  $('hmBtn').addEventListener('click', () => {
+    initAudio();
+    const b = $('hmBtn');
+    if (b.disabled) return;
+    if (savedRun() && !b.dataset.sure) {
+      b.dataset.sure = b.textContent;
+      b.textContent = 'Replace saved run?';
+      setTimeout(() => {
+        if (b.dataset.sure) b.textContent = b.dataset.sure;
+        delete b.dataset.sure;
+      }, 4000);
+      return;
+    } // Horde Mode starts a new run, and a new run takes the place of the one saved at dawn
+    if (b.dataset.sure) b.textContent = b.dataset.sure;
+    delete b.dataset.sure;
+    GS.HM = true;
+    if (begin() === false) GS.HM = null;
+  });
   $('survBtn').addEventListener('click', () => {
     initAudio();
     {

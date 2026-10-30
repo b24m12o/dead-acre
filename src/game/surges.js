@@ -136,12 +136,14 @@ export function startWave() {
     bossEntrance(bt);
   } else
     banner(
-      `Night ${GS.wave}`,
-      GS.wave === 1 && true && !GS.RUN.endless
-        ? `Survive till dawn · ${FINAL_NIGHT} nights to the evac`
-        : GS.obj
-          ? evTxt + objName()
-          : evTxt + (GS.RUN.low ? `Lying low · ${GS.queue.length} dead walking` : `${GS.queue.length} dead walking`),
+      GS.RUN.hm ? `Horde ${GS.wave}` : `Night ${GS.wave}`,
+      GS.RUN.hm
+        ? `${GS.horde ? GS.horde.n : ''} of them${GS.wave === 1 ? ' · lay your traps before they come' : ''}`
+        : GS.wave === 1 && true && !GS.RUN.endless
+          ? `Survive till dawn · ${FINAL_NIGHT} nights to the evac`
+          : GS.obj
+            ? evTxt + objName()
+            : evTxt + (GS.RUN.low ? `Lying low · ${GS.queue.length} dead walking` : `${GS.queue.length} dead walking`),
       GS.ev === 'blood'
     );
   if (GS.obj && true) {

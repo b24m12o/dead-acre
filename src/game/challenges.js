@@ -109,6 +109,16 @@ export const CHAL = [
     unlock: 'Night camo outfit',
   },
   { id: 'chain150', name: 'Meat grinder', desc: 'Reach a 150-kill chain', stat: 'bestChain', goal: 150, scrap: 150 },
+  { id: 'horde1', name: 'Breakwater', desc: 'Wipe out a whole horde', stat: 'hordes', goal: 1, scrap: 120 },
+  { id: 'horde5', name: 'Floodgate', desc: 'Wipe out 5 hordes', stat: 'hordes', goal: 5, scrap: 300 },
+  {
+    id: 'hchain100',
+    name: 'Riptide',
+    desc: 'Reach a 100 chain against a horde',
+    stat: 'hordeBest',
+    goal: 100,
+    scrap: 200,
+  },
   { id: 'lv20', name: 'Veteran', desc: 'Reach level 20 in one run', stat: 'maxLevel', goal: 20, scrap: 150 },
   {
     id: 'inf5',

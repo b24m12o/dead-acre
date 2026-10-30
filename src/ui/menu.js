@@ -144,6 +144,19 @@ export function renderChallenges() {
 let menuT = 0;
 export function menuInit() {
   GS.PRACTICE = null;
+  GS.HM = null;
+  {
+    const b = $('hmBtn'),
+      open = ((GS.meta.stats && GS.meta.stats.hordes) || 0) >= 1,
+      best = GS.meta.hm && GS.meta.hm.wave;
+    if (b) {
+      b.disabled = !open;
+      b.textContent = open && best ? `Horde Mode · best ${best}` : 'Horde Mode';
+      b.title = open
+        ? 'Wave after wave of hordes, bigger every time, with a trap kit and a weapon case between them'
+        : 'Wipe out a horde in a run to open Horde Mode';
+    }
+  }
   hideCallouts();
   $('banner').classList.remove('show');
   GS.state = 'menu';

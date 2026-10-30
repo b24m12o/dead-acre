@@ -382,3 +382,7 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 .hordebox i{grid-column:1/-1;display:block;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
 .hordebox s{display:block;height:100%;background:#e8b25a;transform-origin:left;transition:transform .2s}
 .hordebox.alert .hl{color:#ff5a4a}.hordebox.alert s{background:#ff5a4a}
+/* the trap kit you are carrying: bottom centre, above the key hints */
+.trappill{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 66px);transform:translateX(-50%);display:flex;gap:10px;align-items:center;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#cfd6d9;background:rgba(20,24,29,.74);padding:6px 12px;border-radius:8px;pointer-events:none;zoom:var(--ts,1);white-space:nowrap}
+.trappill .on{color:#1b0f06;background:#e8b25a;border-radius:5px;padding:2px 6px}
+.trappill .tk{color:var(--mute);font-size:10px}

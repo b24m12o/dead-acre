@@ -21,10 +21,12 @@ import { RADIO, STORY, radio, storyDawn, tip } from '../audio/radio.js';
 import { finishObjective } from './objective-flow.js';
 import { practiceReport } from './practice.js';
 import { endHorde } from './horde.js';
+import { giveTraps, trapKitStreak } from './traps.js';
 function dawnDrops() {
   // dawn has a job now: the convoy drops what the next night needs while it is quiet, and the night waits a little while it sits unopened
   const nx = GS.wave + 1;
-  if (WEAPON_NIGHTS[nx] && nextGuns().length && !(nx === 2 && GS.RUN.tutCase))
+  const wcase = GS.RUN.hm ? nx % 2 === 0 : WEAPON_NIGHTS[nx]; // Horde Mode: a case every other wave
+  if (wcase && nextGuns().length && !(nx === 2 && GS.RUN.tutCase))
     GS.later.push({
       t: 1.6,
       fn: () => {
@@ -35,7 +37,7 @@ function dawnDrops() {
         }
       },
     });
-  if (WEAPON_NIGHTS[nx] && !nextGuns().length && !TW('pistol') && !bossNight(nx))
+  if (wcase && !nextGuns().length && !TW('pistol') && !bossNight(nx))
     GS.later.push({
       t: 1.6,
       fn: () => {
@@ -137,14 +139,24 @@ export function nightCleared() {
     }
     tip('dawn');
     banner(
-      'Dawn',
-      GS.RUN.endless ? `Night ${GS.wave} survived` : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
+      GS.RUN.hm ? 'Wave cleared' : 'Dawn',
+      GS.RUN.hm
+        ? `Horde ${GS.wave} is down · set the traps for the next`
+        : GS.RUN.endless
+          ? `Night ${GS.wave} survived`
+          : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
     );
     GS.RUN.dawnX = 0;
     {
       const s = planSig(GS.wave + 1);
       GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
       if (s) GS.later.push({ t: 3.2, fn: () => GS.nightDone && showStreak(`Night ${GS.wave + 1}`, SIG[s]) });
+      if (s === 'horde') {
+        const kit = { fuel: 2, wire: 2, rig: 1 + (GS.wave >= 8 || GS.RUN.hm ? 1 : 0) };
+        giveTraps(kit);
+        GS.interT = 45; // a long dawn to lay the traps (Enter still starts the night)
+        GS.later.push({ t: 6.5, fn: () => GS.nightDone && trapKitStreak(kit) });
+      } // a horde tonight: the convoy drops a trap kit, and the day is yours to set them
     } // what tonight holds is known at dawn
     dawnDrops();
     if (jobNight(GS.wave + 1)) {
@@ -168,6 +180,7 @@ export function resumeDawn() {
   );
   const s = planSig(GS.wave + 1);
   GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
+  if (s === 'horde') GS.interT = 45; // the kit came with the save
   dawnDrops();
   if (jobNight(GS.wave + 1)) {
     GS.RUN.jobPend = true;

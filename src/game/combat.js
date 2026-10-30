@@ -50,7 +50,8 @@ import { bump, checkChal, stat, statMax } from './challenges.js';
 import { tip } from '../audio/radio.js';
 import { finishObjective } from './objective-flow.js';
 import { bossDown, bossName } from './boss-flow.js';
-import { hordeKilled } from './horde.js';
+import { hordeBlast, hordeKilled } from './horde.js';
+import { igniteFuel } from './traps.js';
 GS.HITB = null; // the player's bullet being resolved right now (gun family for boss armour)
 const CHOKE_W = { hunter: 4, lever: 3, pistol: 1.6 }; // so every gun can choke Patient Zero in a 1.3 s inhale
 const BOSS_DEF = {
@@ -590,7 +591,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   e.dying = 0;
   e.dieDir = Math.random() < 0.5 ? -1 : 1;
   GS.kills++;
-  hordeKilled(e);
+  hordeKilled(e, src);
   GS.combo++;
   GS.comboT = 2.4;
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.peakCombo = Math.max(GS.RUN.metrics.peakCombo, GS.combo);
@@ -679,7 +680,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   let fallK = 0;
   if (overkill) gibAll(e, dx, dy, col);
   else {
-    e.keep = big ? 14 : 11;
+    e.keep = e.horde ? 80 : big ? 14 : 11; // a horde's dead lie where they fell: the street fills with them
     e.tilt = rand(-0.4, 0.4);
     if ((e.down > 0 || e.crawl || e.half) && (e.lyG || 0) > 0.5) {
       e.dying = 0.45;
@@ -735,7 +736,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       e.vz = src === 'boom' || imp > 330 ? imp * 0.45 : 0;
     }
     GS.corpses.push(e);
-    if (GS.corpses.length > 70) GS.corpses.shift();
+    if (GS.corpses.length > (GS.horde && !GS.horde.done ? 240 : 90)) GS.corpses.shift();
     if (!big) sfx.fall(e.x, e.y);
     if (HUMAN[e.type] && e.type !== 'mini' && crit && Math.random() < 0.55) {
       e.headless = true;
@@ -836,7 +837,9 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     (big
       ? 1
       : (e.type === 'beetle' ? 0.2 : e.type === 'flower' || e.type === 'hopper' ? 0.15 : 0.025) *
-        clamp(0.35 + 1.1 * (1 - GS.P.hp / S.maxHp), 0.35, 1.2)) * (INF(4) && !big ? 0.5 : 1); // like ammo: fewer medkits while you are healthy, more when you are hurt
+        clamp(0.35 + 1.1 * (1 - GS.P.hp / S.maxHp), 0.35, 1.2)) *
+    (INF(4) && !big ? 0.5 : 1) *
+    (e.horde ? (GS.RUN.hm ? 0.3 : 0.5) : 1); // a horde is hundreds of kills: it can't be hundreds of medkits too // like ammo: fewer medkits while you are healthy, more when you are hurt
   if (!TW('nomeds') && Math.random() < hc)
     GS.pickups.push({ k: 'hp', v: 25, x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
   if (e.type === 'beetle' || big) {
@@ -1041,6 +1044,7 @@ export function impact(x, y, b) {
 }
 export function explode(x, y, R0, dmg, hurtsPlayer = true) {
   makeNoise(x, y, 1300);
+  igniteFuel(x, y, R0 * 0.8);
   scorchWalls(x, y, R0);
   blastWorld(x, y, R0, dmg);
   if (GS.boss && GS.boss.signAt && d2(x, y, GS.boss.signAt.x, GS.boss.signAt.y) < (R0 + 20) ** 2) hitSign(GS.boss, dmg);
@@ -1077,9 +1081,13 @@ export function explode(x, y, R0, dmg, hurtsPlayer = true) {
   decal(R.scorch, x, y, R0 / 50, [1, 1, 1, 0.9], [0, 0, 0], 40);
   ring(x, y, 10, R0 * 1.3, 0.22, [0.5, 0.42, 0.32], 0.22); // the shock front: a faint, quick ripple, the distortion does the rest
   if (dmg > 0) {
+    const k0 = GS.kills;
     query(x, y, R0 + 70, e => {
       if (!e.dead && d2(x, y, e.x, e.y) < (R0 + e.r) ** 2) hurtEnemy(e, dmg, false, e.x - x, e.y - y, 2.5, 'boom');
     });
+    const n = GS.kills - k0;
+    if (n >= 6) floatText(x, y - 50, `${n} in one blast`, '#ffcf7a', 16 + Math.min(10, n / 3));
+    hordeBlast(n);
     if (hurtsPlayer && d2(x, y, GS.P.x, GS.P.y) < (R0 + GS.P.r) ** 2) hurtPlayer(dmg * 0.3, x, y, 'an explosion');
   }
   for (const b of GS.barrels)

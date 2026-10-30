@@ -22,6 +22,7 @@ import { TRAITS, freeSpot, makeSurvivor, rollBud } from '../actors/backups.js';
 import { RADIO, radio, radioKey } from '../audio/radio.js';
 import { OBJ_NAME, finishObjective } from './objective-flow.js';
 import { planHorde } from './horde.js';
+import { giveTraps, trapKitStreak } from './traps.js';
 // every ordinary night from the second on has its own signature, known at dawn: weather, a horde, car alarms, a dog
 // pack, brutes. The first ones bring in one new threat each; later ones are dealt from a deck, never the same twice
 // running. Job and boss nights have their own story instead
@@ -37,6 +38,7 @@ export const SIG = {
 };
 const SIG_EV = { storm: 1, fog: 1, blackout: 1, blood: 1 };
 export function planSig(w) {
+  if (GS.RUN.hm) return 'horde'; // Horde Mode: every wave is one
   if (bossNight(w) || lastNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice || jobNight(w) || TW('dark')) return null;
   const used = GS.RUN.sigUsed || [];
   if (w === 2) return 'pack';
@@ -73,8 +75,13 @@ export function nightSetup() {
     for (let i = 0; i < extra; i++) GS.queue.push(pick(['skitter', 'skitter', 'hound', 'mini']));
   }
   if (sig === 'horde') {
-    GS.queue = GS.queue.filter((_, i) => i % 10 < 3);
+    GS.queue = GS.RUN.hm ? [] : GS.queue.filter((_, i) => i % 10 < 3);
     planHorde();
+    if (GS.RUN.hm && GS.wave === 1) {
+      const kit = { fuel: 2, wire: 2, rig: 1 };
+      giveTraps(kit);
+      GS.later.push({ t: 3, fn: () => trapKitStreak(kit) });
+    }
   } // tonight is the horde's: a thin trickle of the usual dead, then the mass
   if (sig === 'pack' || sig === 'brute') {
     const t = sig === 'pack' ? 'hound' : 'beetle',
@@ -365,6 +372,7 @@ const JOBS = {
 };
 export const FAVOURS = ['box', 'hale', 'relay', 'scouts'];
 export const jobNight = w =>
+  !GS.RUN.hm &&
   !GS.RUN.practice &&
   !GS.RUN.tut &&
   !bossNight(w) &&

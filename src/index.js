@@ -32,6 +32,7 @@ import { init as initInput } from './core/input.js';
 import './game/abilities.js';
 import './game/gadgets.js';
 import './game/horde.js';
+import './game/traps.js';
 import { init as initSettingsUi } from './ui/settings-ui.js';
 import { init as initProfileIo } from './core/profile-io.js';
 import { init as initHangar } from './ui/hangar.js';

@@ -37,6 +37,7 @@ import { objHold, updateObjective } from '../game/objective-update.js';
 import { heliVolume, startEvac, updateEvac } from '../game/evac.js';
 import { tickGadgets } from '../game/gadgets.js';
 import { hordeLive, tickHorde } from '../game/horde.js';
+import { tickTraps } from '../game/traps.js';
 export function update(dt) {
   radioTick(dt);
   GS.time += dt;
@@ -252,6 +253,7 @@ export function update(dt) {
   keepIf(GS.bangs, g => !g.done);
   tickGadgets(dt);
   tickHorde(dt);
+  tickTraps(dt);
   // formation trails the way you walk, not the way you aim, and holds still while you stand
   const pspd = Math.hypot(p.vx, p.vy);
   if (p.formA === undefined) p.formA = p.moveA;

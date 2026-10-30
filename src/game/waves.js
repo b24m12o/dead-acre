@@ -6,7 +6,7 @@ import { viewH, viewW } from '../render/sprites.js';
 import { TILE, WH, WW, isWall } from '../world/map.js';
 import { cam } from './state.js';
 import { FINAL_NIGHT, INF, TW } from './districts.js';
-export const bossNight = w => w % 5 === 0;
+export const bossNight = w => !(GS.RUN && GS.RUN.hm) && w % 5 === 0; // Horde Mode has no bosses: the hordes are the bosses
 export const lastNight = w => !GS.RUN.endless && w === FINAL_NIGHT;
 export function buildWave(w) {
   const q = [];

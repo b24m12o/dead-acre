@@ -289,6 +289,38 @@ export function drawCasters() {
     quad(R.pipebomb, f.x, f.y, 0.6, 0.8, 0.6, 1, 0.35, 0.3, 1, 1.4, 0.3, 0.2, 0);
     quad(R.glow, f.x + 6, f.y - 2, 0, 0.35 * fl, 0.35 * fl, 0, 0, 0, 1, 3 * fl, 1.2 * fl, 0.8 * fl, 0);
   } // a burning road flare: the stick and its white-hot tip
+  for (const w of GS.wires) {
+    // a coil of barbed wire across the street: two stakes and the loops between, looser as it's torn
+    const c = Math.cos(w.a),
+      s = Math.sin(w.a),
+      wear = 1 - w.hp / w.max;
+    setH(6);
+    for (const sd of [-1, 1])
+      quad(R.pixel, w.x + c * w.hw * sd, w.y + s * w.hw * sd, w.a, 1.4, 1.4, 0.22, 0.18, 0.14, 1, 0, 0, 0, 0);
+    let px = w.x - c * w.hw,
+      py = w.y - s * w.hw;
+    for (let i = 1; i <= 22; i++) {
+      const u = -w.hw + (i / 22) * w.hw * 2,
+        o = (i % 2 ? 6 : -6) * (1 + wear * 0.6) + Math.sin(i * 2.3 + w.x) * 1.5,
+        nx = w.x + c * u - s * o,
+        ny = w.y + s * u + c * o - 4;
+      lineQ(px, py, nx, ny, 0.9, 0.55, 0.56, 0.58, 0.95, 0, 0, 0, 0, R.pixel);
+      px = nx;
+      py = ny;
+    }
+  }
+  for (const c of cars)
+    if (c.tanker && !c.dead) {
+      setH(34);
+      quad(R.pixel, c.x, c.y - 6, c.a + Math.PI / 4, 3.2, 3.2, 0.95, 0.35, 0.12, 1, 0.3, 0.08, 0.02, 0);
+      quad(R.pixel, c.x, c.y - 6, c.a + Math.PI / 4, 2.4, 2.4, 0.95, 0.85, 0.75, 1, 0, 0, 0, 0);
+    } // a hazard diamond on the tank: flammable
+  for (const c of cars)
+    if (c.rig && !c.dead) {
+      setH(30);
+      quad(R.pipebomb, c.x, c.y - 4, c.a + 0.3, 0.9, 0.9, 0.5, 0.55, 0.4, 1, 0, 0, 0, 0);
+      if (Math.sin(GS.time * 7) > 0.3) quad(R.glow, c.x + 6, c.y - 6, 0, 0.1, 0.1, 0, 0, 0, 1, 3, 0.2, 0.15, 0);
+    } // a charge taped to the roof, its light blinking
   for (const m of GS.mines) {
     setH(4);
     quad(R.pipebomb, m.x, m.y, m.a + Math.PI / 2, 1.3, 0.75, 0.55, 0.62, 0.42, 1, 0, 0, 0, 0);
