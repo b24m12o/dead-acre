@@ -89,6 +89,7 @@ export function init() {
   opt = {
     lean: store.get('rr_lean') !== '0',
     shake: store.get('rr_shake') !== '0',
+    dmgNums: store.get('rr_dmgnums') === '1', // off unless asked for
     music: store.get('rr_music') !== '0',
     gore: store.get('rr_gore') !== '0',
     grain: store.get('rr_grain') !== '0',

@@ -60,7 +60,7 @@ export function drawUI() {
   for (const t of GS.state === 'play' || WHEEL.open ? GS.texts : []) {
     let [x, y] = toS(t.x, t.y);
     const fs = t.size * Math.max(0.85, ZOOM);
-    ui.font = `italic 800 ${fs}px Kanit, sans-serif`;
+    ui.font = `600 ${fs * 0.92}px Barlow, sans-serif`;
     const w = ui.measureText(t.txt).width + 8,
       h =
         fs *
@@ -76,7 +76,7 @@ export function drawUI() {
     ui.globalAlpha =
       Math.min(1, t.life * 3) *
       (!t.nf && mouse.seen && Math.abs(x - mouse.x) < 46 && Math.abs(y - mouse.y) < 34 ? 0.3 : 1);
-    ui.font = `italic 800 ${t.size * Math.max(0.85, ZOOM)}px Kanit, sans-serif`;
+    ui.font = `600 ${fs * 0.92}px Barlow, sans-serif`; // upright and plain: words in the world, not a scoreboard
     ui.strokeStyle = 'rgba(20,24,29,0.85)';
     ui.lineWidth = 4;
     ui.strokeText(t.txt, x, y);

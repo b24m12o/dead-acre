@@ -85,14 +85,6 @@ export function bossType() {
           ? 'grave'
           : 'abom';
 }
-function bossSubText() {
-  const t = lastNight(GS.wave)
-    ? 'Shoot it as it breathes in, then get out of its sight'
-    : !GS.RUN.endless && GS.wave === 10
-      ? 'Fireproof. Shoot the air tank on its back'
-      : DISTRICTS[GS.RUN.district || 'town'].bossSub;
-  return GS.RUN.practice ? 'Boss practice · ' + t : t;
-}
 export function fmtT(s) {
   s = Math.max(0, Math.round(s));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -263,7 +255,7 @@ function bossArrive(x, y, walk) {
     const bb = $('bossBox').firstElementChild;
     if (bb) bb.textContent = bossName();
   }
-  banner(bossName(), bossSubText(), true);
+  banner(bossName(), GS.RUN.practice ? 'Boss practice' : '', true); // the name; how to fight it is in the boss bar
   sfx.roar(x, y, e.btype);
   shake(0.3);
   if (!GS.enemies.some(o => o !== e && o.type === 'queen' && !o.dead)) {

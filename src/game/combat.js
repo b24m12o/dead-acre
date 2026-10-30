@@ -491,7 +491,7 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
                 : 1;
   e.kx += (kx / kl) * 170 * kb * mass;
   e.ky += (ky / kl) * 170 * kb * mass;
-  if (src !== 'fire' && (crit || dmg >= 60)) {
+  if (opt.dmgNums && src !== 'fire' && (crit || dmg >= 60)) {
     const tt = GS.texts.find(t => t.eid === e.id && t.life > 0.35);
     if (tt) {
       tt.dv += dmg;

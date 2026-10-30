@@ -36,6 +36,7 @@ export function syncOpts() {
   for (const [id, on] of [
     ['leanBtn', opt.lean],
     ['shakeBtn', opt.shake],
+    ['dmgBtn', opt.dmgNums],
     ['flashBtn', opt.flash],
     ['goreBtn', opt.gore],
     ['grainBtn', opt.grain],
@@ -194,6 +195,11 @@ export function init() {
   $('goreBtn').addEventListener('click', () => {
     opt.gore = !opt.gore;
     store.set('rr_gore', opt.gore ? '1' : '0');
+    syncOpts();
+  });
+  $('dmgBtn').addEventListener('click', () => {
+    opt.dmgNums = !opt.dmgNums;
+    store.set('rr_dmgnums', opt.dmgNums ? '1' : '0');
     syncOpts();
   });
   $('shakeBtn').addEventListener('click', () => {
