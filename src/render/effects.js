@@ -1,12 +1,24 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
-import { TAU, d2, rand, randi } from '../core/util.js';
+import { TAU, d2, keepIf, rand, randi } from '../core/util.js';
 import { opt } from '../core/settings.js';
 import { R } from './atlas.js';
 import { MH, MW, ROAD, TILE } from '../world/map.js';
 import { BILE, BLOOD } from './draw-enemies.js';
 export function part(o) {
-  if (GS.parts.length > 2600) GS.parts.shift();
+  if (GS.parts.length > 2600) {
+    // full: make room in one go, the shortest-lived bits first (sparks and glints go before smoke, gibs and casings)
+    let n = 0;
+    for (let i = 0; i < GS.parts.length && n < 160; i++) {
+      const q = GS.parts[i];
+      if (q.k === 0 || q.k === 1) {
+        q.life = 0;
+        n++;
+      }
+    }
+    if (n < 160) GS.parts.splice(0, 160 - n);
+    keepIf(GS.parts, q => q.life > 0);
+  }
   GS.parts.push(o);
   return o;
 }

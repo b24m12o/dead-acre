@@ -268,27 +268,57 @@ export function noise(dur, vol, f0, f1, type = 'lowpass', delay = 0, bus, when) 
   s.stop(t + dur + 0.05);
 }
 // zombie voices come from where the zombie is: panned left or right, quieter with distance, muffled behind walls
+// a sound in the world: louder near you, panned to its side, muffled behind a wall. The pan and the muffle are nine
+// shared buses each way, so a sound costs one gain node, not three; in a big fight the far, quiet ones past a
+// dozen-odd in a tenth of a second are dropped, so the near ones stay clear
+let PB = null,
+  SINK = null,
+  spN = 0,
+  spT = 0;
+function panBuses() {
+  if (PB && PB.ac === AC && PB.out === sfxBus) return PB;
+  PB = { ac: AC, out: sfxBus, b: [[], []] };
+  for (let occ = 0; occ < 2; occ++)
+    for (let k = 0; k < 9; k++) {
+      const pan = -0.9 + k * 0.225,
+        inG = AC.createGain();
+      let o = inG;
+      if (occ) {
+        const f = AC.createBiquadFilter();
+        f.type = 'lowpass';
+        f.frequency.value = 520;
+        o.connect(f);
+        o = f;
+      }
+      if (AC.createStereoPanner) {
+        const pn = AC.createStereoPanner();
+        pn.pan.value = pan;
+        o.connect(pn);
+        o = pn;
+      }
+      o.connect(sfxBus);
+      PB.b[occ].push(inG);
+    }
+  SINK = AC.createGain();
+  SINK.gain.value = 0;
+  return PB;
+}
 export function spat(x, y) {
-  if (!AC || !GS.P || x === undefined || GS.state === 'menu') return undefined;
+  if (!AC || !GS.P || x === undefined || GS.state === 'menu' || !sfxBus) return undefined;
   const dx = x - GS.P.x,
     d = Math.hypot(dx, y - GS.P.y),
-    g = AC.createGain();
+    B = panBuses(),
+    now = AC.currentTime;
+  if (now - spT > 0.1) {
+    spT = now;
+    spN = 0;
+  }
+  if (++spN > 14 && d > 350) return SINK;
+  const g = AC.createGain();
   g.gain.value = clamp(1.25 - d / 900, 0.15, 1.1);
-  let out = g;
-  if (opt.los && !sightClear(GS.P.x, GS.P.y, x, y)) {
-    const f = AC.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = 520;
-    out.connect(f);
-    out = f;
-  }
-  if (AC.createStereoPanner) {
-    const pn = AC.createStereoPanner();
-    pn.pan.value = clamp(dx / (viewW * 0.55), -0.9, 0.9);
-    out.connect(pn);
-    out = pn;
-  }
-  out.connect(sfxBus);
+  const occ = d > 70 && opt.los && !sightClear(GS.P.x, GS.P.y, x, y) ? 1 : 0,
+    k = Math.round((clamp(dx / (viewW * 0.55), -0.9, 0.9) + 0.9) / 0.225);
+  g.connect(B.b[occ][k]);
   return g;
 }
 

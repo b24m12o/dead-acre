@@ -55,10 +55,13 @@ function frame(now) {
     if (GS.hitstop > 0) GS.hitstop -= dt;
     else {
       const n = Math.min(3, Math.ceil(sdt / 0.0084));
-      for (let i = 0; i < n && GS.state === 'play'; i++)
-        update(
-          sdt / n
-        ); /* at most three steps a frame: a slow machine doesn't do more work each frame the slower it gets */
+      GS.subN = n;
+      for (let i = 0; i < n && GS.state === 'play'; i++) {
+        GS.subI = i;
+        update(sdt / n);
+      } /* at most three steps a frame: a slow machine doesn't do more work each frame the slower it gets */
+      GS.subN = 1;
+      GS.subI = 0;
     }
     tickWorld(sdt);
     updateCamera(dt);

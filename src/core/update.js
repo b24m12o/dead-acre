@@ -488,29 +488,34 @@ export function update(dt) {
   if (GS.evac) updateEvac(dt);
   if (GS.RUN.tut) tutTick(dt);
   heliVolume();
-  buildFlow(p.x, p.y);
-  rebuildHash();
-  for (const e of GS.enemies) updateEnemy(e, dt, p);
-  for (const a of GS.enemies) {
-    if (a.dead || a.type === 'flower' || a.st === 'jump') continue;
-    query(a.x, a.y, a.r + 30, b => {
-      if (b === a || b.dead || b.id < a.id || b.st === 'jump' || !!a.fly !== !!b.fly) return;
-      const rr2 = a.r + b.r,
-        dd = d2(a.x, a.y, b.x, b.y);
-      if (dd < rr2 * rr2 && dd > 0.01) {
-        const d = Math.sqrt(dd),
-          push = rr2 - d,
-          nx = (a.x - b.x) / d,
-          ny = (a.y - b.y) / d,
-          wa = a.type === 'queen' || a.type === 'flower' || a.type === 'egg' ? 0 : 1 / (a.r * a.r),
-          wb = b.type === 'queen' || b.type === 'flower' || b.type === 'egg' ? 0 : 1 / (b.r * b.r), // the lighter body gives way: a walker is shoved aside by a brute, not the other way round
-          tot = wa + wb || 1;
-        a.x += (nx * push * wa) / tot;
-        a.y += (ny * push * wa) / tot;
-        b.x -= (nx * push * wb) / tot;
-        b.y -= (ny * push * wb) / tot;
-      }
-    });
+  // the dead think and move once a frame; you, your rounds and your grenades take the finer steps (see main.js)
+  const aiStep = !(GS.subI < (GS.subN || 1) - 1),
+    aiDt = dt * (GS.subN || 1);
+  if (aiStep) {
+    buildFlow(p.x, p.y);
+    rebuildHash();
+    for (const e of GS.enemies) updateEnemy(e, aiDt, p);
+    for (const a of GS.enemies) {
+      if (a.dead || a.type === 'flower' || a.st === 'jump') continue;
+      query(a.x, a.y, a.r + 30, b => {
+        if (b === a || b.dead || b.id < a.id || b.st === 'jump' || !!a.fly !== !!b.fly) return;
+        const rr2 = a.r + b.r,
+          dd = d2(a.x, a.y, b.x, b.y);
+        if (dd < rr2 * rr2 && dd > 0.01) {
+          const d = Math.sqrt(dd),
+            push = rr2 - d,
+            nx = (a.x - b.x) / d,
+            ny = (a.y - b.y) / d,
+            wa = a.type === 'queen' || a.type === 'flower' || a.type === 'egg' ? 0 : 1 / (a.r * a.r),
+            wb = b.type === 'queen' || b.type === 'flower' || b.type === 'egg' ? 0 : 1 / (b.r * b.r), // the lighter body gives way: a walker is shoved aside by a brute, not the other way round
+            tot = wa + wb || 1;
+          a.x += (nx * push * wa) / tot;
+          a.y += (ny * push * wa) / tot;
+          b.x -= (nx * push * wb) / tot;
+          b.y -= (ny * push * wb) / tot;
+        }
+      });
+    }
   }
   for (const b of GS.barrels) {
     if (b.dead) continue;
