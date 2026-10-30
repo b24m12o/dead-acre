@@ -2,6 +2,7 @@
 import { GS } from './gs.js';
 import { $ } from './errors.js';
 import { opt } from './settings.js';
+import { boundKey } from './binds.js';
 import { glc } from '../render/gl.js';
 import { AC, initAudio } from '../audio/audio.js';
 import { setMusic, setMuted } from '../audio/music.js';
@@ -57,7 +58,14 @@ const CODEMAP = {
   ArrowLeft: 'arrowleft',
   ArrowRight: 'arrowright',
 };
-const keyOf = e => CODEMAP[e.code] || (e.key || '').toLowerCase();
+// a key bound in Settings › Controls stands for its action's letter; a default key whose action moved does nothing
+const keyOf = e => {
+  const b = boundKey(e.code);
+  if (b !== null) return b || 'free:' + e.code;
+  return (
+    CODEMAP[e.code] || (/^Key[A-Z]$/.test(e.code || '') ? e.code.slice(3).toLowerCase() : (e.key || '').toLowerCase())
+  );
+};
 export function moveInput() {
   let x = 0,
     y = 0;
@@ -77,6 +85,7 @@ export function moveInput() {
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
   addEventListener('keydown', e => {
+    if (GS.rebinding) return; // Settings › Controls is waiting for a key
     const target = e.target;
     if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || ''))) return;
     const k = keyOf(e);

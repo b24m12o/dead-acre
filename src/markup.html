@@ -119,6 +119,15 @@
       <div class="seg" id="infSeg"></div>
     </div>
     <p class="rec" id="infDesc"></p>
+    <div class="infrow">
+      <span class="sec">Difficulty</span>
+      <div class="seg diffSeg" id="diffSeg2" role="group" aria-label="Difficulty">
+        <button type="button" data-d="relaxed">Relaxed · ×0.7 scrap</button
+        ><button type="button" data-d="normal">Normal</button
+        ><button type="button" data-d="hard">Hard · ×1.5 scrap</button>
+      </div>
+    </div>
+    <p class="rec diffDesc" id="diffDesc2"></p>
     <div class="sec">Twists</div>
     <div class="twists" id="twists"></div>
     <p class="rec" id="twDesc"></p>
@@ -150,7 +159,9 @@
     <div id="pGuns"></div>
     <div class="sec">Your gear</div>
     <div id="mods"><span class="none">Nothing picked up yet</span></div>
-    <p class="rec" id="pauseHint"></p>
+    <div class="sec">Controls</div>
+    <div class="keycard" id="keyCard"></div>
+    <p class="rec" id="pauseHint" hidden></p>
     <div class="btns">
       <span class="seg"
         ><button id="musicBtn" class="tog" type="button">Music</button><button id="muteBtn" class="tog" type="button">Sound</button></span
@@ -283,20 +294,32 @@
   </div>
 </div>
 <div class="overlay" id="settings" hidden>
-  <div class="panel">
+  <div class="panel setpanel">
     <div class="eyebrow">Field settings</div>
     <h2>Settings</h2>
-    <div class="set">
+    <div class="settabs" id="setTabs" role="tablist" aria-label="Settings sections">
+      <button type="button" role="tab" data-tab="audio">Audio</button
+      ><button type="button" role="tab" data-tab="display">Display &amp; HUD</button
+      ><button type="button" role="tab" data-tab="controls">Controls</button
+      ><button type="button" role="tab" data-tab="access">Accessibility</button
+      ><button type="button" role="tab" data-tab="game">Gameplay</button>
+    </div>
+    <div class="set" data-sec="audio" role="tabpanel">
       <label for="volMaster">Master</label><input type="range" id="volMaster" min="0" max="100" />
       <label for="volMusic">Music</label><input type="range" id="volMusic" min="0" max="100" />
-      <label for="volSfx">Effects</label><input type="range" id="volSfx" min="0" max="100" /> <label>Difficulty</label>
-      <div class="seg" id="diffSeg" role="group" aria-label="Difficulty">
-        <button type="button" data-d="relaxed">Relaxed · ×0.7 scrap</button
-        ><button type="button" data-d="normal">Normal</button
-        ><button type="button" data-d="hard">Hard · ×1.5 scrap</button>
+      <label for="volSfx">Effects</label><input type="range" id="volSfx" min="0" max="100" />
+      <label>Playing</label>
+      <div class="seg">
+        <button type="button" class="tog" id="musicBtn2">Music</button
+        ><button type="button" class="tog" id="muteBtn2">Sound</button
+        ><span class="segnote">M mutes · N music, any time</span>
       </div>
-      <span></span>
-      <p class="segnote" id="diffDesc" style="grid-column: 2 / -1; margin: -4px 0 0"></p>
+      <p class="rec setnote">
+        Gun recordings (Walther PPQ 9mm, AR-15, Benelli Nova, Tikka .30-06 and more): The Free Firearm Sound Library by
+        Still North Media (CC0)
+      </p>
+    </div>
+    <div class="set" data-sec="display" role="tabpanel" hidden>
       <label>Crosshair</label>
       <div class="seg" id="chCol" role="group" aria-label="Crosshair color">
         <button type="button" data-c="white">White</button><button type="button" data-c="amber">Amber</button
@@ -314,22 +337,10 @@
         <button type="button" data-h="compact">Compact</button
         ><button type="button" data-h="full">Full weapon list</button>
       </div>
-      <label>Text size</label>
-      <div class="seg" id="hudTs" role="group" aria-label="HUD text size">
-        <button type="button" data-t="1">100%</button><button type="button" data-t="1.25">125%</button
-        ><button type="button" data-t="1.5">150%</button>
-      </div>
       <label>HUD opacity</label>
       <div class="seg" id="hudOp" role="group" aria-label="HUD opacity">
         <button type="button" data-o="1">100%</button><button type="button" data-o="0.8">80%</button
         ><button type="button" data-o="0.6">60%</button>
-      </div>
-      <label>Comfort</label>
-      <div class="seg">
-        <button type="button" class="tog" id="leanBtn">Camera lean</button
-        ><button type="button" class="tog" id="shakeBtn">Screen shake</button
-        ><button type="button" class="tog" id="flashBtn">Reduce flashes</button
-        ><button type="button" class="tog" id="dmgBtn">Damage numbers</button>
       </div>
       <label>Graphics</label>
       <div class="seg" id="gfxSeg" role="group" aria-label="Graphics quality">
@@ -342,38 +353,75 @@
         <button type="button" class="tog" id="goreBtn">Full gore</button
         ><button type="button" class="tog" id="grainBtn">Film grain</button>
       </div>
-      <label>Gameplay</label>
+    </div>
+    <div class="set" data-sec="controls" role="tabpanel" hidden>
+      <div class="keycard edit" id="keyEdit"></div>
+      <div class="seg">
+        <button type="button" id="keyReset">Reset to defaults</button
+        ><span class="segnote" id="keyNote">Click a key, then press the new one · Esc cancels</span>
+      </div>
+    </div>
+    <div class="set" data-sec="access" role="tabpanel" hidden>
+      <label>Text size</label>
+      <div class="seg" id="hudTs" role="group" aria-label="Text size">
+        <button type="button" data-t="1">100%</button><button type="button" data-t="1.25">125%</button
+        ><button type="button" data-t="1.5">150%</button><button type="button" data-t="1.75">175%</button>
+      </div>
+      <span></span>
+      <p class="segnote setnote2">Radio, prompts and markers grow fully; the corner panels as far as the screen allows</p>
+      <label>Motion</label>
+      <div class="seg">
+        <button type="button" class="tog" id="leanBtn">Camera lean</button
+        ><button type="button" class="tog" id="shakeBtn">Screen shake</button>
+      </div>
+      <label>Flashes</label>
+      <div class="seg">
+        <button type="button" class="tog" id="flashBtn">Reduce flashes</button
+        ><span class="segnote">Gentler white-outs and lightning, a steady flashlight</span>
+      </div>
+      <label>Readouts</label>
+      <div class="seg"><button type="button" class="tog" id="dmgBtn">Damage numbers</button></div>
+      <span></span>
+      <p class="segnote setnote2" id="motionNote" hidden>Your system asks for reduced motion, so lean, shake and flashes started off</p>
+    </div>
+    <div class="set" data-sec="game" role="tabpanel" hidden>
+      <label>Difficulty</label>
+      <div class="seg diffSeg" id="diffSeg" role="group" aria-label="Difficulty">
+        <button type="button" data-d="relaxed">Relaxed · ×0.7 scrap</button
+        ><button type="button" data-d="normal">Normal</button
+        ><button type="button" data-d="hard">Hard · ×1.5 scrap</button>
+      </div>
+      <span></span>
+      <p class="segnote setnote2 diffDesc" id="diffDesc"></p>
+      <label>Sight</label>
       <div class="seg">
         <button type="button" class="tog" id="losBtn">Line of sight</button
-        ><button type="button" class="tog" id="tutBtn">Training on next run</button
         ><span class="segnote">Walls hide whatever is behind them</span>
       </div>
+      <label>Training</label>
+      <div class="seg"><button type="button" class="tog" id="tutBtn">Training on next run</button></div>
       <label class="pracRow">Practice</label>
       <div class="seg pracRow">
         <button type="button" id="practiceBtn">Boss practice</button
         ><span class="segnote">Fight any boss you have faced, straight away</span>
       </div>
-    </div>
-    <div class="save-tools" aria-label="Profile backup">
-      <div>
-        <strong>Profile backup</strong>
-        <p>
-          Keep a copy of your scrap, unlocks, challenges, records, and settings. Importing a backup replaces this
-          browser's profile.
-        </p>
+      <div class="save-tools" aria-label="Profile backup">
+        <div>
+          <strong>Profile backup</strong>
+          <p>
+            Keep a copy of your scrap, unlocks, challenges, records, and settings. Importing a backup replaces this
+            browser's profile.
+          </p>
+        </div>
+        <div class="btns">
+          <button class="btn ghost" id="exportSave" type="button">Export save</button
+          ><button class="btn ghost" id="importSave" type="button">Import save</button
+          ><input id="importSaveFile" type="file" accept=".json,application/json" hidden />
+        </div>
+        <p class="save-status" id="saveStatus" role="status" aria-live="polite"></p>
       </div>
-      <div class="btns">
-        <button class="btn ghost" id="exportSave" type="button">Export save</button
-        ><button class="btn ghost" id="importSave" type="button">Import save</button
-        ><input id="importSaveFile" type="file" accept=".json,application/json" hidden />
-      </div>
-      <p class="save-status" id="saveStatus" role="status" aria-live="polite"></p>
     </div>
     <div class="btns"><button class="btn" id="settingsBack" type="button">Back</button></div>
-    <div class="rec" style="margin-top: 10px">
-      Gun recordings (Walther PPQ 9mm, AR-15, Benelli Nova, Tikka .30-06 and more): The Free Firearm Sound Library by
-      Still North Media (CC0)
-    </div>
   </div>
 </div>
 <div id="streak"></div>

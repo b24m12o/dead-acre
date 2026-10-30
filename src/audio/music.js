@@ -825,8 +825,7 @@ export function setMuted(m) {
     const mc = $('muteChip');
     if (mc) mc.hidden = !m;
   }
-  $('muteBtn').classList.toggle('on', !m);
-  $('muteBtn').setAttribute('aria-pressed', !m ? 'true' : 'false');
+  syncOpts();
 }
 export function setMusic(on) {
   opt.music = on;

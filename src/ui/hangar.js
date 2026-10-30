@@ -32,6 +32,7 @@ import {
 } from '../game/challenges.js';
 import { startPractice } from '../game/practice.js';
 import { menuInit, renderChallenges, renderDistricts } from './menu.js';
+import { keysIn } from '../core/binds.js';
 export function renderHeroes() {
   $('heroes').innerHTML = Object.entries(HEROES)
     .map(([id, h]) => {
@@ -308,7 +309,7 @@ export function renderPauseGuns() {
       .filter(n => n > GS.wave)
       .sort((a, b) => a - b)[0];
     const left = nextGuns().length || (!TW('pistol') && kitOffer().length);
-    h += `<div class="next">${nx && left ? (GS.nightDone && nx === GS.wave + 1 ? 'A weapon case comes down this dawn' : `Next weapon case: at dawn after night ${nx - 1}`) : 'No more weapon cases this run'} · tap Q for your last gun, hold Q for the wheel</div>`;
+    h += `<div class="next">${nx && left ? (GS.nightDone && nx === GS.wave + 1 ? 'A weapon case comes down this dawn' : `Next weapon case: at dawn after night ${nx - 1}`) : 'No more weapon cases this run'} · ${keysIn('tap {wheel} for your last gun, hold {wheel} for the wheel')}</div>`;
   }
   el.innerHTML = h;
 }

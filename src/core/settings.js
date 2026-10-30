@@ -30,8 +30,10 @@ export const store = {
   },
 };
 export let opt;
+const reduceMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 export let TSU; // the text size the player picked
-export let TS; // HUD text size: the pick, grown on big screens, capped so the top panels never meet
+export let TS; // text size in play (radio, prompts, markers): the pick, grown on big screens
+export let TSH; // the same for the HUD's corner panels, capped so the two top ones never meet
 export let META_DEF;
 export function mergeSavedMeta(raw) {
   const m = JSON.parse(raw || '{}');
@@ -58,6 +60,7 @@ export function mergeSavedMeta(raw) {
     'evacDist',
     'tips',
     'twists',
+    'keys',
   ]) {
     if (record(m[k])) GS.meta[k] = { ...m[k] };
   }
@@ -87,17 +90,15 @@ export function saveMeta() {
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
   opt = {
-    lean: store.get('rr_lean') !== '0',
-    shake: store.get('rr_shake') !== '0',
+    // with the system's reduced-motion setting on, lean, shake and flashes start off until the player says otherwise
+    lean: store.get('rr_lean') === '1' || (store.get('rr_lean') == null && !reduceMotion()),
+    shake: store.get('rr_shake') === '1' || (store.get('rr_shake') == null && !reduceMotion()),
     dmgNums: store.get('rr_dmgnums') === '1', // off unless asked for
     music: store.get('rr_music') !== '0',
     gore: store.get('rr_gore') !== '0',
     grain: store.get('rr_grain') !== '0',
     los: store.get('rr_los') !== '0',
-    flash:
-      store.get('rr_flash') === '1' ||
-      (store.get('rr_flash') == null &&
-        !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
+    flash: store.get('rr_flash') === '1' || (store.get('rr_flash') == null && reduceMotion()),
     quality: 'ultra',
   };
   // Graphics quality is intentionally fixed at Ultra. Keep old profile data compatible but never let it downgrade rendering.
@@ -106,9 +107,12 @@ export function init() {
   TS = () => {
     const w = window.innerWidth,
       h = window.innerHeight,
-      a = clamp(Math.round(Math.min(w / 1366, h / 768) * 20) / 20, 1, 1.4),
-      cap = Math.floor(((w / 2 - 12) / 470) * 20) / 20;
-    return Math.max(1, Math.min(TSU() * a, cap));
+      a = clamp(Math.round(Math.min(w / 1366, h / 768) * 20) / 20, 1, 1.4);
+    return Math.max(1, TSU() * a);
+  };
+  TSH = () => {
+    const cap = Math.floor(((window.innerWidth / 2 - 12) / 470) * 20) / 20;
+    return Math.max(1, Math.min(TS(), cap));
   };
   META_DEF = () => ({
     ch: { col: 'white', size: 1.15, line: true },

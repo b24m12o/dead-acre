@@ -14,14 +14,18 @@ import { updateHint } from '../ui/settings-ui.js';
 import { radio } from '../audio/radio.js';
 import { freeAround } from './boss-flow.js';
 import { AB } from './abilities.js';
+import { keysIn, moveKeys } from '../core/binds.js';
 const TUT = [
-  { k: 'move', kbm: 'Move with W A S D' },
+  { k: 'move', kbm: () => `Move with ${moveKeys()}` },
   { k: 'shoot', kbm: 'Aim with the mouse · hold left click to fire' },
-  { k: 'roll', kbm: 'Runners · roll with Space or right-click, through them, not into a wall' },
-  { k: 'reload', kbm: 'Press R to reload before you run dry' },
+  { k: 'roll', kbm: () => keysIn('Runners · roll with {roll} or right-click, through them, not into a wall') },
+  { k: 'reload', kbm: () => keysIn('Press {reload} to reload before you run dry') },
   { k: 'case', kbm: 'A weapon case is coming down · walk onto it and take a gun' },
-  { k: 'swap', kbm: 'Swap guns with 1–9 or the mouse wheel · tap Q for the last one' },
-  { k: 'ability', kbm: () => `Press E · ${AB().name} · it recharges, so use it whenever they bunch up` },
+  { k: 'swap', kbm: () => keysIn('Swap guns with 1–9 or the mouse wheel · tap {wheel} for the last one') },
+  {
+    k: 'ability',
+    kbm: () => keysIn(`Press {ability} · ${AB().name} · it recharges, so use it whenever they bunch up`),
+  },
 ];
 export function tutWanted() {
   return (

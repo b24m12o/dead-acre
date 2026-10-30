@@ -15,6 +15,7 @@ import { FINAL_NIGHT } from '../game/districts.js';
 import { TRAITS } from '../actors/backups.js';
 import { EV_NAME } from '../audio/radio.js';
 import { objText } from '../game/objective-flow.js';
+import { kn } from '../core/binds.js';
 const hc = {};
 export const setT = (id, v) => {
   if (hc[id] !== v) {
@@ -312,7 +313,7 @@ export function updateHud() {
   setB('abFill', 1 - (GS.P.abT || 0) / abCd());
   {
     const rd = !(GS.P.abT > 0),
-      lt = rd ? AB().name + ' · E' : `${AB().name} · ${Math.ceil(GS.P.abT)} s`;
+      lt = rd ? AB().name + ' · ' + kn('ability') : `${AB().name} · ${Math.ceil(GS.P.abT)} s`;
     if (hc.abL !== lt) {
       hc.abL = lt;
       $('abLbl').textContent = lt;

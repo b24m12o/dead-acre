@@ -1,7 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { SOFT3, clamp } from '../core/util.js';
-import { TS } from '../core/settings.js';
+import { TS, TSH } from '../core/settings.js';
 import { LIGHT_FS, LIGHT_VS, SHADOW_FS, SPRITE_FS, SPRITE_VS, gl, glc, hasCBF, program, uic } from './gl.js';
 import { FS_VS } from './bake.js';
 import { COMP_FS, DOWN_FS, FINAL_FS, UP_FS } from './post.js';
@@ -41,7 +41,10 @@ export let DEVICE_RENDER_CAP; // render at the screen's own pixel density (no fo
 export function resize() {
   VW = window.innerWidth;
   VH = window.innerHeight;
-  if (typeof GS.meta !== 'undefined' && GS.meta) document.documentElement.style.setProperty('--ts', TS());
+  if (typeof GS.meta !== 'undefined' && GS.meta) {
+    document.documentElement.style.setProperty('--ts', TS());
+    document.documentElement.style.setProperty('--tsh', TSH());
+  }
   const gp = gfxPreset();
   const rs = Math.min(GS.rsCap, gp.dpr, Math.sqrt(gp.pixels / Math.max(1, VW * VH))); // quality preset cap, with adaptive downscaling on slow hardware
   RW = Math.max(2, Math.round(VW * rs));

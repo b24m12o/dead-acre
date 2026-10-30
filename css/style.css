@@ -318,8 +318,8 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 .seg button.tog::after{content:' · Off';opacity:.55}
 .seg button.tog.on::after{content:' · On';opacity:.8}
 .segnote{font-size:11px;opacity:.6;align-self:center;margin-left:6px}
-.hud,#radio,#banner,#streak,#hint{zoom:var(--ts,1)}
-#bossBox{font-size:calc(10px * var(--ts,1));top:calc(env(safe-area-inset-top,0px) + 56px * var(--ts,1))} /* the boss bar keeps its width so it never runs into the corner panels */
+.hud{zoom:var(--tsh,1)}#radio,#banner,#streak,#hint{zoom:var(--ts,1)}
+#bossBox{font-size:calc(10px * var(--tsh,1));top:calc(env(safe-area-inset-top,0px) + 56px * var(--tsh,1))} /* the boss bar keeps its width so it never runs into the corner panels */
 .pv{position:sticky;top:-24px;z-index:2;display:flex;gap:16px;align-items:center;background:#1a2026;border-radius:12px;padding:10px 14px;margin:6px 0 4px;box-shadow:0 6px 16px rgba(0,0,0,.35)}
 #heroPv{position:static!important;inset:auto!important;display:block;width:112px!important;height:112px!important;border-radius:10px;background:#0e1215;flex:none;pointer-events:none}
 .pvt{display:grid;gap:3px}.pvk{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
@@ -335,11 +335,11 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 .secnote:empty{display:none}
 #hangarHeroes .perk,#hangarOutfits .perk{cursor:default}
 #bossBox .thin{overflow:visible}#bossBox .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:rgba(20,24,29,.85)}
-#bossBox .stgrow{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 8px;align-items:center;font-size:calc(10px * var(--ts, 1));letter-spacing:.14em;opacity:.85}
+#bossBox .stgrow{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 8px;align-items:center;font-size:calc(10px * var(--tsh, 1));letter-spacing:.14em;opacity:.85}
 #bossBox .stgrow .lbl{color:#ffe7a0}#bossBox .stg{height:3px;border-radius:2px;background:rgba(255,231,160,.15);position:relative;overflow:hidden}
 #bossBox .stg i{position:absolute;inset:0;transform-origin:left;background:#ffd23a;transform:scaleX(0)}#bossBox .stg.tank i{background:#e8e4d8}
 #bossBox .stgrow .lbl:first-child:nth-last-child(2),#bossBox .stgrow:has(#tankWrap[hidden]){grid-template-columns:auto 1fr}
-#bossBox .bhint{font-size:calc(11px * var(--ts, 1));line-height:1.3;letter-spacing:.06em;text-transform:none;color:#d8c8cc;opacity:.85}
+#bossBox .bhint{font-size:calc(11px * var(--tsh, 1));line-height:1.3;letter-spacing:.06em;text-transform:none;color:#d8c8cc;opacity:.85}
 
 /* Respect reduced-motion preferences beyond the main menu animations. */
 @media (prefers-reduced-motion: reduce) {
@@ -350,3 +350,25 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
     transition-duration: 0.001ms !important;
   }
 }
+/* Settings: one section at a time behind a row of tabs; the panel keeps one height so switching doesn't jump */
+.setpanel .set[data-sec]{min-height:330px;align-content:start}
+.settabs{display:flex;gap:2px;border-bottom:1px solid rgba(255,255,255,.1);margin:-6px 0 -2px;flex-wrap:wrap}
+.settabs button{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;background:none;border:0;border-bottom:2px solid transparent;color:var(--mute);padding:9px 12px 8px;cursor:pointer;margin-bottom:-1px}
+.settabs button:hover{color:var(--cream)}
+.settabs button.on{color:var(--cream);border-bottom-color:var(--ember)}
+.settabs button:focus-visible{outline:2px solid var(--ember);outline-offset:-2px;border-radius:6px 6px 0 0}
+.set .setnote{grid-column:1/-1;margin:6px 0 0}
+.set .setnote2{margin:-6px 0 0;margin-left:0}
+.set>.save-tools{grid-column:1/-1}
+/* the controls card: action on the left, its key on the right; in Settings each key is a button you click to change */
+.keycard{display:grid;grid-template-columns:repeat(2,minmax(0,1fr) auto);gap:6px 14px;align-items:center;font-size:13px;color:#cdd3d6}
+.set>.keycard{grid-column:1/-1}
+.keycard .kl{min-width:0}
+.keycard .kc{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;justify-self:end;white-space:nowrap;background:#232a31;color:var(--cream);border:0;border-radius:6px;padding:5px 9px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.35)}
+.keycard .kc.fixed{background:transparent;color:var(--mute);box-shadow:none;padding-inline:0}
+.keycard button.kc{cursor:pointer;min-width:74px}
+.keycard button.kc:hover{background:#2e3740}
+.keycard button.kc.wait{background:var(--ember);color:#1b0f06;animation:kcw 1s ease-in-out infinite}
+@keyframes kcw{50%{opacity:.7}}
+#keyNote.warn{color:#ffb08a;opacity:.9}
+@media (max-width:640px){.keycard{grid-template-columns:minmax(0,1fr) auto}}

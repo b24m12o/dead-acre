@@ -2,23 +2,37 @@
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU } from '../core/util.js';
-import { TS, TSU, opt, saveMeta, store } from '../core/settings.js';
+import { TS, TSH, TSU, opt, saveMeta, store } from '../core/settings.js';
+import {
+  ACTIONS,
+  FIXED_ROWS,
+  bindOf,
+  bindable,
+  codeName,
+  keysIn,
+  moveKeys,
+  resetBinds,
+  setBind,
+} from '../core/binds.js';
 import { DEVICE_RENDER_CAP, gfxPreset, resize } from '../render/sprites.js';
 import { initAudio, playS } from '../audio/audio.js';
-import { applyVol, setMusic } from '../audio/music.js';
+import { applyVol, setMusic, setMuted } from '../audio/music.js';
 import { CH_COLS, paintCH } from './crosshair.js';
 import { PRACTICE_FROM, openPractice } from '../game/practice.js';
 import { tutHint } from '../game/tutorial.js';
-import { DIFF_DESC } from './menu.js';
+import { DIFF_DESC, renderDistricts } from './menu.js';
 GS.hintTO = 0;
 export function updateHint() {
-  const ht = 'WASD move · hold click to fire · R reload · Space roll · E ability · 1–9 swap · hold Q wheel';
+  const ht = keysIn(
+    `${moveKeys()} move · hold click to fire · {reload} reload · {roll} roll · {ability} ability · 1–9 swap · hold {wheel} wheel`
+  );
   if (typeof GS.RUN !== 'undefined' && GS.RUN && GS.RUN.tut && GS.RUN.tut.i >= 0) tutHint();
   else {
     $('hint').textContent = ht;
     $('hint').classList.remove('tut');
   }
   $('pauseHint').textContent = ht + ' · Esc resume';
+  keyCard($('keyCard'), false);
   {
     const lk = $('luKeys');
     if (lk) {
@@ -27,6 +41,78 @@ export function updateHint() {
       lk.textContent = rr ? nk + ' · R rerolls' : nk;
     }
   }
+}
+/* ---------- Controls: one card, read-only in Pause, editable in Settings ---------- */
+let waiting = null; // the action whose new key we are waiting for
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+function keyCard(el, edit) {
+  if (!el) return;
+  let h = '';
+  for (const a of ACTIONS) {
+    const k = waiting === a.id ? 'Press a key…' : codeName(bindOf(a.id));
+    h += `<span class="kl">${esc(a.label)}</span>${
+      edit
+        ? `<button type="button" class="kc${waiting === a.id ? ' wait' : ''}" data-a="${a.id}" aria-label="${esc(a.label)}: ${esc(k)}. Click to change">${esc(k)}</button>`
+        : `<kbd class="kc">${esc(k)}</kbd>`
+    }`;
+  }
+  for (const [l, k] of FIXED_ROWS) h += `<span class="kl">${esc(l)}</span><kbd class="kc fixed">${esc(k)}</kbd>`;
+  el.innerHTML = h;
+}
+function keyNote(t, warn) {
+  const n = $('keyNote');
+  n.textContent = t || 'Click a key, then press the new one · Esc cancels';
+  n.classList.toggle('warn', !!warn);
+}
+function stopWaiting() {
+  waiting = null;
+  GS.rebinding = false;
+  removeEventListener('keydown', grabKey, true);
+  keyCard($('keyEdit'), true);
+  updateHint();
+}
+function grabKey(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.code === 'Escape') {
+    keyNote();
+    return stopWaiting();
+  }
+  if (!bindable(e.code)) {
+    keyNote(
+      `${codeName(e.code)} is kept for ${/^(Digit|Numpad)/.test(e.code) ? 'swapping guns' : 'the menus'} · pick another key`,
+      true
+    );
+    return;
+  }
+  const id = waiting,
+    took = ACTIONS.find(a => a.id !== id && bindOf(a.id) === e.code);
+  setBind(id, e.code);
+  saveMeta();
+  keyNote(
+    took
+      ? `${codeName(e.code)} was ${took.label.toLowerCase()}: that moved to ${codeName(bindOf(took.id))}`
+      : `${ACTIONS.find(a => a.id === id).label} is now ${codeName(e.code)}`
+  );
+  stopWaiting();
+}
+/* ---------- Tabs ---------- */
+let tab = 'audio';
+function showTab(t) {
+  tab = t;
+  try {
+    localStorage.setItem('rr_settab', t);
+  } catch (e) {}
+  for (const b of $('setTabs').children) {
+    const on = b.dataset.tab === t;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+  }
+  for (const el of document.querySelectorAll('#settings [data-sec]')) el.hidden = el.dataset.sec !== t;
+  if (waiting) stopWaiting();
+  if (t === 'controls') keyCard($('keyEdit'), true);
+  if (t === 'display' && !chPrevRaf) chPrevRaf = requestAnimationFrame(chPreview);
 }
 export function syncOpts() {
   const mark = (el, on) => {
@@ -46,15 +132,15 @@ export function syncOpts() {
     mark($(id), on);
   mark($('musicBtn'), opt.music);
   mark($('muteBtn'), !GS.muted);
+  mark($('musicBtn2'), opt.music);
+  mark($('muteBtn2'), !GS.muted);
   mark($('tutBtn'), !!(GS.meta && GS.meta.tutForce));
   $('volMaster').value = Math.round(GS.meta.vol.master * 100);
   $('volMusic').value = Math.round((GS.meta.vol.music / 0.6) * 100);
   $('volSfx').value = Math.round((GS.meta.vol.sfx / 0.8) * 100);
-  for (const b of $('diffSeg').children) mark(b, b.dataset.d === GS.meta.diff);
-  {
-    const dd = $('diffDesc');
-    if (dd) dd.textContent = DIFF_DESC[GS.meta.diff] || DIFF_DESC.normal;
-  }
+  for (const seg of document.querySelectorAll('.diffSeg'))
+    for (const b of seg.children) mark(b, b.dataset.d === GS.meta.diff);
+  for (const dd of document.querySelectorAll('.diffDesc')) dd.textContent = DIFF_DESC[GS.meta.diff] || DIFF_DESC.normal;
   for (const b of $('gfxSeg').children) if (b.dataset.g) mark(b, b.dataset.g === GS.meta.hud.gfx);
   mark($('fpsBtn'), GS.meta.hud.fps);
   for (const b of $('chCol').children) mark(b, b.dataset.c === GS.meta.ch.col);
@@ -63,6 +149,7 @@ export function syncOpts() {
   for (const b of $('hudOp').children) mark(b, +b.dataset.o === GS.meta.hud.op);
   for (const b of $('hudTs').children) mark(b, +b.dataset.t === TSU());
   document.documentElement.style.setProperty('--ts', TS());
+  document.documentElement.style.setProperty('--tsh', TSH());
 }
 /* live crosshair preview in Settings: a patch of night street, a shambler drifting under the reticle, a shot every so often */
 let chPrevRaf;
@@ -170,7 +257,15 @@ function openSettings(from) {
   $(from).hidden = true;
   syncOpts();
   $('settings').hidden = false;
-  if (!chPrevRaf) chPrevRaf = requestAnimationFrame(chPreview);
+  {
+    let t = 'audio';
+    try {
+      t = localStorage.getItem('rr_settab') || t;
+    } catch (e) {}
+    showTab(document.querySelector(`#setTabs [data-tab="${t}"]`) ? t : 'audio');
+  }
+  $('motionNote').hidden = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  $('setTabs').querySelector('.on').focus({ preventScroll: true });
 }
 
 /* ---------- Profile export/import ---------- */
@@ -208,9 +303,45 @@ export function init() {
     if (!opt.shake) GS.trauma = 0;
     syncOpts();
   });
-  $('musicBtn').addEventListener('click', () => {
+  for (const id of ['musicBtn', 'musicBtn2'])
+    $(id).addEventListener('click', () => {
+      initAudio();
+      setMusic(!opt.music);
+    });
+  $('muteBtn2').addEventListener('click', () => {
     initAudio();
-    setMusic(!opt.music);
+    setMuted(!GS.muted);
+  });
+  for (const b of $('setTabs').children) b.addEventListener('click', () => showTab(b.dataset.tab));
+  $('setTabs').addEventListener('keydown', e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const bs = [...$('setTabs').children],
+      i = bs.findIndex(b => b.dataset.tab === tab),
+      n = bs[(i + (e.key === 'ArrowRight' ? 1 : bs.length - 1)) % bs.length];
+    showTab(n.dataset.tab);
+    n.focus();
+  });
+  $('keyEdit').addEventListener('click', e => {
+    const b = e.target.closest('button[data-a]');
+    if (!b) return;
+    if (waiting === b.dataset.a) {
+      keyNote();
+      return stopWaiting();
+    }
+    if (waiting) removeEventListener('keydown', grabKey, true);
+    waiting = b.dataset.a;
+    GS.rebinding = true;
+    addEventListener('keydown', grabKey, true);
+    keyNote(`Press the new key for ${ACTIONS.find(a => a.id === waiting).label.toLowerCase()} · Esc cancels`);
+    keyCard($('keyEdit'), true);
+    $('keyEdit').querySelector('.wait').focus();
+  });
+  $('keyReset').addEventListener('click', () => {
+    resetBinds();
+    saveMeta();
+    keyNote('Back to the default keys');
+    stopWaiting();
   });
   $('practiceBtn').addEventListener('click', () => openPractice('settings'));
   $('practiceBack').addEventListener('click', () => {
@@ -277,12 +408,14 @@ export function init() {
       syncOpts();
       for (const id of ['gauge', 'wavePlate', 'scorePlate', 'bossBox', 'radio']) $(id).dataset.hf = '';
     });
-  for (const b of $('diffSeg').children)
-    b.addEventListener('click', () => {
-      GS.meta.diff = b.dataset.d;
-      saveMeta();
-      syncOpts();
-    });
+  for (const seg of document.querySelectorAll('.diffSeg'))
+    for (const b of seg.children)
+      b.addEventListener('click', () => {
+        GS.meta.diff = b.dataset.d;
+        saveMeta();
+        syncOpts();
+        if (seg.id === 'diffSeg2') renderDistricts();
+      });
   for (const b of $('gfxSeg').children)
     if (b.dataset.g)
       b.addEventListener('click', () => {
@@ -306,6 +439,7 @@ export function init() {
   $('settingsBtn').addEventListener('click', () => openSettings('menu'));
   $('settingsBtn2').addEventListener('click', () => openSettings('pause'));
   $('settingsBack').addEventListener('click', () => {
+    if (waiting) stopWaiting();
     $('settings').hidden = true;
     if (GS.state === 'pause' || GS.state === 'menu') $(settingsFrom).hidden = false;
     const returnId = settingsFrom === 'pause' ? 'settingsBtn2' : 'settingsBtn';

@@ -175,6 +175,7 @@ export function init() {
     }
     $('menu').hidden = true;
     renderDistricts();
+    syncOpts();
     $('survSetup').hidden = false;
     $('startBtn').focus({ preventScroll: true });
   });

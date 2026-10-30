@@ -6,6 +6,7 @@
 // fills in when it does.
 import { $ } from '../core/errors.js';
 import { soundProgress } from '../core/assets.js';
+import { keysIn } from '../core/binds.js';
 
 const TIPS = [
   'Gunfire carries. Every shot tells the dead where you are.',
@@ -13,9 +14,9 @@ const TIPS = [
   'Riot shields stop rounds from the front. Get round it, blow it up, or flash it.',
   'Every fifth night something bigger comes for the relay.',
   'The convoy airdrops heavier guns as the nights go on.',
-  'Hold Q for the gun wheel. Tap Q for your last gun.',
+  'Hold {wheel} for the gun wheel. Tap {wheel} for your last gun.',
   'Hit a runner hard in full stride and it can go down on its face.',
-  'Roll through a gap with Space, Shift or right-click. Never into a corner.',
+  'Roll through a gap with {roll}, Shift or right-click. Never into a corner.',
   'Barrels go up when you shoot them. Wait for a crowd.',
 ];
 const WAIT_MAX = 20000; // ms at the menu before Start stops waiting for the sounds
@@ -93,7 +94,7 @@ export function init() {
     if (!t) return;
     t.classList.remove('in');
     void t.offsetWidth;
-    t.textContent = TIPS[tipI++ % TIPS.length];
+    t.textContent = keysIn(TIPS[tipI++ % TIPS.length]);
     t.classList.add('in');
   };
   show();
