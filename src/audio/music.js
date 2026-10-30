@@ -489,6 +489,15 @@ let RIFFS;
 let SONGS;
 let SCALE; // E natural minor with a phrygian lean below
 let scaleNote;
+// the note a diatonic third below m in E minor: what a second guitar plays under a lead line
+function third(m) {
+  const pc = (((m - 64) % 12) + 12) % 12;
+  let i = SCALE.indexOf(pc);
+  if (i < 0) return m - 3; // off the scale: a minor third
+  const j = i - 2,
+    oct = j < 0 ? -12 : 0;
+  return m - pc + SCALE[(j + 7) % 7] + oct;
+}
 function makeLead(kind) {
   // 64 steps of midi (0 = rest, -1 = hold)
   const L = new Array(64).fill(0);
@@ -534,15 +543,15 @@ function makeLead(kind) {
             [1, 1, 2, 4, 8],
           ],
       rh = pick(RH), // one rhythm for the motif: it's the rhythm that makes it a phrase you can follow
-      start = boss ? randi(6, 8) : randi(4, 6),
+      start = boss ? randi(4, 6) : randi(2, 4), // the middle of the neck: singing, never shrill
       steps = rh.slice(0, -1).map(() => pick([-1, -1, 1, 1, -2, 2, 0])),
       motif = (lo, bar, shift, lift) => {
         let st = bar * 16,
           d = start + shift;
         for (let i = 0; i < rh.length; i++) {
           const last = i === rh.length - 1;
-          if (last) d = Math.round((d + lift) / 5) * 5 + (Math.random() < 0.35 ? 3 : 0); // the held note: a root, or a fifth
-          L[st] = pn(clamp(d, lo, 11));
+          if (last) d = Math.random() < 0.35 ? 3 : clamp(Math.round((d + lift) / 5) * 5, 0, 5); // the held note: the root (E), or the fifth (B)
+          L[st] = pn(clamp(d, lo, boss ? 8 : 7));
           for (let k = 1; k < rh[i] && st + k < (bar + 1) * 16; k++) L[st + k] = -1;
           st += rh[i];
           if (!last) d += steps[i];
@@ -550,13 +559,13 @@ function makeLead(kind) {
       };
     motif(2, 0, 0, 0);
     motif(2, 1, Math.random() < 0.5 ? 1 : 2, 0); // the answer, a step up
-    motif(2, 2, 0, 3); // again, reaching
+    motif(2, 2, 0, 2); // again, reaching
     // the last bar: a run down the scale in sixteenths, then the long note it lands on
-    const top = boss ? 10 : randi(8, 9),
-      run = boss ? 10 : 8;
+    const top = boss ? 8 : 7,
+      run = boss ? 8 : 7;
     const up = Math.random() < 0.45; // down the scale to the root, or up it to the high root
-    for (let i = 0; i < run; i++) L[48 + i] = pn(up ? top - run + 1 + i : top - i);
-    L[48 + run] = pn(up ? 10 : 5);
+    for (let i = 0; i < run; i++) L[48 + i] = pn(up ? i : top - i);
+    L[48 + run] = pn(up ? 5 : 0); // up the scale to the high root, or down it home to the low one
     for (let k = 48 + run + 1; k < 64; k++) L[k] = -1;
   } else if (kind === 'arp') {
     const ch = [
@@ -570,12 +579,12 @@ function makeLead(kind) {
       L[st] = scaleNote(c[(st >> 1) % 4], 52);
     }
   } else if (kind === 'bells') {
-    for (const st of [8, 24, 30, 40, 56]) L[st] = scaleNote(pick([0, 2, 4, 7, 9]), 76);
+    for (const st of [8, 24, 30, 40, 56]) L[st] = scaleNote(pick([0, 2, 4, 7, 9]), 64);
   } else if (kind === 'siren') {
     for (let b = 0; b < 4; b++) {
-      L[b * 16] = scaleNote(4, 76);
+      L[b * 16] = scaleNote(4, 64);
       for (let i = 1; i < 8; i++) L[b * 16 + i] = -1;
-      L[b * 16 + 8] = scaleNote(b % 2 ? 6 : 7, 76);
+      L[b * 16 + 8] = scaleNote(b % 2 ? 6 : 7, 64);
       for (let i = 9; i < 16; i++) L[b * 16 + i] = -1;
     }
   } // two held notes, rising and falling like a fire siren
@@ -725,7 +734,10 @@ function playStep(st, t) {
       const k2 = MUS.leadKind;
       if (k2 === 'arp') mPluck(m + K, t, 0.06);
       else if (k2 === 'bells') mBell(m + K, t, 0.05);
-      else mLead2(m + K, t, spb * n * 0.95, k2 === 'build' ? 0.07 : 0.1);
+      else {
+        mLead2(m + K, t, spb * n * 0.95, k2 === 'build' ? 0.07 : 0.085);
+        if (k2 === 'solo' || k2 === 'boss' || k2 === 'hook') mLead2(third(m) + K, t + 0.008, spb * n * 0.95, 0.05);
+      } // twin guitars: the melody, and a second guitar a third under it
     }
   }
   if (st === 0 && D !== 'none' && (S2.first || MUS.fresh || D === 'open' || D === 'blast' || Math.random() < 0.5)) {

@@ -212,9 +212,9 @@ const slotHave = id => (isTrap(id) ? have()[id] > 0 : GS.P.owned.includes(id));
 function wheelGeom() {
   const k = TS(),
     R0 = Math.min(168 * k, VH * 0.36),
-    px = (GS.P.x - GS.camX) * ZOOM,
-    py = (GS.P.y - GS.camY) * ZOOM,
-    pad = R0 + 56 * k;
+    px = WHEEL.ax ?? (GS.P.x - GS.camX) * ZOOM,
+    py = WHEEL.ay ?? (GS.P.y - GS.camY) * ZOOM,
+    pad = R0 + 56 * k; // pinned where you stood when it opened: the camera still drifts toward the cursor, the wheel doesn't
   return {
     n: WHEEL_SLOTS.length,
     R0,
@@ -239,6 +239,8 @@ export function wheelTick() {
   ) {
     WHEEL.open = true;
     WHEEL.sel = -1;
+    WHEEL.ax = (GS.P.x - GS.camX) * ZOOM;
+    WHEEL.ay = (GS.P.y - GS.camY) * ZOOM;
     sfx.swap();
   }
   if (!WHEEL.open) return;
@@ -276,6 +278,7 @@ export function wheelRelease() {
     sel = WHEEL.sel;
   WHEEL.held = null;
   WHEEL.open = false;
+  WHEEL.ax = WHEEL.ay = undefined;
   if (GS.state !== 'play' || !GS.P) return;
   if (!was) {
     quickSwap();
@@ -329,11 +332,16 @@ export function drawWheel() {
       a = slotA(i),
       x = W.cx + Math.cos(a) * R0,
       y = W.cy + Math.sin(a) * R0,
-      iw = (on ? 84 : 72) * k,
+      iw = 80 * k,
       ih = iw * 0.4,
-      img = icon(iconId(id), iw, ih, on && ok ? '#ffd9a8' : '#f2ead8');
+      img = icon(iconId(id), iw, ih, on && ok ? '#ffe2b8' : '#f2ead8'),
+      z = on ? 1.14 : 1; // the pointed one swells a little; nothing else on the wheel moves
     ui.globalAlpha = !own ? 0.13 : ok ? 1 : 0.4;
-    ui.drawImage(img, x - iw / 2, y - ih / 2 - 6 * k, iw, ih);
+    ui.save();
+    ui.shadowColor = on && ok ? 'rgba(255,150,60,0.9)' : 'rgba(0,0,0,0.75)';
+    ui.shadowBlur = (on && ok ? 14 : 5) * k;
+    ui.drawImage(img, x - (iw * z) / 2, y - (ih * z) / 2 - 6 * k, iw * z, ih * z);
+    ui.restore();
     if (own) {
       ui.font = `600 ${10.5 * k}px "JetBrains Mono", monospace`;
       ui.fillStyle = on && ok ? '#ffd9a8' : 'rgba(242,234,216,0.8)';
