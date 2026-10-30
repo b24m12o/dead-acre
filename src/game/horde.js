@@ -20,7 +20,7 @@ import { dropCrate } from './combat.js';
 import { bump } from './challenges.js';
 
 GS.horde = null;
-export const hordeSize = w => Math.round((w <= 4 ? 140 : w <= 8 ? 200 : w <= 12 ? 260 : 320) * (TW('horde') ? 1.2 : 1));
+export const hordeSize = w => Math.round((w <= 4 ? 200 : w <= 8 ? 250 : w <= 12 ? 300 : 340) * (TW('horde') ? 1.2 : 1));
 const DIRS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
 const dirName = a => DIRS[Math.round((((a % TAU) + TAU) % TAU) / (TAU / 8)) % 8];
 // where it comes in: open ground near the map's edge that connects to you, as far from you as the map allows
@@ -105,6 +105,7 @@ function alertAll(H) {
     if (e.horde && !e.dead) {
       if (e.lure === H.lure) e.lure = null;
       e.aw = Math.max(e.aw || 0, 6);
+      sprint(e);
     }
   showStreak('It has you', 'The whole horde is coming · keep moving, pick a choke point', true);
   MUS.sting = true;
@@ -118,18 +119,22 @@ function member(H) {
     e = makeEnemy('skitter', x, y);
   e.emerge = 1;
   e.horde = true;
-  e.hp *= 0.55;
+  e.hp *= 0.8;
   e.maxHp = e.hp;
-  e.dmg *= 0.75; // one of a horde goes down easy and hits light: it is the mass that kills you
-  if (!e.run && Math.random() < 0.25) {
+  e.dmg *= 0.9; // one of a horde goes down a little easier than a lone one: it is the mass that kills you
+  if (H.alert) {
+    e.aw = 6;
+    sprint(e);
+  } else e.lure = H.lure;
+  return e;
+}
+// once it has you, every one of them sprints: the horde arrives as one wall, not a straggling line
+function sprint(e) {
+  if (!e.run) {
     e.run = true;
     e.sp *= 2.05;
-    e.hp *= 0.85;
-    e.maxHp = e.hp;
-  } // most of a horde runs
-  if (H.alert) e.aw = 6;
-  else e.lure = H.lure;
-  return e;
+  }
+  e.sp *= rand(0.95, 1.08);
 }
 export function hordeKilled(e) {
   const H = GS.horde;
@@ -159,9 +164,9 @@ export function tickHorde(dt) {
     if (H.startT <= 0) arrive(H);
     return;
   }
-  // it walks in off the edge as a column, a dozen a second
+  // it walks in off the edge as a column, two dozen a second, packed close
   if (H.spawned < H.n) {
-    H.acc = (H.acc || 0) + dt * 12;
+    H.acc = (H.acc || 0) + dt * 26;
     while (H.acc >= 1 && H.spawned < H.n) {
       H.acc--;
       H.spawned++;

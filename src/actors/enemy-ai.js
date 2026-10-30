@@ -191,7 +191,7 @@ export function updateEnemy(e, dt, p) {
       face = Math.atan2(lure.y - e.y, lure.x - e.x);
       if (em && !lure.flare && !lure.horde) poundCar(e, lure, dt);
     } else {
-      const k = lure.horde ? (e.run ? 0.34 : 0.72) : 1.1; // a roaming horde walks; it only runs once it has you
+      const k = lure.horde ? (e.run ? 0.36 : 0.75) : 1.1; // a roaming horde walks; it only runs once it has you
       tvx = ux * e.sp * k;
       tvy = uy * e.sp * k;
     }
