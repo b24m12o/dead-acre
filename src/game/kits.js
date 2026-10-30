@@ -131,6 +131,33 @@ export function kitMod(g) {
   }
   return (CACHE[key] = o);
 }
+// The Gunslinger's sidearm is a six-shot revolver: it keeps the pistol's slot and id (so everything that asks for
+// 'pistol' still works) but hits harder, fires slower, holds six and reloads from a speed loader. Set at the start of
+// every run, so another hero gets the service pistol back.
+const PISTOL0 = { ...GUNS.pistol },
+  KIT0 = { match: { ...KITS.match }, pmag: { ...KITS.pmag } },
+  REVOLVER = {
+    name: 'Revolver',
+    reg: 'h_revolver',
+    dmg: 26,
+    rate: 3.2,
+    spread: 0.018,
+    mag: 6,
+    reload: 1.45,
+    kick: 6,
+    shell: 0, // a revolver keeps its brass until you reload
+    rev: true,
+  },
+  REVKIT = {
+    match: { name: 'Long Barrel', desc: 'A longer barrel and a tuned action: +30% damage and half the spread.' },
+    pmag: { name: 'Speed Loaders', desc: 'All six chambers in one push: reloads twice as fast.', m: { reload: 0.5 } },
+  };
+export function setSidearm(hero) {
+  for (const k of Object.keys(GUNS.pistol)) if (!(k in PISTOL0)) delete GUNS.pistol[k];
+  Object.assign(GUNS.pistol, PISTOL0, hero === 'grenadier' ? REVOLVER : {});
+  for (const id of Object.keys(KIT0)) Object.assign(KITS[id], KIT0[id], hero === 'grenadier' ? REVKIT[id] : {});
+  for (const k of Object.keys(CACHE)) delete CACHE[k];
+}
 // extra rounds of ammo type t the kits let you carry
 export function kitCarry(t) {
   let n = 0;

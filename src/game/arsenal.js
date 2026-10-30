@@ -24,9 +24,9 @@ export const HEROES = {
   },
   grenadier: {
     name: 'Gunslinger',
-    weapon: 'pistol & SMG',
+    weapon: 'revolver & SMG',
     spec: 'pistol',
-    desc: 'Drifter who rode in on Route 9, the fastest of the three. Pistol and SMG fire faster, hit 25% harder and pierce.',
+    desc: 'Drifter who rode in on Route 9 with a six-shot revolver, the fastest of the three. Revolver and SMG fire faster, hit 25% harder and pierce.',
     hp: 95,
     speed: 278,
     cost: 400,

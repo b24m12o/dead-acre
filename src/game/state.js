@@ -14,7 +14,7 @@ import { mouse } from '../core/input.js';
 import { PK } from '../ui/hangar.js';
 import { TW } from './districts.js';
 import { tip } from '../audio/radio.js';
-import { kitCarry, kitMod } from './kits.js';
+import { kitCarry, kitMod, setSidearm } from './kits.js';
 /* =====================================================================
    State
    ===================================================================== */
@@ -144,6 +144,7 @@ export function heroGun(g) {
       : { dmg: 1.25, rate: g === 'pistol' ? 1.4 : 1.15, pellets: 0, pierce: 1 };
 }
 export function armGuns(p) {
+  setSidearm(GS.RUN && GS.RUN.hero);
   p.owned = ['pistol'];
   p.reload = 0;
   p.reloadMax = 1;
@@ -387,7 +388,27 @@ export function startReload() {
   p.reload = p.reloadMax = reloadTime(g);
   p.trigFresh = false;
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.reloads++;
-  if (!G.perShell) {
+  if (G.rev) {
+    // the cylinder swings out and six empties drop at your feet
+    sfx.magOut();
+    for (let i = 0; i < Math.min(6, magSize(g) - p.mag[g]); i++)
+      part({
+        k: 7,
+        x: p.x + rand(-4, 4),
+        y: p.y + rand(-4, 4),
+        z: 10,
+        vz: rand(20, 70),
+        vx: rand(-40, 40),
+        vy: rand(-40, 40),
+        life: 1.4,
+        max: 1.4,
+        size: 0.8,
+        rot: rand(0, TAU),
+        vr: rand(-20, 20),
+        drag: 3,
+        c: [1, 1, 1],
+      });
+  } else if (!G.perShell) {
     sfx.magOut();
     const cc = Math.cos(p.aimA),
       ss = Math.sin(p.aimA),

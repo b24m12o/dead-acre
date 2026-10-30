@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { camKick } from '../render/camera.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp, rand, randi } from '../core/util.js';
 import { GUNS } from '../game/arsenal.js';
@@ -47,6 +48,7 @@ export function firePlayer(cwx, cwy, p, target) {
     if (p.reload > 0) p.reload = 0;
     p.mag[g]--;
     p.lastShotT = GS.time;
+    camKick(p.aimA, g);
     if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.triggers++;
     const rate = G.rate * S.rate * hb.rate * (g === 'lmg' && (braced || S.evo.walkfire) ? 1.15 : 1);
     p.fireCd += 1 / rate;
@@ -282,7 +284,7 @@ export function firePlayer(cwx, cwy, p, target) {
         });
       };
       if (big) GS.later.push({ t: 0.5, fn: ej });
-      else ej();
+      else if (G.shell) ej();
     }
     p.recoil = G.kick;
     if (!G.pellets) p.heat = Math.min(1, (p.heat || 0) + 0.16);

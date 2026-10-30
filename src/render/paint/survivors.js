@@ -94,6 +94,58 @@ export function paintSurvivors() {
     1
   );
   region(
+    'h_revolver',
+    140,
+    30,
+    a => {
+      // six-shot revolver from above: wooden grip under the hand, hammer spur, the fluted cylinder bulging either side,
+      // then a long round barrel with its ejector rod alongside and a blade sight at the muzzle
+      rr(a, -5, -2.4, 6.5, 4.8, 1.8);
+      a.fillStyle = grad(a, 0, -2.4, 0, 2.4, [
+        [0, '#6a4426'],
+        [0.5, '#4a2c16'],
+        [1, '#2a180c'],
+      ]);
+      a.fill();
+      a.fillStyle = '#1c1c1e';
+      rr(a, -1.6, -1.3, 2.2, 2.6, 0.6);
+      a.fill();
+      a.fillStyle = '#2c2d30';
+      rr(a, -3.2, -0.55, 2.4, 1.1, 0.5);
+      a.fill();
+      a.fillStyle = grad(a, 0, -1.1, 0, 1.1, [
+        [0, '#5a5d62'],
+        [0.5, '#3a3c40'],
+        [1, '#1e1f22'],
+      ]);
+      rr(a, 6, -1.1, 12.4, 2.2, 1);
+      a.fill();
+      a.fillStyle = '#26272a';
+      rr(a, 7, 1, 7.5, 0.7, 0.3);
+      a.fill();
+      rr(a, 0.4, -3.1, 6.2, 6.2, 2.4);
+      a.fillStyle = grad(a, 0, -3.1, 0, 3.1, [
+        [0, '#5c5f64'],
+        [0.4, '#404247'],
+        [1, '#17181a'],
+      ]);
+      a.fill();
+      a.fillStyle = 'rgba(0,0,0,0.5)';
+      for (const y of [-2.1, 0, 2.1]) a.fillRect(1.2, y - 0.3, 4.6, 0.6);
+      a.fillStyle = 'rgba(255,255,255,0.14)';
+      a.fillRect(0.9, -2.8, 5.2, 0.45);
+      a.fillRect(6.4, -0.95, 11.6, 0.4);
+      a.fillStyle = '#101012';
+      a.fillRect(17, -0.35, 1.2, 0.7);
+      a.fillStyle = '#060606';
+      circ(a, 18.5, 0, 0.6);
+      a.fill();
+    },
+    0.3,
+    0.45,
+    1
+  );
+  region(
     'h_smg',
     140,
     30,

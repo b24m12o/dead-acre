@@ -32,7 +32,7 @@ export const AB_DEF = {
   grenadier: {
     name: 'Fan the hammer',
     cd: 16,
-    desc: 'Six fast pistol shots at everything in front of you, no ammo used.',
+    desc: 'Six fast revolver shots at everything in front of you, no ammo used.',
     up: 'Fan the hammer fires 3 more shots.',
     cdName: 'Quick Draw',
     upName: 'Two-Gun Rig', // a second revolver on the other hip

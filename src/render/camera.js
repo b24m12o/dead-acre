@@ -52,11 +52,31 @@ export function updateCamera(dt) {
   cam.x = clamp(cam.x, 0, WW - viewW);
   cam.y = clamp(cam.y, 0, WH - viewH);
 }
+// a shot nudges the view back along the barrel and it settles in well under a tenth of a second: the gun's punch
+// felt in the frame, not a shake (it follows the Screen shake setting)
+const KICK = {
+  pistol: 1.4,
+  smg: 1.1,
+  rifle: 1.6,
+  lmg: 1.9,
+  shotgun: 3.6,
+  auto: 2.6,
+  hunter: 4,
+  lever: 3.2,
+  launcher: 3,
+};
+export function camKick(a, g) {
+  if (!opt.shake) return;
+  const k = KICK[g] || 1.5;
+  GS.kick = { x: -Math.cos(a) * k, y: -Math.sin(a) * k, t: GS.time };
+}
 export function shakeOff() {
   const t2 = GS.trauma * GS.trauma,
-    m = 9 * t2;
+    m = 9 * t2,
+    K = GS.kick,
+    kf = K ? Math.exp(-Math.max(0, GS.time - K.t) * 32) : 0;
   return [
-    m * (Math.sin(GS.time * 47) * 0.6 + Math.sin(GS.time * 29 + 1.3) * 0.4),
-    m * (Math.sin(GS.time * 41 + 2.1) * 0.6 + Math.sin(GS.time * 23) * 0.4),
+    m * (Math.sin(GS.time * 47) * 0.6 + Math.sin(GS.time * 29 + 1.3) * 0.4) + (K ? K.x * kf : 0),
+    m * (Math.sin(GS.time * 41 + 2.1) * 0.6 + Math.sin(GS.time * 23) * 0.4) + (K ? K.y * kf : 0),
   ];
 }

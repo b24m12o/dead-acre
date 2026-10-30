@@ -159,7 +159,8 @@ export const sfx = {
     tone(58, 0.12, 'sine', 0.22, 0.55);
   },
   pistol() {
-    if (playS('pistol', 0.68, 1, 0, 0.3)) return;
+    const rev = GS.P && GS.P.gun === 'pistol' && GS.RUN && GS.RUN.hero === 'grenadier'; // the revolver: a deeper, rounder bark
+    if (playS('pistol', rev ? 0.8 : 0.68, rev ? 0.8 : 1, 0, 0.3)) return;
     if (!thr('pistol', 60)) return;
     noise(0.09, 0.22, 4200, 900, 'bandpass');
     noise(0.025, 0.2, 7000, 4000, 'highpass');
