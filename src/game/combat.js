@@ -367,7 +367,6 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
     e.flS = Math.random() < 0.5 ? -1 : 1;
   } // the body snaps away from the hit
   e.hp -= dmg;
-  if (src === 'bolt' && S.incend && Math.random() < 0.1 * S.incend) ignite(e, 2.5);
   e.flash = 0.08;
   e.squash = 0.18;
   e.wob = 1;

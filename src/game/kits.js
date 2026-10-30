@@ -150,7 +150,11 @@ const PISTOL0 = { ...GUNS.pistol },
   },
   REVKIT = {
     match: { name: 'Long Barrel', desc: 'A longer barrel and a tuned action: +30% damage and half the spread.' },
-    pmag: { name: 'Speed Loaders', desc: 'All six chambers in one push: reloads twice as fast.', m: { reload: 0.5 } },
+    pmag: {
+      name: 'Moon Clips',
+      desc: 'All six rounds clipped together, in one push: reloads twice as fast.',
+      m: { reload: 0.5 },
+    },
   };
 export function setSidearm(hero) {
   for (const k of Object.keys(GUNS.pistol)) if (!(k in PISTOL0)) delete GUNS.pistol[k];

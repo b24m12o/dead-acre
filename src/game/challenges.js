@@ -45,7 +45,7 @@ export const CHAL = [
   },
   {
     id: 'rifle300',
-    name: 'Marksman',
+    name: 'Rifleman',
     desc: '300 kills with rifles',
     stat: 'rifle',
     goal: 300,

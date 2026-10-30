@@ -45,15 +45,15 @@ export const AB_B = {
     cd: 16,
     desc: 'Plants a claymore at your feet, facing your aim. It blows when the dead walk into its front.',
     up: 'Claymores blast 25% wider and you can keep one more set.',
-    cdName: 'Field Radio',
-    upName: 'Heavier Load',
+    cdName: 'Spare Charges',
+    upName: 'Shaped Charges',
   },
   breacher: {
     name: 'Road flare',
     cd: 22,
     desc: 'Throws a road flare. For 8 s every zombie that sees it goes to it, and any that crowd it catch fire.',
     up: 'Flares burn 4 s longer and draw them from further off.',
-    cdName: 'Bandolier',
+    cdName: 'Flare Box',
     upName: 'Highway Flares',
   },
   grenadier: {
@@ -61,8 +61,8 @@ export const AB_B = {
     cd: 18,
     desc: 'Lobs a lit bundle of dynamite at the cursor. It goes off a second later, wide and hard.',
     up: 'Dynamite blasts 25% wider and hits 20% harder.',
-    cdName: 'Quick Draw',
-    upName: 'Longer Fuse',
+    cdName: 'Short Fuses',
+    upName: 'Bigger Bundles',
   },
 };
 export const abOwned = h => !!(GS.meta.abOwn && GS.meta.abOwn[h]);

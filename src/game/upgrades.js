@@ -290,18 +290,6 @@ export const UP = [
   },
   // the Field Manual: gear that only turns up in runs once a challenge has taught it to you (see the Armory)
   {
-    id: 'incend',
-    cat: 'Gun mod',
-    name: 'Incendiary Rounds',
-    lock: 'fire100',
-    desc: () =>
-      `${['One round in ten', 'One round in five', 'Three rounds in ten'][LV.incend || 0]} sets a zombie alight.`,
-    max: 3,
-    apply() {
-      S.incend = (S.incend || 0) + 1;
-    },
-  },
-  {
     id: 'wind',
     cat: 'Body',
     name: 'Second Wind',
@@ -329,7 +317,7 @@ export const EVOS = [
     id: 'inferno',
     name: 'Inferno',
     lock: 'boss1',
-    need: { incend: 2, molotov: 1 },
+    need: { arc: 2, molotov: 2 },
     desc: 'Whatever you set alight burns twice as long and 50% hotter.',
     apply() {
       S.evo.inferno = 1;
