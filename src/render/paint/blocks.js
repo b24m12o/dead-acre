@@ -627,6 +627,114 @@ export function paintBlocks() {
   region('car', 84, 46, (a, e) => carTop(a, e, 78, 38, false, false), 0.4, 0.3, 0.8);
   region('police', 84, 46, (a, e) => carTop(a, e, 78, 38, true, false), 0.45, 0.3, 0.8);
   region('truck', 124, 52, (a, e) => carTop(a, e, 118, 44, false, true), 0.4, 0.3, 0.8);
+  // the fuel tanker and the fuel van: a polished round tank you can read from above, banded, with its catwalk and
+  // hatches, FUEL in red down its back, flammable placards at the end, and a red cab
+  const tank = (a, x0, x1, W, big) => {
+    shape(
+      a,
+      c => rr(c, x0, -W / 2, x1 - x0, W, W * 0.45),
+      grad(a, 0, -W / 2, 0, W / 2, [
+        [0, '#6e7378'],
+        [0.22, '#c9ced2'],
+        [0.42, '#f4f6f6'],
+        [0.6, '#b9bec2'],
+        [1, '#4d5257'],
+      ]),
+      { lw: 2.2, out: '#141210' }
+    ); // round from above: dark at the sides, a bright highlight along the top
+    a.strokeStyle = 'rgba(30,32,36,0.45)';
+    a.lineWidth = 1.2;
+    for (let x = x0 + 10; x < x1 - 4; x += big ? 17 : 13) {
+      a.beginPath();
+      a.moveTo(x, -W / 2 + 1);
+      a.lineTo(x, W / 2 - 1);
+      a.stroke();
+    } // the bands
+    a.fillStyle = 'rgba(40,42,46,0.55)';
+    a.fillRect(x0 + 6, -2.2, x1 - x0 - 12, 4.4); // catwalk
+    for (let i = 0; i < (big ? 3 : 1); i++) {
+      a.beginPath();
+      a.arc(x0 + (x1 - x0) * (big ? 0.25 + i * 0.25 : 0.7), 0, big ? 4.5 : 3.6, 0, TAU);
+      a.fillStyle = '#9aa0a5';
+      a.fill();
+      a.strokeStyle = '#2a2d31';
+      a.lineWidth = 1;
+      a.stroke();
+    } // hatches
+    a.save();
+    a.font = `900 ${big ? 15 : 10}px Kanit, Arial, sans-serif`;
+    a.textAlign = 'center';
+    a.textBaseline = 'middle';
+    const tx = x0 + (x1 - x0) * (big ? 0.5 : 0.6);
+    a.lineWidth = 3;
+    a.strokeStyle = 'rgba(255,255,255,0.85)';
+    a.strokeText('FUEL', tx, W * 0.26);
+    a.fillStyle = '#c8261c';
+    a.fillText('FUEL', tx, W * 0.26);
+    a.strokeText('FUEL', tx, -W * 0.26);
+    a.fillText('FUEL', tx, -W * 0.26);
+    a.restore();
+    for (const sy of [-1, 1]) {
+      a.save();
+      a.translate(x0 + 7, (sy * W) / 4);
+      a.rotate(Math.PI / 4);
+      a.fillStyle = '#d42a1e';
+      a.fillRect(-4, -4, 8, 8);
+      a.strokeStyle = '#fff';
+      a.lineWidth = 0.8;
+      a.strokeRect(-3, -3, 6, 6);
+      a.restore();
+    } // red flammable placards on the back
+  };
+  const cab = (a, x0, x1, W) => {
+    shape(
+      a,
+      c => rr(c, x0, -W / 2 + 2, x1 - x0, W - 4, 7),
+      grad(a, 0, -W / 2, 0, W / 2, [
+        [0, '#c0392b'],
+        [0.5, '#a3271c'],
+        [1, '#5e140e'],
+      ]),
+      { lw: 2, out: '#141210' }
+    );
+    a.fillStyle = '#24303a';
+    rr(a, x0 + (x1 - x0) * 0.45, -W / 2 + 5, 9, W - 10, 3);
+    a.fill();
+  };
+  const wheels = (a, L, W) => {
+    a.fillStyle = 'rgba(0,0,0,0.55)';
+    for (const wx of [-L * 0.31, L * 0.31])
+      for (const sy of [-1, 1]) {
+        rr(a, wx - 8, sy * (W / 2 + 1) - 4, 16, 8, 3);
+        a.fill();
+      }
+  };
+  region(
+    'tanker',
+    124,
+    52,
+    a => {
+      wheels(a, 118, 44);
+      tank(a, -59, 24, 44, true);
+      cab(a, 27, 59, 44);
+    },
+    0.55,
+    0.3,
+    0.8
+  );
+  region(
+    'fuelvan',
+    84,
+    46,
+    a => {
+      wheels(a, 78, 38);
+      tank(a, -39, 10, 36, false);
+      cab(a, 12, 39, 38);
+    },
+    0.55,
+    0.3,
+    0.8
+  );
   region(
     'lightbar',
     10,

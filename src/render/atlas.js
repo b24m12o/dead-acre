@@ -21,7 +21,9 @@ export const regionScale = name =>
       ? Math.min(AS, 2)
       : /^canopy/.test(name)
         ? Math.min(AS, 2.5)
-        : AS; // soft things (clouds, rings, scorch) and the big plain roof and wall pieces need less resolution: it saves atlas room
+        : /^(tanker|fuelvan)$/.test(name)
+          ? Math.min(AS, 2)
+          : AS; // soft things (clouds, rings, scorch) and the big plain roof and wall pieces need less resolution: it saves atlas room
 export function region(name, w, h, paint, spec = 0.3, soft = 1, det = 1) {
   const AS = regionScale(name);
   const pw = Math.ceil(w * AS) + 14,

@@ -181,7 +181,7 @@ export const GUNS = {
     muzzle: 74,
     kick: 9,
     mag: 7,
-    reload: 0.45,
+    reload: 0.5,
     perShell: true,
     pierce: 3,
     fall: 0.75,

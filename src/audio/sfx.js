@@ -236,7 +236,7 @@ export const sfx = {
     tone(1100, 0.02, 'square', 0.02, 0.6, 0.14);
   },
   shell() {
-    if (GS.P && GS.P.gun === 'lever' && playS('shellL', 0.6, 1, 0, 0.05)) return;
+    if (GS.P && GS.P.gun === 'lever' && playS('shellL', 0.34, rand(0.92, 1.04), 0, 0.03)) return; // a round thumbed into the gate: soft, and never twice the same
     if (playS('shell', 0.55, 1.1, 0, 0.05)) return;
     noise(0.04, 0.08, 2800, 1800, 'bandpass');
     tone(rand(600, 700), 0.03, 'triangle', 0.025, 0.8);

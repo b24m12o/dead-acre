@@ -245,7 +245,7 @@ export function wheelTick() {
   const W = wheelGeom(),
     dx = mouse.x - W.cx,
     dy = mouse.y - W.cy;
-  if (Math.hypot(dx, dy) < 40 * W.k) {
+  if (Math.hypot(dx, dy) < 54 * W.k) {
     WHEEL.sel = -1;
     return;
   }
@@ -302,7 +302,7 @@ export function drawWheel() {
   for (let i = 0; i < W.n; i++) {
     const a = slotA(i) + Math.PI / W.n;
     ui.beginPath();
-    ui.moveTo(W.cx + Math.cos(a) * 44 * k, W.cy + Math.sin(a) * 44 * k);
+    ui.moveTo(W.cx + Math.cos(a) * 58 * k, W.cy + Math.sin(a) * 58 * k);
     ui.lineTo(W.cx + Math.cos(a) * (R0 + 34 * k), W.cy + Math.sin(a) * (R0 + 34 * k));
     ui.stroke();
   }
@@ -313,7 +313,7 @@ export function drawWheel() {
       ok = slotOk(WHEEL_SLOTS[WHEEL.sel]);
     ui.beginPath();
     ui.arc(W.cx, W.cy, R0 + 34 * k, a - h, a + h);
-    ui.arc(W.cx, W.cy, 44 * k, a + h, a - h, true);
+    ui.arc(W.cx, W.cy, 58 * k, a + h, a - h, true);
     ui.closePath();
     ui.fillStyle = ok ? 'rgba(255,140,50,0.32)' : 'rgba(150,150,160,0.18)';
     ui.fill();
@@ -364,7 +364,7 @@ export function drawWheel() {
   // the middle: what the pointed slot is
   ui.fillStyle = 'rgba(14,16,20,0.85)';
   ui.beginPath();
-  ui.arc(W.cx, W.cy, 40 * k, 0, TAU);
+  ui.arc(W.cx, W.cy, 54 * k, 0, TAU);
   ui.fill();
   const id = WHEEL_SLOTS[WHEEL.sel],
     trap = id && isTrap(id),
@@ -383,14 +383,33 @@ export function drawWheel() {
             : slotOk(id)
               ? 'Release to draw it'
               : 'No ammo';
+  // the full name, never cut: on one line if it fits, else split in two at the space nearest the middle
+  const fit = 88 * k;
+  let fs = 12,
+    lines = [nm];
+  ui.font = `700 ${fs * k}px "JetBrains Mono", monospace`;
+  if (ui.measureText(nm).width > fit && nm.includes(' ')) {
+    const w = nm.split(' ');
+    let best = null;
+    for (let i = 1; i < w.length; i++) {
+      const l = [w.slice(0, i).join(' '), w.slice(i).join(' ')],
+        m = Math.max(...l.map(t => ui.measureText(t).width));
+      if (!best || m < best.m) best = { l, m };
+    }
+    lines = best.l;
+  }
+  while (fs > 9 && Math.max(...lines.map(t => ui.measureText(t).width)) > fit) {
+    fs -= 0.5;
+    ui.font = `700 ${fs * k}px "JetBrains Mono", monospace`;
+  }
+  const lh = fs * 1.15 * k,
+    y0 = W.cy + (lines.length > 1 ? 1 : 6) * k - ((lines.length - 1) * lh) / 2;
   ui.font = `600 ${9 * k}px "JetBrains Mono", monospace`;
   ui.fillStyle = 'rgba(242,234,216,0.5)';
-  ui.fillText(cat.toUpperCase(), W.cx, W.cy - 10 * k);
-  ui.font = `700 ${11 * k}px "JetBrains Mono", monospace`;
+  ui.fillText(cat.toUpperCase(), W.cx, y0 - 15 * k);
+  ui.font = `700 ${fs * k}px "JetBrains Mono", monospace`;
   ui.fillStyle = '#f2ead8';
-  let n2 = nm;
-  while (n2.length > 4 && ui.measureText(n2).width > 74 * k) n2 = n2.slice(0, -2) + '…';
-  ui.fillText(n2, W.cx, W.cy + 5 * k);
+  lines.forEach((t, i) => ui.fillText(t, W.cx, y0 + i * lh));
   // and under the ring, in a sentence
   ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
   const lb = id ? `${nm} · ${line}` : `${line} · point at a gun or a trap`,

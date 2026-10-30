@@ -512,20 +512,52 @@ function makeLead(kind) {
       }
     }
   } else if (kind === 'solo' || kind === 'boss') {
-    let d = randi(2, 6);
-    for (let st = 0; st < 64; ) {
-      const len = pick(kind === 'boss' ? [1, 2, 2, 4] : [1, 1, 2, 2, 3, 4]);
-      if (Math.random() < 0.12) {
-        st += len;
-        continue;
-      }
-      d += pick([-2, -1, -1, 1, 1, 2, 3, -3]);
-      d = clamp(d, 0, 12);
-      L[st] = scaleNote(d, kind === 'boss' ? 65 : 64) + (kind === 'boss' && Math.random() < 0.2 ? 1 : 0);
-      for (let k = 1; k < len && st + k < 64; k++) L[st + k] = -1;
-      st += len;
-    }
-    for (let k = 56; k < 64; k++) L[k] = k === 56 ? scaleNote(7) : -1;
+    // A composed solo, not a random walk: E minor pentatonic (the rock and metal scale: nothing in it can clash with
+    // the chugging E under it), built like a guitarist builds one. Bar 1 states a short motif, bar 2 answers it a
+    // step higher, bar 3 repeats it and reaches further, bar 4 tears down a fast run and lands on a long held note,
+    // the root or the fifth, with vibrato. Every held note sits on a chord tone; the quick ones pass between.
+    const PENT = [0, 3, 5, 7, 10],
+      pn = d => 64 + 12 * Math.floor(d / 5) + PENT[((d % 5) + 5) % 5], // degree 0 = E4, 5 = E5, 10 = E6
+      boss = kind === 'boss',
+      RH = boss
+        ? [
+            [2, 2, 1, 1, 2, 8],
+            [1, 1, 1, 1, 2, 2, 8],
+            [2, 1, 1, 4, 8],
+            [3, 3, 2, 8],
+          ]
+        : [
+            [4, 2, 2, 8],
+            [2, 2, 2, 2, 8],
+            [3, 3, 2, 8],
+            [2, 2, 4, 8],
+            [1, 1, 2, 4, 8],
+          ],
+      rh = pick(RH), // one rhythm for the motif: it's the rhythm that makes it a phrase you can follow
+      start = boss ? randi(6, 8) : randi(4, 6),
+      steps = rh.slice(0, -1).map(() => pick([-1, -1, 1, 1, -2, 2, 0])),
+      motif = (lo, bar, shift, lift) => {
+        let st = bar * 16,
+          d = start + shift;
+        for (let i = 0; i < rh.length; i++) {
+          const last = i === rh.length - 1;
+          if (last) d = Math.round((d + lift) / 5) * 5 + (Math.random() < 0.35 ? 3 : 0); // the held note: a root, or a fifth
+          L[st] = pn(clamp(d, lo, 11));
+          for (let k = 1; k < rh[i] && st + k < (bar + 1) * 16; k++) L[st + k] = -1;
+          st += rh[i];
+          if (!last) d += steps[i];
+        }
+      };
+    motif(2, 0, 0, 0);
+    motif(2, 1, Math.random() < 0.5 ? 1 : 2, 0); // the answer, a step up
+    motif(2, 2, 0, 3); // again, reaching
+    // the last bar: a run down the scale in sixteenths, then the long note it lands on
+    const top = boss ? 10 : randi(8, 9),
+      run = boss ? 10 : 8;
+    const up = Math.random() < 0.45; // down the scale to the root, or up it to the high root
+    for (let i = 0; i < run; i++) L[48 + i] = pn(up ? top - run + 1 + i : top - i);
+    L[48 + run] = pn(up ? 10 : 5);
+    for (let k = 48 + run + 1; k < 64; k++) L[k] = -1;
   } else if (kind === 'arp') {
     const ch = [
       [0, 2, 4, 7],

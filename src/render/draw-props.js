@@ -331,12 +331,6 @@ export function drawCasters() {
       quad(R.pixel, b.x, b.y - 14, Math.PI / 4, 2.2, 2.2, 0.95, 0.75, 0.1, 1, 0.25, 0.18, 0, 0);
     } // a hazard mark on your gas drums, so you know which to shoot
   for (const c of cars)
-    if (c.tanker && !c.dead) {
-      setH(34);
-      quad(R.pixel, c.x, c.y - 6, c.a + Math.PI / 4, 3.2, 3.2, 0.95, 0.35, 0.12, 1, 0.3, 0.08, 0.02, 0);
-      quad(R.pixel, c.x, c.y - 6, c.a + Math.PI / 4, 2.4, 2.4, 0.95, 0.85, 0.75, 1, 0, 0, 0, 0);
-    } // a hazard diamond on the tank: flammable
-  for (const c of cars)
     if (c.rig && !c.dead) {
       setH(30);
       quad(R.pipebomb, c.x, c.y - 4, c.a + 0.3, 0.9, 0.9, 0.5, 0.55, 0.4, 1, 0, 0, 0, 0);

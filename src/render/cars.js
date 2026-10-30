@@ -59,14 +59,25 @@ export function drawCar(c) {
     ); // armed alarm: a red LED blinking on the dash
 }
 function drawCar0(c) {
-  const reg = c.burnt || c.fire > 0.5 ? R.carburn : c.police ? R.police : c.truck ? R.truck : R.car,
+  const reg =
+      c.burnt || c.fire > 0.5
+        ? R.carburn
+        : c.tanker
+          ? c.truck
+            ? R.tanker
+            : R.fuelvan
+          : c.police
+            ? R.police
+            : c.truck
+              ? R.truck
+              : R.car,
     sc = (c.burnt || c.fire > 0.5) && c.truck ? 1.45 : 1;
   if (GS.SHMODE) {
     setH(c.truck ? 24 : 16);
     quad(reg, c.x, c.y, c.a, sc, sc, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
   }
-  const t = c.police || c.burnt || c.fire > 0.5 ? [1, 1, 1] : c.tint,
+  const t = c.police || c.tanker || c.burnt || c.fire > 0.5 ? [1, 1, 1] : c.tint,
     fl = c.flash > 0 ? 1 : 0;
   const lit = c.lights ? (c.hp < c.max * 0.5 && Math.sin(GS.time * 23 + c.x) > 0.3 ? 0.2 : 1.8) : 0;
   const hk = (c.burnt ? 1 : 0.62 + 0.38 * clamp(c.hp / c.max, 0, 1)) * (c.fire ? 0.85 : 1); // a car on fire is a blistered, blackening shell under the flames
