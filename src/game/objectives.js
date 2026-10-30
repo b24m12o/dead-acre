@@ -78,7 +78,7 @@ export function nightSetup() {
     GS.queue = GS.RUN.hm ? [] : GS.queue.filter((_, i) => i % 10 < 3);
     planHorde();
     if (GS.RUN.hm && GS.wave === 1) {
-      const kit = { fuel: 2, wire: 2, rig: 1 };
+      const kit = { mine: 3, drum: 2, noise: 1, rig: 1 };
       giveTraps(kit);
       GS.later.push({ t: 3, fn: () => trapKitStreak(kit) });
     }

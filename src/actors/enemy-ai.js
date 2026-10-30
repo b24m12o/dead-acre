@@ -676,10 +676,6 @@ export function updateEnemy(e, dt, p) {
     tvx = nx * 1.3;
     tvy = ny * 1.3;
   }
-  if (e.wired > GS.time) {
-    tvx *= 0.32;
-    tvy *= 0.32;
-  } // wading through barbed wire
   if (rate) {
     const k = damp(rate, dt);
     e.vx += (tvx - e.vx) * k;

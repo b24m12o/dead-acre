@@ -1,7 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
-import { TAU, angDiff, clamp, d2, rand, randi } from '../core/util.js';
+import { TAU, angDiff, clamp, d2, rand, randi, pick } from '../core/util.js';
 import { opt, saveMeta } from '../core/settings.js';
 import { GUNS } from './arsenal.js';
 import { DIFF } from '../core/profile.js';
@@ -51,7 +51,7 @@ import { tip } from '../audio/radio.js';
 import { finishObjective } from './objective-flow.js';
 import { bossDown, bossName } from './boss-flow.js';
 import { hordeBlast, hordeKilled } from './horde.js';
-import { igniteFuel } from './traps.js';
+import { TRAP, giveTraps } from './traps.js';
 GS.HITB = null; // the player's bullet being resolved right now (gun family for boss armour)
 const CHOKE_W = { hunter: 4, lever: 3, pistol: 1.6 }; // so every gun can choke Patient Zero in a 1.3 s inhale
 const BOSS_DEF = {
@@ -1044,7 +1044,6 @@ export function impact(x, y, b) {
 }
 export function explode(x, y, R0, dmg, hurtsPlayer = true) {
   makeNoise(x, y, 1300);
-  igniteFuel(x, y, R0 * 0.8);
   scorchWalls(x, y, R0);
   blastWorld(x, y, R0, dmg);
   if (GS.boss && GS.boss.signAt && d2(x, y, GS.boss.signAt.x, GS.boss.signAt.y) < (R0 + 20) ** 2) hitSign(GS.boss, dmg);
@@ -1366,6 +1365,11 @@ export function updateCrates(dt) {
         GS.pickups.push({ k: 'ammo', at: t, v: 1.35, x: c.x, y: c.y, vx: rand(-140, 140), vy: rand(-140, 140), t: 0 }); // a box for every kind of round you carry: about what the crate used to add invisibly
       glowBurst(c.x, c.y, [1, 0.7, 0.3], 18, 220, 0.5, 0.5);
       chips(c.x, c.y, 10, [0.85, 0.7, 0.45], 3, 260);
+      if (GS.wave >= 2 && !GS.RUN.practice) {
+        const t = pick(['mine', 'mine', 'drum', 'noise']);
+        giveTraps({ [t]: 1 });
+        floatText(c.x, c.y - 30, `+1 ${TRAP[t].name.toLowerCase()}`, '#e8c46a', 15);
+      } // a supply crate carries a trap or two from the second night on
       const go = () => {
         if (GS.state === 'play') offerUpgrades('crate');
         else if (GS.state === 'levelup' || GS.state === 'pause') GS.later.push({ t: 0.1, fn: go });
@@ -1425,5 +1429,13 @@ export function blowBarrel(b) {
   if (b.dead) return;
   b.dead = true;
   tip('barrel');
-  explode(b.x, b.y, 105, 70 + GS.wave * 6);
+  explode(b.x, b.y, b.gas ? 120 : 105, (70 + GS.wave * 6) * (b.gas ? 1.2 : 1));
+  if (b.gas) {
+    firePool(b.x, b.y, 115, 11);
+    for (let i = 0; i < 4; i++) {
+      const a = rand(0, TAU),
+        d = rand(70, 120);
+      GS.later.push({ t: 0.08 + i * 0.05, fn: () => firePool(b.x + Math.cos(a) * d, b.y + Math.sin(a) * d, 55, 9) });
+    }
+  } // a gas drum: the fuel goes everywhere, burning
 }

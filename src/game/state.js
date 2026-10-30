@@ -15,6 +15,8 @@ import { PK } from '../ui/hangar.js';
 import { TW } from './districts.js';
 import { tip } from '../audio/radio.js';
 import { kitCarry, kitMod, setSidearm } from './kits.js';
+import { TRAP, TRAP_ORDER, anyTraps, have, selectTrap } from './traps.js';
+import { icon, iconId } from '../ui/icons.js';
 /* =====================================================================
    State
    ===================================================================== */
@@ -187,56 +189,83 @@ function quickSwap() {
   if (g && g !== GS.P.gun && GS.P.owned.includes(g) && hasAmmo(g)) switchGun(g);
   else cycleGun(1);
 } // a tap: back to the gun you had before
+// The wheel: every gun and trap has its own fixed place on it, like a clock face, so after a few nights your hand
+// knows where the shotgun is without looking. Guns round the top and the sides, traps along the bottom. Places you
+// haven't filled yet show as faint outlines.
+export const WHEEL_SLOTS = [
+  'pistol',
+  'smg',
+  'shotgun',
+  'auto',
+  'rifle',
+  'mine',
+  'drum',
+  'noise',
+  'hunter',
+  'lever',
+  'lmg',
+  'launcher',
+];
+const isTrap = id => TRAP_ORDER.includes(id);
+const slotOk = id => (isTrap(id) ? have()[id] > 0 : GS.P.owned.includes(id) && hasAmmo(id));
+const slotHave = id => (isTrap(id) ? have()[id] > 0 : GS.P.owned.includes(id));
 function wheelGeom() {
-  const n = GS.P.owned.length,
-    k = TS();
-  ui.font = `700 ${12 * k}px "JetBrains Mono", monospace`;
-  const need = Math.max(...GS.P.owned.map(g => ui.measureText(GUNS[g].name).width)) + 48 * k,
-    ch = 2 * Math.sin(Math.PI / Math.max(n, 3)) * 0.92,
-    R0 = Math.min(Math.max(clamp(n * 26, 110, 215) * k, need / ch), VH * 0.42),
-    sw = Math.max(Math.min(136 * k, R0 * ch), Math.min(need, R0 * ch)),
-    sh = 44 * k; // every slot wide enough for the full name; the ring grows to make room
-  const px = (GS.P.x - GS.camX) * ZOOM,
-    py = (GS.P.y - GS.camY) * ZOOM;
+  const k = TS(),
+    R0 = Math.min(168 * k, VH * 0.36),
+    px = (GS.P.x - GS.camX) * ZOOM,
+    py = (GS.P.y - GS.camY) * ZOOM,
+    pad = R0 + 56 * k;
   return {
-    n,
+    n: WHEEL_SLOTS.length,
     R0,
-    sw,
-    sh,
-    cx: clamp(px, R0 + sw / 2 + 12, VW - R0 - sw / 2 - 12),
-    cy: clamp(py, R0 + sh / 2 + 64 * k, VH - R0 - sh / 2 - 66 * k),
+    k,
+    cx: clamp(px, pad, VW - pad),
+    cy: clamp(py, pad + 40 * k, VH - pad - 40 * k),
   }; /* clear of the night plate on top and the level bar below */
 }
+const slotA = i => -Math.PI / 2 + (i * TAU) / WHEEL_SLOTS.length;
 export function wheelTick() {
-  // opens after a short hold; while open the stick or the mouse picks the slot it points at
+  // opens after a short hold; while open the mouse picks the slot it points at
   if (WHEEL.held && GS.state !== 'play') {
     WHEEL.held = null;
     WHEEL.open = false;
   }
-  if (WHEEL.held && !WHEEL.open && performance.now() - WHEEL.downT > 170 && GS.P && GS.P.owned.length > 1) {
+  if (
+    WHEEL.held &&
+    !WHEEL.open &&
+    performance.now() - WHEEL.downT > 170 &&
+    GS.P &&
+    (GS.P.owned.length > 1 || anyTraps())
+  ) {
     WHEEL.open = true;
     WHEEL.sel = -1;
     sfx.swap();
   }
   if (!WHEEL.open) return;
-  const W = wheelGeom();
-  let dx, dy;
-  dx = mouse.x - W.cx;
-  dy = mouse.y - W.cy;
-  if (Math.hypot(dx, dy) < 34 * TS()) {
+  const W = wheelGeom(),
+    dx = mouse.x - W.cx,
+    dy = mouse.y - W.cy;
+  if (Math.hypot(dx, dy) < 40 * W.k) {
     WHEEL.sel = -1;
     return;
   }
   const a = Math.atan2(dy, dx);
   let best = -1,
-    bd = 9;
+    bd = 9,
+    bh = -1,
+    bhd = 9;
   for (let i = 0; i < W.n; i++) {
-    const d = Math.abs(angDiff(a, -Math.PI / 2 + (i * TAU) / W.n));
+    const d = Math.abs(angDiff(a, slotA(i)));
     if (d < bd) {
       bd = d;
       best = i;
     }
+    if (slotHave(WHEEL_SLOTS[i]) && d < bhd) {
+      bhd = d;
+      bh = i;
+    }
   }
+  if (bh >= 0 && bhd < 0.75) best = bh; // pointing between two: the one you actually have wins
   if (best !== WHEEL.sel) {
     WHEEL.sel = best;
     if (thr('wtick', 40)) tone(1400, 0.03, 'sine', 0.03);
@@ -252,88 +281,128 @@ export function wheelRelease() {
     quickSwap();
     return;
   }
-  if (sel >= 0 && GS.P.owned[sel] && GS.P.owned[sel] !== GS.P.gun) switchGun(GS.P.owned[sel]);
+  const id = WHEEL_SLOTS[sel];
+  if (!id) return;
+  if (isTrap(id)) selectTrap(id);
+  else if (GS.P.owned.includes(id) && id !== GS.P.gun && hasAmmo(id)) switchGun(id);
 }
 export function drawWheel() {
-  // the guns in a ring around you: number key, name, rounds; empty ones are greyed and can't be picked
   if (!WHEEL.open || !GS.P) return;
   const W = wheelGeom(),
-    k = TS();
-  ui.fillStyle = 'rgba(8,10,14,0.42)';
+    k = W.k,
+    R0 = W.R0;
+  ui.fillStyle = 'rgba(8,10,14,0.5)';
   ui.fillRect(0, 0, VW, VH);
-  const rr = (x, y, w, h, r) => {
-    ui.beginPath();
-    ui.moveTo(x + r, y);
-    ui.arcTo(x + w, y, x + w, y + h, r);
-    ui.arcTo(x + w, y + h, x, y + h, r);
-    ui.arcTo(x, y + h, x, y, r);
-    ui.arcTo(x, y, x + w, y, r);
-    ui.closePath();
-  };
-  ui.textBaseline = 'middle';
+  // the ring and its spokes
+  ui.strokeStyle = 'rgba(242,234,216,0.12)';
+  ui.lineWidth = 1;
+  ui.beginPath();
+  ui.arc(W.cx, W.cy, R0 + 34 * k, 0, TAU);
+  ui.stroke();
   for (let i = 0; i < W.n; i++) {
-    const g = GS.P.owned[i],
-      G = GUNS[g],
-      a = -Math.PI / 2 + (i * TAU) / W.n,
-      x = W.cx + Math.cos(a) * W.R0 - W.sw / 2,
-      y = W.cy + Math.sin(a) * W.R0 - W.sh / 2,
-      ok = hasAmmo(g),
-      on = i === WHEEL.sel,
-      cur = g === GS.P.gun;
-    rr(x, y, W.sw, W.sh, 7 * k);
-    ui.fillStyle = on && ok ? 'rgba(255,150,60,0.9)' : on ? 'rgba(90,90,96,0.92)' : 'rgba(22,26,32,0.9)';
-    ui.fill();
-    ui.lineWidth = 1.5;
-    ui.strokeStyle = cur ? 'rgba(255,190,110,0.95)' : 'rgba(255,255,255,0.12)';
+    const a = slotA(i) + Math.PI / W.n;
+    ui.beginPath();
+    ui.moveTo(W.cx + Math.cos(a) * 44 * k, W.cy + Math.sin(a) * 44 * k);
+    ui.lineTo(W.cx + Math.cos(a) * (R0 + 34 * k), W.cy + Math.sin(a) * (R0 + 34 * k));
     ui.stroke();
-    ui.globalAlpha = ok ? 1 : 0.45;
-    const bx = x + 8 * k,
-      by = y + W.sh / 2;
-    rr(bx, by - 9 * k, 18 * k, 18 * k, 4 * k);
-    ui.fillStyle = on && ok ? 'rgba(30,18,8,0.35)' : 'rgba(255,255,255,0.13)';
+  }
+  // the slot you point at: its wedge lit
+  if (WHEEL.sel >= 0) {
+    const a = slotA(WHEEL.sel),
+      h = Math.PI / W.n,
+      ok = slotOk(WHEEL_SLOTS[WHEEL.sel]);
+    ui.beginPath();
+    ui.arc(W.cx, W.cy, R0 + 34 * k, a - h, a + h);
+    ui.arc(W.cx, W.cy, 44 * k, a + h, a - h, true);
+    ui.closePath();
+    ui.fillStyle = ok ? 'rgba(255,140,50,0.32)' : 'rgba(150,150,160,0.18)';
     ui.fill();
-    ui.textAlign = 'center';
-    ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
-    ui.fillStyle = on && ok ? '#24140a' : '#f2ead8';
-    ui.fillText(i < 9 ? String(i + 1) : '·', bx + 9 * k, by + 0.5);
-    ui.textAlign = 'left';
-    const tx = bx + 24 * k,
-      tw = x + W.sw - 8 * k - tx;
-    let nm = G.name;
-    ui.font = `700 ${12 * k}px "JetBrains Mono", monospace`;
-    while (nm.length > 3 && ui.measureText(nm).width > tw) nm = nm.slice(0, -2) + '…';
-    ui.fillText(nm, tx, by - 8 * k);
-    ui.font = `500 ${10.5 * k}px "JetBrains Mono", monospace`;
-    ui.fillStyle = on && ok ? 'rgba(36,20,10,0.85)' : 'rgba(242,234,216,0.62)';
-    const am = !ok
-      ? 'No ammo'
-      : G.ammo
-        ? `${Math.floor(GS.P.mag[g] ?? 0)} · ${Math.floor(GS.P.ammo[G.ammo] || 0)}`
-        : `${Math.floor(GS.P.mag[g] ?? 0)} · ∞`;
-    ui.fillText(am, tx, by + 8 * k);
+  }
+  ui.textBaseline = 'middle';
+  ui.textAlign = 'center';
+  for (let i = 0; i < W.n; i++) {
+    const id = WHEEL_SLOTS[i],
+      trap = isTrap(id),
+      own = slotHave(id),
+      ok = slotOk(id),
+      on = i === WHEEL.sel,
+      a = slotA(i),
+      x = W.cx + Math.cos(a) * R0,
+      y = W.cy + Math.sin(a) * R0,
+      iw = (on ? 84 : 72) * k,
+      ih = iw * 0.4,
+      img = icon(iconId(id), iw, ih, on && ok ? '#ffd9a8' : '#f2ead8');
+    ui.globalAlpha = !own ? 0.13 : ok ? 1 : 0.4;
+    ui.drawImage(img, x - iw / 2, y - ih / 2 - 6 * k, iw, ih);
+    if (own) {
+      ui.font = `600 ${10.5 * k}px "JetBrains Mono", monospace`;
+      ui.fillStyle = on && ok ? '#ffd9a8' : 'rgba(242,234,216,0.8)';
+      const G = GUNS[id],
+        cnt = trap
+          ? `×${have()[id]}`
+          : !ok
+            ? 'empty'
+            : G.ammo
+              ? `${Math.floor(GS.P.mag[id] ?? 0)} | ${Math.floor(GS.P.ammo[G.ammo] || 0)}`
+              : `${Math.floor(GS.P.mag[id] ?? 0)} | ∞`;
+      ui.fillText(cnt, x, y + ih / 2 + 4 * k);
+      if (!trap) {
+        const n = GS.P.owned.indexOf(id) + 1;
+        ui.font = `600 ${9 * k}px "JetBrains Mono", monospace`;
+        ui.fillStyle = 'rgba(242,234,216,0.45)';
+        if (n > 0 && n < 10) ui.fillText(String(n), x - iw / 2 - 4 * k, y - ih / 2 - 4 * k);
+      } // the number key that draws it
+      if (id === GS.P.gun || (trap && GS.RUN.trapSel === id)) {
+        ui.fillStyle = '#ffb45a';
+        ui.beginPath();
+        ui.arc(x, y - ih / 2 - 12 * k, 2.6 * k, 0, TAU);
+        ui.fill();
+      } // what you hold now
+    }
     ui.globalAlpha = 1;
   }
-  ui.textAlign = 'center';
-  ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
-  ui.fillStyle = 'rgba(242,234,216,0.75)';
-  const sg = WHEEL.sel >= 0 ? GS.P.owned[WHEEL.sel] : null;
-  const key = 'Q',
-    cn = GUNS[GS.P.gun].name,
-    lb = sg
-      ? sg === GS.P.gun
-        ? `${cn} · already in your hands`
-        : hasAmmo(sg)
-          ? `Release ${key} · draw the ${GUNS[sg].name}`
-          : `${GUNS[sg].name} · no ammo`
-      : `Holding the ${cn} · ${WHEEL.held === 'pad' ? 'point the right stick' : 'point at a gun'}`, // the caption always names the gun it means
-    lw = ui.measureText(lb).width + 16 * k,
-    ly = W.cy + W.R0 + W.sh / 2 + 18 * k;
-  rr(W.cx - lw / 2, ly - 11 * k, lw, 22 * k, 11 * k);
+  // the middle: what the pointed slot is
   ui.fillStyle = 'rgba(14,16,20,0.85)';
+  ui.beginPath();
+  ui.arc(W.cx, W.cy, 40 * k, 0, TAU);
   ui.fill();
-  ui.fillStyle = 'rgba(242,234,216,0.85)';
+  const id = WHEEL_SLOTS[WHEEL.sel],
+    trap = id && isTrap(id),
+    nm = !id ? '' : trap ? TRAP[id].name : GUNS[id].name,
+    cat = !id ? (anyTraps() ? 'Guns · Traps' : 'Guns') : trap ? 'Trap' : 'Gun',
+    line = !id
+      ? `Holding the ${GUNS[GS.P.gun].name}`
+      : !slotHave(id)
+        ? trap
+          ? 'None left · supply crates carry them'
+          : 'Not found yet'
+        : trap
+          ? TRAP[id].desc
+          : id === GS.P.gun
+            ? 'In your hands'
+            : slotOk(id)
+              ? 'Release to draw it'
+              : 'No ammo';
+  ui.font = `600 ${9 * k}px "JetBrains Mono", monospace`;
+  ui.fillStyle = 'rgba(242,234,216,0.5)';
+  ui.fillText(cat.toUpperCase(), W.cx, W.cy - 10 * k);
+  ui.font = `700 ${11 * k}px "JetBrains Mono", monospace`;
+  ui.fillStyle = '#f2ead8';
+  let n2 = nm;
+  while (n2.length > 4 && ui.measureText(n2).width > 74 * k) n2 = n2.slice(0, -2) + '…';
+  ui.fillText(n2, W.cx, W.cy + 5 * k);
+  // and under the ring, in a sentence
+  ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
+  const lb = id ? `${nm} · ${line}` : `${line} · point at a gun or a trap`,
+    lw = ui.measureText(lb).width + 18 * k,
+    ly = W.cy + R0 + 58 * k;
+  ui.fillStyle = 'rgba(14,16,20,0.85)';
+  ui.beginPath();
+  ui.roundRect(W.cx - lw / 2, ly - 11 * k, lw, 22 * k, 11 * k);
+  ui.fill();
+  ui.fillStyle = 'rgba(242,234,216,0.88)';
   ui.fillText(lb, W.cx, ly);
-  ui.textAlign = 'left'; /* below the ring: never over a slot or over you */
+  ui.textAlign = 'left';
 }
 export function cycleGun(d = 1) {
   if (!GS.P || GS.state !== 'play') return;

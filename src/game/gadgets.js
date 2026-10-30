@@ -10,6 +10,7 @@ import { S } from './state.js';
 import { flashLight, part, sparks } from '../render/effects.js';
 import { explode } from './combat.js';
 import { ignite } from '../world/fire.js';
+import { tone } from '../audio/audio.js';
 
 GS.mines = [];
 GS.flares = [];
@@ -23,8 +24,9 @@ export function dynamiteBlast(x, y) {
   explode(x, y, 150 * (1 + 0.25 * S.abLv), abDmg() * 1.3 * (1 + 0.2 * S.abLv), false);
 }
 // a flare lands: it burns, and every zombie that can get to it goes to it, the way they go to a car alarm
-export function startFlare(x, y) {
-  const f = { x, y, alarm: 8 + 4 * S.abLv, flare: true, t: 0, ignT: 0 },
+// noise: the trap noise maker, a ringing alarm clock that only pulls, for 10 s, from further off
+export function startFlare(x, y, noise = false) {
+  const f = { x, y, alarm: noise ? 10 : 8 + 4 * S.abLv, flare: true, noise, t: 0, ignT: 0, beepT: 0 },
     seeds = [],
     cx = Math.floor(x / TILE),
     cy = Math.floor(y / TILE);
@@ -39,7 +41,7 @@ export function startFlare(x, y) {
   GS.flares.push(f);
   if (GS.flares.length > 3) GS.flares.shift();
   sfx.ting();
-  const R2 = (700 * (1 + 0.4 * S.abLv)) ** 2;
+  const R2 = (noise ? 950 : 700 * (1 + 0.4 * S.abLv)) ** 2;
   for (const e of GS.enemies) {
     if (e.dead || e.big || e.fly || e.type === 'flower' || e.type === 'wasp' || d2(e.x, e.y, x, y) > R2) continue;
     e.lure = f;
@@ -73,6 +75,15 @@ export function tickGadgets(dt) {
   for (const f of GS.flares) {
     f.alarm -= dt;
     f.t += dt;
+    if (f.noise) {
+      f.beepT -= dt;
+      if (f.beepT <= 0 && GS.P) {
+        f.beepT = 0.32;
+        const v = Math.max(0, 1 - Math.hypot(f.x - GS.P.x, f.y - GS.P.y) / 1100);
+        if (v > 0) tone(2300, 0.09, 'square', 0.05 * v, 1, 0, 3200);
+      } // brrring: a cheap alarm clock, loud enough to carry
+      continue;
+    }
     const fl = 0.8 + 0.2 * Math.sin(f.t * 31) * Math.sin(f.t * 13.7);
     flashLight(f.x, f.y, 300 * fl, [2.4 * fl, 0.5 * fl, 0.32 * fl], dt * 1.5);
     if (Math.random() < dt * 14)

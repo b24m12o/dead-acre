@@ -284,31 +284,52 @@ export function drawCasters() {
     else quad(R.flashbang, g.x, g.y - g.z, g.spin, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0);
   }
   for (const f of GS.flares) {
+    if (f.noise) continue;
     setH(3);
     const fl = 0.8 + 0.2 * Math.sin(f.t * 31);
     quad(R.pipebomb, f.x, f.y, 0.6, 0.8, 0.6, 1, 0.35, 0.3, 1, 1.4, 0.3, 0.2, 0);
     quad(R.glow, f.x + 6, f.y - 2, 0, 0.35 * fl, 0.35 * fl, 0, 0, 0, 1, 3 * fl, 1.2 * fl, 0.8 * fl, 0);
   } // a burning road flare: the stick and its white-hot tip
-  for (const w of GS.wires) {
-    // a coil of barbed wire across the street: two stakes and the loops between, looser as it's torn
-    const c = Math.cos(w.a),
-      s = Math.sin(w.a),
-      wear = 1 - w.hp / w.max;
-    setH(6);
-    for (const sd of [-1, 1])
-      quad(R.pixel, w.x + c * w.hw * sd, w.y + s * w.hw * sd, w.a, 1.4, 1.4, 0.22, 0.18, 0.14, 1, 0, 0, 0, 0);
-    let px = w.x - c * w.hw,
-      py = w.y - s * w.hw;
-    for (let i = 1; i <= 22; i++) {
-      const u = -w.hw + (i / 22) * w.hw * 2,
-        o = (i % 2 ? 6 : -6) * (1 + wear * 0.6) + Math.sin(i * 2.3 + w.x) * 1.5,
-        nx = w.x + c * u - s * o,
-        ny = w.y + s * u + c * o - 4;
-      lineQ(px, py, nx, ny, 0.9, 0.55, 0.56, 0.58, 0.95, 0, 0, 0, 0, R.pixel);
-      px = nx;
-      py = ny;
-    }
-  }
+  for (const g of GS.tthrows) {
+    setH(g.z + 3);
+    quad(
+      R.pipebomb,
+      g.x,
+      g.y - g.z,
+      g.spin,
+      0.8,
+      0.8,
+      g.kind === 'mine' ? 0.45 : 0.75,
+      g.kind === 'mine' ? 0.5 : 0.7,
+      0.4,
+      1,
+      0,
+      0,
+      0,
+      0
+    );
+  } // a mine or a noise maker in the air
+  for (const m of GS.lmines) {
+    setH(3);
+    quad(R.pixel, m.x, m.y, 0, 3.6, 2.6, 0.32, 0.36, 0.28, 1, 0, 0, 0, 0);
+    quad(R.pixel, m.x, m.y - 1, 0, 2, 1.4, 0.45, 0.5, 0.4, 1, 0, 0, 0, 0);
+    if (m.arm <= 0 && Math.sin(GS.time * 7 + m.x) > 0.4)
+      quad(R.glow, m.x, m.y - 2, 0, 0.07, 0.07, 0, 0, 0, 1, 2.8, 0.25, 0.15, 0);
+  } // a land mine, dug in flat, its light blinking once armed
+  for (const f of GS.flares)
+    if (f.noise) {
+      setH(5);
+      const sh = Math.sin(GS.time * 60) * 0.6;
+      quad(R.pixel, f.x + sh, f.y, 0, 2.6, 2.6, 0.75, 0.72, 0.62, 1, 0, 0, 0, 0);
+      quad(R.pixel, f.x + sh - 3, f.y - 4, 0, 1.2, 1.2, 0.8, 0.75, 0.4, 1, 0, 0, 0, 0);
+      quad(R.pixel, f.x + sh + 3, f.y - 4, 0, 1.2, 1.2, 0.8, 0.75, 0.4, 1, 0, 0, 0, 0);
+      if (Math.sin(GS.time * 10) > 0) quad(R.glow, f.x, f.y - 1, 0, 0.12, 0.12, 0, 0, 0, 1, 1.4, 1.2, 0.6, 0);
+    } // the alarm clock, rattling as it rings
+  for (const b of GS.barrels)
+    if (b.gas && !b.dead) {
+      setH(26);
+      quad(R.pixel, b.x, b.y - 14, Math.PI / 4, 2.2, 2.2, 0.95, 0.75, 0.1, 1, 0.25, 0.18, 0, 0);
+    } // a hazard mark on your gas drums, so you know which to shoot
   for (const c of cars)
     if (c.tanker && !c.dead) {
       setH(34);

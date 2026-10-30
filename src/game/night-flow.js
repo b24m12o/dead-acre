@@ -152,7 +152,7 @@ export function nightCleared() {
       GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
       if (s) GS.later.push({ t: 3.2, fn: () => GS.nightDone && showStreak(`Night ${GS.wave + 1}`, SIG[s]) });
       if (s === 'horde') {
-        const kit = { fuel: 2, wire: 2, rig: 1 + (GS.wave >= 8 || GS.RUN.hm ? 1 : 0) };
+        const kit = { mine: 3, drum: 2, noise: 1, rig: 1 + (GS.wave >= 8 || GS.RUN.hm ? 1 : 0) };
         giveTraps(kit);
         GS.interT = 45; // a long dawn to lay the traps (Enter still starts the night)
         GS.later.push({ t: 6.5, fn: () => GS.nightDone && trapKitStreak(kit) });
