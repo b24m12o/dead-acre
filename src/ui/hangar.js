@@ -1,4 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { clearSave, restoreRun, savedRun } from '../game/save.js';
+import { resumeDawn } from '../game/night-flow.js';
 import { TW } from '../game/districts.js';
 import { KITS, kitOffer } from '../game/kits.js';
 import { soundWait } from './loading.js';
@@ -209,6 +211,7 @@ export function begin() {
     practice: !!GS.PRACTICE,
     tw: GS.PRACTICE ? {} : Object.assign({}, GS.meta.twists || {}),
   };
+  if (!GS.RUN.practice) clearSave(); // a new run replaces whatever was saved
   GS.RUN.jobN = [3, 7, 12, pick([9, 13])];
   {
     const sh = a => {
@@ -248,13 +251,41 @@ export function begin() {
   GS.state = 'play';
   updateHint();
   setMuted(GS.muted);
-  if (PK().start && !GS.RUN.practice)
+  if (PK().start && !GS.RUN.practice && !GS.RUN.resumed)
     GS.later.push({
       t: 0.4,
       fn: () => {
         if (GS.state === 'play') offerUpgrades('start');
       },
     });
+}
+// Continue: the run saved at its last dawn, picked up at that dawn
+export function continueRun() {
+  const d = savedRun();
+  if (!d || soundWait()) return;
+  $('survSetup').hidden = true;
+  snapChal();
+  initAudio();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  GS.PRACTICE = null;
+  GS.RUN = { ...d.RUN, resumed: true };
+  try {
+    newRun();
+    restoreRun(d);
+    $('hud').classList.remove('camp');
+    ['menu', 'over', 'pause', 'levelup', 'hangar', 'settings'].forEach(id => ($(id).hidden = true));
+    $('hud').hidden = false;
+    $('bossBox').hidden = true;
+    renderMods();
+    GS.state = 'play';
+    updateHint();
+    setMuted(GS.muted);
+    resumeDawn();
+  } catch (e) {
+    console.warn('Dead Acre: the saved run could not be picked up', e);
+    clearSave();
+    location.reload();
+  } // a save from an older version that no longer fits: start clean rather than half-restored
 }
 export function renderPauseGuns() {
   // every gun you carry, the key that draws it, and what it eats

@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { saveRun } from './save.js';
 import { kitOffer } from './kits.js';
 import { MUS } from '../audio/audio.js';
 import { GS } from '../core/gs.js';
@@ -148,6 +149,27 @@ export function nightCleared() {
       GS.RUN.jobPend = true;
       GS.later.push({ t: 2.4, fn: openJobs });
     }
+    saveRun(); // a dawn is a checkpoint: a closed tab costs a night at most
+  }
+}
+// Continue: the saved run comes back at the dawn it was saved at, the night's drops and the dawn job on their way again
+export function resumeDawn() {
+  GS.nightLive = false;
+  GS.nightDone = true;
+  GS.interT = 11;
+  GS.RUN.dawnX = 0;
+  banner(
+    'Dawn',
+    GS.RUN.endless
+      ? `Night ${GS.wave} survived · back on the air`
+      : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
+  );
+  const s = planSig(GS.wave + 1);
+  GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
+  dawnDrops();
+  if (jobNight(GS.wave + 1)) {
+    GS.RUN.jobPend = true;
+    GS.later.push({ t: 2.4, fn: openJobs });
   }
 }
 // ---- boss encounters: the arrival, the radio story, the arena turning with each phase, and the kill as a checkpoint

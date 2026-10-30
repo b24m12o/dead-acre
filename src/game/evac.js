@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { clearSave } from './save.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, pick, rand, randi } from '../core/util.js';
@@ -296,6 +297,7 @@ function winRun() {
   if (GS.state !== 'play') return;
 
   GS.state = 'won';
+  clearSave(); // the evac made: the run is done (Endless saves again at its own dawns)
   GS.evac.hold = 2.5;
   sfx.level();
   GS.slowmo = 0.6;

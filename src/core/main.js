@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { savedRun } from '../game/save.js';
 import { breathe, loadStep, watchSounds } from '../ui/loading.js';
 import { GS } from './gs.js';
 import { $, fatalStopped } from './errors.js';
@@ -120,7 +121,11 @@ async function boot() {
       d.id = 'glLost';
       d.style.zIndex = 99;
       d.innerHTML =
-        '<div class="panel"><div class="eyebrow">Graphics reset</div><h2>The screen went dark</h2><p class="lede">Your browser reset the graphics card, so the game can\'t draw any more. Reload the page to keep playing. Your scrap, unlocks and settings are saved; the current run is lost.</p><div class="btns"><button class="btn" type="button" id="glReload">Reload</button></div></div>';
+        '<div class="panel"><div class="eyebrow">Graphics reset</div><h2>The screen went dark</h2><p class="lede">Your browser reset the graphics card, so the game can\'t draw any more. Reload the page to keep playing. Your scrap, unlocks and settings are saved' +
+        (savedRun()
+          ? ', and so is this run as it was at the last dawn: press Continue on the menu.'
+          : '; the current run is lost.') +
+        '</p><div class="btns"><button class="btn" type="button" id="glReload">Reload</button></div></div>';
       document.body.appendChild(d);
       $('glReload').addEventListener('click', () => location.reload());
     }

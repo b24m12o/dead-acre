@@ -1,4 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { HEROES } from '../game/arsenal.js';
+import { clearSave, savedRun } from '../game/save.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { saveMeta, store } from '../core/settings.js';
@@ -8,9 +10,9 @@ import { setMuted } from '../audio/music.js';
 import { S, rec } from '../game/state.js';
 import { explode } from '../game/combat.js';
 import { syncOpts } from './settings-ui.js';
-import { PK, begin, openHangar, renderHeroes, renderPauseGuns, seedsLine } from './hangar.js';
+import { PK, begin, continueRun, openHangar, renderHeroes, renderPauseGuns, seedsLine } from './hangar.js';
 import { setB, setT } from './hud.js';
-import { FINAL_NIGHT, twistK } from '../game/districts.js';
+import { DISTRICTS, FINAL_NIGHT, twistK } from '../game/districts.js';
 import { chalRunSummary, checkChal, openChal, statMax } from '../game/challenges.js';
 import { practiceReport } from '../game/practice.js';
 import { bossLogHtml } from '../game/boss-flow.js';
@@ -33,6 +35,7 @@ export function setPause(p) {
   }
 } // the whole mix freezes with the game, so a paused tab doesn't stutter music in the background
 export function gameOver() {
+  clearSave(); // eaten: the run and its save are over
   $('hint').classList.remove('show', 'tut');
   if (GS.RUN.tut) GS.RUN.tut = null;
   GS.state = 'over';
@@ -145,13 +148,31 @@ export function showMenuRec() {
     ? `Best <b>${rec.score.toLocaleString()}</b> · furthest night <b>${rec.wave}</b>`
     : 'No runs logged yet';
   $('menuSeeds').innerHTML = seedsLine();
+  {
+    const d = savedRun(),
+      cb = $('contBtn');
+    cb.hidden = !d;
+    $('survBtn').classList.toggle('ghost', !!d);
+    if (d) {
+      cb.textContent = d.RUN.endless
+        ? `Continue · endless night ${d.wave + 1}`
+        : `Continue · night ${d.wave + 1} of ${FINAL_NIGHT}`;
+      cb.title = `${(HEROES[d.RUN.hero] || HEROES.ranger).name} · ${(DISTRICTS[d.RUN.district] || DISTRICTS.town).name} · saved at dawn`;
+    }
+  } // a run saved at its last dawn: pick it up where it stopped
 }
 
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
   $('startBtn').addEventListener('click', () => begin(false));
+  $('contBtn').addEventListener('click', continueRun);
   $('survBtn').addEventListener('click', () => {
     initAudio();
+    {
+      const d = savedRun();
+      $('saveWarn').hidden = !d;
+      if (d) $('saveWarn').textContent = `A new run replaces the one saved at dawn after night ${d.wave}.`;
+    }
     $('menu').hidden = true;
     renderDistricts();
     $('survSetup').hidden = false;
@@ -190,6 +211,7 @@ export function init() {
     }
     qb.dataset.sure = '';
     qb.textContent = 'Quit run';
+    clearSave();
     $('pause').hidden = true;
     $('hint').classList.remove('show');
     $('hud').hidden = true;
