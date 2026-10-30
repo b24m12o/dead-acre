@@ -71,6 +71,35 @@ import { fireBeds } from '../world/fire.js';
 import { drawPuddles } from '../world/weather.js';
 import { WXV, drawFog } from '../world/weather.js';
 import { drawObjectiveGlow, objectiveLights } from '../ui/markers.js';
+// the flashlight is a light in a hand, not a fixed cone: it bobs with your stride, jolts with every shot and,
+// now and then, flickers as if the contacts were bad (not with Reduce flashes on)
+function beamA() {
+  const P = GS.P,
+    walk = Math.sin((P.stride || 0) * Math.PI * 2) * 0.035 * (P.strideAmp || 0),
+    since = GS.time - (P.lastShotT ?? -9);
+  if (since < 0.02 && P.kickAt !== P.lastShotT) {
+    P.kickAt = P.lastShotT;
+    P.kickD = Math.random() < 0.5 ? -1 : 1;
+  }
+  const kick =
+    since < 0.25 ? Math.exp(-since * 22) * 0.07 * (P.kickD || 1) * Math.min(1.6, 0.6 + (P.recoil || 0) / 10) : 0;
+  return P.aimA + walk + kick;
+}
+function beamK() {
+  const dt = Math.min(0.1, Math.max(0, GS.time - (GS.flkL ?? GS.time)));
+  GS.flkL = GS.time;
+  if (opt.flash || GS.state !== 'play') return 1;
+  if (!(GS.flkT > 0)) {
+    GS.flkN = (GS.flkN ?? 22 + Math.random() * 30) - dt;
+    if (GS.flkN <= 0) {
+      GS.flkN = 22 + Math.random() * 35;
+      GS.flkT = 0.35 + Math.random() * 0.3;
+    }
+    return 1;
+  }
+  GS.flkT -= dt;
+  return Math.sin(GS.flkT * 70) > 0.2 ? 1 : 0.45 + Math.random() * 0.2;
+}
 export function render() {
   const [sx, sy] = shakeOff();
   GS.camX = cam.x + sx;
@@ -945,7 +974,8 @@ export function render() {
   if (GS.P && GS.state !== 'over') {
     GS.FLX = GS.P.x + Math.cos(GS.P.aimA) * 8;
     GS.FLY = GS.P.y + Math.sin(GS.P.aimA) * 8;
-    addLight(GS.FLX, GS.FLY, 620, 1.05, 1.0, 0.84, GS.P.aimA, 0.86);
+    const bk = beamK();
+    addLight(GS.FLX, GS.FLY, 620, 1.05 * bk, 1.0 * bk, 0.84 * bk, beamA(), 0.86);
     addLight(
       GS.P.x,
       GS.P.y,
