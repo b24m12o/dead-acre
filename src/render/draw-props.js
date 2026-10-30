@@ -264,6 +264,19 @@ export function drawCasters() {
   if (GS.obj && GS.obj.type === 'box') for (const q of GS.obj.piles) if (vis(q.x, q.y)) push(q.y - 30, drawPile, q);
   DQ.sort((a, b) => a.y - b.y);
   for (const q of DQ) q.f(q.a);
+  if (!GS.SHMODE && GS.P && !GS.NOHERO && GS.state !== 'over') {
+    const P = GS.P,
+      over = e =>
+        e.type === 'queen' &&
+        (e.dead ? e.y - 18 : e.y + 240) > P.y &&
+        Math.hypot(P.x - e.x, (P.y - e.y) * 1.2) < e.r * (e.sc || 1) * 1.9 + 24;
+    if (GS.enemies.some(over) || GS.corpses.some(over)) {
+      GS.xray = 0.5;
+      drawRanger(P);
+      GS.xray = 0;
+      GS.gA = 1;
+    }
+  } // a boss standing over you, alive or dead, never hides you: you show through it, faintly
   for (const g of GS.bangs) {
     setH(g.z + 3);
     quad(R.flashbang, g.x, g.y - g.z, g.spin, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0);

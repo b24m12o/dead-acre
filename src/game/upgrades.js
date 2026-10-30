@@ -121,7 +121,7 @@ export const UP = [
     id: 'ambush',
     cat: 'Gun mod',
     name: 'Ambush',
-    desc: '+80% damage to zombies that have not noticed you yet, are dazed by a flashbang or are down.',
+    desc: '+80% damage to zombies that have not noticed you yet, are dazed or are down.',
     max: 1,
     apply() {
       S.ambush = 1;
@@ -162,8 +162,8 @@ export const UP = [
   {
     id: 'pulse',
     cat: 'Gear',
-    name: 'Flashbangs',
-    desc: 'Every 4 s toss a flashbang into the nearest crowd: it dazes the dead, knocks them back and clears their spit.',
+    name: 'Stun Grenades',
+    desc: 'Every 4 s toss a stun grenade into the nearest crowd: it dazes the dead, knocks them back and clears their spit.',
     max: 3,
     apply() {
       S.pulse++;
@@ -312,7 +312,7 @@ export const EVOS = [
     id: 'nova',
     name: 'Combat Medic',
     need: { pulse: 2, regen: 2 },
-    desc: 'Flashbangs go out every 2 s and heal 2 health per zombie they hit.',
+    desc: 'Stun grenades go out every 2 s and heal 2 health per zombie they hit.',
     apply() {
       S.pulseCd = 2;
       S.evo.nova = 1;

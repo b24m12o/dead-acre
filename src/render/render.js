@@ -391,6 +391,7 @@ export function render() {
       );
     }
   lampShadows();
+  drawFog(0.8);
   drawCasters();
   for (const q of GS.parts)
     if (q.k === 2) {
@@ -545,7 +546,7 @@ export function render() {
     heliRotor(e);
   } // airborne: above the roofs and the tree crowns
   drawAsh();
-  drawFog();
+  drawFog(0.3);
   for (const r of roofs) {
     const under =
       GS.P &&

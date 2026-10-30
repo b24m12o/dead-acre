@@ -4,7 +4,7 @@ import { TW } from './districts.js';
 export const HEROES = {
   ranger: {
     name: 'Soldier',
-    weapon: 'Rifles',
+    weapon: 'rifles',
     spec: 'rifle',
     desc: 'Guardsman cut off from the convoy. Every rifle hits 20% harder.',
     hp: 100,
@@ -14,7 +14,7 @@ export const HEROES = {
   },
   breacher: {
     name: 'Deputy',
-    weapon: 'Shotguns',
+    weapon: 'shotguns',
     spec: 'shotgun',
     desc: "Precinct 9's last deputy, the toughest of the three. Shotguns fire an extra pellet and hit 20% harder.",
     hp: 135,
@@ -24,7 +24,7 @@ export const HEROES = {
   },
   grenadier: {
     name: 'Gunslinger',
-    weapon: 'Pistol & SMG',
+    weapon: 'pistol & SMG',
     spec: 'pistol',
     desc: 'Drifter who rode in on Route 9, the fastest of the three. Pistol and SMG fire faster, hit 25% harder and pierce.',
     hp: 95,

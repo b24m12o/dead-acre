@@ -46,6 +46,7 @@ export function gameOver() {
   stopHeli();
   $('over').querySelector('.eyebrow').textContent = `Killed by ${GS.P.lastBy || 'the dead'} · The radio is still on`;
   $('againBtn').textContent = 'Try again';
+  $('oScoreL').textContent = 'Score';
   if (GS.RUN.practice) {
     practiceReport(false);
     return;
@@ -70,7 +71,7 @@ export function gameOver() {
   {
     const af = affordNow();
     $('oSeeds').innerHTML =
-      `+${earned} scrap · <b>${GS.meta.seeds.toLocaleString()}</b> banked` +
+      `<b>${GS.meta.seeds.toLocaleString()}</b> scrap banked` +
       (af.length
         ? `<br><span class="afford">In the Armory you can now buy: ${af.slice(0, 3).join(' · ')}${af.length > 3 ? ` · and ${af.length - 3} more` : ''}</span>`
         : '');
@@ -108,7 +109,7 @@ export function gameOver() {
     chalRunSummary() + '<div><button class="opt" id="oChalBtn" type="button">See all challenges</button></div>';
   $('oChalBtn').onclick = () => openChal('over');
   $('oRec').innerHTML =
-    `${nb || nw ? '<span class="newrec">New record · </span>' : ''}Best score <b>${rec.score.toLocaleString()}</b> · longest night <b>${rec.wave}</b>` +
+    `${nb || nw ? '<span class="newrec">New record · </span>' : ''}Best score <b>${rec.score.toLocaleString()}</b> · furthest night <b>${rec.wave}</b>` +
     bossLogHtml();
   $('bossBox').hidden = true;
   setTimeout(() => {
@@ -141,7 +142,7 @@ export function renderRunReport(id) {
 }
 export function showMenuRec() {
   $('menuRec').innerHTML = rec.score
-    ? `Best <b>${rec.score.toLocaleString()}</b> · longest night <b>${rec.wave}</b>`
+    ? `Best <b>${rec.score.toLocaleString()}</b> · furthest night <b>${rec.wave}</b>`
     : 'No runs logged yet';
   $('menuSeeds').innerHTML = seedsLine();
 }
@@ -161,15 +162,19 @@ export function init() {
     $('menu').hidden = false;
   });
   $('endlessBtn').addEventListener('click', goEndless);
-  $('wonMenuBtn').addEventListener('click', () => {
+  const wonToMenu = () => {
     $('won').hidden = true;
     $('hud').hidden = true;
     showMenuRec();
     renderHeroes();
     $('menu').hidden = false;
     menuInit();
+  };
+  $('wonMenuBtn').addEventListener('click', () => {
+    wonToMenu();
     openHangar();
   });
+  $('wonHomeBtn').addEventListener('click', wonToMenu);
   $('againBtn').addEventListener('click', () => begin(false));
   $('resumeBtn').addEventListener('click', () => setPause(false));
   $('quitBtn').addEventListener('click', () => {

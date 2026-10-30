@@ -33,7 +33,8 @@ export function updateEnemy(e, dt, p) {
     e.emerge = Math.min(1, e.emerge + dt * (e.type === 'queen' ? 0.7 : 2.2));
     if (Math.random() < dt * 20) dust(e.x, e.y, 1, 30, 0.6, 0.6);
   }
-  if (!GS.queue.length && GS.enemies.length <= 3 && e.type !== 'flower') e.sp = Math.max(e.sp, ET[e.type].sp * 1.25);
+  if (!GS.queue.length && GS.enemies.length <= 3 && e.type !== 'flower' && e.type !== 'queen' && !e.big)
+    e.sp = Math.max(e.sp, ET[e.type].sp * 1.25); // the last stragglers hurry; a boss keeps its own pace
   e.losT -= dt;
   if (e.losT <= 0) {
     e.losT = 0.25;
@@ -725,7 +726,8 @@ export function updateEnemy(e, dt, p) {
       const d = Math.sqrt(pd2);
       e.noProg = d > 260 && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
       e.lastPD = d;
-      if (e.noProg >= 12 && !GS.queue.length && GS.enemies.length <= 3 && GS.nightLive) {
+      if (e.noProg >= 12 && !GS.queue.length && GS.nightLive) {
+        // stuck where it can't reach you once the night's last wave is out: it comes round again near you, however many are left
         const [sx, sy] = spawnPoint(380, false);
         e.x = sx;
         e.y = sy;

@@ -39,8 +39,9 @@ export const breathe = () => new Promise(r => setTimeout(r, 30));
 // true while a run should not start yet; it also nudges the line that says why
 export function soundWait() {
   if (given || !soundProgress().pend) return false;
-  const l = $('loadSnd');
-  if (l) {
+  for (const id of ['loadSnd', 'loadSnd2', 'loadSnd3']) {
+    const l = $(id);
+    if (!l) continue;
     l.classList.remove('nudge');
     void l.offsetWidth;
     l.classList.add('nudge');
@@ -57,11 +58,13 @@ export function watchSounds() {
     if (performance.now() - shownT > WAIT_MAX) given = true;
     const wait = p.pend && !given,
       pct = p.size ? Math.floor((p.got / p.size) * 100) : 0,
-      l = $('loadSnd');
-    if (l) {
+      txt = `Sound still coming in · ${pct}% · ${mb(p.got)} of ${mb(p.size)} MB. Start waits for it, so the guns, radio and music don’t change mid-fight.`;
+    for (const id of ['loadSnd', 'loadSnd2', 'loadSnd3']) {
+      const l = $(id);
+      if (!l) continue;
       l.hidden = !wait;
-      l.textContent = `Sound still coming in · ${pct}% · ${mb(p.got)} of ${mb(p.size)} MB. Start waits for it, so the guns, radio and music don’t change mid-fight.`;
-    }
+      l.textContent = txt;
+    } // on the main menu, and under the Start button
     for (const id of BTNS) {
       const b = $(id);
       if (!b) continue;

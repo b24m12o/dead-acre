@@ -123,7 +123,9 @@ export function init() {
       !$(GS.state).hidden &&
       !(document.activeElement && document.activeElement.tagName === 'BUTTON' && k === 'enter')
     ) {
-      $(GS.state === 'over' ? (k === 'enter' ? 'againBtn' : 'toMenuBtn') : 'wonMenuBtn').click();
+      $(
+        GS.state === 'over' ? (k === 'enter' ? 'againBtn' : 'toMenuBtn') : k === 'enter' ? 'wonMenuBtn' : 'wonHomeBtn'
+      ).click();
     } else if (k === 'escape' && GS.state === 'menu') {
       for (const [id, b] of [
         ['practice', 'practiceBack'],

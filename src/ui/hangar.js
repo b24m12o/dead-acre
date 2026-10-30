@@ -16,14 +16,23 @@ import { doReroll, offerUpgrades, renderMods } from '../game/upgrades.js';
 import { AB_DEF } from '../game/abilities.js';
 import { updateHint } from './settings-ui.js';
 import { showMenuRec } from './screens.js';
-import { CHAL, OUTFITS, chalDone, chalFrom, checkChal, districtOpen, openChal, snapChal } from '../game/challenges.js';
+import {
+  OUTFITS,
+  chalDone,
+  chalFrom,
+  checkChal,
+  districtOpen,
+  lockLine,
+  openChal,
+  snapChal,
+} from '../game/challenges.js';
 import { startPractice } from '../game/practice.js';
 import { menuInit, renderChallenges, renderDistricts } from './menu.js';
 export function renderHeroes() {
   $('heroes').innerHTML = Object.entries(HEROES)
     .map(([id, h]) => {
       const own = GS.meta.unlocked[id];
-      return `<button type="button" class="hero${GS.meta.hero === id ? ' on' : ''}${own ? '' : ' locked'}" data-h="${id}"><span class="nm"><i style="background:${h.dot}"></i>${h.name}</span><span class="wp">${h.weapon} · ${h.hp} health</span><span class="ds">${h.desc}</span><span class="wp ab">E · ${AB_DEF[id].name}</span>${own ? '' : `<span class="lk">Locked · ${h.cost} scrap in the Armory</span>`}</button>`;
+      return `<button type="button" class="hero${GS.meta.hero === id ? ' on' : ''}${own ? '' : ' locked'}" data-h="${id}"><span class="nm"><i style="background:${h.dot}"></i>${h.name}</span><span class="wp">Best with ${h.weapon} · ${h.hp} health</span><span class="ds">${h.desc}</span><span class="wp ab">E · ${AB_DEF[id].name}</span>${own ? '' : `<span class="lk">Locked · ${h.cost} scrap in the Armory</span>`}</button>`;
     })
     .join('');
   for (const b of $('heroes').children)
@@ -93,12 +102,12 @@ function renderHangar() {
     .filter(([id]) => id !== 'ranger')
     .map(([id, h]) => {
       const own = GS.meta.unlocked[id];
-      return `<div class="perk"><span class="nm">${h.name} · ${h.weapon}</span><button type="button" class="buy" data-hero="${id}" ${own || GS.meta.seeds < h.cost ? 'disabled' : ''}>${own ? 'Unlocked' : h.cost + ' scrap'}</button><span class="ds">${h.desc}</span></div>`;
+      return `<div class="perk"><span class="nm">${h.name} · best with ${h.weapon}</span><button type="button" class="buy" data-hero="${id}" ${own || GS.meta.seeds < h.cost ? 'disabled' : ''}>${own ? 'Unlocked' : h.cost + ' scrap'}</button><span class="ds">${h.desc}</span></div>`;
     })
     .join('');
   $('hangarPerks').innerHTML = PERKS.map(pk => {
     if (pk.req && !chalDone(pk.req))
-      return `<div class="perk"><span class="nm">${pk.name}</span><button type="button" class="buy" disabled>Locked</button><span class="ds">${pk.desc} Unlock: complete ${CHAL.find(c => c.id === pk.req).name}</span></div>`;
+      return `<div class="perk"><span class="nm">${pk.name}</span><button type="button" class="buy" disabled>Locked</button><span class="ds">${pk.desc} ${lockLine(pk.req)}</span></div>`;
     const lv = GS.meta.perks[pk.id] || 0,
       maxed = lv >= pk.max,
       cost = pk.cost(lv),

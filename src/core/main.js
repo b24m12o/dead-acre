@@ -177,6 +177,8 @@ async function boot() {
   showMenuRec();
   renderHeroes();
   menuInit();
+  loadStep('Ready', 1);
+  await breathe(); // the bar reaches the end before the menu takes over
   $('loading').hidden = true;
   $('menu').hidden = !!$('glLost'); // a reset during loading keeps its message up alone
   watchSounds();

@@ -159,7 +159,7 @@ export function drawRanger(p) {
   const bob = Math.abs(Math.sin(ph)) * amp * 1.2,
     breathe = 1 + Math.sin(GS.time * 2.4) * 0.012;
   const roll = p.dashT > 0 ? 1 : 0;
-  GS.gA = blink;
+  GS.gA = blink * (GS.xray || 1);
   const ba = p.bodyA,
     bc = Math.cos(ba),
     bs = Math.sin(ba),

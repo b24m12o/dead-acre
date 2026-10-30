@@ -108,9 +108,12 @@ export function drawRainUI() {
   ui.stroke();
   ui.restore();
 }
-export function drawFog() {
-  const dense = Math.max(GS.FOGB, GS.ev === 'fog' ? 1 : GS.RUN.district === 'cemetery' ? 0.45 : 0.16);
+// k: the share of it drawn here. Most of it lies on the ground under the figures (drawn before them); a thin veil
+// goes over everything, so the mist hangs in the air without hiding the people in it
+export function drawFog(k = 1) {
+  const dense = k * Math.max(GS.FOGB, GS.ev === 'fog' ? 1 : GS.RUN.district === 'cemetery' ? 0.45 : 0.16);
   if (!dense) return;
+  setH(0);
   for (let i = 0; i < 9; i++) {
     const ox = ((GS.time * (8 + i * 2) + i * 517) % (viewW + 700)) - 350,
       oy = ((i * 211 + Math.sin(GS.time * 0.1 + i) * 60) % (viewH + 300)) - 150;

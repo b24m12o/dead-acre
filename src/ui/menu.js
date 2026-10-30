@@ -16,7 +16,7 @@ import { HUMAN } from '../render/effects.js';
 import { HPV, PK, cleanRun, pvLabel } from './hangar.js';
 import { rope } from '../core/later.js';
 import { DISTRICTS, INFECTION, TWISTS } from '../game/districts.js';
-import { CHAL, OUTFITS, chalDone, districtOpen } from '../game/challenges.js';
+import { CHAL, OUTFITS, chalDone, districtOpen, lockLine } from '../game/challenges.js';
 export function renderDistricts() {
   if (!GS.meta.district || !districtOpen(GS.meta.district)) GS.meta.district = 'town';
   $('districts').innerHTML = Object.entries(DISTRICTS)
@@ -113,7 +113,7 @@ export function renderChallenges() {
     .map(([id, o]) => {
       const open = !o.req || chalDone(o.req),
         on = (GS.meta.outfit || 'std') === id;
-      return `<div class="perk"><span class="nm"><i class="swatch" style="background:rgb(${o.tint.map(v => Math.round(Math.min(255, v * 140))).join(',')})"></i>${o.name}</span><button type="button" class="buy" data-outfit="${id}" ${!open || on ? 'disabled' : ''}>${on ? 'Wearing' : open ? 'Wear' : 'Locked'}</button><span class="ds">${open ? "Tints every survivor's clothes." : 'Unlock: complete ' + CHAL.find(c => c.id === o.req).name}</span></div>`;
+      return `<div class="perk"><span class="nm"><i class="swatch" style="background:rgb(${o.tint.map(v => Math.round(Math.min(255, v * 140))).join(',')})"></i>${o.name}</span><button type="button" class="buy" data-outfit="${id}" ${!open || on ? 'disabled' : ''}>${on ? 'Wearing' : open ? 'Wear' : 'Locked'}</button><span class="ds">${open ? "Tints every survivor's clothes." : lockLine(o.req)}</span></div>`;
     })
     .join('');
   for (const b of document.querySelectorAll('#hangarOutfits .buy'))

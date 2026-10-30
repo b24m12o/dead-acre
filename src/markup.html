@@ -77,10 +77,10 @@
 
 <div class="overlay" id="menu" hidden>
   <div class="panel">
-    <div class="eyebrow">Dead Acre County · Day 3 of the outbreak · Radio channel 9</div>
+    <div class="eyebrow">Dead Acre County · Day 3 of the outbreak · Radio Channel 9</div>
     <h1>Dead <span>Acre</span></h1>
     <p class="lede">
-      Three days ago the county went dark. A National Guard convoy still talks on channel 9, and it needs the radio
+      Three days ago the county went dark. A National Guard convoy still talks on Channel 9, and it needs the radio
       relay held. Start with a pistol, grab the weapons the convoy airdrops as the nights go on, scavenge ammo off the
       dead, and last 15 nights until the Guard chopper comes for you.
     </p>
@@ -125,6 +125,7 @@
       <button class="btn" id="startBtn" type="button">Hold the line</button
       ><button class="btn ghost" id="survBack" type="button">Back</button>
     </div>
+    <p class="loadsnd" id="loadSnd2" hidden></p>
   </div>
 </div>
 <div class="overlay" id="levelup" hidden>
@@ -150,7 +151,7 @@
     <p class="rec" id="pauseHint"></p>
     <div class="btns">
       <span class="seg"
-        ><button id="musicBtn" type="button">Music</button><button id="muteBtn" type="button">Sound</button></span
+        ><button id="musicBtn" class="tog" type="button">Music</button><button id="muteBtn" class="tog" type="button">Sound</button></span
       >
     </div>
     <div class="btns">
@@ -167,7 +168,7 @@
     <h2 id="overTitle">Eaten on night 4 of 15</h2>
     <dl class="stats">
       <div>
-        <dt>Score</dt>
+        <dt id="oScoreL">Score</dt>
         <dd id="oScore">0</dd>
       </div>
       <div>
@@ -224,6 +225,7 @@
     <p class="rec plain" id="wUnlock"></p>
     <div class="btns">
       <button class="btn" id="wonMenuBtn" type="button">Armory</button
+      ><button class="btn ghost" id="wonHomeBtn" type="button">Menu</button
       ><button class="btn ghost" id="endlessBtn" type="button">Stay behind · Endless nights</button>
     </div>
   </div>
@@ -267,13 +269,14 @@
 </div>
 <div class="overlay" id="practice" hidden>
   <div class="panel">
-    <div class="eyebrow">Testing · no scrap and no challenge progress</div>
+    <div class="eyebrow">Practice · no scrap and no challenge progress</div>
     <h2>Boss practice</h2>
     <p class="lede small">
       Straight into a boss fight with the guns and the level you would normally have by that night. Your perks and
       character apply.
     </p>
     <div class="perks" id="practiceList"></div>
+    <p class="loadsnd" id="loadSnd3" hidden></p>
     <div class="btns"><button class="btn" id="practiceBack" type="button">Back</button></div>
   </div>
 </div>
@@ -342,10 +345,10 @@
         ><button type="button" class="tog" id="tutBtn">Training on next run</button
         ><span class="segnote">Walls hide whatever is behind them</span>
       </div>
-      <label class="pracRow">Testing</label>
+      <label class="pracRow">Practice</label>
       <div class="seg pracRow">
         <button type="button" id="practiceBtn">Boss practice</button
-        ><span class="segnote">Fight any boss straight away · B on the main menu</span>
+        ><span class="segnote">Fight any boss you have faced, straight away</span>
       </div>
     </div>
     <div class="save-tools" aria-label="Profile backup">
@@ -373,7 +376,7 @@
 <div id="streak"></div>
 <div class="overlay" id="deskOnly" hidden>
   <div class="panel">
-    <div class="eyebrow">Dead Acre County · Radio channel 9</div>
+    <div class="eyebrow">Dead Acre County · Radio Channel 9</div>
     <h1>Dead <span>Acre</span></h1>
     <p class="lede">
       This game is built for a computer with a keyboard and mouse. There are no touch controls, so it won't run on a

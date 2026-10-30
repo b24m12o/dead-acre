@@ -308,3 +308,9 @@ export function init() {
   chalDone = id => !!(GS.meta.chal && GS.meta.chal[id]);
   districtOpen = d => !DISTRICTS[d].lock || chalDone(DISTRICTS[d].lock);
 }
+
+// what a locked thing asks of you: the challenge's name and what it takes
+export function lockLine(id) {
+  const c = CHAL.find(c => c.id === id);
+  return c ? `Unlock: ${c.name} · ${c.desc}` : '';
+}

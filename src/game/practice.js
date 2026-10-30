@@ -11,6 +11,8 @@ import { hideCallouts } from '../ui/callouts.js';
 import { banner } from './waves.js';
 import { begin } from '../ui/hangar.js';
 import { bossEntrance, bossName, fmtT } from './boss-flow.js';
+import { districtOpen } from './challenges.js';
+const met = night => ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= night - 1; // got as far as that night in a run
 export const PRACTICE_SET = [
   { bt: 'abom', name: 'Abomination', d: 'town', night: 5, where: 'Dead Acre · night 5' },
   { bt: 'roadkill', name: 'Roadkill', d: 'highway', night: 5, where: 'Route 9 · night 5' },
@@ -21,11 +23,13 @@ export const PRACTICE_SET = [
 export function openPractice(from) {
   PRACTICE_FROM = from;
   for (const id of ['menu', 'settings']) $(id).hidden = true;
-  $('practiceList').innerHTML = PRACTICE_SET.map(
-    o =>
-      `<div class="perk"><span class="nm">${o.name}</span><button type="button" class="buy" data-bt="${o.bt}">Fight</button><span class="ds">${o.where}${trophyLine(o.bt)}</span></div>`
-  ).join('');
-  for (const b of $('practiceList').querySelectorAll('.buy'))
+  $('practiceList').innerHTML = PRACTICE_SET.map(o => {
+    const open = districtOpen(o.d) && (o.night <= 5 || (GS.meta.trophies || {})[o.bt] || met(o.night));
+    return open
+      ? `<div class="perk"><span class="nm">${o.name}</span><button type="button" class="buy" data-bt="${o.bt}">Fight</button><span class="ds">${o.where}${trophyLine(o.bt)}</span></div>`
+      : `<div class="perk"><span class="nm">Unknown</span><button type="button" class="buy" disabled>Locked</button><span class="ds">${o.where} · reach it in a run first</span></div>`;
+  }).join(''); // only the bosses you could have met: the others stay a surprise
+  for (const b of $('practiceList').querySelectorAll('.buy:not([disabled])'))
     b.addEventListener('click', () => startPractice(b.dataset.bt));
   $('practice').hidden = false;
 }
@@ -105,6 +109,7 @@ export function practiceReport(won) {
       $('oRadio').hidden = true;
       $('overTitle').textContent = won ? `${name.name} down in ${fmtT(secs)}` : `${name.name} got you`;
       $('oScore').textContent = Math.round(GS.RUN.taken || 0);
+      $('oScoreL').textContent = 'Damage taken';
       $('oWaveL').textContent = 'Night';
       $('oWave').textContent = GS.wave;
       $('oKills').textContent = GS.kills;
@@ -115,8 +120,7 @@ export function practiceReport(won) {
       {
         const tr = (GS.meta.trophies || {})[GS.PRACTICE && GS.PRACTICE.bt] || {};
         $('oRec').innerHTML =
-          'Score shows the damage you took.' +
-          (tr.pbest ? ` Practice best <b>${fmtT(tr.pbest)}</b>` : '') +
+          (tr.pbest ? `Practice best <b>${fmtT(tr.pbest)}</b>` : '') +
           (tr.best ? ` · in a run <b>${fmtT(tr.best)}</b>` : '');
       }
       $('oChal').innerHTML = '';

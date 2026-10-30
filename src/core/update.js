@@ -618,6 +618,19 @@ export function update(dt) {
     }
     k.x += k.vx * dt;
     k.y += k.vy * dt;
+    if (!k.pull && solidPt(k.x, k.y)) {
+      out: for (let r = 10; r <= 90; r += 10)
+        for (let a = 0; a < 8; a++) {
+          const x = k.x + Math.cos((a * Math.PI) / 4) * r,
+            y = k.y + Math.sin((a * Math.PI) / 4) * r;
+          if (!solidPt(x, y)) {
+            k.x = x;
+            k.y = y;
+            k.vx = k.vy = 0;
+            break out;
+          }
+        }
+    } // thrown into a wall: it comes out on the nearest open ground, where you can get to it
     if (!full && dd < p.r + 10) {
       k.got = true;
       if (k.k === 'ammo') {

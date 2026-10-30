@@ -95,15 +95,16 @@ function hudFade() {
     op = (GS.meta.hud && GS.meta.hud.op) || 1,
     pts = [[(GS.P.x - GS.camX) * ZOOM, (GS.P.y - GS.camY) * ZOOM]];
   for (const e of GS.enemies)
-    if (!e.dead) {
+    if (!e.dead && e.emerge >= 1 && !e.dormant && (e.los || e.big)) {
+      // only what you could see from where you stand: a panel never gives away a zombie behind a wall
       const x = (e.x - GS.camX) * ZOOM,
         y = (e.y - (e.z || 0) - GS.camY) * ZOOM;
       if (x > -20 && y > -20 && x < VW + 20 && y < VH + 20) pts.push([x, y]);
     }
-  for (const c of GS.crates) pts.push([(c.x - GS.camX) * ZOOM, (c.y - GS.camY) * ZOOM]);
+  for (const c of GS.crates) if (c.landed) pts.push([(c.x - GS.camX) * ZOOM, (c.y - GS.camY) * ZOOM]);
   for (const q of rects) {
     const hid = pts.some(([x, y]) => inRect(x, y, q, 22)),
-      tgt = hid ? 0.5 : 1,
+      tgt = hid ? (q.id === 'gauge' ? 0.72 : 0.5) : 1, // your guns and health stay readable
       cur = HUDF.a[q.id] ?? 1,
       v = cur + (tgt - cur) * Math.min(1, dt * (hid ? 9 : 4));
     HUDF.a[q.id] = v;
