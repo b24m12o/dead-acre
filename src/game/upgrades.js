@@ -4,7 +4,8 @@ import { $ } from '../core/errors.js';
 import { TAU, rand } from '../core/util.js';
 import { GUNS, GUN_DESC } from './arsenal.js';
 import { sfx } from '../audio/sfx.js';
-import { LV, S, addAmmo, giveGun } from './state.js';
+import { LV, S, addAmmo, giveGun, magSize } from './state.js';
+import { KITS, kitPicks } from './kits.js';
 import { hideCallouts, showStreak } from '../ui/callouts.js';
 import { AB } from './abilities.js';
 import { updateHint } from '../ui/settings-ui.js';
@@ -288,6 +289,71 @@ export const UP = [
   },
 ];
 export const EVOS = [
+  // the guns' own combos: a gun from a case plus the gear that suits it
+  {
+    id: 'dtap',
+    name: 'Double Tap',
+    need: { crit: 2, rate: 1 },
+    desc: 'Every pistol shot is two: a second round follows the first.',
+    apply() {
+      S.evo.dtap = 1;
+    },
+  },
+  {
+    id: 'hose',
+    name: 'Bullet Hose',
+    need: { gun_smg: 1, bounce: 1 },
+    desc: 'SMG magazines hold 30% more and every round ricochets once more.',
+    apply() {
+      S.evo.hose = 1;
+      if (GS.P && GS.P.owned.includes('smg')) GS.P.mag.smg = magSize('smg');
+    },
+  },
+  {
+    id: 'marks',
+    name: 'Marksman',
+    need: { gun_rifle: 1, pierce: 2 },
+    desc: 'The assault rifle is always braced, even on the move, and gets +15% critical chance.',
+    apply() {
+      S.evo.marks = 1;
+    },
+  },
+  {
+    id: 'oneshot',
+    name: 'One Shot',
+    need: { gun_hunter: 1, ambush: 1 },
+    desc: "Hunting rifle rounds always crit on the dead that haven't seen you, are dazed or are down.",
+    apply() {
+      S.evo.oneshot = 1;
+    },
+  },
+  {
+    id: 'cowboy',
+    name: 'Cowboy Reload',
+    need: { gun_lever: 1, reload: 2 },
+    desc: 'The lever-action loads twice as fast.',
+    apply() {
+      S.evo.cowboy = 1;
+    },
+  },
+  {
+    id: 'walkfire',
+    name: 'Walking Fire',
+    need: { gun_lmg: 1, mags: 2 },
+    desc: 'The machine gun no longer slows you while it fires, and fires 15% faster.',
+    apply() {
+      S.evo.walkfire = 1;
+    },
+  },
+  {
+    id: 'airburst',
+    name: 'Airburst',
+    need: { gun_launcher: 1, frag: 1 },
+    desc: 'Grenades burst 40% wider.',
+    apply() {
+      S.evo.airburst = 1;
+    },
+  },
   {
     id: 'tempest',
     name: "Dragon's Breath",
@@ -414,7 +480,7 @@ export function renderPicks() {
       b.innerHTML = `<span class="k"><span>${i + 1} · ${u.cat}</span><em>${u.evo ? 'Ready' : lv ? `Rank ${lv + 1}/${u.max}` : 'New'}</em></span><span class="nm">${u.name}</span>${
         u.evo
           ? `<span class="need">${Object.keys(u.need)
-              .map(k => (UP.find(x => x.id === k) || { name: k }).name)
+              .map(k => (k.startsWith('gun_') ? GUNS[k.slice(4)] : UP.find(x => x.id === k) || { name: k }).name)
               .join(' + ')}</span>`
           : ''
       }<span class="ds">${ds}</span>${!u.evo && cb ? `<span class="need combo">Combo part · ${cb.name}</span>` : ''}${u.gun ? '' : `<span class="pips">${Array.from({ length: u.max }, (_, k) => `<i class="${k < lv ? 'on' : k === lv && !u.evo ? 'next' : u.evo ? 'on' : ''}"></i>`).join('')}</span>`}`;
@@ -485,6 +551,27 @@ export function offerGuns(gs) {
   $('levelup').classList.add('arming');
   setTimeout(() => $('levelup').classList.remove('arming'), 650);
 }
+export function offerKits(ids) {
+  // a kit case: parts and loads for two of the guns you carry, take one
+  GS.picks = kitPicks(ids, g => {
+    if (GS.P && GS.P.owned.includes(g)) GS.P.mag[g] = Math.max(GS.P.mag[g] || 0, magSize(g));
+    sfx.pump();
+  });
+  GS.pickSource = 'weapon';
+  renderPicks();
+  $('rerollBtn').hidden = true;
+  updateHint();
+  $('luEye').textContent = 'Weapon case · gun kits';
+  $('luTitle').textContent = 'Fit one';
+  hideCallouts();
+  GS.state = 'levelup';
+  $('levelup').hidden = false;
+  sfx.pump();
+  GS.luOpenT = performance.now() + 650;
+  $('levelup').classList.add('arming');
+  setTimeout(() => $('levelup').classList.remove('arming'), 650);
+}
+export const kitName = id => (KITS[id] ? KITS[id].name : id);
 export function doReroll() {
   if (
     GS.state !== 'levelup' ||

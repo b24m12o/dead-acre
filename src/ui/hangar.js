@@ -1,4 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { TW } from '../game/districts.js';
+import { KITS, kitOffer } from '../game/kits.js';
 import { soundWait } from './loading.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
@@ -265,7 +267,8 @@ export function renderPauseGuns() {
         am = G.ammo
           ? `${Math.floor(GS.P.mag[g] ?? 0)} · ${Math.floor(GS.P.ammo[G.ammo] || 0)} ${AMMO_NAME[G.ammo] || ''}`
           : `${Math.floor(GS.P.mag[g] ?? 0)} · unlimited`;
-      return `<div class="g${g === GS.P.gun ? ' on' : ''}"><kbd>${i < 9 ? i + 1 : '·'}</kbd><span class="n"><b>${esc(G.name)}</b><i>${esc(am)}</i></span></div>`;
+      const kt = (GS.RUN.kits || []).filter(k => KITS[k] && KITS[k].gun === g).map(k => KITS[k].name);
+      return `<div class="g${g === GS.P.gun ? ' on' : ''}"><kbd>${i < 9 ? i + 1 : '·'}</kbd><span class="n"><b>${esc(G.name)}</b><i>${esc(am)}${kt.length ? ' · ' + esc(kt.join(', ')) : ''}</i></span></div>`;
     })
     .join('');
   if (!GS.RUN.endless) {
@@ -273,7 +276,7 @@ export function renderPauseGuns() {
       .map(Number)
       .filter(n => n > GS.wave)
       .sort((a, b) => a - b)[0];
-    const left = nextGuns().length;
+    const left = nextGuns().length || (!TW('pistol') && kitOffer().length);
     h += `<div class="next">${nx && left ? (GS.nightDone && nx === GS.wave + 1 ? 'A weapon case comes down this dawn' : `Next weapon case: at dawn after night ${nx - 1}`) : 'No more weapon cases this run'} · tap Q for your last gun, hold Q for the wheel</div>`;
   }
   el.innerHTML = h;

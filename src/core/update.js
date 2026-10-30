@@ -9,7 +9,7 @@ import { MW, TILE, isWall } from '../world/map.js';
 import { N8, buildFlow, collide, flow, los, query, rebuildHash, solidPt } from '../world/nav.js';
 import { SBV, noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
-import { S, WHEEL, addAmmo, addAmmoType, ammoRoomFor, ammoRoomK, cam, gd, magSize } from '../game/state.js';
+import { S, WHEEL, addAmmo, addAmmoType, ammoRoomFor, ammoRoomK, cam, gd, magSize, reloadTime } from '../game/state.js';
 import { need } from '../game/run.js';
 import { offerUpgrades } from '../game/upgrades.js';
 import { makeElite, makeEnemy } from '../actors/enemies.js';
@@ -84,7 +84,8 @@ export function update(dt) {
     }
   } else {
     const dz2 =
-        (p.held ? 0.06 : p.daze > 0 ? 0.55 : 1) * (p.gun === 'lmg' && GS.time - (p.lastShotT || -9) < 0.22 ? 0.6 : 1),
+        (p.held ? 0.06 : p.daze > 0 ? 0.55 : 1) *
+        (p.gun === 'lmg' && !S.evo.walkfire && GS.time - (p.lastShotT || -9) < 0.22 ? 0.6 : 1),
       tvx = mx * S.speed * dz2,
       tvy = my * S.speed * dz2,
       dvx = tvx - p.vx,
@@ -145,7 +146,7 @@ export function update(dt) {
           p.ammo[G.ammo]--;
           sfx.shell();
         }
-        if (p.mag[g] < n && p.ammo[G.ammo] > 0) p.reload = G.reload;
+        if (p.mag[g] < n && p.ammo[G.ammo] > 0) p.reload = reloadTime(g);
         else {
           p.reload = 0;
           if (g === 'lever' && SBV.leverAct) playS('leverAct', 0.6, 1, 0, 0.08);

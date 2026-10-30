@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { kitOffer } from './kits.js';
 import { MUS } from '../audio/audio.js';
 import { GS } from '../core/gs.js';
 import { pick } from '../core/util.js';
@@ -32,19 +33,24 @@ function dawnDrops() {
         }
       },
     });
-  if (WEAPON_NIGHTS[nx] && !nextGuns().length && !TW('pistol') && nx % 2 && !bossNight(nx))
+  if (WEAPON_NIGHTS[nx] && !nextGuns().length && !TW('pistol') && !bossNight(nx))
     GS.later.push({
-      t: 3.2,
+      t: 1.6,
       fn: () => {
-        if (GS.state === 'play' && !GS.crates.some(c => !c.gun && !c.open)) {
+        if (GS.state !== 'play') return;
+        const ks = kitOffer();
+        if (ks.length) {
+          const c = dropCrate(null, null, ks);
+          if (c) c.dawn = true;
+        } else if (!GS.crates.some(c => !c.gun && !c.open)) {
           const c = dropCrate();
           if (c) {
             c.dawn = true;
-            showStreak('Supply drop', 'No guns left to spare · ammo and gear instead');
+            showStreak('Supply drop', 'Nothing left to fit · ammo and gear instead');
           }
         }
       },
-    }); // the guns have run out: a supply crate in the case's place
+    }); // the guns have run out: the case brings kits for the ones you carry
   const skip = GS.RUN.noCrate && !bossNight(nx);
   GS.RUN.noCrate = false; // a failed job: the convoy keeps tonight's crate
   if ((nx % 2 === 0 || bossNight(nx)) && !skip)

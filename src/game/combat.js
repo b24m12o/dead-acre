@@ -11,7 +11,8 @@ import { query, solidPt } from '../world/nav.js';
 import { MUS, noise, playS, spat, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, ammoNeed, dropAmmo, giveGun } from './state.js';
-import { offerGuns, offerUpgrades } from './upgrades.js';
+import { offerGuns, offerKits, offerUpgrades } from './upgrades.js';
+import { KITS } from './kits.js';
 import { showStreak } from '../ui/callouts.js';
 import { ET, TRAIT, makeEnemy } from '../actors/enemies.js';
 import {
@@ -1138,17 +1139,28 @@ function shatterCrystal(c) {
     floatText(c.x, c.y - 30, 'Short circuit', '#ffe08a', 18);
   }
 }
-export function dropCrate(gun, alt) {
+export function dropCrate(gun, alt, kits) {
+  if (kits) {
+    gun = KITS[kits[0]].gun;
+    alt = KITS[kits[1] || kits[0]].gun;
+  } // a kit case looks like a weapon case
   for (let k = 0; k < 40; k++) {
     const a = rand(0, TAU),
       d = gun ? rand(170, 320) : rand(240, 480),
       x = clamp(GS.P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
       y = clamp(GS.P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
     if (solidPt(x, y) || solidPt(x + 20, y) || solidPt(x - 20, y) || solidPt(x, y + 20) || solidPt(x, y - 20)) continue;
-    const cr = { x, y, z: 640, landed: false, t: 0, gun, alt };
+    const cr = { x, y, z: 640, landed: false, t: 0, gun, alt, kit: kits };
     GS.crates.push(cr);
     const live = () => GS.crates.includes(cr) && !cr.open;
-    if (gun && alt)
+    if (kits)
+      showStreak(
+        'Convoy airdrop',
+        `A weapon case is coming down · ${kits.map(k => KITS[k].name).join(' or ')}`,
+        undefined,
+        live
+      );
+    else if (gun && alt)
       showStreak(
         'Convoy airdrop',
         `A weapon case is coming down · ${GUNS[gun].name} or ${GUNS[alt].name}`,
@@ -1293,6 +1305,21 @@ export function updateCrates(dt) {
         dust(c.x - Math.sign(c.vx) * 14, c.y + 6, 1, 20, 0.5, 0.5);
       c.ang += (c.vx || 0) * 0.0015 * dt * 60 * (c.z === 0 ? 1 : 0.2);
       if (Math.abs(c.vx) < 2 && Math.abs(c.vy) < 2 && !c.vz) c.vx = c.vy = 0;
+    } else if (GS.state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40 && c.kit) {
+      c.open = true;
+      const ks = c.kit.filter(id => !(GS.RUN.kits || []).includes(id)),
+        go = () => {
+          if (GS.state === 'play') {
+            if (ks.length > 1) offerKits(ks);
+            else if (ks.length) {
+              GS.RUN.kits = (GS.RUN.kits || []).concat(ks[0]);
+              showStreak(KITS[ks[0]].name, GUNS[KITS[ks[0]].gun].name + ' · kit fitted');
+            }
+          } else if (GS.state === 'levelup' || GS.state === 'pause') GS.later.push({ t: 0.1, fn: go });
+        };
+      GS.later.push({ t: 0.15, fn: go });
+      glowBurst(c.x, c.y, [1, 0.8, 0.3], 22, 240, 0.5, 0.6);
+      chips(c.x, c.y, 10, [0.45, 0.5, 0.3], 3, 260);
     } else if (GS.state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40 && c.gun) {
       c.open = true;
       if (c.alt && !GS.P.owned.includes(c.alt) && !GS.P.owned.includes(c.gun)) {

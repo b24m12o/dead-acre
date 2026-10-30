@@ -2,6 +2,7 @@
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp, rand, randi } from '../core/util.js';
 import { GUNS } from '../game/arsenal.js';
+import { kitMod } from '../game/kits.js';
 import { ZOOM } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { crystals } from '../world/map.js';
@@ -36,7 +37,10 @@ import { TW } from '../game/districts.js';
 export function firePlayer(cwx, cwy, p, target) {
   const g = p.gun,
     G = GUNS[g],
-    hb = heroGun(g);
+    hb = heroGun(g),
+    km = kitMod(g),
+    still = Math.hypot(p.vx, p.vy) < 40,
+    braced = (km.brace && still) || (g === 'rifle' && S.evo.marks); // a bipod down, or the Marksman combo
   if (p.mag[g] <= 0) {
     if (GS.time - (p.lastShotT || -9) > 0.14) startReload();
   } else {
@@ -44,14 +48,14 @@ export function firePlayer(cwx, cwy, p, target) {
     p.mag[g]--;
     p.lastShotT = GS.time;
     if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.triggers++;
-    const rate = G.rate * S.rate * hb.rate;
+    const rate = G.rate * S.rate * hb.rate * (g === 'lmg' && (braced || S.evo.walkfire) ? 1.15 : 1);
     p.fireCd += 1 / rate;
     if (p.fireCd < -0.05) p.fireCd = 1 / rate;
     const c = Math.cos(p.aimA),
       s = Math.sin(p.aimA),
       mxp = p.x + c * G.muzzle,
       myp = p.y + s * G.muzzle,
-      dm = G.dmg * S.dmg * hb.dmg * (g === 'pistol' && TW('pistol') ? 1.6 : 1);
+      dm = G.dmg * S.dmg * hb.dmg * km.dmg * (g === 'pistol' && TW('pistol') ? 1.6 : 1);
     let base = p.aimA;
     {
       const fx = cwx - mxp,
@@ -87,6 +91,7 @@ export function firePlayer(cwx, cwy, p, target) {
         ty,
         t: 0,
         dur: clamp((dl - G.muzzle) / G.speed, 0.16, 0.6),
+        R: km.blast !== 1 || S.evo.airburst ? (S.blast || 95) * km.blast * (S.evo.airburst ? 1.4 : 1) : undefined,
         z: 0,
         vx: 0,
         vy: 0,
@@ -99,9 +104,36 @@ export function firePlayer(cwx, cwy, p, target) {
       p.vy -= s * 60;
       shake(0.08);
       for (let k = 0; k < 3; k++) dust(mxp + c * 6, myp + s * 6, 1, 50, 0.7, 0.6);
+    } else if (G.pellets && km.slug) {
+      // a slug: one solid round down the barrel, the whole load's punch at any range
+      const a = base + rand(-0.02, 0.02),
+        sp = G.speed * 1.15;
+      GS.pbullets.push({
+        x: p.x + c * 14,
+        y: p.y + s * 14,
+        sx: p.x + c * 14,
+        sy: p.y + s * 14,
+        mz: G.muzzle - 14,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        life: (G.life * 2.2 + G.muzzle / sp) * S.rangeK,
+        dmg: dm * (G.pellets + hb.pellets) * 0.7,
+        pierce: S.pierce + 2,
+        fall: 0.8,
+        bounce: 0,
+        hits: [],
+        fam: 'shotgun',
+        gun: g,
+        kb: (S.evo.kb ? 3.5 : 2.6) * km.kb,
+        heavy: true,
+      });
+      p.vx -= c * 90;
+      p.vy -= s * 90;
+      shake(0.1);
+      for (let k = 0; k < 3; k++) dust(mxp + c * 10, myp + s * 10, 1, 70, 0.6, 0.5);
     } else if (G.pellets) {
       const n = G.pellets + hb.pellets + (S.shots - 1) * 2,
-        spr = G.spread * S.spreadK * (S.spreadMul || 1);
+        spr = G.spread * S.spreadK * (S.spreadMul || 1) * km.spread;
       for (let i = 0; i < n; i++) {
         const a = base + (n > 1 ? (i / (n - 1) - 0.5) * spr : 0) + rand(-0.04, 0.04),
           sp = rand(G.speed * 0.9, G.speed * 1.05);
@@ -123,7 +155,7 @@ export function firePlayer(cwx, cwy, p, target) {
           pellet: true,
           fam: 'shotgun',
           gun: g,
-          kb: S.evo.kb ? 3.5 : g === 'auto' ? 1.7 : 2.4,
+          kb: (S.evo.kb ? 3.5 : g === 'auto' ? 1.7 : 2.4) * km.kb,
           sid: (p.shellN = (p.shellN || 0) + (i ? 0 : 1)),
         });
       }
@@ -163,8 +195,14 @@ export function firePlayer(cwx, cwy, p, target) {
         if (!q) return;
         const cc = Math.cos(aa),
           ss = Math.sin(aa),
-          br = g === 'rifle' && Math.hypot(q.vx, q.vy) < 40,
-          a = aa + rand(-G.spread, G.spread) * (0.35 + 0.65 * (q.heat || 0)) * (S.spreadMul || 1) * (br ? 0.5 : 1); // stand still and the rifle is braced: tighter, and through one more body
+          br = (g === 'rifle' && Math.hypot(q.vx, q.vy) < 40) || braced,
+          a =
+            aa +
+            rand(-G.spread, G.spread) *
+              (0.35 + 0.65 * (q.heat || 0)) *
+              (S.spreadMul || 1) *
+              km.spread *
+              (br ? (g === 'lmg' ? 0.4 : 0.5) : 1); // stand still and the rifle is braced: tighter, and through one more body
         GS.pbullets.push({
           x: q.x + cc * 14,
           y: q.y + ss * 14,
@@ -175,18 +213,26 @@ export function firePlayer(cwx, cwy, p, target) {
           vy: Math.sin(a) * G.speed,
           life: G.life + G.muzzle / G.speed,
           dmg: dm * k,
-          pierce: S.pierce + hb.pierce + (G.pierce || 0) + (br ? 1 : 0),
+          pierce: S.pierce + hb.pierce + km.pierce + (G.pierce || 0) + (br && g === 'rifle' ? 1 : 0),
+          crit: km.crit + (g === 'rifle' && S.evo.marks ? 0.15 : 0),
           fall: G.fall || 0.85,
           ap: g === 'rifle' || g === 'lmg' || g === 'lever' ? 1 : 0,
           fam: G.fam,
           gun: g,
-          bounce: S.bounce,
+          bounce: S.bounce + (g === 'smg' && S.evo.hose ? 1 : 0),
           hits: [],
-          kb: (big ? 3 : g === 'pistol' ? 1.3 : 1) * k,
+          kb: (big ? 3 : g === 'pistol' ? 1.3 : 1) * k * km.kb,
           heavy: big && k === 1,
         });
       };
       shot(base, 1);
+      if (g === 'pistol' && S.evo.dtap)
+        GS.later.push({
+          t: 0.07,
+          fn: () => {
+            if (GS.P && GS.state === 'play' && GS.P.gun === 'pistol') shot(GS.P.aimA, 0.85);
+          },
+        }); // Double Tap: a second round right behind the first
       for (let i = 1; i < n; i++)
         GS.later.push({
           t: i * 0.055,
@@ -405,7 +451,11 @@ export function updatePBullet(b, dt) {
       rr2 = e.r + 5,
       hitIt = d2(b.x, b.y, e.x, e.y - e.z * 0.6) < rr2 * rr2; // where the round actually struck
     if (!hitIt) return;
-    const crit = Math.random() < S.crit,
+    const crit =
+        Math.random() < S.crit + (b.crit || 0) ||
+        (b.gun === 'hunter' &&
+          S.evo.oneshot &&
+          (!(e.aw > 0) || (e.dazedT || 0) > GS.time || e.down > 0 || e.stunT > 0)), // One Shot: the hunting rifle never wastes a shot on one that hasn't seen you
       tr = b.pellet && b.ox !== undefined ? Math.hypot(b.x - b.ox, b.y - b.oy) : 0;
     const rk = b.pellet ? clamp(1.3 - tr / 260, 0.4, 1.2) : 1,
       kbk = b.pellet ? clamp(1.5 - tr / 260, 0.35, 1.3) : 1; // buckshot hits hard up close and spreads thin

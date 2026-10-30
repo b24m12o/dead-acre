@@ -14,6 +14,7 @@ import { mouse } from '../core/input.js';
 import { PK } from '../ui/hangar.js';
 import { TW } from './districts.js';
 import { tip } from '../audio/radio.js';
+import { kitCarry, kitMod } from './kits.js';
 /* =====================================================================
    State
    ===================================================================== */
@@ -356,6 +357,10 @@ function bestGun() {
     }
   return best || (hasAmmo('launcher') && GS.P.owned.includes('launcher') ? 'launcher' : 'pistol');
 } // never the grenade launcher when anything else has rounds
+// how long one reload (or one shell or round, for the guns loaded a round at a time) takes with this gun's kits
+export function reloadTime(g) {
+  return GUNS[g].reload * kitMod(g).reload * (g === 'lever' && S.evo.cowboy ? 0.5 : 1);
+}
 export function startReload() {
   const p = GS.P,
     g = p.gun,
@@ -379,7 +384,7 @@ export function startReload() {
     }
     return;
   }
-  p.reload = p.reloadMax = G.reload;
+  p.reload = p.reloadMax = reloadTime(g);
   p.trigFresh = false;
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.reloads++;
   if (!G.perShell) {
@@ -482,6 +487,7 @@ export function addAmmo(k) {
 export function giveGun(g) {
   const p = GS.P,
     G = GUNS[g];
+  LV['gun_' + g] = 1; // combos that need this gun can come up now
   if (!p.owned.includes(g)) {
     p.owned.push(g);
     if (p.owned.length === 3) GS.later.push({ t: 2.5, fn: () => tip('wheel') }); // new guns join the end of the row, so the number keys you know never move
@@ -498,8 +504,8 @@ export function giveGun(g) {
 export function init() {
   rec = { score: +(store.get('rr_best') || 0), wave: +(store.get('rr_wave') || 0) };
   gd = () => S.dmg * 10;
-  magSize = g => Math.round(GUNS[g].mag * S.magK);
-  ammoMax = t => Math.floor(AMMO_MAX[t] * S.ammoK);
+  magSize = g => Math.round((GUNS[g].mag + kitMod(g).magAdd) * S.magK * (g === 'smg' && S.evo.hose ? 1.3 : 1));
+  ammoMax = t => Math.floor((AMMO_MAX[t] + kitCarry(t)) * S.ammoK);
   WHEEL = { open: false, held: null, downT: 0, sel: -1 };
   AMMO_NAME = { light: '9mm', shells: '12-gauge', rifle: '5.56', heavy: 'heavy rifle', gren: '40mm' };
 }
