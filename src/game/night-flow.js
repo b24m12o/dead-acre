@@ -20,6 +20,7 @@ import { SIG, jobNight, openJobs, planSig } from './objectives.js';
 import { RADIO, STORY, radio, storyDawn, tip } from '../audio/radio.js';
 import { finishObjective } from './objective-flow.js';
 import { practiceReport } from './practice.js';
+import { endHorde } from './horde.js';
 function dawnDrops() {
   // dawn has a job now: the convoy drops what the next night needs while it is quiet, and the night waits a little while it sits unopened
   const nx = GS.wave + 1;
@@ -80,6 +81,7 @@ export function nightCleared() {
   }
   if (GS.nightDone) return;
   GS.nightDone = true;
+  endHorde();
   if (GS.wave > 0 && !bossNight(GS.wave)) sfx.clear();
   if (GS.P && GS.P.stains)
     for (const st of GS.P.stains) {

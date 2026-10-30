@@ -187,12 +187,13 @@ export function updateEnemy(e, dt, p) {
     face = fa;
     rate = 6;
   } else if (lure && !ot) {
-    if (dist < (lure.truck ? 98 : 78)) {
+    if (dist < (lure.truck ? 98 : lure.horde ? 120 : 78)) {
       face = Math.atan2(lure.y - e.y, lure.x - e.x);
-      if (em && !lure.flare) poundCar(e, lure, dt);
+      if (em && !lure.flare && !lure.horde) poundCar(e, lure, dt);
     } else {
-      tvx = ux * e.sp * 1.1;
-      tvy = uy * e.sp * 1.1;
+      const k = lure.horde ? (e.run ? 0.34 : 0.72) : 1.1; // a roaming horde walks; it only runs once it has you
+      tvx = ux * e.sp * k;
+      tvy = uy * e.sp * k;
     }
     rate = 5;
   } else

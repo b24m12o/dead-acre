@@ -21,7 +21,7 @@ import { OBJ_TIP } from './objective-flow.js';
 import { BOSS_PRE, bossEntrance, bossName, bossType } from './boss-flow.js';
 import { tutStart, tutWanted } from './tutorial.js';
 function surgePlan(w) {
-  if (bossNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice) return null;
+  if (bossNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice || GS.horde) return null; // a horde night has no surges: the horde is the night
   const n = GS.queue.length;
   {
     let cut = Math.round(n * 0.08);
@@ -42,7 +42,7 @@ function surgePlan(w) {
       horde: null,
       piece: null,
     };
-  if (GS.RUN.sig === 'horde' || GS.RUN.sig === 'alarm') sg.piece = GS.RUN.sig;
+  if (GS.RUN.sig === 'alarm') sg.piece = GS.RUN.sig;
   else if (w >= 6 && !GS.RUN.sig && Math.random() < 0.3)
     sg.piece = Math.random() < 0.6 || !cars.some(c => c.hasAlarm && !c.alarmUsed && !c.dead) ? 'horde' : 'alarm';
   return sg;

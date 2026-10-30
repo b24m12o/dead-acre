@@ -372,8 +372,13 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 @keyframes kcw{50%{opacity:.7}}
 #keyNote.warn{color:#ffb08a;opacity:.9}
 @media (max-width:640px){.keycard{grid-template-columns:minmax(0,1fr) auto}}
-.contractline{margin:-6px 0 0;font-size:12px;line-height:1.5}
-.contractline b{color:var(--teal);font-weight:600}
 .abpick{margin-top:-6px}
 .abpick .seg button{font-size:11px}
 .perk.lockd{opacity:.62}
+/* the horde counter under the night plate: how many are left of it, the bar running down as you thin it */
+.hordebox{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;align-items:center;margin-top:6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.hordebox .hl{color:#e8b25a;font-weight:700}
+.hordebox #hordeN{justify-self:end;color:var(--cream)}
+.hordebox i{grid-column:1/-1;display:block;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+.hordebox s{display:block;height:100%;background:#e8b25a;transform-origin:left;transition:transform .2s}
+.hordebox.alert .hl{color:#ff5a4a}.hordebox.alert s{background:#ff5a4a}

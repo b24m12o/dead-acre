@@ -47,7 +47,11 @@ export function makeNoise(x, y, r, soft) {
   const r2 = r * r;
   for (const e of GS.enemies) {
     if (e.dead || d2(e.x, e.y, x, y) > r2) continue;
-    if (e.lure && e.lure.alarm > 0 && (soft || d2(e.x, e.y, e.lure.x, e.lure.y) < 260 * 260)) continue; // right beside a screaming car they can't hear you
+    if (e.lure && e.lure.horde && d2(e.x, e.y, x, y) > 560 * 560) {
+      e.lure.heard = { x, y };
+      continue;
+    } // far off, a roaming horde only turns toward the sound; up close it comes for you
+    if (e.lure && e.lure.alarm > 0 && !e.lure.horde && (soft || d2(e.x, e.y, e.lure.x, e.lure.y) < 260 * 260)) continue; // right beside a screaming car they can't hear you
     e.lure = null;
     if (!(e.aw > 0)) {
       woke++;

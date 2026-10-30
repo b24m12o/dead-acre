@@ -21,7 +21,6 @@ import { bump, chalRunSummary, checkChal, statMax } from './challenges.js';
 import { TRAITS, freeSpot, regroupSpot } from '../actors/backups.js';
 import { RADIO, radio, radioVoice, storyEnd } from '../audio/radio.js';
 import { bossLogHtml } from './boss-flow.js';
-import { contractBest, recordContract } from './contract.js';
 export function startEvac() {
   const [x, y] = freeSpot(420, 700);
   GS.evac = {
@@ -309,10 +308,8 @@ function winRun() {
   bump('evacs');
   GS.meta.evacDist = GS.meta.evacDist || {};
   GS.meta.evacDist[GS.RUN.district] = true;
-  if (!GS.RUN.contract) {
-    statMax('bestInf', inf);
-    if (inf >= (GS.meta.infMax || 0)) GS.meta.infMax = Math.min(10, inf + 1);
-  } // a contract's Infection level is lent, like its character: it unlocks nothing
+  statMax('bestInf', inf);
+  if (inf >= (GS.meta.infMax || 0)) GS.meta.infMax = Math.min(10, inf + 1);
   const out = GS.RUN.aboard.slice(),
     left = GS.buddies.slice();
   GS.runSeeds += 40 * out.length;
@@ -342,11 +339,9 @@ function winRun() {
       (GS.RUN.clean ? 1.25 : 1) *
       DIFF().seeds *
       (1 + 0.12 * inf) *
-      twistK() *
-      (GS.RUN.contract ? 1.2 : 1)
+      twistK()
   );
   GS.meta.seeds += earned;
-  const cb = recordContract(true);
   statMax('maxLevel', GS.level);
   checkChal(true);
   saveMeta();
@@ -359,11 +354,7 @@ function winRun() {
   $('wKills').textContent = GS.kills;
   $('wLevel').textContent = GS.level;
   $('wInf').textContent = inf ? inf : 'Clean';
-  $('wSeeds').innerHTML =
-    `+${earned} scrap · <b>${GS.meta.seeds.toLocaleString()}</b> banked` +
-    (GS.RUN.contract
-      ? `<br>${cb ? 'New best for this week’s contract' : 'Contract best this week'}: <b>${contractBest().best.toLocaleString()}</b>`
-      : '');
+  $('wSeeds').innerHTML = `+${earned} scrap · <b>${GS.meta.seeds.toLocaleString()}</b> banked`;
   renderRunReport('wBreakdown');
   $('wUnlock').innerHTML =
     bossLogHtml() +

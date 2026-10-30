@@ -17,7 +17,6 @@ import { HPV, PK, cleanRun, pvLabel } from './hangar.js';
 import { rope } from '../core/later.js';
 import { DISTRICTS, INFECTION, TWISTS } from '../game/districts.js';
 import { CHAL, OUTFITS, chalDone, districtOpen, lockLine } from '../game/challenges.js';
-import { contractBest, contractLine } from '../game/contract.js';
 export function renderDistricts() {
   if (!GS.meta.district || !districtOpen(GS.meta.district)) GS.meta.district = 'town';
   $('districts').innerHTML = Object.entries(DISTRICTS)
@@ -145,13 +144,6 @@ export function renderChallenges() {
 let menuT = 0;
 export function menuInit() {
   GS.PRACTICE = null;
-  GS.CONTRACT = null;
-  {
-    const el = $('contractLine'),
-      b = contractBest();
-    if (el)
-      el.innerHTML = `<b>Weekly contract</b> · ${contractLine()} · +20% scrap${b ? ` · your best <b>${b.best.toLocaleString()}</b>` : ''}`;
-  }
   hideCallouts();
   $('banner').classList.remove('show');
   GS.state = 'menu';

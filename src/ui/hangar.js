@@ -266,17 +266,6 @@ export function begin() {
     practice: !!GS.PRACTICE,
     tw: GS.PRACTICE ? {} : Object.assign({}, GS.meta.twists || {}),
   };
-  if (GS.CONTRACT && !GS.PRACTICE) {
-    const C = GS.CONTRACT;
-    Object.assign(GS.RUN, {
-      hero: C.hero,
-      district: C.district,
-      inf: C.inf,
-      tw: { ...C.tw },
-      clean: false,
-      contract: { week: C.week, seed: C.seed },
-    });
-  }
   GS.RUN.abB = abPickB(GS.RUN.hero);
   if (!GS.RUN.practice) clearSave(); // a new run replaces whatever was saved
   GS.RUN.jobN = [3, 7, 12, pick([9, 13])];

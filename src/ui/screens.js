@@ -18,7 +18,6 @@ import { practiceReport } from '../game/practice.js';
 import { bossLogHtml } from '../game/boss-flow.js';
 import { goEndless, stopHeli } from '../game/evac.js';
 import { affordNow, menuInit, renderDistricts } from './menu.js';
-import { contract, contractBest, recordContract } from '../game/contract.js';
 GS.glDead = false;
 export function setPause(p) {
   if (!p && GS.glDead) return;
@@ -67,12 +66,10 @@ export function gameOver() {
           (GS.RUN.clean ? 1.25 : 1) *
           DIFF().seeds *
           (1 + 0.12 * (GS.RUN.inf || 0)) *
-          twistK() *
-          (GS.RUN.contract ? 1.2 : 1)
+          twistK()
       )
     );
   GS.meta.seeds += earned;
-  const cb = recordContract(false);
   saveMeta();
   {
     const af = affordNow();
@@ -116,9 +113,6 @@ export function gameOver() {
   $('oChalBtn').onclick = () => openChal('over');
   $('oRec').innerHTML =
     `${nb || nw ? '<span class="newrec">New record · </span>' : ''}Best score <b>${rec.score.toLocaleString()}</b> · furthest night <b>${rec.wave}</b>` +
-    (GS.RUN.contract
-      ? `<br>${cb ? '<span class="newrec">New contract best · </span>' : ''}Weekly contract best <b>${contractBest().best.toLocaleString()}</b> · ${contractBest().tries} ${contractBest().tries === 1 ? 'try' : 'tries'}`
-      : '') +
     bossLogHtml();
   $('bossBox').hidden = true;
   setTimeout(() => {
@@ -172,23 +166,6 @@ export function showMenuRec() {
 export function init() {
   $('startBtn').addEventListener('click', () => begin(false));
   $('contBtn').addEventListener('click', continueRun);
-  $('contractBtn').addEventListener('click', () => {
-    initAudio();
-    const b = $('contractBtn');
-    if (savedRun() && !b.dataset.sure) {
-      b.dataset.sure = '1';
-      b.textContent = 'Replace saved run?';
-      setTimeout(() => {
-        delete b.dataset.sure;
-        b.textContent = 'Contract';
-      }, 4000);
-      return;
-    } // a contract starts a new run, and a new run takes the place of the one saved at dawn
-    delete b.dataset.sure;
-    b.textContent = 'Contract';
-    GS.CONTRACT = contract();
-    if (begin() === false) GS.CONTRACT = null;
-  });
   $('survBtn').addEventListener('click', () => {
     initAudio();
     {

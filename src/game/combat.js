@@ -50,6 +50,7 @@ import { bump, checkChal, stat, statMax } from './challenges.js';
 import { tip } from '../audio/radio.js';
 import { finishObjective } from './objective-flow.js';
 import { bossDown, bossName } from './boss-flow.js';
+import { hordeKilled } from './horde.js';
 GS.HITB = null; // the player's bullet being resolved right now (gun family for boss armour)
 const CHOKE_W = { hunter: 4, lever: 3, pistol: 1.6 }; // so every gun can choke Patient Zero in a 1.3 s inhale
 const BOSS_DEF = {
@@ -589,6 +590,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   e.dying = 0;
   e.dieDir = Math.random() < 0.5 ? -1 : 1;
   GS.kills++;
+  hordeKilled(e);
   GS.combo++;
   GS.comboT = 2.4;
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.peakCombo = Math.max(GS.RUN.metrics.peakCombo, GS.combo);

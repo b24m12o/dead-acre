@@ -36,6 +36,7 @@ import { hordeSpot, startWave, surgeLull } from '../game/surges.js';
 import { objHold, updateObjective } from '../game/objective-update.js';
 import { heliVolume, startEvac, updateEvac } from '../game/evac.js';
 import { tickGadgets } from '../game/gadgets.js';
+import { hordeLive, tickHorde } from '../game/horde.js';
 export function update(dt) {
   radioTick(dt);
   GS.time += dt;
@@ -250,6 +251,7 @@ export function update(dt) {
   for (const g of GS.bangs) updateBang(g, dt, p);
   keepIf(GS.bangs, g => !g.done);
   tickGadgets(dt);
+  tickHorde(dt);
   // formation trails the way you walk, not the way you aim, and holds still while you stand
   const pspd = Math.hypot(p.vx, p.vy);
   if (p.formA === undefined) p.formA = p.moveA;
@@ -472,7 +474,7 @@ export function update(dt) {
         decal(R.hole, sx, sy, t === 'queen' ? 3 : t === 'beetle' ? 1.5 : 1, [1, 1, 1, 0.9], [0, 0, 0], 14);
       }
     }
-  } else if (!GS.enemies.length && !GS.evac && !GS.bossDue && !GS.RUN.tut && !objHold(dt)) {
+  } else if (!GS.enemies.length && !GS.evac && !GS.bossDue && !GS.RUN.tut && !hordeLive() && !objHold(dt)) {
     if (GS.wave > 0 && GS.nightLive) nightCleared();
     const waitDrop =
       GS.nightDone &&

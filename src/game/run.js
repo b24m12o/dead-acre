@@ -10,7 +10,7 @@ import { resetWear } from '../world/wear.js';
 import { HUDF } from '../ui/hud.js';
 import { stopHeli } from './evac.js';
 import { resetGadgets } from './gadgets.js';
-import { prng } from './contract.js';
+import { endHorde } from './horde.js';
 let mapCache = { fresh: false, d: '' };
 export function newRun(forMenu = false) {
   GS.noiseRings = [];
@@ -37,19 +37,13 @@ export function newRun(forMenu = false) {
   resetStats();
   {
     const D0 = (GS.RUN && GS.RUN.district) || 'town';
-    if (!forMenu && mapCache.fresh && mapCache.d === D0 && !(GS.RUN && GS.RUN.contract)) {
+    if (!forMenu && mapCache.fresh && mapCache.d === D0) {
       mapCache.fresh = false;
       resetWear();
       for (const c of cars) c.alarm = 0;
     } // the menu's backdrop becomes the run's map, so Play doesn't bake a second one
     else {
-      const rnd = Math.random;
-      if (GS.RUN && GS.RUN.contract) Math.random = prng(GS.RUN.contract.seed); // the week's contract: the same streets for everyone
-      try {
-        generateMap();
-      } finally {
-        Math.random = rnd;
-      }
+      generateMap();
       mapCache = { fresh: forMenu, d: D0 };
     }
   }
@@ -106,6 +100,7 @@ export function newRun(forMenu = false) {
   GS.wrecks = [];
   GS.bangs = [];
   resetGadgets();
+  endHorde();
   GS.whiteFlash = 0;
   GS.enemies = [];
   GS.corpses = [];

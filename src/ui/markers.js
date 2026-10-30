@@ -87,6 +87,8 @@ export function markerList() {
       m.push({ x: b.x, y: b.y, col: '#ff6a5a', label: `${(b.nm || 'BACKUP').toUpperCase()} ${Math.ceil(b.down)} S` }); // off screen and bleeding out: which way
   if (GS.RUN.sg && GS.RUN.sg.horde && GS.time < GS.RUN.sg.horde.t && GS.nightLive && !GS.nightDone)
     m.push({ x: GS.RUN.sg.horde.x, y: GS.RUN.sg.horde.y, col: '#ff8a6a', label: 'HORDE' });
+  if (GS.horde && !GS.horde.done && GS.horde.startT <= 0 && !GS.horde.alert && GS.horde.spawned)
+    m.push({ x: GS.horde.x, y: GS.horde.y, col: '#e8b25a', label: 'HORDE' }); // where the mass is while it roams
   if (GS.obj && !GS.obj.done) {
     if (GS.obj.type === 'gen') m.push({ x: GS.obj.x, y: GS.obj.y, col: '#ffe08a', label: 'GENERATOR' });
     if (GS.obj.type === 'rescue' && !GS.obj.joined)
