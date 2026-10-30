@@ -53,16 +53,27 @@ export function firePlayer(cwx, cwy, p, target) {
       myp = p.y + s * G.muzzle,
       dm = G.dmg * S.dmg * hb.dmg * (g === 'pistol' && TW('pistol') ? 1.6 : 1);
     let base = p.aimA;
-    if (Math.abs(angDiff(p.aimA, target)) < 0.3 && d2(cwx, cwy, mxp, myp) > 50 * 50)
-      base = Math.atan2(cwy - myp, cwx - mxp);
+    {
+      const fx = cwx - mxp,
+        fy = cwy - myp;
+      if (Math.abs(angDiff(p.aimA, target)) < 0.3 && fx * c + fy * s > 50) {
+        const a = Math.atan2(fy, fx);
+        if (Math.abs(angDiff(a, p.aimA)) < 0.35) base = a;
+      }
+    } // the rounds converge on the crosshair only when it is well out past the muzzle: with the cursor on or behind
+    // the body the line from the muzzle to it would point back through you, so they go where the gun points
     if (G.lob) {
       // the 40 mm round arcs to where you aim, over cars and headstones, and bursts there
       let tx = GS.camX + mouse.x / ZOOM,
         ty = GS.camY + mouse.y / ZOOM;
-      const dx0 = tx - p.x,
+      let dx0 = tx - p.x,
         dy0 = ty - p.y,
-        d0 = Math.hypot(dx0, dy0) || 1,
-        dl = clamp(d0, G.muzzle + 30, 560 + G.muzzle);
+        d0 = Math.hypot(dx0, dy0) || 1;
+      if (d0 < 40 || Math.abs(angDiff(Math.atan2(dy0, dx0), p.aimA)) > 0.35) {
+        dx0 = c * d0;
+        dy0 = s * d0;
+      } // a cursor on or behind the body: lob it the way the launcher points, not back over your shoulder
+      const dl = clamp(d0, G.muzzle + 30, 560 + G.muzzle);
       tx = p.x + (dx0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread;
       ty = p.y + (dy0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread;
       GS.pbullets.push({
