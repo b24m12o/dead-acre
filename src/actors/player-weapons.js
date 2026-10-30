@@ -35,6 +35,7 @@ import { decorShot } from '../render/decor.js';
 import { firePool } from '../world/fire.js';
 import { LOUD, SUPP, makeNoise } from '../game/noise.js';
 import { TW } from '../game/districts.js';
+import { dynamiteBlast, startFlare } from '../game/gadgets.js';
 export function firePlayer(cwx, cwy, p, target) {
   const g = p.gun,
     G = GUNS[g],
@@ -654,8 +655,11 @@ export function updateBang(g, dt, p) {
     return;
   }
   g.fuse -= dt;
+  if (g.dyn && g.fuse > 0 && Math.random() < dt * 40) sparks(g.x, g.y - 6, [1, 0.75, 0.4], 1, 120); // the fuse spits
   if (g.fuse > 0) return;
   g.done = true;
+  if (g.flare) return startFlare(g.x, g.y);
+  if (g.dyn) return dynamiteBlast(g.x, g.y);
   const R0 = g.big ? 190 * (1 + 0.25 * S.abLv) : 130 + 35 * S.pulse;
   sfx.flashbang();
   shake(0.15);

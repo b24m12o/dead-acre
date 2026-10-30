@@ -35,6 +35,7 @@ import { tutTick } from '../game/tutorial.js';
 import { hordeSpot, startWave, surgeLull } from '../game/surges.js';
 import { objHold, updateObjective } from '../game/objective-update.js';
 import { heliVolume, startEvac, updateEvac } from '../game/evac.js';
+import { tickGadgets } from '../game/gadgets.js';
 export function update(dt) {
   radioTick(dt);
   GS.time += dt;
@@ -248,6 +249,7 @@ export function update(dt) {
   }
   for (const g of GS.bangs) updateBang(g, dt, p);
   keepIf(GS.bangs, g => !g.done);
+  tickGadgets(dt);
   // formation trails the way you walk, not the way you aim, and holds still while you stand
   const pspd = Math.hypot(p.vx, p.vy);
   if (p.formA === undefined) p.formA = p.moveA;

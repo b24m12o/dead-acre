@@ -12,6 +12,7 @@ import { updateHint } from '../ui/settings-ui.js';
 import { HLOOK } from '../render/draw-player.js';
 import { NPC_TINTS, TRAITS, budSetup, makeSurvivor, rollBud } from '../actors/backups.js';
 import { FAVOURS } from './objectives.js';
+import { chalDone } from './challenges.js';
 const DMG_STEP = [1.25, 1.22, 1.18, 1.15, 1.12, 1.1],
   RATE_STEP = [1.18, 1.15, 1.12, 1.1, 1.08, 1.06]; // each rank of these two adds a little less than the last: strong early, no runaway late
 export const UP = [
@@ -287,8 +288,53 @@ export const UP = [
       S.magnet *= 1.6;
     },
   },
+  // the Field Manual: gear that only turns up in runs once a challenge has taught it to you (see the Armory)
+  {
+    id: 'incend',
+    cat: 'Gun mod',
+    name: 'Incendiary Rounds',
+    lock: 'fire100',
+    desc: () =>
+      `${['One round in ten', 'One round in five', 'Three rounds in ten'][LV.incend || 0]} sets a zombie alight.`,
+    max: 3,
+    apply() {
+      S.incend = (S.incend || 0) + 1;
+    },
+  },
+  {
+    id: 'wind',
+    cat: 'Body',
+    name: 'Second Wind',
+    lock: 'flawless3',
+    desc: 'Once a night, the hit that would put you under a quarter of your health leaves you on 30 instead, untouchable for a moment.',
+    max: 1,
+    apply() {
+      S.wind = 1;
+    },
+  },
+  {
+    id: 'scav',
+    cat: 'Gear',
+    name: 'Scavenger',
+    lock: 'rescue5',
+    desc: 'The dead drop 30% more ammo, and every box you pick up brings a few rounds for the gun in your hands.',
+    max: 1,
+    apply() {
+      S.scav = 1;
+    },
+  },
 ];
 export const EVOS = [
+  {
+    id: 'inferno',
+    name: 'Inferno',
+    lock: 'boss1',
+    need: { incend: 2, molotov: 1 },
+    desc: 'Whatever you set alight burns twice as long and 50% hotter.',
+    apply() {
+      S.evo.inferno = 1;
+    },
+  },
   // the guns' own combos: a gun from a case plus the gear that suits it
   {
     id: 'dtap',
@@ -420,6 +466,7 @@ export function upgradePool() {
   const w = S.weapon,
     pool = UP.filter(
       u =>
+        (!u.lock || chalDone(u.lock)) &&
         (LV[u.id] || 0) < u.max &&
         !(u.not && u.not.includes(w)) &&
         !(u.only && !((GS.P && GS.P.owned) || [w]).some(g => u.only.includes(g)))
@@ -429,7 +476,9 @@ export function upgradePool() {
 function rollPicks() {
   const pool = upgradePool();
   GS.picks = [];
-  const evo = EVOS.find(v => !LV[v.id] && Object.entries(v.need).every(([k, n]) => (LV[k] || 0) >= n));
+  const evo = EVOS.find(
+    v => !LV[v.id] && (!v.lock || chalDone(v.lock)) && Object.entries(v.need).every(([k, n]) => (LV[k] || 0) >= n)
+  );
   if (evo) GS.picks.push(Object.assign({ evo: true, cat: 'Combo', max: 1 }, evo));
   const wt = u => {
     let w = 1;

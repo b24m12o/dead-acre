@@ -87,14 +87,17 @@
     <div class="btns">
       <button class="btn" id="contBtn" type="button" hidden>Continue</button>
       <button class="btn" id="survBtn" type="button">Play</button>
+      <button class="btn ghost" id="contractBtn" type="button">Contract</button>
       <button class="btn ghost" id="hangarBtn" type="button">Armory</button>
       <button class="btn ghost" id="chalBtn" type="button">Challenges</button>
       <button class="btn ghost" id="settingsBtn" type="button">Settings</button>
     </div>
+    <p class="rec contractline" id="contractLine"></p>
     <p class="loadsnd" id="loadSnd" hidden></p>
     <div class="sec">Your character</div>
     <div class="heroes" id="heroes"></div>
-    <p class="rec keysline">
+    <div class="infrow abpick" id="abPick" hidden></div>
+    <p class="rec keysline" id="keysLine">
       WASD move · Mouse aim · Hold click to fire · Space, Shift or right-click roll · E ability · 1–9 or mouse wheel
       swap guns · Q last gun, hold Q for the gun wheel · R reload · Esc pause · M sound · N music
     </p>
@@ -269,6 +272,11 @@
     </div>
     <div class="sec">Characters</div>
     <div class="perks" id="hangarHeroes"></div>
+    <div class="sec">Second abilities</div>
+    <div class="perks" id="hangarAbs"></div>
+    <div class="sec">Field manual</div>
+    <p class="secnote">Gear and combos that only turn up in level-up picks once a challenge has taught them to you.</p>
+    <div class="perks" id="hangarManual"></div>
     <div class="sec">Perks</div>
     <p class="secnote" id="perkNote"></p>
     <div class="perks" id="hangarPerks"></div>

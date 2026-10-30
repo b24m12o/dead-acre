@@ -372,3 +372,8 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 @keyframes kcw{50%{opacity:.7}}
 #keyNote.warn{color:#ffb08a;opacity:.9}
 @media (max-width:640px){.keycard{grid-template-columns:minmax(0,1fr) auto}}
+.contractline{margin:-6px 0 0;font-size:12px;line-height:1.5}
+.contractline b{color:var(--teal);font-weight:600}
+.abpick{margin-top:-6px}
+.abpick .seg button{font-size:11px}
+.perk.lockd{opacity:.62}

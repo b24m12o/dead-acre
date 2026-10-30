@@ -38,8 +38,60 @@ export const AB_DEF = {
     upName: 'Two-Gun Rig', // a second revolver on the other hip
   },
 };
-export const AB = () => AB_DEF[GS.RUN.hero] || AB_DEF.ranger,
+// each character's second ability, bought in the Armory once you have lived to night 5, and picked on the menu
+export const AB_B = {
+  ranger: {
+    name: 'Claymore',
+    cd: 16,
+    desc: 'Plants a claymore at your feet, facing your aim. It blows when the dead walk into its front.',
+    up: 'Claymores blast 25% wider and you can keep one more set.',
+    cdName: 'Field Radio',
+    upName: 'Heavier Load',
+  },
+  breacher: {
+    name: 'Road flare',
+    cd: 22,
+    desc: 'Throws a road flare. For 8 s every zombie that sees it goes to it, and any that crowd it catch fire.',
+    up: 'Flares burn 4 s longer and draw them from further off.',
+    cdName: 'Bandolier',
+    upName: 'Highway Flares',
+  },
+  grenadier: {
+    name: 'Dynamite',
+    cd: 18,
+    desc: 'Lobs a lit bundle of dynamite at the cursor. It goes off a second later, wide and hard.',
+    up: 'Dynamite blasts 25% wider and hits 20% harder.',
+    cdName: 'Quick Draw',
+    upName: 'Longer Fuse',
+  },
+};
+export const abOwned = h => !!(GS.meta.abOwn && GS.meta.abOwn[h]);
+export const abPickB = h => abOwned(h) && !!(GS.meta.abSel && GS.meta.abSel[h] === 'b');
+export const AB = () => (GS.RUN.abB ? AB_B[GS.RUN.hero] : AB_DEF[GS.RUN.hero]) || AB_DEF[GS.RUN.hero] || AB_DEF.ranger,
   abCd = () => AB().cd * S.abCd;
+const lob = (a, dl, max, extra) => {
+  const d = Math.min(dl, max),
+    tx = GS.P.x + Math.cos(a) * d,
+    ty = GS.P.y + Math.sin(a) * d;
+  GS.bangs.push(
+    Object.assign(
+      {
+        x0: GS.P.x,
+        y0: GS.P.y,
+        x: GS.P.x,
+        y: GS.P.y,
+        tx,
+        ty,
+        t: 0,
+        dur: clamp(d / 520, 0.25, 0.6),
+        z: 0,
+        spin: rand(0, TAU),
+      },
+      extra
+    )
+  );
+  sfx.swap();
+};
 export function useAbility() {
   if (GS.state !== 'play' || !GS.P || GS.P.hp <= 0 || (GS.RUN.tut && !GS.RUN.tut.abOk)) return; // in training only once it is taught
   if (GS.P.abT > 0) {
@@ -54,6 +106,19 @@ export function useAbility() {
     a = Math.atan2(cwy - GS.P.y, cwx - GS.P.x),
     dl = Math.hypot(cwx - GS.P.x, cwy - GS.P.y),
     h = GS.RUN.hero;
+  if (GS.RUN.abB && AB_B[h]) {
+    if (h === 'ranger') {
+      GS.mines = GS.mines || [];
+      while (GS.mines.length >= 2 + S.abLv) GS.mines.shift();
+      GS.mines.push({ x: GS.P.x + Math.cos(a) * 20, y: GS.P.y + Math.sin(a) * 20, a, arm: 0.7 });
+      sfx.swap();
+      floatText(GS.P.x, GS.P.y - 44, 'Claymore set', '#cfe0b0', 14);
+    } else if (h === 'breacher') lob(a, dl, 460, { fuse: 0, flare: true });
+    else lob(a, dl, 400, { fuse: 1.1, dyn: true });
+    GS.P.abT = abCd();
+    if (GS.RUN.metrics) GS.RUN.metrics.abilities = (GS.RUN.metrics.abilities || 0) + 1;
+    return;
+  }
   if (h === 'breacher') {
     const d = Math.min(dl, 420),
       tx = GS.P.x + Math.cos(a) * d,

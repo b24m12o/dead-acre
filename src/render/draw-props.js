@@ -279,8 +279,22 @@ export function drawCasters() {
   } // a boss standing over you, alive or dead, never hides you: you show through it, faintly
   for (const g of GS.bangs) {
     setH(g.z + 3);
-    quad(R.flashbang, g.x, g.y - g.z, g.spin, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0);
+    if (g.dyn) quad(R.pipebomb, g.x, g.y - g.z, g.spin, 1.05, 1.2, 0.85, 0.3, 0.24, 1, 0.3, 0.1, 0.05, 0);
+    else if (g.flare) quad(R.pipebomb, g.x, g.y - g.z, g.spin, 0.8, 0.6, 1, 0.35, 0.3, 1, 2.2, 0.5, 0.35, 0);
+    else quad(R.flashbang, g.x, g.y - g.z, g.spin, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0);
   }
+  for (const f of GS.flares) {
+    setH(3);
+    const fl = 0.8 + 0.2 * Math.sin(f.t * 31);
+    quad(R.pipebomb, f.x, f.y, 0.6, 0.8, 0.6, 1, 0.35, 0.3, 1, 1.4, 0.3, 0.2, 0);
+    quad(R.glow, f.x + 6, f.y - 2, 0, 0.35 * fl, 0.35 * fl, 0, 0, 0, 1, 3 * fl, 1.2 * fl, 0.8 * fl, 0);
+  } // a burning road flare: the stick and its white-hot tip
+  for (const m of GS.mines) {
+    setH(4);
+    quad(R.pipebomb, m.x, m.y, m.a + Math.PI / 2, 1.3, 0.75, 0.55, 0.62, 0.42, 1, 0, 0, 0, 0);
+    if (m.arm <= 0 && Math.sin(GS.time * 6 + m.x) > 0.6)
+      quad(R.glow, m.x, m.y, 0, 0.08, 0.08, 0, 0, 0, 1, 2.5, 0.2, 0.15, 0);
+  } // a claymore, curved face out, its arming light blinking
   for (const m of GS.molos) {
     setH(m.z);
     quad(R.molotov, m.x, m.y - m.z, m.spin, 1, 1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);

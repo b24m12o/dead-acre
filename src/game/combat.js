@@ -365,6 +365,7 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
     e.flS = Math.random() < 0.5 ? -1 : 1;
   } // the body snaps away from the hit
   e.hp -= dmg;
+  if (src === 'bolt' && S.incend && Math.random() < 0.1 * S.incend) ignite(e, 2.5);
   e.flash = 0.08;
   e.squash = 0.18;
   e.wob = 1;
@@ -825,7 +826,8 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   GS.xp += e.xp;
   const ac =
     (big ? 3 : e.type === 'beetle' ? 0.4 : e.type === 'hopper' || e.type === 'wasp' ? 0.14 : 0.08) *
-    (INF(7) && !big ? 0.65 : 1);
+    (INF(7) && !big ? 0.65 : 1) *
+    (S.scav ? 1.3 : 1);
   const ac2 = big ? ac : ac * 1.25 * ammoNeed() * (GS.wave <= 4 ? 1.25 : GS.wave >= 10 ? 0.8 : 1); // a little more early, before the drops can keep up with a new gun; a little less late, when every calibre is stocked
   for (let i = 0; i < Math.floor(ac2) + (Math.random() < ac2 % 1 ? 1 : 0); i++) dropAmmo(e.x, e.y, 1, 90); // fewer drops while you are well stocked
   const hc =
@@ -923,6 +925,14 @@ export function hurtPlayer(dmg, sx, sy, why) {
   if (GS.P.stains.length < 22)
     GS.P.stains.push({ u: rand(-9, 9), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.9, 1.6) });
   GS.P.hp -= dmg;
+  if (S.wind && GS.P.hp < S.maxHp * 0.25 && GS.RUN.windN !== GS.wave) {
+    GS.RUN.windN = GS.wave;
+    GS.P.hp = Math.max(GS.P.hp, 30);
+    GS.P.inv = 1.6;
+    showStreak('Second wind', 'Not yet');
+    flashLight(GS.P.x, GS.P.y, 180, [0.6, 1.4, 0.8], 0.4);
+    sfx.level();
+  } // once a night, the hit that should have finished you doesn't
   GS.press = (GS.press || 0) + dmg / S.maxHp; // how hard the night is pressing you: the spawns read it
   if (GS.P.hp > 0 && GS.P.hp < S.maxHp * 0.35) tip('hurt');
   if (GS.RUN.practice) GS.RUN.taken = (GS.RUN.taken || 0) + dmg;

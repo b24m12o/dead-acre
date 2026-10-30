@@ -484,6 +484,10 @@ export function addAmmoType(t, k) {
   const p = GS.P,
     n = Math.max(0, Math.min(ammoMax(t) - p.ammo[t], Math.round(AMMO_BOX[t] * k * 1.5)));
   p.ammo[t] = Math.floor(p.ammo[t] + n);
+  {
+    const ht = GUNS[p.gun] && GUNS[p.gun].ammo;
+    if (S.scav && ht && ht !== t) p.ammo[ht] = Math.floor(Math.min(ammoMax(ht), p.ammo[ht] + AMMO_BOX[ht] * 0.4));
+  } // Scavenger: a few rounds for the gun in your hands come with every box
   const cur = GUNS[p.gun] && GUNS[p.gun].ammo === t,
     og = cur ? null : p.owned.find(g => GUNS[g].ammo === t);
   floatText(

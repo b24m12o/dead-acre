@@ -92,7 +92,7 @@ export function updateEnemy(e, dt, p) {
   } else e.idleT = 0; // nothing stays lost for long: sooner or later they find your scent
   let lure = e.lure;
   if (lure && (lure.dead || !(lure.alarm > 0))) lure = e.lure = null;
-  if (lure && e.los && pd2 < 200 * 200) {
+  if (lure && e.los && pd2 < (lure.flare ? 110 : 200) ** 2) {
     lure = e.lure = null;
     e.aw = 4;
   }
@@ -189,7 +189,7 @@ export function updateEnemy(e, dt, p) {
   } else if (lure && !ot) {
     if (dist < (lure.truck ? 98 : 78)) {
       face = Math.atan2(lure.y - e.y, lure.x - e.x);
-      if (em) poundCar(e, lure, dt);
+      if (em && !lure.flare) poundCar(e, lure, dt);
     } else {
       tvx = ux * e.sp * 1.1;
       tvy = uy * e.sp * 1.1;

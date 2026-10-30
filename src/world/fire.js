@@ -135,6 +135,7 @@ export function fireball(x, y, R0) {
 }
 export function ignite(e, t = 3) {
   if (e.dead || e.fireproof || (e.type === 'queen' && t < 2)) return;
+  if (S.evo.inferno) t *= 2;
   if (!(e.burn > 0)) e.burnT = 0.1;
   e.burn = Math.max(e.burn || 0, t);
 }
@@ -412,7 +413,17 @@ export function burnTick(e, dt) {
     flame(e.x + rand(-e.r * 0.5, e.r * 0.5), e.y - e.z + rand(-e.r * 0.5, e.r * 0.3), 1, 3, e.r / 14);
   if (e.burnT <= 0) {
     e.burnT = 0.3;
-    hurtEnemy(e, (5 + GS.wave * 0.9) * (e.type === 'queen' ? 2 : 1), false, 0, 0, 0, 'fire', e.x, e.y);
+    hurtEnemy(
+      e,
+      (5 + GS.wave * 0.9) * (e.type === 'queen' ? 2 : 1) * (S.evo.inferno ? 1.5 : 1),
+      false,
+      0,
+      0,
+      0,
+      'fire',
+      e.x,
+      e.y
+    );
     if (!e.dead && Math.random() < (S.evo.tempest ? 0.35 : 0.25))
       query(e.x, e.y, e.r + 30, o => {
         if (o !== e && !o.dead && d2(o.x, o.y, e.x, e.y) < (o.r + e.r + 6) ** 2) ignite(o, 2);

@@ -46,7 +46,7 @@ const DIFFS = {
   normal: { hp: 1, dmg: 1, seeds: 1 },
   hard: { hp: 1.3, dmg: 1.4, seeds: 1.5 },
 };
-export const DIFF = () => DIFFS[GS.meta.diff] || DIFFS.normal;
+export const DIFF = () => (GS.RUN && GS.RUN.contract ? DIFFS.normal : DIFFS[GS.meta.diff] || DIFFS.normal); // a contract is always played at Normal
 export function normalizeMeta() {
   const record = v => !!v && typeof v === 'object' && !Array.isArray(v);
   GS.meta.seeds = Number.isFinite(Number(GS.meta.seeds))

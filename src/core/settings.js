@@ -61,6 +61,9 @@ export function mergeSavedMeta(raw) {
     'tips',
     'twists',
     'keys',
+    'abOwn',
+    'abSel',
+    'contract',
   ]) {
     if (record(m[k])) GS.meta[k] = { ...m[k] };
   }

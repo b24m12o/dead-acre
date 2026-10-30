@@ -16,8 +16,8 @@ import { sfx } from '../audio/sfx.js';
 import { setMuted } from '../audio/music.js';
 import { AMMO_NAME, S, armGuns, resetStats } from '../game/state.js';
 import { newRun } from '../game/run.js';
-import { doReroll, offerUpgrades, renderMods } from '../game/upgrades.js';
-import { AB_DEF } from '../game/abilities.js';
+import { EVOS, UP, doReroll, offerUpgrades, renderMods } from '../game/upgrades.js';
+import { AB_B, AB_DEF, abOwned, abPickB } from '../game/abilities.js';
 import { updateHint } from './settings-ui.js';
 import { showMenuRec } from './screens.js';
 import {
@@ -33,13 +33,33 @@ import {
 import { startPractice } from '../game/practice.js';
 import { menuInit, renderChallenges, renderDistricts } from './menu.js';
 import { keysIn } from '../core/binds.js';
+const AB_COST = 300; // a second ability, per character
 export function renderHeroes() {
   $('heroes').innerHTML = Object.entries(HEROES)
     .map(([id, h]) => {
       const own = GS.meta.unlocked[id];
-      return `<button type="button" class="hero${GS.meta.hero === id ? ' on' : ''}${own ? '' : ' locked'}" data-h="${id}"><span class="nm"><i style="background:${h.dot}"></i>${h.name}</span><span class="wp">Best with ${h.weapon} · ${h.hp} health</span><span class="ds">${h.desc}</span><span class="wp ab">E · ${AB_DEF[id].name}</span>${own ? '' : `<span class="lk">Locked · ${h.cost} scrap in the Armory</span>`}</button>`;
+      return `<button type="button" class="hero${GS.meta.hero === id ? ' on' : ''}${own ? '' : ' locked'}" data-h="${id}"><span class="nm"><i style="background:${h.dot}"></i>${h.name}</span><span class="wp">Best with ${h.weapon} · ${h.hp} health</span><span class="ds">${h.desc}</span><span class="wp ab">E · ${(abPickB(id) ? AB_B : AB_DEF)[id].name}</span>${own ? '' : `<span class="lk">Locked · ${h.cost} scrap in the Armory</span>`}</button>`;
     })
     .join('');
+  {
+    const h = GS.meta.hero,
+      el = $('abPick');
+    el.hidden = !abOwned(h);
+    if (abOwned(h))
+      el.innerHTML = `<span class="sec">Ability</span><span class="seg">${['a', 'b']
+        .map(k => {
+          const d = (k === 'b' ? AB_B : AB_DEF)[h],
+            on = (k === 'b') === abPickB(h);
+          return `<button type="button" data-ab="${k}" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${d.desc}">${d.name}</button>`;
+        })
+        .join('')}</span>`;
+    for (const b of el.querySelectorAll('button'))
+      b.addEventListener('click', () => {
+        GS.meta.abSel = { ...(GS.meta.abSel || {}), [h]: b.dataset.ab };
+        saveMeta();
+        renderHeroes();
+      });
+  }
   for (const b of $('heroes').children)
     b.addEventListener('click', () => {
       const id = b.dataset.h;
@@ -110,6 +130,33 @@ function renderHangar() {
       return `<div class="perk"><span class="nm">${h.name} · best with ${h.weapon}</span><button type="button" class="buy" data-hero="${id}" ${own || GS.meta.seeds < h.cost ? 'disabled' : ''}>${own ? 'Unlocked' : h.cost + ' scrap'}</button><span class="ds">${h.desc}</span></div>`;
     })
     .join('');
+  {
+    const night5 = ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 5;
+    $('hangarAbs').innerHTML = Object.entries(AB_B)
+      .map(([id, d]) => {
+        const own = abOwned(id),
+          heroOk = GS.meta.unlocked[id],
+          cost = AB_COST;
+        const why = !night5 ? 'Survive five nights to unlock.' : !heroOk ? `Unlock the ${HEROES[id].name} first.` : '';
+        return `<div class="perk"><span class="nm">${HEROES[id].name} · ${d.name}</span><button type="button" class="buy" data-abuy="${id}" ${own || why || GS.meta.seeds < cost ? 'disabled' : ''}>${own ? 'Owned' : why ? 'Locked' : cost + ' scrap'}</button><span class="ds">${d.desc}${own ? ' Pick it under Your character on the menu.' : why ? ' ' + why : ''}</span></div>`;
+      })
+      .join('');
+  }
+  $('hangarManual').innerHTML = [
+    ...UP.filter(u => u.lock),
+    ...EVOS.filter(v => v.lock).map(v => ({ ...v, cat: 'Combo' })),
+  ]
+    .map(u => {
+      const ok = chalDone(u.lock),
+        ds = typeof u.desc === 'function' ? u.desc() : u.desc,
+        need = u.need
+          ? ` Needs ${Object.entries(u.need)
+              .map(([k, n]) => `${(UP.find(x => x.id === k) || { name: k }).name}${n > 1 ? ' ×' + n : ''}`)
+              .join(' + ')}.`
+          : '';
+      return `<div class="perk${ok ? '' : ' lockd'}"><span class="nm">${u.name} · ${u.cat.toLowerCase()}</span><button type="button" class="buy" disabled>${ok ? 'Learned' : 'Locked'}</button><span class="ds">${ds}${need} ${ok ? '' : lockLine(u.lock)}</span></div>`;
+    })
+    .join('');
   $('hangarPerks').innerHTML = PERKS.map(pk => {
     if (pk.req && !chalDone(pk.req))
       return `<div class="perk"><span class="nm">${pk.name}</span><button type="button" class="buy" disabled>Locked</button><span class="ds">${pk.desc} ${lockLine(pk.req)}</span></div>`;
@@ -154,7 +201,14 @@ function renderHangar() {
   pvLabel();
   for (const b of document.querySelectorAll('#hangar .buy'))
     b.addEventListener('click', () => {
-      if (b.dataset.hero) {
+      if (b.dataset.abuy) {
+        const id = b.dataset.abuy;
+        if (GS.meta.seeds >= AB_COST && !abOwned(id)) {
+          GS.meta.seeds -= AB_COST;
+          GS.meta.abOwn = { ...(GS.meta.abOwn || {}), [id]: true };
+          GS.meta.abSel = { ...(GS.meta.abSel || {}), [id]: 'b' };
+        }
+      } else if (b.dataset.hero) {
         const h = HEROES[b.dataset.hero];
         if (GS.meta.seeds >= h.cost) {
           GS.meta.seeds -= h.cost;
@@ -212,6 +266,18 @@ export function begin() {
     practice: !!GS.PRACTICE,
     tw: GS.PRACTICE ? {} : Object.assign({}, GS.meta.twists || {}),
   };
+  if (GS.CONTRACT && !GS.PRACTICE) {
+    const C = GS.CONTRACT;
+    Object.assign(GS.RUN, {
+      hero: C.hero,
+      district: C.district,
+      inf: C.inf,
+      tw: { ...C.tw },
+      clean: false,
+      contract: { week: C.week, seed: C.seed },
+    });
+  }
+  GS.RUN.abB = abPickB(GS.RUN.hero);
   if (!GS.RUN.practice) clearSave(); // a new run replaces whatever was saved
   GS.RUN.jobN = [3, 7, 12, pick([9, 13])];
   {
