@@ -17,9 +17,35 @@ import { updateHint } from '../ui/settings-ui.js';
 import { smoke } from '../world/fire.js';
 import { makeNoise } from './noise.js';
 import { TW } from './districts.js';
+import { cars } from '../world/map.js';
 import { TRAITS, freeSpot, makeSurvivor, rollBud } from '../actors/backups.js';
 import { RADIO, radio, radioKey } from '../audio/radio.js';
 import { OBJ_NAME, finishObjective } from './objective-flow.js';
+// every ordinary night from the second on has its own signature, known at dawn: weather, a horde, car alarms, a dog
+// pack, brutes. The first ones bring in one new threat each; later ones are dealt from a deck, never the same twice
+// running. Job and boss nights have their own story instead
+export const SIG = {
+  pack: 'Dog pack',
+  brute: 'Brutes',
+  horde: 'A horde is moving',
+  alarm: 'Car alarms',
+  storm: 'Storm coming',
+  fog: 'Fog coming in',
+  blackout: 'Blackout',
+  blood: 'Blood moon',
+};
+const SIG_EV = { storm: 1, fog: 1, blackout: 1, blood: 1 };
+export function planSig(w) {
+  if (bossNight(w) || lastNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice || jobNight(w) || TW('dark')) return null;
+  const used = GS.RUN.sigUsed || [];
+  if (w === 2) return 'pack';
+  if (w === 3) return 'brute';
+  if (w === 4) return 'horde';
+  const deck = Object.keys(SIG).filter(
+    s => !used.slice(-3).includes(s) && !(s === 'alarm' && !cars.some(c => c.hasAlarm && !c.alarmUsed && !c.dead))
+  );
+  return pick(deck.length ? deck : ['horde', 'storm']);
+}
 export function nightSetup() {
   GS.obj = null;
   GS.ev = null;
@@ -29,9 +55,15 @@ export function nightSetup() {
     last = lastNight(GS.wave);
   if (last) GS.ev = 'blood';
   else if (boss) GS.ev = Math.random() < 0.5 ? 'storm' : null;
-  else if (GS.wave >= 4 && Math.random() < 0.32) GS.ev = pick(['blood', 'fog', 'blackout', 'storm']);
-  if (GS.RUN.district === 'cemetery' && !GS.ev && Math.random() < 0.25) GS.ev = 'fog';
-  if (GS.ev && GS.ev === GS.RUN.lastEv && !last) GS.ev = null;
+  const sig = GS.RUN.nextSig && GS.RUN.nextSig.w === GS.wave ? GS.RUN.nextSig.s : planSig(GS.wave);
+  GS.RUN.sig = sig;
+  GS.RUN.nextSig = null;
+  if (sig) GS.RUN.sigUsed = (GS.RUN.sigUsed || []).concat(sig);
+  if (!boss && !last && sig && SIG_EV[sig]) GS.ev = sig;
+  else if (!boss && !last && !sig && GS.wave >= 4 && Math.random() < 0.32)
+    GS.ev = pick(['blood', 'fog', 'blackout', 'storm']);
+  if (GS.RUN.district === 'cemetery' && !GS.ev && !sig && Math.random() < 0.25) GS.ev = 'fog';
+  if (GS.ev && GS.ev === GS.RUN.lastEv && !last && !sig) GS.ev = null;
   GS.RUN.lastEv = GS.ev; // never the same weather two nights running
   GS.RUN.wet = GS.ev === 'storm' ? 1 : (GS.RUN.wet || 0) * 0.5; // after a storm the puddles linger a night or two
   if (TW('dark')) GS.ev = 'blackout';
@@ -39,6 +71,12 @@ export function nightSetup() {
     const extra = Math.round(GS.queue.length * 0.35);
     for (let i = 0; i < extra; i++) GS.queue.push(pick(['skitter', 'skitter', 'hound', 'mini']));
   }
+  if (sig === 'pack' || sig === 'brute') {
+    const t = sig === 'pack' ? 'hound' : 'beetle',
+      n = sig === 'pack' ? 2 + Math.floor(GS.wave / 4) : 2 + Math.floor(GS.wave / 4), // a hound entry is a pack of three
+      at = Math.round(GS.queue.length * 0.3);
+    GS.queue.splice(at, 0, ...Array(n).fill(t));
+  } // the pack runs together; the brutes come in a knot
   const J = GS.RUN.job;
   GS.RUN.job = null;
   GS.RUN.jobPend = false;

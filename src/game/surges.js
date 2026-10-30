@@ -42,7 +42,8 @@ function surgePlan(w) {
       horde: null,
       piece: null,
     };
-  if (w >= 4 && Math.random() < 0.45)
+  if (GS.RUN.sig === 'horde' || GS.RUN.sig === 'alarm') sg.piece = GS.RUN.sig;
+  else if (w >= 6 && !GS.RUN.sig && Math.random() < 0.3)
     sg.piece = Math.random() < 0.6 || !cars.some(c => c.hasAlarm && !c.alarmUsed && !c.dead) ? 'horde' : 'alarm';
   return sg;
 }

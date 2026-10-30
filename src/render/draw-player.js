@@ -468,6 +468,14 @@ export function drawRanger(p) {
   const ha = ba + angDiff(ba, p.aimA) * 0.6 + (p.rk || 0) * 0.32;
   setH(32);
   quad(R['hh' + look], lx + bc * 2, ly + bs * 2 - 1, ha, 0.9, 0.9, 1, 1, 1, 1, 1, 1, 1, fl);
+  if (p.npc && !GS.SHMODE && !dn) {
+    const sx = lx - bs * 8.5 - bc * 1.5,
+      sy = ly + bc * 8.5 - bs * 1.5,
+      g = 0.85 + 0.15 * Math.sin(GS.time * 2 + (p.x % 7));
+    setH(31);
+    quad(R.glow, sx, sy, 0, 0.2, 0.2, 0, 0, 0, 1, 0.14 * g, 0.65 * g, 0.24 * g, 0);
+    quad(R.pixel, sx, sy, ba, 0.62, 0.34, 0.4, 1, 0.5, 1, 0.5 * g, 2.4 * g, 0.75 * g, 0);
+  } // a green chemlight taped to a survivor's shoulder: the living, at a glance, in the dark
   GS.gA = 1;
 }
 

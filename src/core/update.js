@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { showStreak } from '../ui/callouts.js';
 import { GS } from './gs.js';
 import { $ } from './errors.js';
 import { TAU, angDiff, clamp, d2, damp, keepIf, lerp, pick, rand, randi } from './util.js';
@@ -13,7 +14,7 @@ import { S, WHEEL, addAmmo, addAmmoType, ammoRoomFor, ammoRoomK, cam, gd, magSiz
 import { need } from '../game/run.js';
 import { offerUpgrades } from '../game/upgrades.js';
 import { makeElite, makeEnemy } from '../actors/enemies.js';
-import { spawnPoint } from '../game/waves.js';
+import { bossNight, spawnPoint } from '../game/waves.js';
 import { chips, decal, dust, floatText, glowBurst, part, pool, ring } from '../render/effects.js';
 import { bossOf, explode, hurtPlayer, makeLurker, makeShield, updateCrates } from '../game/combat.js';
 import { mouse, moveInput } from './input.js';
@@ -37,6 +38,7 @@ import { heliVolume, startEvac, updateEvac } from '../game/evac.js';
 export function update(dt) {
   radioTick(dt);
   GS.time += dt;
+  GS.press = (GS.press || 0) * Math.pow(0.5, dt / 8); // the pressure fades with an 8 s half-life
   runLater(dt);
   if (GS.state !== 'play') return;
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.elapsed += dt;
@@ -415,7 +417,13 @@ export function update(dt) {
   else if (GS.queue.length) {
     GS.spawnT -= dt;
     if (GS.spawnT <= 0) {
-      GS.spawnT = Math.max(0.22, 1.0 - GS.wave * 0.05) * (1 - 0.07 * ((GS.wave - 1) % 5)) * (SG && SG.horde ? 0.7 : 1); // spawns quicken toward each boss; a surge comes faster, a horde faster still
+      GS.spawnT =
+        Math.max(0.22, 1.0 - GS.wave * 0.05) *
+        (1 - 0.07 * ((GS.wave - 1) % 5)) *
+        (SG && SG.horde ? 0.7 : 1) *
+        (1 + clamp((GS.press || 0) - 0.25, 0, 0.6)) *
+        ((GS.press || 0) < 0.03 ? 0.88 : 1) *
+        (bossNight(GS.wave) ? 1.7 : 1); // spawns quicken toward each boss; a surge comes faster, a horde faster still. They ease off while you are being hurt and press on while you are not, and a boss's company arrives in its own time
       let t = GS.queue.shift();
       const mark = t === 'hunt';
       if (mark) t = GS.wave >= 6 && Math.random() < 0.5 ? 'beetle' : 'skitter'; // a marked elite for the hunt job
@@ -425,7 +433,7 @@ export function update(dt) {
         SG.n++;
         if (SG.i < SG.cuts.length && (SG.m || 0) - GS.queue.length >= SG.cuts[SG.i] && GS.queue.length) {
           SG.i++;
-          SG.lull = 22;
+          SG.lull = (GS.press || 0) > 0.35 ? 28 : (GS.press || 0) < 0.05 ? 15 : 22; // a longer breath after a hard surge, a shorter one after an easy one
           SG.quiet = 0;
         }
       }
@@ -701,14 +709,31 @@ export function update(dt) {
   GS.pickups = GS.pickups.filter(k => !k.got && k.t - (k.hold || 0) < 40);
   keepIf(GS.arcs, a => a.life > 0);
   keepIf(GS.ghosts, g => g.life > 0);
+  // in the thick of a fight a level-up waits for a breath (a lull, the street thinning out), so the cards don't
+  // freeze a surge every half minute; it never waits more than 25 s
+  let close = 0;
+  if (GS.xp >= GS.xpNeed && GS.state === 'play')
+    for (const e of GS.enemies)
+      if (!e.dead && !e.dormant && e.aw > 0 && d2(e.x, e.y, p.x, p.y) < 380 * 380 && ++close >= 5) break;
+  if (GS.xp >= GS.xpNeed && GS.state === 'play') {
+    if (close >= 5) {
+      if (!GS.lvWait) {
+        GS.lvWait = GS.time;
+        showStreak('Level up', 'Your pick waits for a breath');
+      }
+    }
+  }
+  const lvGo = !GS.lvWait || close < 3 || GS.time - GS.lvWait > 25;
   if (
     GS.xp >= GS.xpNeed &&
     GS.state === 'play' &&
+    lvGo &&
     GS.time > (GS.RUN.lvHold || 0) &&
     !GS.evac &&
     !GS.bossDue &&
     !(GS.RUN.practice && (!GS.boss || GS.boss.dead))
   ) {
+    GS.lvWait = 0;
     // never during the evac or a boss's entrance: the cards wait
     GS.xp -= GS.xpNeed;
     GS.level++;

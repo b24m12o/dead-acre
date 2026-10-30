@@ -15,7 +15,7 @@ import { dropCrate } from './combat.js';
 import { FINAL_NIGHT, TW } from './districts.js';
 import { bump, checkChal, statMax } from './challenges.js';
 import { budMax } from '../actors/backups.js';
-import { jobNight, openJobs } from './objectives.js';
+import { SIG, jobNight, openJobs, planSig } from './objectives.js';
 import { RADIO, STORY, radio, storyDawn, tip } from '../audio/radio.js';
 import { finishObjective } from './objective-flow.js';
 import { practiceReport } from './practice.js';
@@ -138,6 +138,11 @@ export function nightCleared() {
       GS.RUN.endless ? `Night ${GS.wave} survived` : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
     );
     GS.RUN.dawnX = 0;
+    {
+      const s = planSig(GS.wave + 1);
+      GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
+      if (s) GS.later.push({ t: 3.2, fn: () => GS.nightDone && showStreak(`Night ${GS.wave + 1}`, SIG[s]) });
+    } // what tonight holds is known at dawn
     dawnDrops();
     if (jobNight(GS.wave + 1)) {
       GS.RUN.jobPend = true;

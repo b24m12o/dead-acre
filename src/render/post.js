@@ -25,6 +25,8 @@ void main(){
   vec3 diffuse=uSun*ndl*lit;
   vec3 c=a*(ambient+diffuse+uSky*(rim+fresnel)+l*0.82)*(1.0-cavity*0.5)+uSun*spec*1.48+lc*ls*0.92+e;
   c+=uSky*smoothstep(0.86,0.97,sp)*0.55; // standing water holds a little of the night sky
+  float moon=pow(clamp(dot(N.xy,vec2(-0.53,-0.85)),0.0,1.0),1.4)*(1.0-0.7*N.z);
+  c+=uSky*moon*0.9; // the moon behind: a cold edge on whatever stands up off the ground, so a dark figure still has an outline
   o=vec4(c,1.0);
 }`;
 export const DOWN_FS = `#version 300 es

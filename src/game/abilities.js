@@ -41,7 +41,7 @@ export const AB_DEF = {
 export const AB = () => AB_DEF[GS.RUN.hero] || AB_DEF.ranger,
   abCd = () => AB().cd * S.abCd;
 export function useAbility() {
-  if (GS.state !== 'play' || !GS.P || GS.P.hp <= 0 || GS.RUN.tut) return;
+  if (GS.state !== 'play' || !GS.P || GS.P.hp <= 0 || (GS.RUN.tut && !GS.RUN.tut.abOk)) return; // in training only once it is taught
   if (GS.P.abT > 0) {
     if (thr('abno', 500)) {
       sfx.dry();

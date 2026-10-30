@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
-import { clamp, d2, lerp, rand } from '../core/util.js';
+import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';
 import { opt } from '../core/settings.js';
 import { gl, hasCBF } from './gl.js';
 import {
@@ -706,6 +706,26 @@ export function render() {
         quad(R.pixel, ex, ey, 0, 0.36 * k, 0.36 * k, 0, 0, 0, 1, 3.2 * v * bl, 1.7 * v * bl, 0.4 * v * bl, 0);
       }
     }
+  if (GS.P && GS.state !== 'menu')
+    for (const e of GS.enemies) {
+      if (e.dead || e.dormant || e.elite || !(e.__ht === GS.time) || e.down > 0 || e.type === 'queen') continue;
+      const dx = e.x - GS.P.x,
+        dy = e.y - GS.P.y,
+        d = Math.hypot(dx, dy);
+      if (d > 560 || d < 40) continue;
+      const da = Math.atan2(dy, dx),
+        off = Math.abs(angDiff(GS.P.aimA, da)),
+        face = Math.abs(angDiff(e.__ha ?? e.a, da + Math.PI));
+      if (off > 0.42 || face > 0.9) continue;
+      const k = (e.sc || 1) * 1.2 * (e.__hk || 1),
+        v = (1 - off / 0.42) * (1 - face / 0.9) * (1 - d / 560) * (e.sv ?? 1),
+        a = e.__ha ?? e.a;
+      for (const sd of [-1, 1]) {
+        const ex = e.__hx + (Math.cos(a) * 5.2 - Math.sin(a) * sd * 2.3) * k,
+          ey = e.__hy + (Math.sin(a) * 5.2 + Math.cos(a) * sd * 2.3) * k;
+        quad(R.pixel, ex, ey, 0, 0.3 * k, 0.3 * k, 0, 0, 0, 1, 1.6 * v, 1.5 * v, 1.2 * v, 0);
+      }
+    } // caught full in the flashlight, the eyes of the ones looking at you throw it back
   for (const c of GS.crates)
     if (c.landed) {
       const pu = 0.6 + Math.sin(GS.time * 4) * 0.25;

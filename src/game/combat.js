@@ -923,6 +923,7 @@ export function hurtPlayer(dmg, sx, sy, why) {
   if (GS.P.stains.length < 22)
     GS.P.stains.push({ u: rand(-9, 9), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.9, 1.6) });
   GS.P.hp -= dmg;
+  GS.press = (GS.press || 0) + dmg / S.maxHp; // how hard the night is pressing you: the spawns read it
   if (GS.P.hp > 0 && GS.P.hp < S.maxHp * 0.35) tip('hurt');
   if (GS.RUN.practice) GS.RUN.taken = (GS.RUN.taken || 0) + dmg;
   GS.P.inv = 0.9;

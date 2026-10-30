@@ -10,7 +10,7 @@ export const bossNight = w => w % 5 === 0;
 export const lastNight = w => !GS.RUN.endless && w === FINAL_NIGHT;
 export function buildWave(w) {
   const q = [];
-  let n = Math.round(8 + Math.min(w, 8) * 4.5 + Math.max(0, w - 8) * 3);
+  let n = Math.round(9 + Math.min(w, 8) * 5 + Math.max(0, w - 8) * 3);
   if (w > 5 && (w - 1) % 5 === 0) n = Math.round(n * 0.8); // the night after a boss is a lighter one
   const T = [['skitter', 6]];
   const Dn = GS.RUN.district;
@@ -19,7 +19,7 @@ export function buildWave(w) {
   if (w >= 4) T.push(['beetle', 0.45 + 0.07 * w]);
   if (Dn === 'highway' && w >= 2) T.push(['hound', 0.5]);
   if (TW('horde')) n = Math.round(n * 1.4);
-  if (bossNight(w)) n = Math.floor(n * (w >= 10 ? 0.3 : 0.45)); // the boss is staged by bossEntrance, not spawned from the queue
+  if (bossNight(w)) n = Math.floor(n * (w >= 10 ? 0.3 : 0.38)); // the boss is staged by bossEntrance, not spawned from the queue
   if (w >= 3 && !bossNight(w))
     for (let i = 0; i < (1 + Math.floor(w / 5) + (INF(8) ? 1 : 0) + (Dn === 'cemetery' ? 1 : 0)) * 1; i++)
       q.push('flower');
