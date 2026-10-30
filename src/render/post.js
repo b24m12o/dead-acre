@@ -49,7 +49,7 @@ precision highp float;
 uniform sampler2D uScene; uniform sampler2D uBloom; uniform vec4 uWaves[8]; uniform int uWaveN; uniform vec4 uHaze[6]; uniform int uHazeN;
 uniform float uAspect; uniform float uChroma; uniform float uHurt; uniform float uBloomK; uniform float uTime; uniform float uGrain;
 uniform vec2 uTexel; uniform float uSharpen;
-uniform sampler2D uVis; uniform float uVisOn; uniform vec4 uWx;
+uniform sampler2D uVis; uniform float uVisOn; uniform vec4 uWx; uniform vec2 uVisTx;
 in vec2 vUv; out vec4 o;
 vec3 tm(vec3 c){ const float k=0.74; vec3 over=max(c-k,0.0); return min(c,vec3(k))+(1.0-k)*(1.0-exp(-over/(1.0-k))); }
 void main(){
@@ -67,7 +67,7 @@ void main(){
   vec3 bloom=texture(uBloom,uv).rgb; float bloomLum=dot(bloom,vec3(0.299,0.587,0.114));
   bloom*=mix(vec3(1.0),vec3(1.08,1.015,0.92),0.22*smoothstep(0.03,0.8,bloomLum));
   c+=bloom*uBloomK;
-  if(uVisOn>0.0){ float v=mix(1.0,texture(uVis,vec2(vUv.x,1.0-vUv.y)).r,uVisOn); float lum=dot(c,vec3(0.299,0.587,0.114)); c=mix(mix(vec3(lum),c,0.6)*vec3(0.8,0.85,0.95)*0.66,c,v); } // out of sight: dim, cold and colourless
+  if(uVisOn>0.0){ float vm=(texture(uVis,vUv).r*2.0+texture(uVis,vUv+vec2(uVisTx.x,0.0)).r+texture(uVis,vUv-vec2(uVisTx.x,0.0)).r+texture(uVis,vUv+vec2(0.0,uVisTx.y)).r+texture(uVis,vUv-vec2(0.0,uVisTx.y)).r)/6.0; float v=mix(1.0,vm,uVisOn); float lum=dot(c,vec3(0.299,0.587,0.114)); c=mix(mix(vec3(lum),c,0.6)*vec3(0.8,0.85,0.95)*0.66,c,v); } // out of sight: dim, cold and colourless
   c=max(c,vec3(0.0));
   // highlights roll off by brightness and keep their hue: concrete under a sodium lamp stays warm grey-orange instead of clipping to white
   { float L0=max(c.r,max(c.g,c.b)); vec3 hue=c/max(L0,0.0001); float Lt=L0<0.62?L0:0.62+0.38*(1.0-exp(-(L0-0.62)/0.38)); c=mix(hue*Lt,vec3(Lt),smoothstep(1.8,4.5,L0)*0.45); }

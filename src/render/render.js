@@ -65,7 +65,7 @@ import { atmosLights, drawAsh, drawAshGlow, lampShadows, shaftGlow } from '../wo
 import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
 import { chuteGeom, drawCasters, drawChutes, heliRotor } from './draw-props.js';
 import { drawUI } from '../ui/draw-ui.js';
-import { buildVis, texVis } from '../world/vision.js';
+import { buildVisGPU, visH, visTex, visW } from './visgpu.js';
 import { LAMPV, decorLights, drawHouseRoofs, roofShadows } from './decor.js';
 import { fireBeds } from '../world/fire.js';
 import { drawPuddles } from '../world/weather.js';
@@ -1002,6 +1002,8 @@ export function render() {
         Math.min(1, c.flare / 1.5) * (0.8 + Math.sin(GS.time * 23 + c.x) * 0.12 + Math.sin(GS.time * 9.1) * 0.08);
       addLight(c.x + 20, c.y + 12, 230, 1.15 * fk, 0.26 * fk, 0.16 * fk);
     }
+  const visNeed = !!(GS.P && GS.state !== 'menu' && GS.state !== 'over');
+  if (visNeed) buildVisGPU(GS.P.x, GS.P.y); // what you can see from where you stand: walls stop the beam and your sight
   gl.bindFramebuffer(gl.FRAMEBUFFER, rtLight.fb);
   gl.viewport(0, 0, rtLight.w, rtLight.h);
   gl.clearColor(0, 0, 0, 0);
@@ -1019,6 +1021,10 @@ export function render() {
   gl.uniform2f(P_LIGHT.u.uFL, GS.FLX, GS.FLY);
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, rtFlash.texs[0]);
+  gl.activeTexture(gl.TEXTURE3);
+  gl.bindTexture(gl.TEXTURE_2D, visTex || rtFlash.texs[0]);
+  gl.uniform1i(P_LIGHT.u.uVisM, 3);
+  gl.uniform1f(P_LIGHT.u.uFlOcc, visNeed && visTex ? 1 : 0);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindVertexArray(lVAO);
   gl.bindBuffer(gl.ARRAY_BUFFER, lVBO);
@@ -1115,13 +1121,12 @@ export function render() {
       rdt = Math.min(0.1, (performance.now() - (render.lt || performance.now())) / 1000);
     render.lt = performance.now();
     GS.visOn += (want - GS.visOn) * Math.min(1, (want ? 2.5 : 6) * rdt);
+    if (GS.visOn <= 0.01) GS.visOn = want ? GS.visOn : 0;
     gl.activeTexture(gl.TEXTURE2);
-    if (GS.visOn > 0.01) buildVis();
-    else GS.visOn = want ? GS.visOn : 0;
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, texVis || rtComp.texs[0]);
+    gl.bindTexture(gl.TEXTURE_2D, visTex || rtComp.texs[0]);
     gl.uniform1i(P_FINAL.u.uVis, 2);
-    gl.uniform1f(P_FINAL.u.uVisOn, texVis && GS.visOn > 0.01 ? GS.visOn : 0);
+    gl.uniform2f(P_FINAL.u.uVisTx, 1.2 / visW, 1.2 / visH);
+    gl.uniform1f(P_FINAL.u.uVisOn, visTex && visNeed && GS.visOn > 0.01 ? GS.visOn : 0);
     gl.useProgram(P_FINAL.p);
   }
   gl.uniform1f(P_FINAL.u.uHurt, clamp((0.3 - hpR) * 1.2, 0, 0.3) + GS.P.hurt * 1.2);

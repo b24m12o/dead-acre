@@ -87,10 +87,10 @@ export function init() {
   void main(){ vec2 w=aL0.xy+aCorner*aL0.z; vW=w; L0=aL0; L1=aL1; vec2 p=(w-uCam.xy)/uCam.zw; gl_Position=vec4(p.x*2.0-1.0,1.0-p.y*2.0,0.0,1.0); }`;
   LIGHT_FS = `#version 300 es
   precision highp float;
-  uniform sampler2D uNrm; uniform sampler2D uFsh; uniform vec2 uRes; uniform vec2 uFL; uniform float uWet;
+  uniform sampler2D uNrm; uniform sampler2D uFsh; uniform vec2 uRes; uniform vec2 uFL; uniform float uWet; uniform sampler2D uVisM; uniform float uFlOcc;
   in vec2 vW; flat in vec4 L0; flat in vec4 L1; out vec4 o;
   void main(){ float d=length(vW-L0.xy)/L0.z; float att=clamp(1.0-d,0.0,1.0); att*= L1.w>0.0 ? 1.0 : att;
-    if(L1.w>0.0){ vec2 dv=vW-L0.xy; float dl=length(dv); float cd=dot(dv/max(dl,0.001),vec2(cos(L0.w),sin(L0.w))); att*=smoothstep(L1.w,L1.w+0.1,cd)*smoothstep(0.0,40.0,dl); if(length(L0.xy-uFL)<3.0) att*=1.0-texture(uFsh,gl_FragCoord.xy/uRes).r*0.92; }
+    if(L1.w>0.0){ vec2 dv=vW-L0.xy; float dl=length(dv); float cd=dot(dv/max(dl,0.001),vec2(cos(L0.w),sin(L0.w))); att*=smoothstep(L1.w,L1.w+0.1,cd)*smoothstep(0.0,40.0,dl); if(length(L0.xy-uFL)<3.0){ att*=1.0-texture(uFsh,gl_FragCoord.xy/uRes).r*0.92; att*=mix(1.0,texture(uVisM,gl_FragCoord.xy/uRes).g,uFlOcc); } }
     if(att<0.002) discard;
     vec4 nb=texture(uNrm,gl_FragCoord.xy/uRes); vec2 n2=nb.a>0.004?(nb.rg/nb.a)*2.0-1.0:vec2(0.0);
     vec3 N=vec3(n2,sqrt(max(0.0,1.0-dot(n2,n2)))); vec3 Ld=normalize(vec3(L0.xy-vW,70.0));
