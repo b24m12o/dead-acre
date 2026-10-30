@@ -5,7 +5,7 @@ import { saveMeta } from '../core/settings.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { MH, MW, TILE, WH, WW, cars, isWall, ttype } from '../world/map.js';
-import { GIANT_STOP, N8, collide, flow, los, steer } from '../world/nav.js';
+import { GIANT_STOP, N8, collide, flow, flowBig, gblk, los, steer } from '../world/nav.js';
 import { updateLegs } from './legs.js';
 import { sfx } from '../audio/sfx.js';
 import { S, cam } from '../game/state.js';
@@ -24,6 +24,34 @@ import { poundCar, screamAt } from '../game/noise.js';
 import { tip } from '../audio/radio.js';
 import { finishObjective } from '../game/objective-flow.js';
 import { budTarget, objTarget } from '../game/objective-update.js';
+// a giant that has stopped getting anywhere while it walks, pressed into a building or caught inside one, is walked out
+// to the nearest open street it can move on from (a tile clear of buildings that its own path map can reach)
+function giantWedge(e, dt) {
+  e.wgT = (e.wgT || 0) + dt;
+  if (e.wgT < 1) return;
+  e.wgT = 0;
+  const moved = Math.hypot(e.x - (e.wgX ?? e.x + 99), e.y - (e.wgY ?? e.y + 99));
+  e.wgX = e.x;
+  e.wgY = e.y;
+  const cx = Math.floor(e.x / TILE),
+    cy = Math.floor(e.y / TILE),
+    i = cy * MW + cx,
+    bad = gblk[i] || flowBig[i] >= 65535;
+  const far = !GS.P || Math.hypot(GS.P.x - e.x, GS.P.y - e.y) > e.r * (e.sc || 1) * 2.2 + 60; // not just standing over you, fighting
+  e.wgN = (e.st === 'move' || !e.st) && (bad || (moved < 18 && far)) && !(e.stunT > 0) ? (e.wgN || 0) + 1 : 0;
+  if (e.wgN < (bad ? 2 : 3)) return;
+  e.wgN = 0;
+  for (let r = 1; r <= 9; r++)
+    for (let y = cy - r; y <= cy + r; y++)
+      for (let x = cx - r; x <= cx + r; x++) {
+        if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) !== r || x < 3 || y < 3 || x >= MW - 3 || y >= MH - 3)
+          continue;
+        const j = y * MW + x;
+        if (gblk[j] || flowBig[j] >= 65535) continue;
+        e.unw = { x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, t: 2.5 + r * 0.3 };
+        return;
+      }
+}
 export function updateEnemy(e, dt, p) {
   if (e.dead) return;
   e.flash = Math.max(0, e.flash - dt);
@@ -704,6 +732,17 @@ export function updateEnemy(e, dt, p) {
       e.ky *= km / kl;
     }
   } // a blast shoves hard, but never fast enough to tunnel through a wall
+  if (e.big && e.unw) {
+    const dx = e.unw.x - e.x,
+      dy = e.unw.y - e.y,
+      d = Math.hypot(dx, dy) || 1,
+      sp = Math.max(90, (ET[e.type].sp || 84) * 1.2);
+    e.vx = (dx / d) * sp;
+    e.vy = (dy / d) * sp;
+    e.kx = e.ky = 0;
+    e.a += angDiff(e.a, Math.atan2(dy, dx)) * Math.min(1, dt * 6);
+    if ((e.unw.t -= dt) <= 0 || d < 14) e.unw = null;
+  } // wedged in a building: it shoulders its way back out to open street, then the fight goes on
   e.x += (e.vx + e.kx) * dt;
   e.y += (e.vy + e.ky) * dt;
   const kd = Math.pow(0.015, dt);
@@ -715,7 +754,8 @@ export function updateEnemy(e, dt, p) {
     e.x = clamp(e.x, 2.5 * TILE, WW - 2.5 * TILE);
     e.y = clamp(e.y, 2.5 * TILE, WH - 2.5 * TILE);
   } else {
-    if (e.big && !e.fly && e.st !== 'jump') hitWall = collide(e, 30, GIANT_STOP); // a giant shoulders through fences and hedges, but not through a building
+    if (e.big && !e.fly && e.st !== 'jump' && !e.unw) hitWall = collide(e, 30, GIANT_STOP); // a giant shoulders through fences and hedges, but not through a building
+    if (e.big && !e.fly && !e.unw && gblk) giantWedge(e, dt);
     e.x = clamp(e.x, 3 * TILE + e.r * (e.big ? 0.6 : 0), WW - 3 * TILE - e.r * (e.big ? 0.6 : 0));
     e.y = clamp(e.y, 3 * TILE + e.r * (e.big ? 0.6 : 0), WH - 3 * TILE - e.r * (e.big ? 0.6 : 0));
   }
