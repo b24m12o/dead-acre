@@ -39,7 +39,7 @@ export function saveRun() {
 export function savedRun() {
   try {
     const d = JSON.parse(store.get(KEY) || 'null');
-    return d && d.v === V && d.RUN && d.P && d.wave > 0 ? d : null;
+    return d && d.v === V && d.RUN && d.P && d.wave > 0 && !(d.RUN.endless && !d.RUN.hm) ? d : null; // a run that went on past the last night (Endless nights, since removed) can't be continued
   } catch (e) {
     return null;
   }

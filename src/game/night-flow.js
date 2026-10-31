@@ -197,6 +197,20 @@ export function resumeDawn() {
   const s = planSig(GS.wave + 1);
   GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
   if (s === 'horde') GS.interT = 45; // the kit came with the save
+  if (!GS.RUN.hm && GS.wave + 1 === FINAL_NIGHT) {
+    GS.RUN.lz = freeSpot(260, 520); // the map is laid out afresh on a resume: a new landing zone on it
+    GS.interT = 50;
+    GS.later.push({
+      t: 4,
+      fn: () =>
+        GS.nightDone &&
+        showStreak(
+          'The chopper comes tomorrow',
+          'So will every one of them · the landing zone is marked · set your traps round it',
+          true
+        ),
+    });
+  } // the last dawn, resumed: the time to lay the kit, and where to lay it
   dawnDrops();
   if (jobNight(GS.wave + 1)) {
     GS.RUN.jobPend = true;

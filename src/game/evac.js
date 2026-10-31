@@ -5,7 +5,7 @@ import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, pick, rand, randi } from '../core/util.js';
 import { saveMeta, store } from '../core/settings.js';
 import { DIFF } from '../core/profile.js';
-import { lamps } from '../world/map.js';
+import { MW, TILE, lamps } from '../world/map.js';
 import { AC, noise, noiseBuf, playS, sfxBus, spat, stab, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { rec } from './state.js';
@@ -22,9 +22,11 @@ import { TRAITS, freeSpot } from '../actors/backups.js';
 import { RADIO, radio, radioVoice, storyEnd } from '../audio/radio.js';
 import { bossLogHtml } from './boss-flow.js';
 import { planHorde } from './horde.js';
-import { solidPt } from '../world/nav.js';
+import { flow, solidPt } from '../world/nav.js';
 export function startEvac() {
-  const [x, y] = GS.RUN.lz && !solidPt(GS.RUN.lz[0], GS.RUN.lz[1]) ? GS.RUN.lz : freeSpot(420, 700); // the landing zone the convoy named at dawn
+  const lz = GS.RUN.lz,
+    lzOk = lz && !solidPt(lz[0], lz[1]) && flow[Math.floor(lz[1] / TILE) * MW + Math.floor(lz[0] / TILE)] < 65535,
+    [x, y] = lzOk ? lz : freeSpot(420, 700); // the landing zone the convoy named at dawn
   if (!GS.RUN.practice) planHorde(true);
   GS.evac = {
     x,
@@ -179,8 +181,7 @@ export function updateEvac(dt) {
     radio(RADIO.evacDown);
     banner('Coming in to land', 'Keep the landing zone clear', false);
   }
-  e.spawnT -= dt;
-  if (GS.horde && GS.horde.finale && !GS.horde.done) e.spawnT = Math.max(e.spawnT, 0.6); // the horde is the pressure now; only a few stragglers besides
+  e.spawnT -= GS.horde && GS.horde.finale && !GS.horde.done ? dt * 0.25 : dt; // the horde is the pressure now; only a few stragglers besides
   if (e.spawnT <= 0 && GS.enemies.length < 70) {
     const k = clamp(e.t / e.land, 0, 1);
     e.spawnT = lerp(0.8, 0.3, k);
