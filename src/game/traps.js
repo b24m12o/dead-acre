@@ -5,7 +5,8 @@
 //  · Gas drum: set down in front of you. Shoot it (or let a blast or a fire reach it) and it bursts into a wide pool
 //    of burning fuel.
 //  · Noise maker: an old alarm clock, thrown. For ten seconds it pulls every zombie within earshot to it, and a horde
-//    from right across the map: put it behind your mines and drums. Only the ones already on you stay on you.
+//    from right across the map. Only the ones already on you stay on you; and your gunfire, a blast or a hit sends the
+//    ones that hear it at you again: it bunches them up for one big blast, or buys you quiet time.
 //  · Car rig: a charge for a parked car. Pick it like the others, stand by a car and the trap key rigs it; the next
 //    hit blows it half again as wide. It only ever rigs when it is the trap you hold.
 // You carry three of each at most. They come in supply crates, and the dawn before a horde brings a full kit.
@@ -80,13 +81,13 @@ export function cycleTrap() {
     }
   }
 }
-// the nearest intact car you are standing beside
+// the nearest intact car you are standing beside (not one already burning, and not the fuel tanker: it needs no help)
 export function carNear() {
   if (!GS.P) return null;
   let best = null,
     bd = 95 * 95;
   for (const c of cars)
-    if (!c.dead && !c.burnt && !c.rig) {
+    if (!c.dead && !c.burnt && !c.rig && !c.fire && !c.tanker) {
       const d = d2(c.x, c.y, GS.P.x, GS.P.y);
       if (d < bd) {
         bd = d;

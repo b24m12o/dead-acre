@@ -255,7 +255,7 @@ export function updateQueen(e, dt, ux, uy, dist) {
       if (bt === 'pz') pzScream(e, ph);
       else {
         screamAt(e);
-        makeNoise(e.x, e.y, 1600);
+        makeNoise(e.x, e.y, 1600, false, false);
         sfx.roar(e.x, e.y);
       }
       shake(0.35);

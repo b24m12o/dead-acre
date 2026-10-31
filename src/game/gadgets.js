@@ -40,7 +40,7 @@ export function startFlare(x, y, noise = false) {
   f.flow = new Uint16Array(MW * MH);
   dijk(f.flow, seeds, false);
   GS.flares.push(f);
-  if (GS.flares.length > 3) GS.flares.shift();
+  if (GS.flares.length > 3) GS.flares.shift().alarm = 0; // the oldest goes quiet, and lets go of the ones it held
   sfx.ting();
   if (noise) {
     const n = pullTo(f);

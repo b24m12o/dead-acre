@@ -32,7 +32,8 @@ let lastRingT = -9;
 GS.noiseRings = [];
 GS.loudSaid = false;
 GS.alarmSaid = false;
-export function makeNoise(x, y, r, soft) {
+// soft: your backups' shots, which never pull the dead off your bait; you: false for a noise you didn't make (a boss's roar)
+export function makeNoise(x, y, r, soft, you = true) {
   if (GS.ev === 'storm') r *= 0.6; // the rain drowns shots out
   NOISE.x = x;
   NOISE.y = y;
@@ -48,21 +49,20 @@ export function makeNoise(x, y, r, soft) {
   const r2 = r * r;
   for (const e of GS.enemies) {
     if (e.dead || d2(e.x, e.y, x, y) > r2) continue;
-    if (e.lure && e.lure.horde && d2(e.x, e.y, x, y) > 560 * 560) {
-      e.lure.heard = { x, y };
+    if (e.horde && GS.horde && !GS.horde.alert && d2(e.x, e.y, x, y) > 560 * 560) {
+      GS.horde.lure.heard = { x, y };
       continue;
-    } // far off, a roaming horde only turns toward the sound; up close it comes for you
+    } // far off, a roaming horde only turns toward the sound (even one stood round a clock); up close it comes for you
     if (
       e.lure &&
       e.lure.alarm > 0 &&
       !e.lure.horde &&
-      !e.lure.noise &&
-      (soft || d2(e.x, e.y, e.lure.x, e.lure.y) < 260 * 260)
+      (soft || (!e.lure.noise && d2(e.x, e.y, e.lure.x, e.lure.y) < 260 * 260))
     )
       continue; // right beside a screaming car they can't hear you (a little alarm clock doesn't drown a gun out)
-    if (e.horde && e.lure && e.lure.noise) hordeOff++;
+    if (e.horde && e.lure && e.lure.noise && you) hordeOff++;
     e.lure = null;
-    e.heardT = GS.time; // a clock already ringing won't take this one back: you are louder
+    if (you && !soft) e.heardT = GS.time; // a clock already ringing won't take this one back: you are louder
     if (!(e.aw > 0)) {
       woke++;
       e.wokeT = GS.time;

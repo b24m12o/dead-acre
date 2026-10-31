@@ -184,7 +184,7 @@ export function releaseGrab(push = 1) {
   if (e && !e.dead) {
     e.lurk = null;
     e.aw = 9;
-    e.down = Math.min(e.down, e.dT - 0.95);
+    if (e.dT) e.down = Math.min(e.down, e.dT - 0.95);
     const dx = e.x - GS.P.x,
       dy = e.y - GS.P.y,
       dl = Math.hypot(dx, dy) || 1;

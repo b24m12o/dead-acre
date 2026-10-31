@@ -151,17 +151,19 @@ function alertAll(H) {
   sfx.rumble(H.x, H.y);
 }
 function member(H) {
-  const [ex, ey] = H.ents[H.spawned % H.ents.length],
+  const gi = H.spawned % H.ents.length,
+    [ex, ey] = H.ents[gi],
     x = ex + rand(-40, 40),
     y = ey + rand(-40, 40),
     brute = (GS.RUN.hm ? GS.wave >= 3 : GS.wave >= 8) && H.spawned % 40 === 20, // later hordes carry brutes in them
     e = makeEnemy(brute ? 'beetle' : 'skitter', x, y);
+  e.gi = gi; // which mass it walked in with: it gathers with them
   if (!brute && GS.wave >= 5 && Math.random() < 0.04) makeElite(e);
   if (brute) {
     e.emerge = 1;
     e.horde = true;
     if (H.alert) e.aw = 6;
-    else e.lure = H.moving ? H.lure : H.gather[(H.spawned - 1) % H.gather.length];
+    else e.lure = H.moving ? H.lure : H.gather[gi];
     return e;
   }
   e.emerge = 1;
@@ -172,7 +174,7 @@ function member(H) {
   if (H.alert) {
     e.aw = 6;
     sprint(e);
-  } else e.lure = H.moving ? H.lure : H.gather[(H.spawned - 1) % H.gather.length];
+  } else e.lure = H.moving ? H.lure : H.gather[gi];
   return e;
 }
 // once it has you, every one of them sprints: the horde arrives as one wall, not a straggling line
@@ -279,7 +281,7 @@ export function tickHorde(dt) {
       cy += e.y;
       if (H.alert) e.aw = Math.max(e.aw || 0, 3);
       else if (!e.lure && !(e.aw > 0))
-        e.lure = H.moving ? H.lure : H.gather[0]; // a clock rang out and stopped: back on the route
+        e.lure = H.moving ? H.lure : H.gather[e.gi || 0]; // a clock rang out and stopped: back on the route
       else if (!(e.lure && e.lure.horde) && e.aw > 0) H.woke = (H.woke || 0) + 1; // a shot or a glimpse of you pulled this one off the route
     }
   if (m) {

@@ -8,12 +8,12 @@
 //    the dark. Kill it before it gets away with them, or they are gone. With nobody to take, it takes you.
 import { GS } from '../core/gs.js';
 import { TAU, d2, rand } from '../core/util.js';
-import { MW, TILE, grid } from '../world/map.js';
-import { collide, steer } from '../world/nav.js';
+import { MH, MW, TILE, grid } from '../world/map.js';
+import { collide, flow, los, steer } from '../world/nav.js';
 import { sfx } from '../audio/sfx.js';
 import { part, shake } from '../render/effects.js';
 import { showStreak } from '../ui/callouts.js';
-import { hurtPlayer, killEnemy } from '../game/combat.js';
+import { hurtPlayer, killEnemy, releaseGrab } from '../game/combat.js';
 import { saveMeta } from '../core/settings.js';
 import { makeEnemy } from './enemies.js';
 
@@ -63,19 +63,77 @@ export function specialTip(e) {
   showStreak(SPECIAL[e.kind].name, SPECIAL[e.kind].tip, true);
 }
 const wallAt = (x, y) => !!grid[Math.floor(y / TILE) * MW + Math.floor(x / TILE)];
+// a wall within a step of it: only then does it go up and over (on open street it runs like any other)
+const nearWall = e => {
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (wallAt(e.x + i * 30, e.y + j * 30)) return true;
+  return false;
+};
+// away from you along the streets: the neighbouring tile furthest from you by the path, not a straight line into a wall
+function fleeDir(e, p) {
+  const cx = Math.floor(e.x / TILE),
+    cy = Math.floor(e.y / TILE);
+  let best = -1,
+    bx = 0,
+    by = 0;
+  for (let j = -1; j <= 1; j++)
+    for (let i = -1; i <= 1; i++) {
+      const tx = cx + i,
+        ty = cy + j;
+      if ((!i && !j) || tx < 0 || ty < 0 || tx >= MW || ty >= MH || grid[ty * MW + tx]) continue;
+      const v = flow[ty * MW + tx];
+      if (v < 65535 && v > best) {
+        best = v;
+        bx = (tx + 0.5) * TILE - e.x;
+        by = (ty + 0.5) * TILE - e.y;
+      }
+    }
+  if (best < 0) {
+    bx = e.x - p.x;
+    by = e.y - p.y;
+  }
+  const l = Math.hypot(bx, by) || 1;
+  return [bx / l, by / l];
+}
+// knocked flat, staggered or dazed: the ordinary AI handles that, as for any zombie
+const stunned = e => e.down > 0 || e.stag > 0 || (e.dazedT || 0) > GS.time;
+// what the ordinary AI would do to it each frame, for the frames a special moves itself: a slow wears off and slows it,
+// a shove from a blast or a shotgun carries it and dies away; returns the speed factor
+function kin(e, dt) {
+  let k = 1;
+  if (e.slowT > 0) {
+    e.slowT -= dt;
+    k = 0.45;
+  }
+  const kl = Math.hypot(e.kx || 0, e.ky || 0);
+  if (kl > 900) {
+    e.kx *= 900 / kl;
+    e.ky *= 900 / kl;
+  }
+  e.x += (e.kx || 0) * dt;
+  e.y += (e.ky || 0) * dt;
+  const kd = Math.pow(0.015, dt);
+  e.kx = (e.kx || 0) * kd;
+  e.ky = (e.ky || 0) * kd;
+  return k;
+}
 // runs before the ordinary AI; returns true when it has moved the zombie itself this frame
 export function specialTick(e, dt, p) {
   specialTip(e);
+  if (stunned(e)) return false;
   if (e.kind === 'climb') {
+    if (!(GS.time < (e.clT || 0))) {
+      e.clT = GS.time + 0.25;
+      e.clLos = los(e.x, e.y, p.x, p.y);
+    } // its own look at you: while it is up on a wall the AI counts it as seeing you, which would drop it off every other beat
     const dx = p.x - e.x,
       dy = p.y - e.y,
       d = Math.hypot(dx, dy) || 1,
-      over = !e.los || wallAt(e.x, e.y);
+      over = (!e.clLos && nearWall(e)) || wallAt(e.x, e.y);
     if ((e.aw > 0 || d < 700) && over && e.emerge >= 1) {
       if (!e.fly) sfx.groan(e.x, e.y);
       e.fly = true; // over the wall: drawn above the buildings, through nothing
       e.climbT = GS.time;
-      const k = wallAt(e.x, e.y) ? 0.62 : 1;
+      const k = (wallAt(e.x, e.y) ? 0.62 : 1) * kin(e, dt);
       e.vx = (dx / d) * e.sp * k;
       e.vy = (dy / d) * e.sp * k;
       e.a = Math.atan2(dy, dx);
@@ -154,9 +212,24 @@ function dragTick(e, dt, p) {
       }
       return false; // nobody to take: it comes for you like any other
     }
-    const [ux, uy, dist] = steer(e, b.x, b.y, null, true);
-    e.vx = ux * e.sp;
-    e.vy = uy * e.sp;
+    if (!(GS.time < (e.bLosT || 0))) {
+      e.bLosT = GS.time + 0.3;
+      e.bLos = los(e.x, e.y, b.x, b.y);
+      const mv = Math.hypot(e.x - (e.sx0 ?? e.x), e.y - (e.sy0 ?? e.y));
+      e.stuckN = mv < 6 ? (e.stuckN || 0) + 1 : 0;
+      e.sx0 = e.x;
+      e.sy0 = e.y;
+      if (e.stuckN > 10) {
+        e.stuckN = 0;
+        e.prey = null;
+        e.pickT = 5;
+        return false;
+      } // three seconds without getting anywhere: it gives that one up for now
+    }
+    const [ux, uy, dist] = e.bLos ? steer(e, b.x, b.y, null, true) : steer(e, b.x, b.y, flow),
+      ks = kin(e, dt);
+    e.vx = ux * e.sp * ks;
+    e.vy = uy * e.sp * ks;
     e.a = Math.atan2(uy, ux);
     e.x += e.vx * dt;
     e.y += e.vy * dt;
@@ -178,14 +251,11 @@ function dragTick(e, dt, p) {
     return false;
   }
   e.carryT += dt;
-  const ax = e.x - p.x,
-    ay = e.y - p.y,
-    al = Math.hypot(ax, ay) || 1,
-    fx = e.x + (ax / al) * 400,
-    fy = e.y + (ay / al) * 400,
-    [ux, uy] = steer(e, fx, fy, null, true);
-  e.vx = ux * e.sp * 0.72;
-  e.vy = uy * e.sp * 0.72;
+  const al = Math.hypot(e.x - p.x, e.y - p.y),
+    [ux, uy] = fleeDir(e, p),
+    ks = kin(e, dt);
+  e.vx = ux * e.sp * 0.72 * ks;
+  e.vy = uy * e.sp * 0.72 * ks;
   e.a = Math.atan2(-uy, -ux); // walking backwards, hauling
   e.x += e.vx * dt;
   e.y += e.vy * dt;
@@ -228,8 +298,13 @@ export function dragPlayer(e, dt, p) {
   const ax = e.x - p.x,
     ay = e.y - p.y,
     al = Math.hypot(ax, ay) || 1;
+  if (GS.state !== 'play' || al > e.r + p.r + 20) {
+    releaseGrab(0.3);
+    return;
+  } // a wall between you, or a blast that threw it off: the grip is gone
   e.x += (ax / al) * 26 * dt;
   e.y += (ay / al) * 26 * dt;
+  collide(e);
   p.x += (ax / al) * 26 * dt;
   p.y += (ay / al) * 26 * dt;
   e.gT = (e.gT || 0) - dt;

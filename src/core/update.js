@@ -463,6 +463,7 @@ export function update(dt) {
           GS.wave >= 3 &&
           t !== 'queen' &&
           t !== 'flower' &&
+          !ne.kind &&
           Math.random() < (0.03 + GS.wave * 0.005 + 0.012 * ((GS.wave - 1) % 5)) * (INF(3) ? 2 : 1)
         )
           makeElite(ne);

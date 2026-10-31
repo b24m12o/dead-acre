@@ -333,7 +333,7 @@ export function drawWheel() {
       a = slotA(i),
       x = W.cx + Math.cos(a) * R0,
       y = W.cy + Math.sin(a) * R0,
-      iw = 80 * k,
+      iw = 74 * k,
       ih = iw * 0.4,
       img = icon(iconId(id), iw, ih, on && ok ? '#ffe2b8' : '#f2ead8'),
       z = on ? 1.14 : 1; // the pointed one swells a little; nothing else on the wheel moves

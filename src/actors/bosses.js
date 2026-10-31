@@ -252,7 +252,7 @@ export function pzScream(e, ph) {
       o.frenzy = 3.5;
       o.aw = 9;
     }
-  makeNoise(e.x, e.y, ph >= 2 ? 2600 : 1600);
+  makeNoise(e.x, e.y, ph >= 2 ? 2600 : 1600, false, false);
 }
 export function graveCrack(e, ga, ph, summon) {
   // the spade comes down: the ground splits along a line and the dead climb out of the graves it runs past
