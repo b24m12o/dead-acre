@@ -54,6 +54,15 @@ export function drawObjectiveGlow() {
       lineQ(t.x0 + dx * f0, t.y0 + dy * f0, t.x0 + dx * f, t.y0 + dy * f, 2.2, 0, 0, 0, 0.9, 2.6, 1.7, 0.7, 0, R.pixel);
       if (f > 0.9) quad(R.glow, t.x1, t.y1, 0, 0.18, 0.18, 0, 0, 0, 1, 1.4, 0.9, 0.4, 0);
     } // door-gun tracers
+  if (GS.fxTr && GS.fxTr.length) {
+    for (const t of GS.fxTr) {
+      const f = 1 - Math.max(0, t.t) / 0.07,
+        f0 = Math.max(0, f - 0.45),
+        dx = t.x1 - t.x0,
+        dy = t.y1 - t.y0;
+      lineQ(t.x0 + dx * f0, t.y0 + dy * f0, t.x0 + dx * f, t.y0 + dy * f, 1.6, 0, 0, 0, 0.8, 2.4, 1.6, 0.7, 0, R.pixel);
+    }
+  } // the survivors' pistol shots
 }
 export function objectiveLights() {
   if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) addLight(GS.obj.x, GS.obj.y - 30, 200, 0.4, 0.36, 0.28);
@@ -325,6 +334,16 @@ export function drawMarkersUI(toS) {
       ui.fillStyle = b.broken ? '#ff5a4a' : f > 0.6 ? '#c8e6a0' : f > 0.3 ? '#ffc04a' : '#ff7a4a';
       ui.fillRect(x - 16 * k, y + 1 * k, 32 * k * Math.max(0.04, f), 3 * k);
     } // each battered board: how much is left of it
+    for (const s of GS.obj.civ) {
+      if (!(s.hp < s.max)) continue;
+      const [x, y] = toS(s.x, s.y + 26),
+        f = Math.max(0, s.hp / s.max);
+      if (x < 0 || y < 0 || x > VW || y > VH) continue;
+      ui.fillStyle = 'rgba(20,24,29,0.8)';
+      ui.fillRect(x - 15 * k, y, 30 * k, 5 * k);
+      ui.fillStyle = f > 0.5 ? '#8ef0b8' : f > 0.25 ? '#ffc04a' : '#ff5a4a';
+      ui.fillRect(x - 14 * k, y + 1 * k, 28 * k * f, 3 * k);
+    } // the survivors you're holding it for: a bar once they're hurt
     const dr = !GS.obj.sealed && GS.obj.bars.find(b => b.door);
     if (dr) {
       const [x, y] = toS(dr.x, dr.y),

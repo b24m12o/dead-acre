@@ -7,8 +7,10 @@
 import { GS } from '../core/gs.js';
 import { d2, pick, rand } from '../core/util.js';
 import { MH, MW, TILE, grid, houses } from '../world/map.js';
-import { dijk, flow } from '../world/nav.js';
+import { dijk, flow, los } from '../world/nav.js';
 import { sfx } from '../audio/sfx.js';
+import { playR } from '../audio/audio.js';
+import { hurtEnemy } from './combat.js';
 import { chips, floatText, shake } from '../render/effects.js';
 import { showStreak } from '../ui/callouts.js';
 import { makeSurvivor } from '../actors/backups.js';
@@ -92,7 +94,7 @@ export function planSiege() {
   for (let i = 0; i < Math.min(4, spots.length); i++) {
     const [tx, ty] = spots[i],
       s = makeSurvivor((tx + 0.5) * TILE + rand(-8, 8), (ty + 0.5) * TILE + rand(-8, 8));
-    s.gun = null;
+    s.gun = 'pistol';
     s.hp = s.max = 70 + 6 * GS.wave;
     civ.push(s);
   }
@@ -160,7 +162,9 @@ export function siegeTarget(e) {
 }
 export function tickSiege(dt) {
   const o = GS.obj;
-  if (!o || o.type !== 'siege' || o.done) return;
+  if (!o || o.type !== 'siege') return;
+  for (const s of o.civ) s.hurt = Math.max(0, (s.hurt || 0) - dt); // the flash of a hit fades, night or day
+  if (o.done) return;
   const P = GS.P;
   if (!o.sealed && P && inHouse(o, P.x, P.y)) {
     o.sealed = true;
@@ -243,7 +247,11 @@ export function tickSiege(dt) {
     for (const s of o.civ) {
       if (d2(e.x, e.y, s.x, s.y) > (e.r + s.r + 8) ** 2 || !(e.dmg > 0)) continue;
       s.hp -= e.dmg * dt * 1.1;
-      s.hurt = 0.2;
+      s.hitT = (s.hitT || 0) - dt;
+      if (s.hitT <= 0) {
+        s.hitT = 0.45;
+        s.hurt = 0.1;
+      } // a flash for each blow, not a steady glare
       if (Math.random() < dt * 4) chips(s.x, s.y, 2, [0.5, 0.05, 0.04], 3, 120);
       break;
     }
@@ -268,8 +276,36 @@ export function tickSiege(dt) {
         return;
       }
     }
-  // the ones inside look to the nearest board under attack
+  // the ones inside: a pistol each, and they use it on anything they can see coming for them; otherwise they watch
+  // the nearest board under attack
+  if (!GS.fxTr) GS.fxTr = [];
+  for (const t of GS.fxTr) t.t -= dt;
+  if (GS.fxTr.length && GS.fxTr[0].t <= 0) GS.fxTr = GS.fxTr.filter(t => t.t > 0);
   for (const s of o.civ) {
+    s.recoil = Math.max(0, (s.recoil || 0) - dt * 40);
+    s.cd = (s.cd ?? rand(0, 0.6)) - dt;
+    if (s.cd <= 0) {
+      s.cd = rand(0.55, 0.8);
+      let tg = null,
+        td = 240 * 240;
+      for (const z of GS.enemies) {
+        if (z.dead || !(z.emerge >= 1) || z.fly) continue;
+        const dd = d2(z.x, z.y, s.x, s.y);
+        if (dd < td && los(s.x, s.y, z.x, z.y)) {
+          td = dd;
+          tg = z;
+        }
+      }
+      if (tg) {
+        s.bodyA = s.aimA = s.moveA = Math.atan2(tg.y - s.y, tg.x - s.x);
+        s.recoil = 4;
+        GS.fxTr.push({ x0: s.x + Math.cos(s.aimA) * 16, y0: s.y + Math.sin(s.aimA) * 16, x1: tg.x, y1: tg.y, t: 0.07 });
+        playR('pistol', 0.2, s.x, s.y, 1);
+        hurtEnemy(tg, 10 + GS.wave, false, tg.x - s.x, tg.y - s.y, 0.6, 'buddy');
+        continue;
+      }
+    }
+    if (s.cd < 0.4 && s.cd > 0) continue; // just fired: still on target
     let best = null,
       bd = 1e12;
     for (const b of o.bars)

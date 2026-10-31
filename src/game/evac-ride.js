@@ -265,6 +265,7 @@ function groups(e, r, dt) {
     }
     if (!g.on) continue;
     for (const s of g.civ) {
+      s.hurt = Math.max(0, (s.hurt || 0) - dt); // the flash of a hit fades
       if (s.hp <= 0) continue;
       let near = null,
         nd = 1e12;
@@ -277,7 +278,11 @@ function groups(e, r, dt) {
         }
         if (dd < (z.r + s.r + 6) ** 2 && z.dmg > 0) {
           s.hp -= z.dmg * dt * 0.9;
-          s.hurt = 0.2;
+          s.hitT = (s.hitT || 0) - dt;
+          if (s.hitT <= 0) {
+            s.hitT = 0.45;
+            s.hurt = 0.1;
+          } // a flash for each blow, not a steady glare
         }
       });
       if (near) s.aimA = s.bodyA = Math.atan2(near.y - s.y, near.x - s.x);
