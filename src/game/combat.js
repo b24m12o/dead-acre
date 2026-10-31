@@ -373,6 +373,7 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   e.wob = 1;
   e.aw = Math.max(e.aw || 0, 8);
   e.lure = null;
+  e.heardT = GS.time; // hurt: it wants you now, whatever is ringing
   if (src !== 'fire' && HUMAN[e.type] && e.type !== 'mini') {
     if (
       e.type === 'skitter' &&

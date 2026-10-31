@@ -43,7 +43,8 @@ export function makeNoise(x, y, r, soft) {
     GS.noiseRings.push({ x, y, r, t0: GS.time });
     if (GS.noiseRings.length > 6) GS.noiseRings.shift();
   }
-  let woke = 0;
+  let woke = 0,
+    hordeOff = 0;
   const r2 = r * r;
   for (const e of GS.enemies) {
     if (e.dead || d2(e.x, e.y, x, y) > r2) continue;
@@ -51,8 +52,17 @@ export function makeNoise(x, y, r, soft) {
       e.lure.heard = { x, y };
       continue;
     } // far off, a roaming horde only turns toward the sound; up close it comes for you
-    if (e.lure && e.lure.alarm > 0 && !e.lure.horde && (soft || d2(e.x, e.y, e.lure.x, e.lure.y) < 260 * 260)) continue; // right beside a screaming car they can't hear you
+    if (
+      e.lure &&
+      e.lure.alarm > 0 &&
+      !e.lure.horde &&
+      !e.lure.noise &&
+      (soft || d2(e.x, e.y, e.lure.x, e.lure.y) < 260 * 260)
+    )
+      continue; // right beside a screaming car they can't hear you (a little alarm clock doesn't drown a gun out)
+    if (e.horde && e.lure && e.lure.noise) hordeOff++;
     e.lure = null;
+    e.heardT = GS.time; // a clock already ringing won't take this one back: you are louder
     if (!(e.aw > 0)) {
       woke++;
       e.wokeT = GS.time;
@@ -60,6 +70,13 @@ export function makeNoise(x, y, r, soft) {
     }
     e.aw = Math.max(e.aw || 0, 8);
   }
+  if (hordeOff >= 3)
+    for (const e of GS.enemies)
+      if (e.horde && !e.dead && e.lure && e.lure.noise) {
+        e.lure = null;
+        e.heardT = GS.time;
+        e.aw = Math.max(e.aw || 0, 8);
+      } // a horde moves as one: when the ones that heard you turn off the clock, the rest of it follows them
   if (woke >= 6 && r >= 900 && !GS.loudSaid && GS.state === 'play' && GS.wave > 0) {
     GS.loudSaid = true;
     radio(RADIO.loud);

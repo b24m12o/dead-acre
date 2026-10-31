@@ -27,7 +27,7 @@ export function dynamiteBlast(x, y) {
 // a flare lands: it burns, and every zombie that can get to it goes to it, the way they go to a car alarm
 // noise: the trap noise maker, a ringing alarm clock that only pulls, for 10 s, from further off and the whole time
 export function startFlare(x, y, noise = false) {
-  const f = { x, y, alarm: noise ? 10 : 8 + 4 * S.abLv, flare: true, noise, t: 0, ignT: 0, beepT: 0 },
+  const f = { x, y, alarm: noise ? 10 : 8 + 4 * S.abLv, flare: true, noise, t: 0, t0: GS.time, ignT: 0, beepT: 0 },
     seeds = [],
     cx = Math.floor(x / TILE),
     cy = Math.floor(y / TILE);
@@ -63,7 +63,9 @@ export function startFlare(x, y, noise = false) {
   }
 }
 // the noise maker's pull, while it rings: everything within earshot, the ones that turn up later too, and a horde
-// from much further (a mass that size hears it across the map); only the ones already on you stay on you
+// from much further (a mass that size hears it across the map); only the ones already on you stay on you, and
+// anything that has heard your gun, a blast, or been hit since it began ringing goes for you instead (a fresh clock
+// can still pull them off you again, as long as you hold your fire)
 function pullTo(f) {
   const n = { all: 0, horde: 0 },
     P = GS.P;
@@ -71,6 +73,7 @@ function pullTo(f) {
     if (e.dead || e.lure === f || e.big || e.fly || e.type === 'flower' || e.type === 'wasp') continue;
     if (d2(e.x, e.y, f.x, f.y) > (e.horde ? 2200 : 950) ** 2) continue;
     if (P && e.los && d2(e.x, e.y, P.x, P.y) < 230 * 230) continue;
+    if ((e.heardT ?? -1) > f.t0) continue; // your gunfire, a blast or a hit since it started ringing: you come first
     e.lure = f;
     e.aw = 0;
     if (e.st !== 'jump') {
