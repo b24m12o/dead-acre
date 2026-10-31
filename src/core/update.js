@@ -6,7 +6,7 @@ import { TAU, angDiff, clamp, d2, damp, keepIf, lerp, pick, rand, randi } from '
 import { GUNS } from '../game/arsenal.js';
 import { ZOOM, viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
-import { MW, TILE, isWall } from '../world/map.js';
+import { MW, TILE, WH, WW, isWall } from '../world/map.js';
 import { N8, buildFlow, collide, flow, los, query, rebuildHash, solidPt } from '../world/nav.js';
 import { SBV, noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
@@ -40,6 +40,66 @@ import { hordeLive, tickHorde } from '../game/horde.js';
 import { tickTraps } from '../game/traps.js';
 import { tickSpores } from '../actors/specials.js';
 import { SPECIAL, makeSpecial } from '../actors/specials.js';
+// Bodies shove each other apart, the lighter giving way. A fine grid of its own (cells as wide as two walkers) in flat
+// arrays: a horde of 400 packed round you is ~30 neighbours each to check, not ~120 through a callback
+const SEP = 40,
+  SEP_R = 20; // walkers up to this size use the 3 × 3 cells round them; anything bigger searches further
+let sepHead = null,
+  sepNext = new Int32Array(512),
+  sepW = 0,
+  sepH = 0;
+const sepW8 = e => (e.type === 'queen' || e.type === 'flower' || e.type === 'egg' ? 0 : 1 / (e.r * e.r));
+function separate(L) {
+  if (!sepHead || sepW !== Math.ceil(WW / SEP)) {
+    sepW = Math.ceil(WW / SEP);
+    sepH = Math.ceil(WH / SEP);
+    sepHead = new Int32Array(sepW * sepH);
+  }
+  if (sepNext.length < L.length) sepNext = new Int32Array(L.length * 2);
+  sepHead.fill(-1);
+  let rMax = 0;
+  for (let i = 0; i < L.length; i++) {
+    const e = L[i];
+    if (e.dead || e.st === 'jump') continue;
+    const c = clamp(Math.floor(e.y / SEP), 0, sepH - 1) * sepW + clamp(Math.floor(e.x / SEP), 0, sepW - 1);
+    sepNext[i] = sepHead[c];
+    sepHead[c] = i;
+    if (e.r > rMax) rMax = e.r;
+  }
+  for (let i = 0; i < L.length; i++) {
+    const a = L[i];
+    if (a.dead || a.st === 'jump') continue;
+    const reach = a.r + (a.r > SEP_R ? rMax : Math.min(rMax, SEP_R)),
+      n = Math.ceil(reach / SEP),
+      cx = clamp(Math.floor(a.x / SEP), 0, sepW - 1),
+      cy = clamp(Math.floor(a.y / SEP), 0, sepH - 1),
+      wa = sepW8(a),
+      af = !!a.fly,
+      aBig = a.r > SEP_R;
+    for (let y = Math.max(0, cy - n); y <= Math.min(sepH - 1, cy + n); y++)
+      for (let x = Math.max(0, cx - n); x <= Math.min(sepW - 1, cx + n); x++)
+        for (let j = sepHead[y * sepW + x]; j >= 0; j = sepNext[j]) {
+          const b = L[j];
+          // each pair once: by index, except that a big body always takes a pair with a small one (whose search can't reach it)
+          if (j === i || af !== !!b.fly) continue;
+          if (aBig === b.r > SEP_R ? j < i : !aBig) continue;
+          const rr = a.r + b.r,
+            dx = a.x - b.x,
+            dy = a.y - b.y,
+            dd = dx * dx + dy * dy;
+          if (dd >= rr * rr || dd <= 0.01) continue;
+          const wb = sepW8(b),
+            tot = wa + wb;
+          if (!tot) continue;
+          const d = Math.sqrt(dd),
+            k = (rr - d) / d / tot;
+          a.x += dx * k * wa;
+          a.y += dy * k * wa;
+          b.x -= dx * k * wb;
+          b.y -= dy * k * wb;
+        }
+  }
+}
 export function update(dt) {
   radioTick(dt);
   GS.time += dt;
@@ -506,28 +566,18 @@ export function update(dt) {
   if (aiStep) {
     buildFlow(p.x, p.y);
     rebuildHash();
-    for (const e of GS.enemies) updateEnemy(e, aiDt, p);
-    for (const a of GS.enemies) {
-      if (a.dead || a.type === 'flower' || a.st === 'jump') continue;
-      query(a.x, a.y, a.r + 30, b => {
-        if (b === a || b.dead || b.id < a.id || b.st === 'jump' || !!a.fly !== !!b.fly) return;
-        const rr2 = a.r + b.r,
-          dd = d2(a.x, a.y, b.x, b.y);
-        if (dd < rr2 * rr2 && dd > 0.01) {
-          const d = Math.sqrt(dd),
-            push = rr2 - d,
-            nx = (a.x - b.x) / d,
-            ny = (a.y - b.y) / d,
-            wa = a.type === 'queen' || a.type === 'flower' || a.type === 'egg' ? 0 : 1 / (a.r * a.r),
-            wb = b.type === 'queen' || b.type === 'flower' || b.type === 'egg' ? 0 : 1 / (b.r * b.r), // the lighter body gives way: a walker is shoved aside by a brute, not the other way round
-            tot = wa + wb || 1;
-          a.x += (nx * push * wa) / tot;
-          a.y += (ny * push * wa) / tot;
-          b.x -= (nx * push * wb) / tot;
-          b.y -= (ny * push * wb) / tot;
-        }
-      });
-    }
+    GS.aiTick = (GS.aiTick || 0) + 1;
+    const vcx = cam.x + viewW / 2,
+      vcy = cam.y + viewH / 2,
+      fx = viewW / 2 + 260,
+      fy = viewH / 2 + 260;
+    for (const e of GS.enemies) {
+      if (!e.big && !e.dead && (Math.abs(e.x - vcx) > fx || Math.abs(e.y - vcy) > fy)) {
+        if ((e.id + GS.aiTick) & 1) continue;
+        updateEnemy(e, aiDt * 2, p);
+      } else updateEnemy(e, aiDt, p);
+    } // well off the screen, a zombie thinks every other frame (for twice as long): nobody sees it, and a horde is half off-screen
+    separate(GS.enemies);
   }
   for (const b of GS.barrels) {
     if (b.dead) continue;

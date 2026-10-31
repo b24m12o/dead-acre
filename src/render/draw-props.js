@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
-import { TAU, clamp, lerp } from '../core/util.js';
+import { TAU, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, setH, viewH, viewW } from './sprites.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
@@ -11,6 +11,8 @@ import { carKey, drawCar, drawWreck } from './cars.js';
 import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk, propShadow } from './decor.js';
 import { drawPile } from '../game/objectives.js';
 const DQ = [];
+const MOON_CAP = 90; // past this many zombies on screen, the furthest throw a simple shadow
+const FL_CAP = 48; // zombies whose shadows the flashlight throws, nearest first: each costs three smeared copies of the body
 function drawCrate(c) {
   if (GS.SHMODE && !c.landed) return;
   setH(c.landed ? 10 : 0);
@@ -256,7 +258,26 @@ export function drawCasters() {
   for (const f of fires) if (vis(f.x, f.y)) push(f.y + 12, drawBurnBarrel, f);
   for (const b of GS.barrels) if (!b.dead && vis(b.x, b.y)) push(b.y + 10, drawBarrel, b);
   for (const e of GS.corpses) if (vis(e.x, e.y)) push(e.y - 18, drawEnemy, e);
-  for (const e of GS.enemies) if (!e.fly && vis(e.x, e.y)) push(e.y + (e.type === 'queen' ? 240 : 0), drawEnemy, e); // bosses tower over the cars and clutter they wade through
+  {
+    let L = GS.enemies.filter(e => !e.fly && vis(e.x, e.y));
+    if (GS.SHMODE === 2) {
+      L = L.filter(e => (e._fd = d2(e.x, e.y, GS.FLX, GS.FLY)) < 800 * 800);
+      if (L.length > FL_CAP) {
+        L.sort((a, b) => a._fd - b._fd);
+        L.length = FL_CAP;
+      }
+    } // the flashlight's shadows: only the nearest of a crowd (the ones behind stand in their shadows anyway)
+    else if (GS.SHMODE === true) {
+      for (const e of L) e._lod = false;
+      if (L.length > MOON_CAP && GS.P) {
+        const M = L.slice();
+        for (const e of M) e._fd = d2(e.x, e.y, GS.P.x, GS.P.y);
+        M.sort((a, b) => a._fd - b._fd);
+        for (let i = MOON_CAP; i < M.length; i++) if (!M[i].big && !M[i].dying) M[i]._lod = true;
+      }
+    } // the moon's shadows: in a big crowd, the ones further off cast a soft blob, not every limb
+    for (const e of L) push(e.y + (e.type === 'queen' ? 240 : 0), drawEnemy, e); // bosses tower over the cars and clutter they wade through
+  }
   if (GS.state !== 'over' && GS.P && !GS.NOHERO) push(GS.P.y, drawRanger, GS.P);
   if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) push(GS.obj.y, drawGen, null);
   if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && !GS.obj.joined) push(GS.obj.s.y, drawRanger, GS.obj.s);
