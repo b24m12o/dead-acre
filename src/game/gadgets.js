@@ -11,6 +11,7 @@ import { flashLight, part, sparks } from '../render/effects.js';
 import { explode } from './combat.js';
 import { ignite } from '../world/fire.js';
 import { tone } from '../audio/audio.js';
+import { showStreak } from '../ui/callouts.js';
 
 GS.mines = [];
 GS.flares = [];
@@ -24,7 +25,7 @@ export function dynamiteBlast(x, y) {
   explode(x, y, 150 * (1 + 0.25 * S.abLv), abDmg() * 1.3 * (1 + 0.2 * S.abLv), false);
 }
 // a flare lands: it burns, and every zombie that can get to it goes to it, the way they go to a car alarm
-// noise: the trap noise maker, a ringing alarm clock that only pulls, for 10 s, from further off
+// noise: the trap noise maker, a ringing alarm clock that only pulls, for 10 s, from further off and the whole time
 export function startFlare(x, y, noise = false) {
   const f = { x, y, alarm: noise ? 10 : 8 + 4 * S.abLv, flare: true, noise, t: 0, ignT: 0, beepT: 0 },
     seeds = [],
@@ -41,7 +42,16 @@ export function startFlare(x, y, noise = false) {
   GS.flares.push(f);
   if (GS.flares.length > 3) GS.flares.shift();
   sfx.ting();
-  const R2 = (noise ? 950 : 700 * (1 + 0.4 * S.abLv)) ** 2;
+  if (noise) {
+    const n = pullTo(f);
+    f.pullT = 0.5;
+    if (n.horde >= 12 && GS.horde && !GS.horde.clockSaid) {
+      GS.horde.clockSaid = true;
+      showStreak('It hears the clock', `${n.horde} of the horde turn toward it · ten seconds`, true);
+    }
+    return;
+  }
+  const R2 = (700 * (1 + 0.4 * S.abLv)) ** 2;
   for (const e of GS.enemies) {
     if (e.dead || e.big || e.fly || e.type === 'flower' || e.type === 'wasp' || d2(e.x, e.y, x, y) > R2) continue;
     e.lure = f;
@@ -51,6 +61,26 @@ export function startFlare(x, y, noise = false) {
       e.stT = 1;
     }
   }
+}
+// the noise maker's pull, while it rings: everything within earshot, the ones that turn up later too, and a horde
+// from much further (a mass that size hears it across the map); only the ones already on you stay on you
+function pullTo(f) {
+  const n = { all: 0, horde: 0 },
+    P = GS.P;
+  for (const e of GS.enemies) {
+    if (e.dead || e.lure === f || e.big || e.fly || e.type === 'flower' || e.type === 'wasp') continue;
+    if (d2(e.x, e.y, f.x, f.y) > (e.horde ? 2200 : 950) ** 2) continue;
+    if (P && e.los && d2(e.x, e.y, P.x, P.y) < 230 * 230) continue;
+    e.lure = f;
+    e.aw = 0;
+    if (e.st !== 'jump') {
+      e.st = 'move';
+      e.stT = 1;
+    }
+    n.all++;
+    if (e.horde) n.horde++;
+  }
+  return n;
 }
 export function tickGadgets(dt) {
   for (const m of GS.mines) {
@@ -82,6 +112,11 @@ export function tickGadgets(dt) {
         const v = Math.max(0, 1 - Math.hypot(f.x - GS.P.x, f.y - GS.P.y) / 1100);
         if (v > 0) tone(2300, 0.09, 'square', 0.05 * v, 1, 0, 3200);
       } // brrring: a cheap alarm clock, loud enough to carry
+      f.pullT -= dt;
+      if (f.pullT <= 0) {
+        f.pullT = 0.5;
+        pullTo(f);
+      }
       continue;
     }
     const fl = 0.8 + 0.2 * Math.sin(f.t * 31) * Math.sin(f.t * 13.7);

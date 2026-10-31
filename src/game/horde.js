@@ -278,6 +278,8 @@ export function tickHorde(dt) {
       cx += e.x;
       cy += e.y;
       if (H.alert) e.aw = Math.max(e.aw || 0, 3);
+      else if (!e.lure && !(e.aw > 0))
+        e.lure = H.moving ? H.lure : H.gather[0]; // a clock rang out and stopped: back on the route
       else if (!(e.lure && e.lure.horde) && e.aw > 0) H.woke = (H.woke || 0) + 1; // a shot or a glimpse of you pulled this one off the route
     }
   if (m) {

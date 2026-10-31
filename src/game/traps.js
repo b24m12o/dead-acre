@@ -4,8 +4,8 @@
 //  · Land mine: thrown to the cursor. It arms a moment after it lands and blows when the dead step near it.
 //  · Gas drum: set down in front of you. Shoot it (or let a blast or a fire reach it) and it bursts into a wide pool
 //    of burning fuel.
-//  · Noise maker: an old alarm clock, thrown. For ten seconds it pulls every zombie within earshot to it, the horde
-//    too: put it behind your mines and drums.
+//  · Noise maker: an old alarm clock, thrown. For ten seconds it pulls every zombie within earshot to it, and a horde
+//    from right across the map: put it behind your mines and drums. Only the ones already on you stay on you.
 //  · Car rig: a charge for a parked car. Pick it like the others, stand by a car and the trap key rigs it; the next
 //    hit blows it half again as wide. It only ever rigs when it is the trap you hold.
 // You carry three of each at most. They come in supply crates, and the dawn before a horde brings a full kit.
@@ -29,7 +29,7 @@ import { iconURL } from '../ui/icons.js';
 export const TRAP = {
   mine: { name: 'Land mine', short: 'Mine', desc: 'Thrown. Blows when they step near it.' },
   drum: { name: 'Gas drum', short: 'Gas drum', desc: 'Set down. Shoot it for a wide pool of fire.' },
-  noise: { name: 'Noise maker', short: 'Noise maker', desc: 'Thrown. Pulls them all to it for 10 s.' },
+  noise: { name: 'Noise maker', short: 'Noise maker', desc: 'Thrown. Pulls them to it for 10 s, a horde too.' },
   rig: { name: 'Car rig', short: 'Car rig', desc: 'Stand by a parked car. The next hit blows it big.' },
 };
 export const TRAP_ORDER = ['mine', 'drum', 'noise', 'rig']; // what the wheel and the switch key cycle through
