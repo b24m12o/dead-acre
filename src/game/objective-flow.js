@@ -9,6 +9,7 @@ import { bump } from './challenges.js';
 import { BOX_SEARCH, boxSignal, objKey, objName } from './objectives.js';
 import { RADIO, radio } from '../audio/radio.js';
 import { siegeText } from './siege.js';
+import { rideKills } from './evac-ride.js';
 import { rollBud } from '../actors/backups.js';
 export const OBJ_TIP = {
   box: 'Watch the signal on the night plate. At the wreck, stand still at a pile to search it',
@@ -31,6 +32,8 @@ export const OBJ_NAME = {
 };
 export function objText() {
   if (GS.evac && GS.evac.leave) return '';
+  if (GS.evac && GS.evac.ride)
+    return `Door gun · ${rideKills(GS.evac)} kills${GS.evac.ride.saved + GS.evac.ride.lost ? ` · ${GS.evac.ride.saved} survivors covered` : ''}`;
   if (GS.evac) {
     if (GS.evac.t < GS.evac.land) return `Evac in ${Math.ceil(GS.evac.land - GS.evac.t)} s · hold the landing zone`;
     const crew = GS.RUN.aboard.length + GS.buddies.length,

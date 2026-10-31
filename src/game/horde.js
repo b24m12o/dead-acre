@@ -80,7 +80,7 @@ export function planHorde(finale = false) {
     spawned: 0,
     killed: 0,
     alert: false,
-    startT: finale ? 6 : GS.RUN.hm && GS.wave === 1 ? 40 : 14, // the first wave of Horde Mode gives you time to lay the kit
+    startT: finale ? 6 : GS.RUN.hm ? (GS.wave === 1 ? 25 : 4) : 14, // the first wave of Horde Mode gives you time to lay the kit; after that the next one is already on its way
     roamT: 0,
     reT: 0,
     growlT: 2,
@@ -303,7 +303,7 @@ export function tickHorde(dt) {
       H.reT = 10;
       pass(H);
     } // it follows the scent: every ten seconds the route bends toward where you are now, to pass you close by
-    if (H.roamT > 80) alertAll(H);
+    if (H.roamT > (GS.RUN.hm ? 12 : 80)) alertAll(H); // in Horde Mode it doesn't search long: it comes
     H.growlT -= dt;
     if (H.growlT <= 0 && m) {
       H.growlT = rand(1.2, 2.4);

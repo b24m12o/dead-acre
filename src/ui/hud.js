@@ -233,7 +233,9 @@ export function updateHud() {
     !GS.wave
       ? 'Get ready'
       : GS.evac && !GS.evac.leave
-        ? 'Get to the chopper'
+        ? GS.evac.ride
+          ? 'The ride out'
+          : 'Get to the chopper'
         : GS.RUN.jobPend && GS.nightDone
           ? 'Convoy calling…'
           : GS.nightDone && !left && GS.interT > 0

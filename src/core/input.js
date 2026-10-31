@@ -95,7 +95,10 @@ export function init() {
     if (GS.state === 'play' && document.activeElement && document.activeElement !== document.body)
       document.activeElement.blur();
     keys.add(k);
-    if (GS.state === 'play') {
+    if (GS.state === 'play' && GS.P && GS.P.ride) {
+      if (k === 'escape' || k === 'p') setPause(true);
+    } // in the chopper's door: the door gun is all you have
+    else if (GS.state === 'play') {
       if (k === ' ' || k === 'shift') tryDash();
       if (k === 'escape' || k === 'p') setPause(true);
       if (/^[1-9]$/.test(k)) switchGun(GS.P.owned[+k - 1]);
@@ -167,7 +170,7 @@ export function init() {
   glc.addEventListener('mousedown', e => {
     initAudio();
     if (e.button === 0) mouse.down = true;
-    if (e.button === 2) tryDash();
+    if (e.button === 2 && !(GS.P && GS.P.ride)) tryDash();
   });
   addEventListener('mouseup', e => {
     if (e.button === 0) mouse.down = false;
@@ -178,7 +181,7 @@ export function init() {
     e => {
       if (GS.state === 'play') {
         e.preventDefault();
-        if (!GS.P.wheelT || performance.now() - GS.P.wheelT > 160) {
+        if (!GS.P.ride && (!GS.P.wheelT || performance.now() - GS.P.wheelT > 160)) {
           GS.P.wheelT = performance.now();
           cycleGun(e.deltaY > 0 ? 1 : -1);
         }

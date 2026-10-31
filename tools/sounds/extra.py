@@ -1,6 +1,7 @@
 # Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE.
-# Adds to the recorded gun set: the Gunslinger's .38 revolver (shots and a real cylinder reload) and the grenade
-# launcher (a deep 40 mm thoomp, the drum indexing, and its reload), all cut from the same CC0 firearms library.
+# Adds to the recorded gun set: the Gunslinger's .38 revolver (shots and a real cylinder reload), the grenade
+# launcher (a dry 40 mm pop and its reload) and the lever-action (a Winchester 1894, shot and lever), all cut from the
+# same CC0 firearms library.
 # Appends them to assets/gun.<hash>.bin and rewrites assets/pack.json. Run from the repo root:
 #   python3 tools/sounds/extra.py
 # Expects the library at LIB (a partial clone of buddingmonkey/freefirearmssfxlibrary; fetch the tracks named below
@@ -14,6 +15,7 @@ from slice import SR, load, takes, finish  # noqa: E402
 
 LIB = '/home/claude/buddingmonkey/freefirearmssfxlibrary/'
 SW = LIB + 'Master Tracks/Smith & Wesson 642/'
+MR = LIB + 'Master Tracks/Marlin 336/'
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 ASSETS = os.path.join(ROOT, 'assets')
 
@@ -37,6 +39,25 @@ def best(path, ml, rel=0.25, gap=0.35, tail=-55, n=1, minlen=0.04):
     return [k['y'] for k in t[:n]]
 
 
+def bp(y, lo, hi):
+    return sosfilt(butter(2, [lo, hi], 'band', fs=SR, output='sos'), y, axis=0)
+
+
+def tone_thump(f0, f1, dur, k):
+    t = np.arange(int(dur * SR)) / SR
+    s = np.sin(2 * np.pi * (f1 + (f0 - f1) * np.exp(-t * k)) * t) * np.exp(-t * (k * 0.4))
+    return np.stack([s, s], 1)
+
+
+def cat(*parts):
+    n = max(int(t * SR) + len(y) for y, t in parts)
+    o = np.zeros((n, 2))
+    for y, t in parts:
+        a = int(t * SR)
+        o[a:a + len(y)] += y
+    return o
+
+
 def trim(y, sec):
     n = int(sec * SR)
     y = y[:n].copy()
@@ -55,20 +76,23 @@ out['revOpen'] = finish(best(SW + 'V_9.wav', 0.6)[0], 0.25, 0.9)
 out['revClose'] = finish(best(SW + 'V_10.wav', 0.6)[0], 0.25, 0.9)
 out['revEject'] = finish(best(SW + 'V_3.wav', 0.9)[0], 0.25, 0.9)
 out['revLoad'] = finish(trim(best(SW + 'V_18.wav', 2.4, n=3)[0], 1.0), 0.25, 0.85)
-# the launcher: a 12-gauge shot an octave and more down, the crack filtered off, a body of air under it and the tube
-# ringing, then the drum turning on to the next round: the hollow thoomp of a 40 mm grenade leaving
-sh = best(LIB + 'Prepared SFX/Model 12/K_22P.wav', 1.7, rel=0.3, gap=0.5, tail=-60)[0]
-y = lp(pitch(sh, 0.48), 1400)
-n = len(y)
-t = np.arange(n) / SR
-thump = (np.sin(2 * np.pi * (58 + 40 * np.exp(-t * 30)) * t) * np.exp(-t * 11))[:, None] * np.array([[1, 1]])
-ring = (np.sin(2 * np.pi * 410 * t) * np.exp(-t * 26) * 0.18)[:, None] * np.array([[1, 0.9]])
-y = y / (np.abs(y).max() + 1e-9) + 0.75 * thump + ring
-idx = lp(pitch(best(SW + 'V_4.wav', 0.25)[0], 0.62), 3500)
-o = int(0.2 * SR)
-y = np.vstack([y, np.zeros((max(0, o + len(idx) - len(y)), 2))])
-y[o:o + len(idx)] += idx / (np.abs(idx).max() + 1e-9) * 0.22
-out['launcher'] = finish(trim(hp(y, 30), 1.6), fade=0.4, peak=0.95)
+# the launcher (chosen by ear in the test range, "Launcher B"): a dry pop, the way a 40 mm launcher sounds: a hollow
+# low thump, a short burst of air from the tube, a ping of the tube itself and the action's click, no gunshot crack
+th = tone_thump(170, 52, 0.45, 26)
+rng = np.random.default_rng(7)
+na = int(0.08 * SR)
+air = bp(rng.standard_normal((na, 2)), 300, 1400) * np.exp(-np.arange(na) / SR * 45)[:, None]
+tt = np.arange(int(0.25 * SR)) / SR
+ping = np.stack([np.sin(2 * np.pi * 1150 * tt) * np.exp(-tt * 40)] * 2, 1) * 0.12
+click = trim(best(MR + 'I_4.wav', 0.5)[0], 0.12)
+out['launcher'] = finish(
+    cat((th, 0), (air / np.abs(air).max() * 0.55, 0), (ping, 0.002), (click / np.abs(click).max() * 0.2, 0.18)), 0.4, 0.95)
+# the lever-action ("Lever A"): the Winchester 1894, its own shot near and further off, and its own lever cycle
+for i, y in enumerate(best(LIB + 'Prepared SFX/Model 1894/L_23P.wav', 1.6, rel=0.3, gap=0.5, tail=-62, n=2)):
+    out[f'lever{i}'] = finish(y, 0.35, 0.95)
+for i, y in enumerate(best(LIB + 'Prepared SFX/Model 1894/L_17P.wav', 2.0, rel=0.3, gap=0.5, tail=-62, n=2)):
+    out[f'lever_m{i}'] = finish(y, 0.35, 0.95)
+out['leverAct'] = finish(trim(best(LIB + 'Master Tracks/Model 1894/L_11.wav', 1.0)[0], 0.7), 0.25, 0.8)
 # its reload: the frame swung open, the fat empties out, two rounds pushed home, the drum wound and the frame shut
 out['lchOpen'] = finish(lp(pitch(best(SW + 'V_9.wav', 0.6)[0], 0.62), 5000), 0.25, 0.9)
 out['lchEject'] = finish(lp(pitch(best(SW + 'V_3.wav', 0.9)[0], 0.55), 4500), 0.25, 0.9)

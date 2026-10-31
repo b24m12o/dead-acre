@@ -15,8 +15,9 @@ import { FINAL_NIGHT } from '../game/districts.js';
 import { rigTarget } from '../game/traps.js';
 import { siegePrompt } from '../game/siege.js';
 import { kn } from '../core/binds.js';
+import { mouse } from '../core/input.js';
 export function drawObjectiveGlow() {
-  if (GS.evac) {
+  if (GS.evac && !GS.evac.ride) {
     const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1); // once it is down, the ring fades so the chopper itself reads
     quad(
       R.ring,
@@ -70,7 +71,7 @@ export function objectiveLights() {
     );
   if (GS.evac) {
     const landed = GS.evac.t >= GS.evac.land;
-    addLight(GS.evac.x + 40, GS.evac.y + 30, 200, 0.95, 0.17, 0.1); // the flare: a red glow on the tarmac, not a blob
+    if (!GS.evac.ride) addLight(GS.evac.x + 40, GS.evac.y + 30, 200, 0.95, 0.17, 0.1); // the flare: a red glow on the tarmac, not a blob
     addLight(
       GS.evac.hx,
       GS.evac.hy,
@@ -83,7 +84,10 @@ export function objectiveLights() {
 }
 export function markerList() {
   const m = [];
-  if (GS.evac) m.push({ x: GS.evac.x, y: GS.evac.y, col: '#8ef0a0', label: 'EVAC' });
+  if (GS.evac && !GS.evac.ride) m.push({ x: GS.evac.x, y: GS.evac.y, col: '#8ef0a0', label: 'EVAC' });
+  if (GS.evac && GS.evac.ride)
+    for (const g of GS.evac.ride.groups)
+      if (g.on && !g.done) m.push({ x: g.x, y: g.y, col: '#bff4ff', label: 'SURVIVORS' }); // under attack below you
   for (const b of GS.buddies)
     if (
       b.down > 0 &&
@@ -297,6 +301,18 @@ export function drawMarkersUI(toS) {
       ui.fillText(lb, x, y - R0 - 15 * k);
     }
   } // the car rig picked and a car in reach: which car it goes on, and the key
+  if (GS.evac && GS.evac.ride && GS.state === 'play') {
+    const r = GS.evac.ride,
+      k = TS(),
+      x = mouse.x,
+      y = mouse.y + 26 * k,
+      w = 54 * k;
+    ui.fillStyle = 'rgba(20,24,29,0.75)';
+    ui.fillRect(x - w / 2 - 2 * k, y - 2 * k, w + 4 * k, 8 * k);
+    ui.fillStyle =
+      r.over > 0 ? (Math.sin(GS.time * 20) > 0 ? '#ff5a3a' : '#ffb07a') : r.heat > 0.7 ? '#ff8a4a' : '#e8c46a';
+    ui.fillRect(x - w / 2, y, w * clamp(r.over > 0 ? 1 : r.heat, 0, 1), 4 * k);
+  } // the door gun's heat, under the sights
   if (GS.obj && GS.obj.type === 'siege' && !GS.obj.done) {
     const k = TS();
     for (const b of GS.obj.bars) {
@@ -504,7 +520,7 @@ export function drawMarkersUI(toS) {
       ui.fillRect(bx - 21, by + 26 * ZOOM + 1, (42 * GS.obj.s.hp) / GS.obj.s.max, 3);
     }
   }
-  if (GS.evac && GS.evac.t >= GS.evac.land && !GS.evac.leave) {
+  if (GS.evac && GS.evac.t >= GS.evac.land && !GS.evac.leave && !GS.evac.ride) {
     const [bx, by] = toS(GS.evac.x, GS.evac.y),
       f = clamp(GS.evac.hold / 2.5, 0, 1),
       r = 86 * ZOOM;

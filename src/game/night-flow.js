@@ -171,7 +171,7 @@ export function nightCleared() {
       if (s === 'horde') {
         const kit = { mine: 3, drum: 2, noise: 1, rig: 1 + (GS.wave >= 8 || GS.RUN.hm ? 1 : 0) };
         giveTraps(kit);
-        GS.interT = 45; // a long dawn to lay the traps (Enter still starts the night)
+        GS.interT = GS.RUN.hm ? 20 : 45; // a long dawn to lay the traps (Enter still starts the night); in Horde Mode every wave is a horde, so a shorter one
         GS.later.push({ t: 6.5, fn: () => GS.nightDone && trapKitStreak(kit) });
       } // a horde tonight: the convoy drops a trap kit, and the day is yours to set them
     } // what tonight holds is known at dawn
@@ -197,7 +197,7 @@ export function resumeDawn() {
   );
   const s = planSig(GS.wave + 1);
   GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
-  if (s === 'horde') GS.interT = 45; // the kit came with the save
+  if (s === 'horde') GS.interT = GS.RUN.hm ? 20 : 45; // the kit came with the save
   if (!GS.RUN.hm && GS.wave + 1 === FINAL_NIGHT) {
     GS.RUN.lz = freeSpot(260, 520); // the map is laid out afresh on a resume: a new landing zone on it
     GS.interT = 50;

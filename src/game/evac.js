@@ -23,6 +23,7 @@ import { RADIO, radio, radioVoice, storyEnd } from '../audio/radio.js';
 import { bossLogHtml } from './boss-flow.js';
 import { planHorde } from './horde.js';
 import { flow, solidPt } from '../world/nav.js';
+import { rideKills, rideTick, startRide } from './evac-ride.js';
 export function startEvac() {
   const lz = GS.RUN.lz,
     lzOk = lz && !solidPt(lz[0], lz[1]) && flow[Math.floor(lz[1] / TILE) * MW + Math.floor(lz[0] / TILE)] < 65535,
@@ -91,6 +92,10 @@ export function updateEvac(dt) {
   e.t += dt;
   for (const t of e.tr) t.t -= dt;
   if (e.tr.length && e.tr[0].t <= 0) e.tr = e.tr.filter(t => t.t > 0);
+  if (e.ride) {
+    if (GS.state === 'play' && rideTick(e, dt)) winRun();
+    return;
+  } // aboard: the ride out (see evac-ride.js)
   if (e.leave > 0) {
     e.leave += dt;
     e.z = Math.min(400, e.z + dt * 140);
@@ -251,7 +256,7 @@ export function updateEvac(dt) {
       const late = GS.buddies.find(b => !(b.down > 0) && d2(b.x, b.y, e.x, e.y) < 500 * 500);
       if (late && e.hold >= 2.4 && (e.waitT = (e.waitT || 0) + dt) < 8) e.hold = 2.4; // the pilot holds for a teammate on the way
       e.waiting = late && e.hold >= 2.4 && e.waitT < 8 ? late.nm : null;
-      if (e.hold >= 2.5) winRun();
+      if (e.hold >= 2.5) GS.RUN.practice ? winRun() : startRide(e);
     } else if ((e.outT = (e.outT || 0) + dt) > 1.2 || pd > 150 * 150) e.hold = Math.max(0, e.hold - dt * 0.6); // shoved just outside by the horde, the count waits a moment for you to step back in; walk away and it runs down
   }
 }
@@ -318,6 +323,10 @@ function winRun() {
   const out = GS.RUN.aboard.slice(),
     left = GS.buddies.slice();
   GS.runSeeds += 40 * out.length;
+  const rk = rideKills(GS.evac),
+    rs = GS.evac && GS.evac.ride ? GS.evac.ride.saved : 0,
+    rl = GS.evac && GS.evac.ride ? GS.evac.ride.lost : 0;
+  GS.runSeeds += 25 * rs; // the ones you covered from the door: the convoy picks them up
   for (let i = 0; i < out.length; i++) bump('saved'); // every one you bring out pays
   $('wCrew').innerHTML =
     out.length || left.length
@@ -329,6 +338,11 @@ function winRun() {
       : (GS.RUN.lost || []).length
         ? `Lost on the way: ${GS.RUN.lost.join(', ')}.`
         : '';
+  if (GS.evac && GS.evac.ride)
+    $('wCrew').innerHTML +=
+      ` From the door gun: <b>${rk} kills</b>` +
+      (rs + rl ? ` · <b>${rs} of ${rs + rl}</b> survivors covered${rs ? ` · +${25 * rs} scrap` : ''}` : '') +
+      '.';
   $('wCrew').hidden = !$('wCrew').innerHTML;
   {
     const [who, t] = storyEnd();

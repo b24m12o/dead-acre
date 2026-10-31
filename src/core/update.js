@@ -235,7 +235,7 @@ export function update(dt) {
     }
   }
   if (!firing) p.trigFresh = true; // a fresh pull of the trigger can cut a shell-by-shell reload short; holding it down can't
-  if (firing && p.fireCd <= 0 && p.swap <= 0 && !(p.reload > 0 && (!GUNS[p.gun].perShell || !p.trigFresh)))
+  if (firing && !p.ride && p.fireCd <= 0 && p.swap <= 0 && !(p.reload > 0 && (!GUNS[p.gun].perShell || !p.trigFresh)))
     firePlayer(cwx, cwy, p, target);
   rope(p, dt, p.x - Math.cos(p.bodyA) * 9, p.y - Math.sin(p.bodyA) * 9);
   if (S.molo) {

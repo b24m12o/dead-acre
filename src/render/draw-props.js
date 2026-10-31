@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { rideCiv } from '../game/evac-ride.js';
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, setH, viewH, viewW } from './sprites.js';
@@ -306,7 +307,8 @@ export function drawCasters() {
     } // the moon's shadows: in a big crowd, the ones further off cast a soft blob, not every limb
     for (const e of L) push(e.y + (e.type === 'queen' ? 240 : 0), drawEnemy, e); // bosses tower over the cars and clutter they wade through
   }
-  if (GS.state !== 'over' && GS.P && !GS.NOHERO) push(GS.P.y, drawRanger, GS.P);
+  if (GS.state !== 'over' && GS.P && !GS.NOHERO && !GS.P.ride) push(GS.P.y, drawRanger, GS.P); // aboard the chopper, you're up in its door
+  for (const s of rideCiv()) push(s.y, drawRanger, s);
   if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) push(GS.obj.y, drawGen, null);
   if (GS.obj && GS.obj.type === 'siege') {
     for (const b of GS.obj.bars) if (vis(b.x, b.y)) push(b.y + 18, drawBoards, b);

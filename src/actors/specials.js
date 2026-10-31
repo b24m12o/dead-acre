@@ -197,6 +197,7 @@ function dragTick(e, dt, p) {
       if (
         e.emerge >= 1 &&
         !p.held &&
+        !p.ride &&
         !(p.dashT > 0) &&
         GS.time > (e.grabCd || 0) &&
         d2(e.x, e.y, p.x, p.y) < (e.r + p.r + 6) ** 2

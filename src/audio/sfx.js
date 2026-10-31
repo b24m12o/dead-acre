@@ -231,7 +231,7 @@ export const sfx = {
   },
   lever() {
     if (SBV.lever && playS('lever', 0.8, 1, 0, 0.4)) {
-      playS('leverAct', 0.55, 1, 0.36, 0.08);
+      playS('leverAct', 0.6, 1, 0.36, 0.08);
       return;
     }
     if (playS('hunter', 0.7, 1.15, 0, 0.4) && (playS('pump', 0.45, 1.4, 0.3, 0.08), true)) return;
@@ -241,7 +241,7 @@ export const sfx = {
     noise(0.05, 0.1, 3000, 1500, 'bandpass', 0.3);
   }, // a .30-30 crack, then the lever racks
   launcher() {
-    if (playS('launcher', 0.9, 1, 0, 0.35)) return; // the recorded thoomp, and the drum turning on to the next round
+    if (playS('launcher', 0.5, 1, 0, 0.35)) return; // a dry 40 mm pop, and the action's click
     if (!thr('launcher', 120)) return;
     noise(0.2, 0.24, 900, 160, 'lowpass');
     tone(150, 0.18, 'sine', 0.14, 0.45);
