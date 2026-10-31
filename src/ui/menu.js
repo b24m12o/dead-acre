@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
+import { testRestore } from '../game/testrange.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, d2, damp, rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
@@ -180,6 +181,7 @@ export function menuInit() {
   $('bossBox').hidden = true;
 }
 export function menuUpdate(dt) {
+  if (GS.TESTING) testRestore(); // back from the test range: your profile as it was
   menuT += dt;
   GS.time += dt;
   GS.P.aimA = -Math.PI / 2 + Math.sin(menuT * 0.5) * 1.3;

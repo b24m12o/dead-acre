@@ -387,3 +387,11 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 .gtrap img{height:14px;width:35px;object-fit:contain;opacity:.95}
 .gtrap .tk{color:var(--mute);font-size:10px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.08)}
 .gtrap .on{color:#1b0f06;background:#e8b25a;border-radius:5px;padding:1px 6px}
+.trSet{grid-template-columns:130px 1fr}
+.trSet>label{grid-column:1}
+.trSet .segnote{margin:0}
+.trNights button{min-width:34px;padding:7px 8px}
+.trBoard{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.trSnd{padding:8px 12px}
+.trSnd .nm{font-size:16px}
+.trSnd .seg button{background:#323c46;padding:6px 12px}.trSnd .seg button:hover{background:#3d4955}

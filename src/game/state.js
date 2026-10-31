@@ -487,7 +487,7 @@ export function startReload() {
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.reloads++;
   if (G.rev) {
     // the cylinder swings out and six empties drop at your feet
-    sfx.magOut();
+    sfx.reloadStart(p, g, p.mag[g] <= 0, true);
     for (let i = 0; i < Math.min(6, magSize(g) - p.mag[g]); i++)
       part({
         k: 7,
@@ -506,7 +506,7 @@ export function startReload() {
         c: [1, 1, 1],
       });
   } else if (!G.perShell) {
-    sfx.magOut();
+    sfx.reloadStart(p, g, p.mag[g] <= 0, false);
     const cc = Math.cos(p.aimA),
       ss = Math.sin(p.aimA),
       big = g === 'lmg' ? 1.5 : g === 'pistol' ? 0.8 : 1.1;

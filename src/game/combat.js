@@ -920,7 +920,7 @@ function killerAt(sx, sy) {
   return GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead';
 }
 export function hurtPlayer(dmg, sx, sy, why) {
-  if (GS.P.inv > 0 || GS.state !== 'play') return;
+  if (GS.P.inv > 0 || GS.state !== 'play' || (GS.RUN && GS.RUN.god)) return;
   GS.P.lastBy = why || killerAt(sx, sy);
   dmg *= DIFF().dmg;
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.damageTaken += Math.max(0, dmg);

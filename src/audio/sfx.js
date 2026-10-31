@@ -3,6 +3,55 @@ import { GS } from '../core/gs.js';
 import { rand, randi } from '../core/util.js';
 import { AC, DRYS, RLD, SBV, duck, noise, playR, playS, spat, stab, thr, tone } from './audio.js';
 import { alarmNote } from '../game/noise.js';
+// each gun's reload: [when, as a share of the reload, sound, only after an empty mag, volume, rate]
+export const RSTEP = {
+  pistol: [
+    [0.02, 'magOutP'],
+    [0.58, 'magInP', 0, 0.66],
+    [0.82, 'slideP', 1],
+  ],
+  rev: [
+    [0, 'revOpen', 0, 0.7],
+    [0.14, 'revEject', 0, 0.75],
+    [0.3, 'ftink', 0, 0.2, 1.1],
+    [0.36, 'ftink', 0, 0.16, 0.95],
+    [0.44, 'revLoad', 0, 0.75],
+    [0.86, 'revClose', 0, 0.75],
+  ],
+  smg: [
+    [0.02, 'magOutS'],
+    [0.6, 'magInS', 0, 0.66],
+    [0.84, 'boltS', 1],
+  ],
+  rifle: [
+    [0.02, 'magOutR'],
+    [0.6, 'magInR', 0, 0.66],
+    [0.84, 'rack', 1],
+  ],
+  auto: [
+    [0.02, 'magOutR', 0, 0.62, 0.9],
+    [0.6, 'magInR', 0, 0.7, 0.88],
+    [0.84, 'rack', 1, 0.62, 0.92],
+  ],
+  lmg: [
+    [0.04, 'magOutK'],
+    [0.56, 'magInK', 0, 0.68],
+    [0.82, 'rackK', 1, 0.66],
+  ],
+  hunter: [
+    [0.02, 'magOutH'],
+    [0.58, 'magInH', 0, 0.66],
+    [0.82, 'bolt', 1, 0.6],
+  ],
+  launcher: [
+    [0, 'lchOpen', 0, 0.72],
+    [0.12, 'lchEject', 0, 0.7],
+    [0.36, 'lchLoad', 0, 0.7],
+    [0.56, 'lchLoad', 0, 0.7, 0.94],
+    [0.72, 'lchWind', 0, 0.55],
+    [0.9, 'lchClose', 0, 0.8],
+  ],
+};
 export const sfx = {
   chitter(x, y, dur = 0.5) {
     if (!thr('chitter', 200)) return;
@@ -160,7 +209,10 @@ export const sfx = {
   },
   pistol() {
     const rev = GS.P && GS.P.gun === 'pistol' && GS.RUN && GS.RUN.hero === 'grenadier'; // the revolver: a deeper, rounder bark
-    if (playS('pistol', rev ? 0.8 : 0.68, rev ? 0.8 : 1, 0, 0.3)) return;
+    if (
+      rev ? playS('revolver', 0.78, 1, 0, 0.32) || playS('pistol', 0.8, 0.8, 0, 0.3) : playS('pistol', 0.68, 1, 0, 0.3)
+    )
+      return; // the Gunslinger's .38: its own recorded bark
     if (!thr('pistol', 60)) return;
     noise(0.09, 0.22, 4200, 900, 'bandpass');
     noise(0.025, 0.2, 7000, 4000, 'highpass');
@@ -189,6 +241,7 @@ export const sfx = {
     noise(0.05, 0.1, 3000, 1500, 'bandpass', 0.3);
   }, // a .30-30 crack, then the lever racks
   launcher() {
+    if (playS('launcher', 0.9, 1, 0, 0.35)) return; // the recorded thoomp, and the drum turning on to the next round
     if (!thr('launcher', 120)) return;
     noise(0.2, 0.24, 900, 160, 'lowpass');
     tone(150, 0.18, 'sine', 0.14, 0.45);
@@ -234,6 +287,30 @@ export const sfx = {
     tone(500, 0.04, 'square', 0.03, 0.8);
     noise(0.04, 0.12, 4500, 2500, 'bandpass', 0.14);
     tone(1100, 0.02, 'square', 0.02, 0.6, 0.14);
+  },
+  // a reload as a run of the gun's own handling sounds, spread over the reload: the magazine out, the fresh one in,
+  // and the slide or bolt only when the gun ran dry (with a round still chambered there's nothing to rack)
+  reloadStart(p, g, empty, rev) {
+    const S0 = RSTEP[rev ? 'rev' : g];
+    p.rl = S0 ? { g, i: 0, steps: S0.filter(s => !s[2] || empty) } : null;
+    if (!p.rl) this.magOut();
+    else this.reloadTick(p, 0);
+  },
+  reloadTick(p, k) {
+    const r = p.rl;
+    if (!r || r.g !== p.gun) return;
+    while (r.i < r.steps.length && r.steps[r.i][0] <= k) {
+      const [, key, , vol = 0.62, rate = 1] = r.steps[r.i++];
+      if (!playS(key, vol, rate, 0, 0.06)) {
+        if (/^magOut|^revOpen|^lchOpen/.test(key)) this.magOut();
+        else if (/^magIn|^revClose|^lchClose/.test(key)) this.magIn();
+      } // before the full sound set has arrived: the built-in clicks
+    }
+  },
+  reloadEnd(p) {
+    if (p.rl) this.reloadTick(p, 1);
+    else this.magIn();
+    p.rl = null;
   },
   shell() {
     if (GS.P && GS.P.gun === 'lever' && playS('shellL', 0.34, rand(0.92, 1.04), 0, 0.03)) return; // a round thumbed into the gate: soft, and never twice the same

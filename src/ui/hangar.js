@@ -31,6 +31,7 @@ import {
   snapChal,
 } from '../game/challenges.js';
 import { startPractice } from '../game/practice.js';
+import { testRestore } from '../game/testrange.js';
 import { menuInit, renderChallenges, renderDistricts } from './menu.js';
 import { keysIn } from '../core/binds.js';
 const AB_COST = 300; // a second ability, per character
@@ -242,6 +243,7 @@ export function openHangar() {
 /* ---------- Flow ---------- */
 export function begin() {
   if (soundWait()) return false; // the sounds are still coming in (see ui/loading.js)
+  if (!begin.inTest) testRestore(); // a real run after a test: your profile as it was
   if (GS.PRACTICE && GS.state === 'over' && !begin.inPractice) {
     startPractice(GS.PRACTICE.bt);
     return;
@@ -254,12 +256,14 @@ export function begin() {
   initAudio();
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   GS.RUN = {
-    hero: GS.meta.unlocked[GS.meta.hero] ? GS.meta.hero : 'ranger',
-    district: GS.PRACTICE
-      ? GS.PRACTICE.d
-      : districtOpen(GS.meta.district || 'town')
-        ? GS.meta.district || 'town'
-        : 'town',
+    hero: begin.inTest ? GS.TESTING.hero : GS.meta.unlocked[GS.meta.hero] ? GS.meta.hero : 'ranger',
+    district: begin.inTest
+      ? GS.TESTING.district
+      : GS.PRACTICE
+        ? GS.PRACTICE.d
+        : districtOpen(GS.meta.district || 'town')
+          ? GS.meta.district || 'town'
+          : 'town',
     inf: GS.PRACTICE ? 0 : Math.min(GS.meta.inf || 0, GS.meta.infMax || 0),
     endless: false,
     clean: cleanRun(),

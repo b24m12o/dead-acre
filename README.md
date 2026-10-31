@@ -15,6 +15,14 @@ See [LICENSE](LICENSE).
 - **GitHub Pages** (optional): turn on Pages for the `main` branch, root folder, and open the site. It plays
   `dist/game.js`, which loads its art, voices and sounds from `assets/`.
 
+### Test range
+
+Settings › Accessibility › Testing › **Test range** starts any night straight away: pick the character, the district,
+the night (1 to 15) and the kind of night (horde, siege, car alarms, weather, the evac finale), with every gun,
+invulnerability and a full trap kit if you like. In the run, K clears the night and the next one follows as it would
+in a run. Nothing is saved: no checkpoint, no scrap, no records, no challenge progress, and your profile is put back
+when you leave. The same panel has a sound board that plays every gun's shot and reload.
+
 ## Layout
 
 ```

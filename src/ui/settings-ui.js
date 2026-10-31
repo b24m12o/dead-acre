@@ -19,6 +19,7 @@ import { initAudio, playS } from '../audio/audio.js';
 import { applyVol, setMusic, setMuted } from '../audio/music.js';
 import { CH_COLS, paintCH } from './crosshair.js';
 import { PRACTICE_FROM, openPractice } from '../game/practice.js';
+import { initTestRange } from '../game/testrange.js';
 import { tutHint } from '../game/tutorial.js';
 import { DIFF_DESC, renderDistricts } from './menu.js';
 GS.hintTO = 0;
@@ -351,6 +352,7 @@ export function init() {
     stopWaiting();
   });
   $('practiceBtn').addEventListener('click', () => openPractice('settings'));
+  initTestRange();
   $('practiceBack').addEventListener('click', () => {
     $('practice').hidden = true;
     $(PRACTICE_FROM === 'settings' ? 'settings' : 'menu').hidden = false;

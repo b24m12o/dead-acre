@@ -207,6 +207,7 @@ export function update(dt) {
       G = GUNS[g],
       n = magSize(g);
     p.reload -= dt * S.reloadK;
+    if (!G.perShell) sfx.reloadTick(p, 1 - Math.max(0, p.reload) / (p.reloadMax || 1)); // the handling sounds, in step with the reload
     if (p.reload <= 0) {
       if (G.perShell) {
         if (p.mag[g] < n && p.ammo[G.ammo] > 0) {
@@ -227,7 +228,7 @@ export function update(dt) {
         p.mag[g] += take;
         if (G.ammo) p.ammo[G.ammo] -= take;
         p.reload = 0;
-        sfx.magIn();
+        sfx.reloadEnd(p);
         p.rackT = 0.32;
         if (S.evo.medload) p.hp = Math.min(S.maxHp, p.hp + 3);
       }
