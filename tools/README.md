@@ -1,6 +1,10 @@
 # Tools
 
 - `build.mjs`: the build (`npm run build`). This is the only tool needed to make the game.
+- `testrange/`: a separate test build, never part of the game: `npm run build`, then `npm run testrange` writes
+  `build/test-range.html`, the game with a panel on top to start any night, kind of night, character and district
+  straight away (every gun, invulnerable, a trap kit; K clears the night) and a sound board for every gun's shot and
+  reload. Its storage lives in memory, so nothing is saved and no profile is touched.
 - `fingerprint.mjs`: a hash of the bundled program, for proving a change (such as formatting) left the program as it was.
 - `lib/source.mjs`: bundling `src/` with esbuild, shared by the build, the fingerprint and the tests.
 - `bake/`: rebuilding the 3D pictures after a change to the shapes in `src/render/shapes/`: `npm run build`, then `node tools/bake/dump.mjs` (draws every part from its shapes in a software-rendering browser, about three minutes), then `python3 tools/bake/pack.py` (packs them into `assets/` and updates `pack.json`), then `npm run build` again.

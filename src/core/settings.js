@@ -75,7 +75,6 @@ export function mergeSavedMeta(raw) {
 export let META_VER; // profile format: bump when a saved field changes meaning; older profiles load and are upgraded in normalizeMeta
 let saveFail;
 export function saveMeta() {
-  if (GS.TESTING) return; // nothing from the test range reaches your profile
   GS.meta.v = META_VER;
   const ok = store.set('rr_meta', JSON.stringify(GS.meta));
   if (!ok && !saveFail) {

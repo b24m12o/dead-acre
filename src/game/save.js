@@ -12,7 +12,6 @@ import { TAU, rand } from '../core/util.js';
 const KEY = 'rr_run',
   V = 1;
 export function saveRun() {
-  if (GS.TESTING) return; // the test range never checkpoints
   if (!GS.RUN || GS.RUN.practice || GS.RUN.tut || !GS.P || GS.state === 'over' || GS.state === 'won') return;
   const P = GS.P,
     RUN = { ...GS.RUN, sg: null, job: null, jobPend: false, tut: null, metrics: { ...GS.RUN.metrics } };
@@ -46,7 +45,7 @@ export function savedRun() {
   }
 }
 export function clearSave() {
-  if ((GS.RUN && GS.RUN.practice) || GS.TESTING) return; // a practice fight never touches the real run's save
+  if (GS.RUN && GS.RUN.practice) return; // a practice fight never touches the real run's save
   try {
     localStorage.removeItem(KEY);
   } catch (e) {}

@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "test": "node tests/run.mjs",
     "test:campaign": "node tests/run.mjs campaign",
-    "format": "prettier --write \"src/**/*.js\" \"tools/**/*.mjs\" \"tests/**/*.mjs\" eslint.config.js"
+    "format": "prettier --write \"src/**/*.js\" \"tools/**/*.mjs\" \"tests/**/*.mjs\" eslint.config.js",
+    "testrange": "node tools/testrange/build.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",

@@ -14,7 +14,6 @@ import { setPause } from '../ui/screens.js';
 import { openPractice } from '../game/practice.js';
 import { tutEnd } from '../game/tutorial.js';
 import { cycleTrap, trapDown } from '../game/traps.js';
-import { testClear } from '../game/testrange.js';
 /* =====================================================================
    Input
    ===================================================================== */
@@ -122,7 +121,6 @@ export function init() {
       if (k === 'e' && !e.repeat) useAbility();
       if (k === 'f' && !e.repeat) trapDown();
       if (k === 'g' && !e.repeat) cycleTrap();
-      if (k === 'k' && !e.repeat && GS.RUN && GS.RUN.test) testClear();
     } else if (GS.state === 'pause' && k === 'escape' && !$('settings').hidden) $('settingsBack').click();
     else if (GS.state === 'pause' && (k === 'escape' || k === 'p')) setPause(false);
     else if (GS.state === 'levelup' && !e.repeat && ['1', '2', '3'].includes(k)) choose(+k - 1);
