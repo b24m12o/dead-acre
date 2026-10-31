@@ -13,7 +13,8 @@ import { BOX_SEARCH } from '../game/objectives.js';
 import { drawRainUI } from '../world/weather.js';
 import { cars } from '../world/map.js';
 import { FINAL_NIGHT } from '../game/districts.js';
-import { rigProgress } from '../game/traps.js';
+import { rigTarget } from '../game/traps.js';
+import { kn } from '../core/binds.js';
 export function drawObjectiveGlow() {
   if (GS.evac) {
     const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1); // once it is down, the ring fades so the chopper itself reads
@@ -297,21 +298,29 @@ function boxPill(toS) {
 } /* the prompt's box, shared so the pile icons can step out of its way */
 export function drawMarkersUI(toS) {
   {
-    const r = rigProgress();
-    if (r && r.k > 0.08) {
-      const [x, y] = toS(r.c.x, r.c.y - 30),
-        R0 = 16 * TS();
-      ui.lineWidth = 3.5 * TS();
-      ui.strokeStyle = 'rgba(20,24,29,0.7)';
+    const c = rigTarget();
+    if (c) {
+      const [x, y] = toS(c.x, c.y),
+        k = TS(),
+        R0 = 30 * k + 2 * k * Math.sin(GS.time * 5);
+      ui.lineWidth = 2 * k;
+      ui.strokeStyle = 'rgba(255,138,106,0.85)';
+      ui.setLineDash([6 * k, 5 * k]);
       ui.beginPath();
       ui.arc(x, y, R0, 0, Math.PI * 2);
       ui.stroke();
-      ui.strokeStyle = '#ff8a6a';
-      ui.beginPath();
-      ui.arc(x, y, R0, -Math.PI / 2, -Math.PI / 2 + r.k * Math.PI * 2);
-      ui.stroke();
+      ui.setLineDash([]);
+      const lb = `${kn('trap')} · Rig this car`;
+      ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
+      ui.textAlign = 'center';
+      ui.textBaseline = 'middle';
+      const w = ui.measureText(lb).width + 14 * k;
+      ui.fillStyle = 'rgba(20,24,29,0.75)';
+      ui.fillRect(x - w / 2, y - R0 - 24 * k, w, 18 * k);
+      ui.fillStyle = '#ffb49a';
+      ui.fillText(lb, x, y - R0 - 15 * k);
     }
-  } // holding the trap key by a car: the ring fills, and at full the car is rigged
+  } // the car rig picked and a car in reach: which car it goes on, and the key
   drawTraitTags(toS);
   if (
     GS.obj &&

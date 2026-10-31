@@ -201,6 +201,7 @@ export const WHEEL_SLOTS = [
   'mine',
   'drum',
   'noise',
+  'rig',
   'hunter',
   'lever',
   'lmg',

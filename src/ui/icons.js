@@ -266,6 +266,24 @@ const G = {
       line(c, 31, 31, 69, 31);
     },
   },
+  rig: {
+    shape: c => {
+      rr(c, 20, 8, 46, 8, 3.5); // three charges, taped together
+      rr(c, 20, 17, 46, 8, 3.5);
+      rr(c, 20, 26, 46, 8, 3.5);
+      rr(c, 68, 12, 15, 18, 2); // the detonator
+      rect(c, 78, 3, 2, 10); // its aerial
+      poly(c, 66, 20, 68, 20, 68, 22, 66, 22); // the lead into the charges
+    },
+    hole: c => ring(c, 75.5, 18, 2.2), // its light
+    cut: c => {
+      line(c, 30, 7, 30, 35);
+      line(c, 33, 7, 33, 35); // tape
+      line(c, 54, 7, 54, 35);
+      line(c, 57, 7, 57, 35);
+      line(c, 71, 25, 80, 25); // switch
+    },
+  },
   noise: {
     shape: c => {
       ring(c, 50, 23, 14); // the clock

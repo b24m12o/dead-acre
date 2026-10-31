@@ -6,7 +6,8 @@
 //    of burning fuel.
 //  · Noise maker: an old alarm clock, thrown. For ten seconds it pulls every zombie within earshot to it, the horde
 //    too: put it behind your mines and drums.
-//  · Car rig: not picked, just used. Stand by a parked car and the trap key rigs it; the next hit blows it twice as big.
+//  · Car rig: a charge for a parked car. Pick it like the others, stand by a car and the trap key rigs it; the next
+//    hit blows it half again as wide. It only ever rigs when it is the trap you hold.
 // You carry three of each at most. They come in supply crates, and the dawn before a horde brings a full kit.
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
@@ -29,9 +30,9 @@ export const TRAP = {
   mine: { name: 'Land mine', short: 'Mine', desc: 'Thrown. Blows when they step near it.' },
   drum: { name: 'Gas drum', short: 'Gas drum', desc: 'Set down. Shoot it for a wide pool of fire.' },
   noise: { name: 'Noise maker', short: 'Noise maker', desc: 'Thrown. Pulls them all to it for 10 s.' },
-  rig: { name: 'Car rig', short: 'Car rig', desc: 'Hold the trap key by a parked car. The next hit blows it big.' },
+  rig: { name: 'Car rig', short: 'Car rig', desc: 'Stand by a parked car. The next hit blows it big.' },
 };
-export const TRAP_ORDER = ['mine', 'drum', 'noise']; // what the wheel and the switch key cycle through
+export const TRAP_ORDER = ['mine', 'drum', 'noise', 'rig']; // what the wheel and the switch key cycle through
 export const TRAP_MAX = { mine: 3, drum: 3, noise: 3, rig: 2 };
 GS.lmines = [];
 GS.tthrows = [];
@@ -41,7 +42,7 @@ export function resetTraps() {
 }
 let pill = '';
 export const have = () => (GS.RUN && GS.RUN.traps) || {};
-export const anyTraps = () => TRAP_ORDER.some(t => have()[t] > 0) || have().rig > 0;
+export const anyTraps = () => TRAP_ORDER.some(t => have()[t] > 0);
 export function giveTraps(kit) {
   GS.RUN.traps = { ...have() };
   const first = !GS.meta.tips || !GS.meta.tips.t_traps;
@@ -121,25 +122,10 @@ function throwTo(kind, maxD) {
   });
   sfx.swap();
 }
-// Rigging a car is never an accident: beside a car, a tap of the trap key still uses the trap you hold, and only
-// holding the key down for a moment rigs the car (a ring fills over it while you hold)
-export const RIG_HOLD = 0.7;
-let rigging = null;
-export const rigProgress = () => (rigging ? { c: rigging.c, k: Math.min(1, rigging.t / RIG_HOLD) } : null);
+// the trap key: uses the trap you hold, and nothing else (the car rig only rigs when it is the one picked)
 export function trapDown() {
   if (GS.state !== 'play' || !GS.P || GS.P.hp <= 0) return;
-  const c = have().rig > 0 && carNear();
-  if (c) {
-    rigging = { c, t: 0 };
-    return;
-  } // decided on release: a tap is the held trap, a hold is the rig
   useTrap();
-}
-export function trapUp() {
-  if (!rigging) return;
-  const done = rigging.t >= RIG_HOLD;
-  rigging = null;
-  if (!done) useTrap();
 }
 function rigCar(c) {
   c.rig = true;
@@ -157,7 +143,13 @@ function useTrap() {
     floatText(P.x, P.y - 44, 'No traps · supply crates carry them', '#cfd6d9', 13);
     return;
   }
-  if (t === 'mine') throwTo('mine', 330);
+  if (t === 'rig') {
+    const c = carNear();
+    if (!c) return floatText(P.x, P.y - 44, 'Stand by a parked car to rig it', '#cfd6d9', 13);
+    rigCar(c);
+    if (!(have().rig > 0)) GS.RUN.trapSel = TRAP_ORDER.find(k => have()[k] > 0) || t;
+    return;
+  } else if (t === 'mine') throwTo('mine', 330);
   else if (t === 'noise') throwTo('noise', 420);
   else if (t === 'drum') {
     const a = P.aimA,
@@ -173,15 +165,6 @@ function useTrap() {
 }
 export function tickTraps(dt) {
   if (!GS.P) return;
-  if (rigging) {
-    rigging.t += dt;
-    if (GS.state !== 'play' || rigging.c.dead || Math.hypot(rigging.c.x - GS.P.x, rigging.c.y - GS.P.y) > 120)
-      rigging = null;
-    else if (rigging.t >= RIG_HOLD && !rigging.c.rig) {
-      rigCar(rigging.c);
-      rigging.t = 99;
-    }
-  }
   for (const g of GS.tthrows) {
     g.t += dt;
     const k = Math.min(1, g.t / g.dur);
@@ -212,23 +195,24 @@ export function tickTraps(dt) {
   GS.lmines = GS.lmines.filter(m => !m.done);
   trapPill();
 }
-// the belt, under the gun: the trap you hold, how many, and the key; beside a car, the rig
+// the car the rig would go on: only while the rig is the trap you hold
+export const rigTarget = () =>
+  GS.state === 'play' && GS.RUN && GS.RUN.trapSel === 'rig' && have().rig > 0 ? carNear() : null;
+// the belt, under the gun: the trap you hold, how many, and the key
 function trapPill() {
   const el = $('trapPill');
   if (!el) return;
   const on = GS.state === 'play' && anyTraps(),
-    sel = GS.RUN && GS.RUN.trapSel,
-    car = have().rig > 0 && carNear();
+    sel = GS.RUN && GS.RUN.trapSel;
   let h = '';
   if (on) {
-    if (car)
-      h =
-        (sel && have()[sel] > 0
-          ? `<img alt="" src="${iconURL(sel)}"><span>${TRAP[sel].short} ×${have()[sel]}</span>`
-          : '') + `<span class="tk">Hold ${kn('trap')}</span><span class="on">Rig car ×${have().rig}</span>`;
-    else if (sel && have()[sel] > 0)
-      h = `<img alt="" src="${iconURL(sel)}"><span>${TRAP[sel].short} ×${have()[sel]}</span><span class="tk">${kn('trap')}</span>`;
-    else h = `<span class="tk">Traps · ${kn('wheel')} wheel</span>`;
+    if (sel && have()[sel] > 0) {
+      const tail =
+        sel === 'rig' && !rigTarget()
+          ? `<span class="tk">find a parked car</span>`
+          : `<span class="tk">${kn('trap')}</span>`;
+      h = `<img alt="" src="${iconURL(sel)}"><span>${TRAP[sel].short} ×${have()[sel]}</span>${tail}`;
+    } else h = `<span class="tk">Traps · ${kn('wheel')} wheel</span>`;
   }
   if (h !== pill) {
     pill = h;
