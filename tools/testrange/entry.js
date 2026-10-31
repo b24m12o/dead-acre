@@ -1,9 +1,31 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// The test range panel. Not part of the game: tools/testrange/build.mjs runs this inside the test build (the game
-// plus the test hook), in its own page whose storage lives in memory only. It reaches into the game the way the
-// tests do. Any night, kind of night, character and district straight away; every gun, invulnerable, a trap kit;
-// K clears the night; and a sound board with every gun's shot and reload.
-(() => {
+// The test range: a separate test build, never part of the game. tools/testrange/build.mjs bundles this file
+// together with the game into build/test-range.html (the game's own build, dist/game.js, never includes it). It
+// imports the game's modules like any other module: no eval, so it runs anywhere the game runs. Its page keeps
+// browser storage in memory only, so nothing is saved and no profile is touched.
+// Any night, kind of night, character and district straight away; every gun, invulnerable, a trap kit; K clears the
+// night; and a sound board with every gun's shot and reload.
+/* global document, setInterval, clearInterval, setTimeout, addEventListener */
+import '../../src/index.js';
+import { GS } from '../../src/core/gs.js';
+import { pick } from '../../src/core/util.js';
+import { AMMO_MAX, GUNS, GUN_ORDER, HEROES } from '../../src/game/arsenal.js';
+import { DISTRICTS, FINAL_NIGHT } from '../../src/game/districts.js';
+import { LV, S, ammoMax, equip, magSize } from '../../src/game/state.js';
+import { need } from '../../src/game/run.js';
+import { EVOS, renderMods, upgradePool } from '../../src/game/upgrades.js';
+import { hideCallouts, showStreak } from '../../src/ui/callouts.js';
+import { begin } from '../../src/ui/hangar.js';
+import { startWave } from '../../src/game/surges.js';
+import { startEvac } from '../../src/game/evac.js';
+import { giveTraps } from '../../src/game/traps.js';
+import { endHorde } from '../../src/game/horde.js';
+import { freeSpot } from '../../src/actors/backups.js';
+import { RSTEP, sfx } from '../../src/audio/sfx.js';
+import { initAudio, playS } from '../../src/audio/audio.js';
+import { soundWait } from '../../src/ui/loading.js';
+
+function boot() {
   const TYPES = [
     ['', 'Normal'],
     ['horde', 'Horde'],
@@ -35,7 +57,10 @@
   GS.meta.tutDone = true;
   GS.meta.tips = Object.assign(GS.meta.tips || {}, { t_traps: 1 });
   for (const h of Object.keys(HEROES)) GS.meta.unlocked[h] = true;
-  districtOpen = () => true;
+  GS.meta.chal = Object.assign(
+    GS.meta.chal || {},
+    ...Object.values(DISTRICTS).map(d => (d.lock ? { [d.lock]: 1 } : {}))
+  ); // every district open
 
   const css = document.createElement('style');
   css.textContent = `#trOpen{position:fixed;right:18px;bottom:18px;z-index:60;font:600 13px var(--font-mono,monospace);background:#ff8a3a;color:#1b0f06;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;box-shadow:0 4px 0 #b44a12}
@@ -172,6 +197,7 @@
       LV[u.id] = (LV[u.id] || 0) + 1;
       u.apply();
     } // the level a run would be at by then
+    if (T.god) S.maxHp = 1e6; // invulnerable, from out here: more health than anything can take
     for (const g of GS.P.owned) GS.P.mag[g] = magSize(g);
     for (const t of Object.keys(AMMO_MAX)) GS.P.ammo[t] = ammoMax(t);
     GS.level = n + 1;
@@ -181,6 +207,7 @@
     if (T.traps) giveTraps({ mine: 3, drum: 3, noise: 3, rig: 2 });
     GS.texts.length = 0;
     GS.streakQ = [];
+    GS.later.length = 0; // no 'joins you' and perk call-outs from the level handed out above
     hideCallouts();
     const spec = (HEROES[GS.RUN.hero] || HEROES.ranger).spec;
     equip(GS.P.owned.includes(spec) ? spec : GS.P.owned[GS.P.owned.length - 1], true);
@@ -209,13 +236,10 @@
     if (GS.horde) endHorde();
     showStreak('Night cleared', 'Test range · dawn comes as soon as any boss is down', true);
   });
-  {
-    const hurt0 = hurtPlayer;
-    hurtPlayer = (...a) => (T.god && GS.state === 'play' ? undefined : hurt0(...a));
-  } // invulnerable: the game's own damage call, wrapped from out here
   setInterval(() => {
     open.hidden = GS.state !== 'menu' || !ov.hidden;
-  }, 250); // the button only on the menu
+    if (T.god && GS.P && GS.state === 'play' && S.maxHp >= 1e6) GS.P.hp = S.maxHp;
+  }, 250); // the button only on the menu; an invulnerable run kept topped up
   open.onclick = () => {
     render();
     ov.hidden = false;
@@ -227,4 +251,12 @@
     q('menu').hidden = false;
   };
   q('trStart').onclick = start;
-})();
+}
+// start once the game's menu is up
+const t = setInterval(() => {
+  const mn = document.getElementById('menu');
+  if (mn && !mn.hidden && GS.meta) {
+    clearInterval(t);
+    boot();
+  }
+}, 200);
