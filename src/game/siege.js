@@ -1,9 +1,9 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // Siege: a night signature. Survivors are holed up in one of the ruined houses, every gap in its walls boarded over,
-// and tonight the dead come for them. Most of the night's zombies go for the house, not for you: they pound on the
-// boards until one gives, then climb through, and each one that gets inside takes a survivor. Keep them off the boards;
-// stand still beside a battered or broken one to nail it back up. You can shoot over the boards and climb through them
-// yourself; the dead can't. Anyone left inside at dawn is in your debt, and one of them joins your backup.
+// and tonight the dead come for them. Your place is in there with them: one boarded gap is the door, and you (only you)
+// can climb in through it. Once you're inside they bar it behind you, and you hold the house from within till dawn:
+// shoot over the walls, and stand still beside a battered board to nail it back. Every zombie comes for the house; one
+// that breaks a board climbs through and goes for the survivors. Anyone left at dawn pays you, and one joins your backup.
 import { GS } from '../core/gs.js';
 import { d2, pick, rand } from '../core/util.js';
 import { MH, MW, TILE, grid, houses } from '../world/map.js';
@@ -48,7 +48,7 @@ export function siegeHouse() {
     const cx = (h.x + h.w / 2) * TILE,
       cy = (h.y + h.h / 2) * TILE,
       d = Math.hypot(cx - GS.P.x, cy - GS.P.y),
-      score = Math.abs(d - 650); // not on top of you, not across the map
+      score = Math.abs(d - 650) - floor.length * 90; // the biggest there is (room to step back from a spore cloud), not across the map
     if (!best || score < best.score) best = { h, gaps, floor, cx, cy, score };
   }
   return best;
@@ -75,6 +75,18 @@ export function planSiege() {
     broken: false,
     hitT: 0,
   }));
+  {
+    let door = null,
+      bd = 1e9;
+    for (const b of bars) {
+      const v = flow[Math.floor((b.y + b.ny * TILE) / TILE) * MW + Math.floor((b.x + b.nx * TILE) / TILE)];
+      if (v < bd) {
+        bd = v;
+        door = b;
+      }
+    }
+    (door || bars[0]).door = true;
+  } // the door: the gap you can reach soonest
   const spots = floor.slice().sort(() => Math.random() - 0.5),
     civ = [];
   for (let i = 0; i < Math.min(4, spots.length); i++) {
@@ -105,6 +117,7 @@ export function planSiege() {
     x1: (h.x + h.w - 1) * TILE,
     y1: (h.y + h.h - 1) * TILE,
   };
+  GS.queue = GS.queue.map(t => (t === 'spore' ? 'skitter' : t)); // no spores tonight: a cloud of them in a boarded room is a death trap
   GS.queue.push(...Array(Math.round(GS.queue.length * 0.2)).fill('skitter')); // a few more of them tonight: they have a house to get into
   GS.later.push({
     t: 2.5,
@@ -113,7 +126,7 @@ export function planSiege() {
       GS.obj.type === 'siege' &&
       showStreak(
         'Siege',
-        `${civ.length} survivors boarded up in a ruin · keep the dead off the boards · stand still by a broken one to nail it back`,
+        `${civ.length} survivors are boarded up in a ruin · get inside through the marked door`,
         true
       ),
   });
@@ -124,7 +137,9 @@ const inHouse = (o, x, y) => x > o.x0 && x < o.x1 && y > o.y0 && y < o.y1;
 export function siegeTarget(e) {
   const o = GS.obj;
   if (e.fly || e.horde) return null;
-  if (e.sg === undefined) e.sg = Math.random() < 0.5;
+  if (o.sealed)
+    e.sg = true; // you are in there with them: the whole night comes for the house
+  else if (e.sg === undefined) e.sg = Math.random() < 0.5;
   if (!e.sg) return null;
   const P = GS.P;
   if (P && e.los && d2(e.x, e.y, P.x, P.y) < 150 * 150) return null; // you, close and in sight, come first
@@ -147,9 +162,27 @@ export function tickSiege(dt) {
   const o = GS.obj;
   if (!o || o.type !== 'siege' || o.done) return;
   const P = GS.P;
+  if (!o.sealed && P && inHouse(o, P.x, P.y)) {
+    o.sealed = true;
+    sfx.dig(P.x, P.y);
+    showStreak(
+      'Door barred',
+      'Hold the house till dawn · shoot over the walls · stand still by a battered board to nail it back',
+      true
+    );
+  } // you're in: they bar the door behind you, and nobody leaves till dawn
   // the boards: the dead pound on them, and you nail them back
   for (const b of o.bars) {
     b.hitT = Math.max(0, b.hitT - dt);
+    if (P && !b.broken && (o.sealed || !b.door)) {
+      const rr = BAR_R + (P.r || 14),
+        dd = d2(P.x, P.y, b.x, b.y);
+      if (dd < rr * rr && dd > 0.01) {
+        const d = Math.sqrt(dd);
+        P.x += ((P.x - b.x) / d) * (rr - d);
+        P.y += ((P.y - b.y) / d) * (rr - d);
+      }
+    } // you can't get through the boards either: only by the door, and only until it's barred
     if (!b.broken)
       for (const e of GS.enemies) {
         if (e.dead || e.fly || !(e.emerge >= 1)) continue;
@@ -263,4 +296,6 @@ export function siegePrompt() {
   return null;
 }
 export const siegeText = o =>
-  `Hold the house · ${o.inside} inside · ${o.bars.filter(b => !b.broken).length} / ${o.bars.length} boarded`;
+  o.sealed
+    ? `Hold the house · ${o.inside} inside · ${o.bars.filter(b => !b.broken).length} / ${o.bars.length} boarded`
+    : `Get inside the house · ${o.inside} survivors waiting`;

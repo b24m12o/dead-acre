@@ -6,7 +6,6 @@ import { ui } from '../render/gl.js';
 import { VH, VW, ZOOM, addLight, lineQ, quad, viewH, viewW } from '../render/sprites.js';
 import { R, rr } from '../render/atlas.js';
 import { cam } from '../game/state.js';
-import { TRAIT } from '../actors/enemies.js';
 import { hudRects, inRect, safeLabel } from './hud.js';
 import { budTag } from '../actors/backups.js';
 import { BOX_SEARCH } from '../game/objectives.js';
@@ -101,7 +100,10 @@ export function markerList() {
     m.push({ x: GS.horde.x, y: GS.horde.y, col: '#e8b25a', label: 'HORDE' }); // where the mass is while it roams
   if (GS.obj && !GS.obj.done) {
     if (GS.obj.type === 'gen') m.push({ x: GS.obj.x, y: GS.obj.y, col: '#ffe08a', label: 'GENERATOR' });
-    if (GS.obj.type === 'siege') m.push({ x: GS.obj.cx, y: GS.obj.cy, col: '#ffd08a', label: 'SURVIVORS' });
+    if (GS.obj.type === 'siege' && !GS.obj.sealed) {
+      const d = GS.obj.bars.find(b => b.door);
+      if (d) m.push({ x: d.x + d.nx * 30, y: d.y + d.ny * 30, col: '#ffd08a', label: 'GET INSIDE' });
+    } // the way in, until you're in
     if (GS.obj.type === 'rescue' && !GS.obj.joined)
       m.push({ x: GS.obj.s.x, y: GS.obj.s.y, col: '#bff4ff', label: 'SURVIVOR' });
     if (GS.obj.type === 'fuel')
@@ -261,35 +263,6 @@ export function drawInd() {
   }
   IND.length = 0;
 }
-function drawTraitTags(toS) {
-  // a late elite says what it is, small, under it, while it is near
-  const used = [];
-  ui.font = `600 ${9 * TS()}px "JetBrains Mono", monospace`;
-  ui.textAlign = 'center';
-  ui.lineWidth = 3;
-  ui.strokeStyle = 'rgba(20,24,29,0.85)';
-  for (const e of GS.enemies) {
-    if (
-      !e.trait ||
-      e.dead ||
-      e.dying !== undefined ||
-      e.emerge < 1 ||
-      (e.sv ?? 1) < 0.5 ||
-      d2(e.x, e.y, GS.P.x, GS.P.y) > 450 * 450
-    )
-      continue;
-    const [bx, by0] = toS(e.x, e.y),
-      by = by0 + 30 * ZOOM * (e.sc || 1);
-    if (bx < 20 || by < 20 || bx > VW - 20 || by > VH - 20) continue;
-    const t = TRAIT[e.trait].name.toUpperCase(),
-      w = ui.measureText(t).width;
-    if (used.some(([x, y, uw]) => Math.abs(x - bx) < (uw + w) / 2 + 4 && Math.abs(y - by) < 12)) continue;
-    used.push([bx, by, w]);
-    ui.strokeText(t, bx, by);
-    ui.fillStyle = { runner: '#ffb070', bloater: '#d8e070', screamer: '#ffc8c0', armored: '#b8c8e8' }[e.trait];
-    ui.fillText(t, bx, by);
-  }
-}
 function boxPill(toS) {
   if (!GS.obj || GS.obj.type !== 'box' || !GS.obj.cur || GS.obj.still) return null;
   const k = TS(),
@@ -336,6 +309,29 @@ export function drawMarkersUI(toS) {
       ui.fillStyle = b.broken ? '#ff5a4a' : f > 0.6 ? '#c8e6a0' : f > 0.3 ? '#ffc04a' : '#ff7a4a';
       ui.fillRect(x - 16 * k, y + 1 * k, 32 * k * Math.max(0.04, f), 3 * k);
     } // each battered board: how much is left of it
+    const dr = !GS.obj.sealed && GS.obj.bars.find(b => b.door);
+    if (dr) {
+      const [x, y] = toS(dr.x, dr.y),
+        R0 = (24 + 2 * Math.sin(GS.time * 5)) * k;
+      ui.lineWidth = 2 * k;
+      ui.strokeStyle = 'rgba(255,208,138,0.9)';
+      ui.setLineDash([5 * k, 4 * k]);
+      ui.beginPath();
+      ui.arc(x, y, R0, 0, Math.PI * 2);
+      ui.stroke();
+      ui.setLineDash([]);
+      ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
+      ui.textAlign = 'center';
+      ui.textBaseline = 'middle';
+      const lb = 'Get inside',
+        w = ui.measureText(lb).width + 14 * k,
+        ly = y + (dr.ny >= 0 ? R0 + 14 * k : -R0 - 14 * k);
+      ui.fillStyle = 'rgba(20,24,29,0.78)';
+      rr(ui, x - w / 2, ly - 9 * k, w, 18 * k, 9 * k);
+      ui.fill();
+      ui.fillStyle = '#ffd08a';
+      ui.fillText(lb, x, ly);
+    } // the door: a ring on it till you're through, and what it's for
     const pr = siegePrompt();
     if (pr) {
       const [x, y] = toS(pr.b.x, pr.b.y + 30);
@@ -350,7 +346,6 @@ export function drawMarkersUI(toS) {
       ui.fillText(pr.label, x, y + 10 * k);
     } // by a board that needs you: what to do
   }
-  drawTraitTags(toS);
   if (
     GS.obj &&
     GS.obj.type === 'box' &&

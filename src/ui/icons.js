@@ -118,19 +118,20 @@ const G = {
       rr(c, 56, 10, 20, 9, 2); // handguard
       rr(c, 76, 11.5, 22, 5, 1.5); // barrel
       rect(c, 94, 9, 3, 3);
-      poly(c, 38, 21, 50, 21, 52, 37, 40, 38); // box mag
+      ring(c, 47, 27, 10); // the drum magazine
       poly(c, 28, 20, 35, 20, 33, 34, 26, 34); // grip
       guard(c, 36, 20);
       poly(c, 26, 10, 3, 11, 2, 22, 6, 23, 26, 18); // folding stock
     },
     hole: c => {
-      ring(c, 36, 23, 3);
+      ring(c, 34.5, 23, 2.6);
       rr(c, 8, 13.5, 14, 5, 2);
+      ring(c, 47, 27, 2.2);
     },
     cut: c => {
       for (let x = 59; x < 74; x += 3) line(c, x, 11, x, 18);
-      line(c, 40, 26, 51, 26);
-      line(c, 40, 31, 51, 31);
+      c.moveTo(47 + 6.5, 27);
+      c.arc(47, 27, 6.5, 0, Math.PI * 2); // the drum's rim
     },
   },
   rifle: {
@@ -206,7 +207,7 @@ const G = {
       rr(c, 22, 7, 40, 14, 2); // receiver
       poly(c, 30, 7, 52, 7, 50, 3, 32, 3); // feed cover
       rr(c, 36, 0, 12, 4, 1.5); // carry handle
-      rr(c, 62, 9, 20, 9, 2); // heat shield
+      rr(c, 62, 9, 20, 9, 2); // the barrel jacket
       rr(c, 82, 11.5, 15, 4, 1.5); // barrel
       rr(c, 96, 10.5, 4, 6, 1);
       rr(c, 33, 21, 17, 14, 1.5); // the ammo box
@@ -215,27 +216,37 @@ const G = {
       poly(c, 74, 17, 77, 17, 86, 35, 83, 35); // bipod
       poly(c, 74, 17, 77, 17, 70, 35, 67, 35);
     },
-    hole: c => rr(c, 6, 12.5, 12, 5, 2),
+    hole: c => {
+      rr(c, 6, 12.5, 12, 5, 2);
+      for (let x = 65.5; x < 81; x += 3.6) ring(c, x, 13.5, 1.2); // the barrel jacket, perforated for cooling
+    },
     cut: c => {
-      for (let x = 64; x < 81; x += 3.5) line(c, x, 10, x, 17);
       line(c, 36, 26, 47, 26);
       line(c, 22, 14, 62, 14);
     },
   },
   launcher: {
+    // a six-shot revolver launcher, as it is in your hands: skeleton stock, the big drum of grenades ahead of the grip,
+    // a short fat barrel with a front grip under it
     shape: c => {
-      rr(c, 42, 6, 54, 16, 5); // the fat barrel
-      rr(c, 94, 7, 4, 14, 1.5); // muzzle ring
-      rr(c, 28, 8, 16, 13, 2.5); // breech
-      rect(c, 50, 1, 3, 6); // ladder sight
-      rect(c, 50, 1, 9, 2);
-      guard(c, 36, 21);
-      poly(c, 30, 12, 2, 13, 1, 27, 6, 28, 22, 21, 30, 21); // wooden stock
+      poly(c, 24, 11, 3, 10, 2, 25, 7, 26, 24, 20); // folding stock
+      rr(c, 22, 9, 15, 12, 2); // frame
+      poly(c, 25, 20, 32, 20, 30, 34, 23, 34); // pistol grip
+      guard(c, 33, 20);
+      rr(c, 36, 3, 25, 23, 4); // the drum
+      rr(c, 60, 8, 30, 13, 3); // the fat barrel
+      rr(c, 88, 6.5, 6, 16, 1.5); // muzzle ring
+      poly(c, 67, 21, 74, 21, 73, 32, 66, 32); // front grip
+      rect(c, 64, 3, 3, 5); // the sight
+      rect(c, 64, 2.5, 9, 2);
     },
-    hole: c => ring(c, 36, 24, 3),
+    hole: c => {
+      rr(c, 7, 14, 13, 5, 2);
+      ring(c, 33, 23, 3);
+    },
     cut: c => {
-      line(c, 44, 14, 92, 14);
-      line(c, 6, 18, 22, 17);
+      for (const y of [9, 14.5, 20]) line(c, 39, y, 58, y); // the chambers, fluted along the drum
+      line(c, 62, 14.5, 87, 14.5);
     },
   },
   mine: {
