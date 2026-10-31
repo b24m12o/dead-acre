@@ -13,7 +13,7 @@ import { begin } from '../ui/hangar.js';
 import { setPause } from '../ui/screens.js';
 import { openPractice } from '../game/practice.js';
 import { tutEnd } from '../game/tutorial.js';
-import { cycleTrap, trapDown } from '../game/traps.js';
+import { cycleTrap, trapDown, trapUp } from '../game/traps.js';
 /* =====================================================================
    Input
    ===================================================================== */
@@ -158,6 +158,7 @@ export function init() {
     keys.delete(keyOf(e));
     keys.delete((e.key || '').toLowerCase());
     if (keyOf(e) === 'q' && WHEEL.held === 'kbm') wheelRelease();
+    if (keyOf(e) === 'f') trapUp();
   });
   glc.addEventListener('mousemove', e => {
     mouse.x = e.clientX;

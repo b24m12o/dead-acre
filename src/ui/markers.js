@@ -13,6 +13,7 @@ import { BOX_SEARCH } from '../game/objectives.js';
 import { drawRainUI } from '../world/weather.js';
 import { cars } from '../world/map.js';
 import { FINAL_NIGHT } from '../game/districts.js';
+import { rigProgress } from '../game/traps.js';
 export function drawObjectiveGlow() {
   if (GS.evac) {
     const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1); // once it is down, the ring fades so the chopper itself reads
@@ -295,6 +296,22 @@ function boxPill(toS) {
   return { lb, x: bx - w / 2, y: by + 24 * ZOOM + 6 * k, w, h: 20 * k };
 } /* the prompt's box, shared so the pile icons can step out of its way */
 export function drawMarkersUI(toS) {
+  {
+    const r = rigProgress();
+    if (r && r.k > 0.08) {
+      const [x, y] = toS(r.c.x, r.c.y - 30),
+        R0 = 16 * TS();
+      ui.lineWidth = 3.5 * TS();
+      ui.strokeStyle = 'rgba(20,24,29,0.7)';
+      ui.beginPath();
+      ui.arc(x, y, R0, 0, Math.PI * 2);
+      ui.stroke();
+      ui.strokeStyle = '#ff8a6a';
+      ui.beginPath();
+      ui.arc(x, y, R0, -Math.PI / 2, -Math.PI / 2 + r.k * Math.PI * 2);
+      ui.stroke();
+    }
+  } // holding the trap key by a car: the ring fills, and at full the car is rigged
   drawTraitTags(toS);
   if (
     GS.obj &&

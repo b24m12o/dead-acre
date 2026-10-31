@@ -29,7 +29,7 @@ export const TRAP = {
   mine: { name: 'Land mine', short: 'Mine', desc: 'Thrown. Blows when they step near it.' },
   drum: { name: 'Gas drum', short: 'Gas drum', desc: 'Set down. Shoot it for a wide pool of fire.' },
   noise: { name: 'Noise maker', short: 'Noise maker', desc: 'Thrown. Pulls them all to it for 10 s.' },
-  rig: { name: 'Car rig', short: 'Car rig', desc: 'Walk up to a parked car. The next hit blows it big.' },
+  rig: { name: 'Car rig', short: 'Car rig', desc: 'Hold the trap key by a parked car. The next hit blows it big.' },
 };
 export const TRAP_ORDER = ['mine', 'drum', 'noise']; // what the wheel and the switch key cycle through
 export const TRAP_MAX = { mine: 3, drum: 3, noise: 3, rig: 2 };
@@ -121,19 +121,36 @@ function throwTo(kind, maxD) {
   });
   sfx.swap();
 }
+// Rigging a car is never an accident: beside a car, a tap of the trap key still uses the trap you hold, and only
+// holding the key down for a moment rigs the car (a ring fills over it while you hold)
+export const RIG_HOLD = 0.7;
+let rigging = null;
+export const rigProgress = () => (rigging ? { c: rigging.c, k: Math.min(1, rigging.t / RIG_HOLD) } : null);
 export function trapDown() {
   if (GS.state !== 'play' || !GS.P || GS.P.hp <= 0) return;
-  const P = GS.P,
-    c = have().rig > 0 && carNear();
+  const c = have().rig > 0 && carNear();
   if (c) {
-    c.rig = true;
-    c.hp = Math.min(c.hp, 1);
-    c.hasAlarm = false;
-    GS.RUN.traps.rig--;
-    sfx.ting();
-    floatText(c.x, c.y - 40, 'Rigged · one hit and it goes', '#ff8a6a', 14);
+    rigging = { c, t: 0 };
     return;
-  } // beside a car with a rig in the kit: that comes first
+  } // decided on release: a tap is the held trap, a hold is the rig
+  useTrap();
+}
+export function trapUp() {
+  if (!rigging) return;
+  const done = rigging.t >= RIG_HOLD;
+  rigging = null;
+  if (!done) useTrap();
+}
+function rigCar(c) {
+  c.rig = true;
+  c.hp = Math.min(c.hp, 1);
+  c.hasAlarm = false;
+  GS.RUN.traps.rig--;
+  sfx.ting();
+  floatText(c.x, c.y - 40, 'Rigged · one hit and it goes', '#ff8a6a', 14);
+}
+function useTrap() {
+  const P = GS.P;
   let t = GS.RUN.trapSel;
   if (!(have()[t] > 0)) t = GS.RUN.trapSel = TRAP_ORDER.find(k => have()[k] > 0);
   if (!t) {
@@ -156,6 +173,15 @@ export function trapDown() {
 }
 export function tickTraps(dt) {
   if (!GS.P) return;
+  if (rigging) {
+    rigging.t += dt;
+    if (GS.state !== 'play' || rigging.c.dead || Math.hypot(rigging.c.x - GS.P.x, rigging.c.y - GS.P.y) > 120)
+      rigging = null;
+    else if (rigging.t >= RIG_HOLD && !rigging.c.rig) {
+      rigCar(rigging.c);
+      rigging.t = 99;
+    }
+  }
   for (const g of GS.tthrows) {
     g.t += dt;
     const k = Math.min(1, g.t / g.dur);
@@ -195,7 +221,11 @@ function trapPill() {
     car = have().rig > 0 && carNear();
   let h = '';
   if (on) {
-    if (car) h = `<span class="tk">${kn('trap')}</span><span class="on">Rig this car</span><span>×${have().rig}</span>`;
+    if (car)
+      h =
+        (sel && have()[sel] > 0
+          ? `<img alt="" src="${iconURL(sel)}"><span>${TRAP[sel].short} ×${have()[sel]}</span>`
+          : '') + `<span class="tk">Hold ${kn('trap')}</span><span class="on">Rig car ×${have().rig}</span>`;
     else if (sel && have()[sel] > 0)
       h = `<img alt="" src="${iconURL(sel)}"><span>${TRAP[sel].short} ×${have()[sel]}</span><span class="tk">${kn('trap')}</span>`;
     else h = `<span class="tk">Traps · ${kn('wheel')} wheel</span>`;
