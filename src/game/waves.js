@@ -7,7 +7,7 @@ import { TILE, WH, WW, isWall } from '../world/map.js';
 import { cam } from './state.js';
 import { FINAL_NIGHT, INF, TW } from './districts.js';
 export const bossNight = w => !(GS.RUN && GS.RUN.hm) && w % 5 === 0; // Horde Mode has no bosses: the hordes are the bosses
-export const lastNight = w => !GS.RUN.endless && w === FINAL_NIGHT;
+export const lastNight = w => !GS.RUN.endless && w === FINAL_NIGHT; // endless: Horde Mode's runs, which have no last night
 export function buildWave(w) {
   const q = [];
   let n = Math.round(9 + Math.min(w, 8) * 5 + Math.max(0, w - 8) * 3);
@@ -28,6 +28,14 @@ export function buildWave(w) {
     for (let i = 0; i < 1 + Math.floor((w - 4) / 3) + (Dn === 'town' && w >= 8 ? 1 : 0); i++) q.push('shield'); // riot police: one from night 4, more as the town falls
   if (w >= 6 && !bossNight(w))
     for (let i = 0; i < 1 + Math.floor((w - 6) / 3) + (Dn === 'cemetery' ? 1 : 0); i++) q.push('lurker'); // the dead that only look dead
+  if (!bossNight(w)) {
+    const sp = (k, from, per) => {
+      if (w >= from) for (let i = 0; i < 1 + Math.floor((w - from) / per); i++) q.push(k);
+    };
+    sp('climb', 3, 3);
+    sp('spore', 5, 4);
+    sp('drag', 6, 4);
+  } // the special infected: climbers from night 3, spores from 5, draggers from 6, a few more as the nights go
   const tw = T.reduce((s, t) => s + t[1], 0);
   for (let i = 0; i < n; i++) {
     let r = Math.random() * tw;

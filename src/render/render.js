@@ -428,7 +428,8 @@ export function render() {
         a = Math.min(1, (q.life / q.max) * 2) * 0.7,
         sc = q.size * (0.6 + t * q.grow * 1.5);
       const tc = q.c || [1, 1, 1];
-      quad(R.dust, q.x, q.y, q.rot, sc, sc, tc[0], tc[1], tc[2], q.c ? a * 0.9 : a, 0, 0, 0, 0);
+      const em = (q.em || 0) * a; // spores glow faintly sick, so you can see the cloud in the dark and keep out of it
+      quad(R.dust, q.x, q.y, q.rot, sc, sc, tc[0], tc[1], tc[2], q.c ? a * 0.9 : a, em, em, em * 0.45, 0);
     }
   if (GS.boss && !GS.boss.dead && GS.boss.signAt) {
     const sa = GS.boss.signAt,

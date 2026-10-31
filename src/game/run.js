@@ -12,6 +12,7 @@ import { stopHeli } from './evac.js';
 import { resetGadgets } from './gadgets.js';
 import { endHorde } from './horde.js';
 import { resetTraps } from './traps.js';
+import { resetSpecials } from '../actors/specials.js';
 let mapCache = { fresh: false, d: '' };
 export function newRun(forMenu = false) {
   GS.noiseRings = [];
@@ -103,6 +104,7 @@ export function newRun(forMenu = false) {
   resetGadgets();
   endHorde();
   resetTraps();
+  resetSpecials();
   GS.whiteFlash = 0;
   GS.enemies = [];
   GS.corpses = [];

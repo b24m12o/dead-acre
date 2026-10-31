@@ -22,6 +22,7 @@ import { finishObjective } from './objective-flow.js';
 import { practiceReport } from './practice.js';
 import { endHorde } from './horde.js';
 import { giveTraps, trapKitStreak } from './traps.js';
+import { freeSpot } from '../actors/backups.js';
 function dawnDrops() {
   // dawn has a job now: the convoy drops what the next night needs while it is quiet, and the night waits a little while it sits unopened
   const nx = GS.wave + 1;
@@ -142,15 +143,30 @@ export function nightCleared() {
       GS.RUN.hm ? 'Wave cleared' : 'Dawn',
       GS.RUN.hm
         ? `Horde ${GS.wave} is down · set the traps for the next`
-        : GS.RUN.endless
-          ? `Night ${GS.wave} survived`
-          : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
+        : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
     );
     GS.RUN.dawnX = 0;
     {
       const s = planSig(GS.wave + 1);
       GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
       if (s) GS.later.push({ t: 3.2, fn: () => GS.nightDone && showStreak(`Night ${GS.wave + 1}`, SIG[s]) });
+      if (!GS.RUN.hm && GS.wave + 1 === FINAL_NIGHT) {
+        GS.RUN.lz = freeSpot(260, 520);
+        const kit = { mine: 3, drum: 3, noise: 1, rig: 2 };
+        giveTraps(kit);
+        GS.interT = 50;
+        GS.later.push({
+          t: 6.5,
+          fn: () =>
+            GS.nightDone &&
+            showStreak(
+              'The chopper comes tomorrow',
+              'So will every one of them · the landing zone is marked · set your traps round it',
+              true
+            ),
+        });
+        GS.later.push({ t: 11, fn: () => GS.nightDone && trapKitStreak(kit) });
+      } // the last dawn: where the bird will land, and everything the convoy can spare to hold it
       if (s === 'horde') {
         const kit = { mine: 3, drum: 2, noise: 1, rig: 1 + (GS.wave >= 8 || GS.RUN.hm ? 1 : 0) };
         giveTraps(kit);
@@ -173,9 +189,9 @@ export function resumeDawn() {
   GS.interT = 11;
   GS.RUN.dawnX = 0;
   banner(
-    'Dawn',
-    GS.RUN.endless
-      ? `Night ${GS.wave} survived · back on the air`
+    GS.RUN.hm ? 'Wave cleared' : 'Dawn',
+    GS.RUN.hm
+      ? `Horde ${GS.wave} is down · back on the air`
       : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
   );
   const s = planSig(GS.wave + 1);

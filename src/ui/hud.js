@@ -223,14 +223,7 @@ export function updateHud() {
   setB('hpFill', r);
   $('hpBar').classList.toggle('low', r < 0.3);
   setT('hpTxt', `${Math.ceil(Math.max(0, GS.P.hp))} / ${Math.round(S.maxHp)}`);
-  setT(
-    'waveTxt',
-    GS.RUN.hm
-      ? `Horde ${Math.max(1, GS.wave)}`
-      : GS.RUN.endless
-        ? `Night ${Math.max(1, GS.wave)} · endless`
-        : `Night ${Math.max(1, GS.wave)} / ${FINAL_NIGHT}`
-  );
+  setT('waveTxt', GS.RUN.hm ? `Horde ${Math.max(1, GS.wave)}` : `Night ${Math.max(1, GS.wave)} / ${FINAL_NIGHT}`);
   setT('objTxt', objText());
   const left = GS.queue.length + GS.enemies.length,
     sg = GS.RUN.sg,

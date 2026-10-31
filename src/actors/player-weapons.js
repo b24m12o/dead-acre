@@ -136,7 +136,7 @@ export function firePlayer(cwx, cwy, p, target) {
       for (let k = 0; k < 3; k++) dust(mxp + c * 10, myp + s * 10, 1, 70, 0.6, 0.5);
     } else if (G.pellets) {
       const n = G.pellets + hb.pellets + (S.shots - 1) * 2,
-        spr = G.spread * S.spreadK * (S.spreadMul || 1) * km.spread;
+        spr = G.spread * S.spreadK * (S.spreadMul || 1) * km.spread * (1 + 1.6 * (GS.P.spore || 0));
       for (let i = 0; i < n; i++) {
         const a = base + (n > 1 ? (i / (n - 1) - 0.5) * spr : 0) + rand(-0.04, 0.04),
           sp = rand(G.speed * 0.9, G.speed * 1.05);
@@ -204,6 +204,7 @@ export function firePlayer(cwx, cwy, p, target) {
             rand(-G.spread, G.spread) *
               (0.35 + 0.65 * (q.heat || 0)) *
               (S.spreadMul || 1) *
+              (1 + 1.6 * (GS.P.spore || 0)) *
               km.spread *
               (br ? (g === 'lmg' ? 0.4 : 0.5) : 1); // stand still and the rifle is braced: tighter, and through one more body
         GS.pbullets.push({

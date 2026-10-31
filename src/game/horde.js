@@ -70,14 +70,17 @@ function pass(H) {
     off = Math.max(120, 420 - H.roamT * 4);
   aim(H, GS.P.x + Math.cos(a) * off, GS.P.y + Math.sin(a) * off);
 }
-export function planHorde() {
-  const n = hordeSize(GS.wave);
+// finale: the last night's evac. The rotors are the loudest thing in the county, and every one of the dead comes
+// for the landing zone at once, from two sides, running: no roaming, no gathering, just the flood
+export function planHorde(finale = false) {
+  const n = finale ? Math.min(400, 340 + 12 * (GS.RUN.inf || 0)) : hordeSize(GS.wave);
   GS.horde = {
     n,
+    finale,
     spawned: 0,
     killed: 0,
     alert: false,
-    startT: GS.RUN.hm && GS.wave === 1 ? 40 : 14, // the first wave of Horde Mode gives you time to lay the kit
+    startT: finale ? 6 : GS.RUN.hm && GS.wave === 1 ? 40 : 14, // the first wave of Horde Mode gives you time to lay the kit
     roamT: 0,
     reT: 0,
     growlT: 2,
@@ -94,7 +97,7 @@ function arrive(H) {
   H.y = y;
   H.a = Math.atan2(y - GS.P.y, x - GS.P.x);
   H.ents = [[x, y]];
-  if (GS.RUN.hm ? GS.wave >= 5 : GS.wave >= 11) {
+  if (H.finale || (GS.RUN.hm ? GS.wave >= 5 : GS.wave >= 11)) {
     const e2 = entry(H.a);
     H.ents.push(e2);
     H.a2 = Math.atan2(e2[1] - GS.P.y, e2[0] - GS.P.x);
@@ -105,6 +108,22 @@ function arrive(H) {
     return L;
   }); // it masses at the edge of the map first, then moves off all together
   H.side = Math.random() < 0.5 ? -1 : 1;
+  if (H.finale) {
+    H.alert = H.moving = true;
+    showStreak(
+      'Every one of them',
+      `${H.n} of the dead heard the rotors · from the ${dirName(H.a)} and the ${dirName(H.a2)} · hold the landing zone`,
+      true
+    );
+    radio('Nine, big group breaking through on your ' + dirName(H.a) + ' side. Find a choke point.');
+    sfx.rumble(GS.P.x + Math.cos(H.a) * 500, GS.P.y + Math.sin(H.a) * 500);
+    shake(0.18);
+    MUS.sting = true;
+    MUS.floor = 0.95;
+    MUS.floorT = GS.time + 60;
+    hordeBox(true);
+    return;
+  } // the finale doesn't roam: it comes straight in, running
   showStreak(
     'Horde',
     `${H.n} of them, coming in from the ${dirName(H.a)}${H.ents.length > 1 ? ` and the ${dirName(H.a2)}` : ''} · watch the radar and pick your ground`,
@@ -203,12 +222,17 @@ export function hordeKilled(e, src) {
     GS.hitstop = Math.max(GS.hitstop, 0.12);
     flashLight(e.x, e.y, 260, [1.4, 1.1, 0.8], 0.6);
     shake(0.25);
-    GS.later.push({ t: 0.9, fn: () => showStreak('Horde down', bits.join(' · '), true) });
-    GS.later.push({
-      t: 1.2,
-      fn: () => radio('Supply crate down. Ammo and gear inside, no gun. Grab it while it is quiet.'),
-    });
-    GS.later.push({ t: 1.4, fn: () => dropCrate() });
+    if (H.finale) {
+      GS.runSeeds += pay; // the last stand pays double
+      GS.later.push({ t: 0.9, fn: () => showStreak('Not one of them left', bits.join(' · '), true) });
+    } else {
+      GS.later.push({ t: 0.9, fn: () => showStreak('Horde down', bits.join(' · '), true) });
+      GS.later.push({
+        t: 1.2,
+        fn: () => radio('Supply crate down. Ammo and gear inside, no gun. Grab it while it is quiet.'),
+      });
+      GS.later.push({ t: 1.4, fn: () => dropCrate() });
+    }
     hordeBox(false);
   }
 }

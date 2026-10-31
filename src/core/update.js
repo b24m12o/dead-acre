@@ -38,6 +38,8 @@ import { heliVolume, startEvac, updateEvac } from '../game/evac.js';
 import { tickGadgets } from '../game/gadgets.js';
 import { hordeLive, tickHorde } from '../game/horde.js';
 import { tickTraps } from '../game/traps.js';
+import { tickSpores } from '../actors/specials.js';
+import { SPECIAL, makeSpecial } from '../actors/specials.js';
 export function update(dt) {
   radioTick(dt);
   GS.time += dt;
@@ -90,6 +92,7 @@ export function update(dt) {
   } else {
     const dz2 =
         (p.held ? 0.06 : p.daze > 0 ? 0.55 : 1) *
+        (1 - 0.38 * (p.spore || 0)) *
         (p.gun === 'lmg' && !S.evo.walkfire && GS.time - (p.lastShotT || -9) < 0.22 ? 0.6 : 1),
       tvx = mx * S.speed * dz2,
       tvy = my * S.speed * dz2,
@@ -254,6 +257,7 @@ export function update(dt) {
   tickGadgets(dt);
   tickHorde(dt);
   tickTraps(dt);
+  tickSpores(dt);
   // formation trails the way you walk, not the way you aim, and holds still while you stand
   const pspd = Math.hypot(p.vx, p.vy);
   if (p.formA === undefined) p.formA = p.moveA;
@@ -443,10 +447,11 @@ export function update(dt) {
           SG.quiet = 0;
         }
       }
-      const pack = t === 'skitter' ? randi(2, 3 + Math.min(3, GS.wave >> 2)) : t === 'hound' ? 3 : 1;
+      const pack = t === 'skitter' ? randi(2, 3 + Math.min(3, GS.wave >> 2)) : t === 'hound' ? 3 : 1; // specials come alone
       for (let i = 0; i < pack; i++) {
-        const ne =
-          t === 'lurker'
+        const ne = SPECIAL[t]
+          ? makeSpecial(t, sx, sy)
+          : t === 'lurker'
             ? (() => {
                 const [lx, ly] = spawnPoint(300, false);
                 return makeLurker(lx, ly);

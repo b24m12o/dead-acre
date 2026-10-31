@@ -16,7 +16,7 @@ import { DISTRICTS, FINAL_NIGHT, twistK } from '../game/districts.js';
 import { chalRunSummary, checkChal, openChal, statMax } from '../game/challenges.js';
 import { practiceReport } from '../game/practice.js';
 import { bossLogHtml } from '../game/boss-flow.js';
-import { goEndless, stopHeli } from '../game/evac.js';
+import { stopHeli } from '../game/evac.js';
 import { affordNow, menuInit, renderDistricts } from './menu.js';
 GS.glDead = false;
 export function setPause(p) {
@@ -97,9 +97,7 @@ export function gameOver() {
   } // Horde Mode keeps its own records
   $('overTitle').textContent = GS.RUN.hm
     ? `Overrun by horde ${GS.wave}`
-    : GS.RUN.endless
-      ? `Eaten on endless night ${GS.wave}`
-      : `Eaten on night ${GS.wave} of ${FINAL_NIGHT}`; // the title already says the night
+    : `Eaten on night ${GS.wave} of ${FINAL_NIGHT}`; // the title already says the night
   $('oScore').textContent = GS.score.toLocaleString();
   $('oWaveL').textContent = 'Scrap';
   $('oWave').textContent = `+${earned}`;
@@ -162,11 +160,7 @@ export function showMenuRec() {
     cb.hidden = !d;
     $('survBtn').classList.toggle('ghost', !!d);
     if (d) {
-      cb.textContent = d.RUN.hm
-        ? `Continue · horde ${d.wave + 1}`
-        : d.RUN.endless
-          ? `Continue · endless night ${d.wave + 1}`
-          : `Continue · night ${d.wave + 1} of ${FINAL_NIGHT}`;
+      cb.textContent = d.RUN.hm ? `Continue · horde ${d.wave + 1}` : `Continue · night ${d.wave + 1} of ${FINAL_NIGHT}`;
       cb.title = `${(HEROES[d.RUN.hero] || HEROES.ranger).name} · ${(DISTRICTS[d.RUN.district] || DISTRICTS.town).name} · saved at dawn`;
     }
   } // a run saved at its last dawn: pick it up where it stopped
@@ -211,7 +205,6 @@ export function init() {
     $('survSetup').hidden = true;
     $('menu').hidden = false;
   });
-  $('endlessBtn').addEventListener('click', goEndless);
   const wonToMenu = () => {
     $('won').hidden = true;
     $('hud').hidden = true;

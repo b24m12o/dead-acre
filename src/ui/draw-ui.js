@@ -27,6 +27,14 @@ export function drawUI() {
     ui.fillText(`${f} FPS · ${RW}×${RH}`, VW - 14, VH - 30 * TS());
     ui.textAlign = 'left';
   } // the frame-rate readout: bottom right, clear of the HUD
+  if (GS.P && GS.P.spore > 0.01 && GS.state === 'play') {
+    const k = GS.P.spore,
+      g = ui.createRadialGradient(VW / 2, VH / 2, Math.min(VW, VH) * 0.12, VW / 2, VH / 2, Math.max(VW, VH) * 0.6);
+    g.addColorStop(0, `rgba(118,124,64,${0.18 * k})`);
+    g.addColorStop(1, `rgba(70,74,36,${0.82 * k})`);
+    ui.fillStyle = g;
+    ui.fillRect(0, 0, VW, VH);
+  } // inside a spore cloud: the world closes in, yellow-grey, to a little circle round you
   if (GS.whiteFlash > 0.01) {
     ui.fillStyle = `rgba(255,252,240,${Math.min(opt.flash ? 0.1 : 0.75, GS.whiteFlash)})`;
     ui.fillRect(0, 0, VW, VH);

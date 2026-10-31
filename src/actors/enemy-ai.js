@@ -24,6 +24,7 @@ import { poundCar, screamAt } from '../game/noise.js';
 import { tip } from '../audio/radio.js';
 import { finishObjective } from '../game/objective-flow.js';
 import { budTarget, objTarget } from '../game/objective-update.js';
+import { specialTick } from './specials.js';
 // a giant that has stopped getting anywhere while it walks, pressed into a building or caught inside one, is walked out
 // to the nearest open street it can move on from (a tile clear of buildings that its own path map can reach)
 function giantWedge(e, dt) {
@@ -90,6 +91,7 @@ export function updateEnemy(e, dt, p) {
       e.aw = 6;
     }
   } else e.idleT = 0; // nothing stays lost for long: sooner or later they find your scent
+  if (e.kind && specialTick(e, dt, p)) return; // the special infected move themselves (see actors/specials.js)
   let lure = e.lure;
   if (lure && (lure.dead || !(lure.alarm > 0))) lure = e.lure = null;
   if (lure && e.los && pd2 < (lure.flare ? 110 : 200) ** 2) {

@@ -12,6 +12,7 @@ import { budTag } from '../actors/backups.js';
 import { BOX_SEARCH } from '../game/objectives.js';
 import { drawRainUI } from '../world/weather.js';
 import { cars } from '../world/map.js';
+import { FINAL_NIGHT } from '../game/districts.js';
 export function drawObjectiveGlow() {
   if (GS.evac) {
     const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1); // once it is down, the ring fades so the chopper itself reads
@@ -88,6 +89,8 @@ export function markerList() {
       m.push({ x: b.x, y: b.y, col: '#ff6a5a', label: `${(b.nm || 'BACKUP').toUpperCase()} ${Math.ceil(b.down)} S` }); // off screen and bleeding out: which way
   if (GS.RUN.sg && GS.RUN.sg.horde && GS.time < GS.RUN.sg.horde.t && GS.nightLive && !GS.nightDone)
     m.push({ x: GS.RUN.sg.horde.x, y: GS.RUN.sg.horde.y, col: '#ff8a6a', label: 'HORDE' });
+  if (GS.RUN.lz && !GS.evac && !GS.RUN.hm && GS.wave >= FINAL_NIGHT - 1)
+    m.push({ x: GS.RUN.lz[0], y: GS.RUN.lz[1], col: '#8ef0a0', label: 'LANDING ZONE' }); // named at the last dawn
   if (GS.horde && !GS.horde.done)
     for (const c of cars) if (c.tanker && !c.dead) m.push({ x: c.x, y: c.y, col: '#ff9a4a', label: 'FUEL TANKER' }); // tonight it's a weapon
   if (GS.horde && !GS.horde.done && GS.horde.startT <= 0 && !GS.horde.alert && GS.horde.spawned)

@@ -188,7 +188,20 @@ export function drawEnemy(e) {
     (e.sc || 1) *
     (e.type === 'queen' ? 1 : 1.2) *
     (e.__std ? e.__ss || 1 : 1);
-  if (e.elite) {
+  if (e.kind === 'climb') {
+    GS.gR = 1.12;
+    GS.gG = 1.1;
+    GS.gB = 1.06;
+  } else if (e.kind === 'spore') {
+    GS.gR = 1.04;
+    GS.gG = 1.02;
+    GS.gB = 0.62;
+  } else if (e.kind === 'drag') {
+    GS.gR = 0.62;
+    GS.gG = 0.6;
+    GS.gB = 0.6;
+  } // the specials' own colour: the climber bloodless pale, the spore yellowed, the dragger near black
+  else if (e.elite) {
     if (e.trait === 'bloater') {
       GS.gR = 0.94;
       GS.gG = 0.98;
@@ -381,7 +394,7 @@ export function drawEnemy(e) {
             [20.5 + reach - tw - sw * 3, 11.5],
           ];
       } // reaching out at shoulder width, elbows a little soft
-      if (!dead && e.trait === 'bloater')
+      if (!dead && (e.shape || e.trait) === 'bloater')
         hands = [
           [11 + Math.sin(ph) * 3 * mv, -21],
           [11 - Math.sin(ph) * 3 * mv, 21],
@@ -419,10 +432,10 @@ export function drawEnemy(e) {
       }
       // elite traits read by shape before colour: the runner is stripped lean and long-armed, the screamer gaunt with a
       // big skull, the armored one broad in a plate carrier and helmet
-      const tr = e.elite && !brute && !bloat ? e.trait : null,
-        tW = tr === 'runner' ? 0.84 : tr === 'screamer' ? 0.88 : tr === 'armored' ? 1.08 : 1,
-        tL = tr === 'runner' ? 1.18 : tr === 'screamer' ? 1.1 : 1,
-        tA = tr === 'runner' || tr === 'screamer' ? 0.78 : tr === 'armored' ? 1.12 : 1;
+      const tr = !brute && !bloat ? e.shape || (e.elite ? e.trait : null) : null,
+        tW = tr === 'runner' ? 0.84 : tr === 'screamer' ? 0.88 : tr === 'armored' ? 1.08 : tr === 'drag' ? 1.14 : 1,
+        tL = tr === 'runner' ? 1.18 : tr === 'screamer' ? 1.1 : tr === 'drag' ? 1.4 : 1,
+        tA = tr === 'runner' || tr === 'screamer' ? 0.78 : tr === 'armored' ? 1.12 : tr === 'drag' ? 1.15 : 1;
       const sh = (brute ? 23 : bloat ? 20 : 12.5) * tW,
         L = (brute ? 18 : bloat ? 12.5 : 12.5) * tL,
         w1 = (brute ? 12 : bloat ? 13.5 : 7.4) * tA,
@@ -550,7 +563,10 @@ export function drawEnemy(e) {
           ? e.__kn || 0
           : 0; /* kneeling, the back is bent forward: from above the torso shows longer and sits ahead of the hips */
         const [tbx, tby] = Wb(3 * kn, 0);
-        const gut = e.trait === 'bloater' ? 1.2 + Math.sin(GS.time * 2.6 + e.id) * 0.025 : 1;
+        const gut =
+          (e.shape || e.trait) === 'bloater'
+            ? (e.kind === 'spore' ? 1.34 : 1.2) + Math.sin(GS.time * 2.6 + e.id) * 0.025
+            : 1;
         quad(
           torso,
           tbx,

@@ -18,11 +18,14 @@ import { renderRunReport } from '../ui/screens.js';
 import { WINDX } from '../world/physics.js';
 import { DISTRICTS, INFECTION, twistK } from './districts.js';
 import { bump, chalRunSummary, checkChal, statMax } from './challenges.js';
-import { TRAITS, freeSpot, regroupSpot } from '../actors/backups.js';
+import { TRAITS, freeSpot } from '../actors/backups.js';
 import { RADIO, radio, radioVoice, storyEnd } from '../audio/radio.js';
 import { bossLogHtml } from './boss-flow.js';
+import { planHorde } from './horde.js';
+import { solidPt } from '../world/nav.js';
 export function startEvac() {
-  const [x, y] = freeSpot(420, 700);
+  const [x, y] = GS.RUN.lz && !solidPt(GS.RUN.lz[0], GS.RUN.lz[1]) ? GS.RUN.lz : freeSpot(420, 700); // the landing zone the convoy named at dawn
+  if (!GS.RUN.practice) planHorde(true);
   GS.evac = {
     x,
     y,
@@ -177,6 +180,7 @@ export function updateEvac(dt) {
     banner('Coming in to land', 'Keep the landing zone clear', false);
   }
   e.spawnT -= dt;
+  if (GS.horde && GS.horde.finale && !GS.horde.done) e.spawnT = Math.max(e.spawnT, 0.6); // the horde is the pressure now; only a few stragglers besides
   if (e.spawnT <= 0 && GS.enemies.length < 70) {
     const k = clamp(e.t / e.land, 0, 1);
     e.spawnT = lerp(0.8, 0.3, k);
@@ -297,7 +301,7 @@ function winRun() {
   if (GS.state !== 'play') return;
 
   GS.state = 'won';
-  clearSave(); // the evac made: the run is done (Endless saves again at its own dawns)
+  clearSave(); // the evac made: the run is done
   GS.evac.hold = 2.5;
   sfx.level();
   GS.slowmo = 0.6;
@@ -332,7 +336,6 @@ function winRun() {
       if (GS.state === 'won') radioVoice(t, who);
     }, 1100);
   } /* and you hear it, over the win screen */
-  GS.RUN.paid = { k: GS.kills, w: GS.wave, s: GS.runSeeds }; // what the win already paid: endless only pays on top of this
   const earned = Math.round(
     (GS.kills * 0.5 + GS.wave * 10 + GS.runSeeds + 200 + inf * 60) *
       (1 + 0.15 * (PK().vault || 0)) *
@@ -372,23 +375,5 @@ function winRun() {
       $('wonMenuBtn').scrollIntoView({ block: 'nearest' });
     }
   }, 1400);
-}
-export function goEndless() {
-  $('won').hidden = true;
-  GS.RUN.endless = true;
-  GS.state = 'play';
-  for (const b of GS.RUN.aboard) {
-    const sp = regroupSpot(GS.P, GS.buddies.length) || [GS.P.x - 50, GS.P.y + 40];
-    b.x = sp[0];
-    b.y = sp[1];
-    b.slot = null;
-    GS.buddies.push(b);
-  }
-  GS.RUN.aboard = [];
-  if (GS.evac) GS.evac.leave = 0.01;
-  GS.enemies.length = 0;
-  GS.interT = 3;
-  GS.nightDone = true;
-  banner('Endless nights', 'You waved the chopper off. How long can you last?', true);
 }
 /* ---------- weather and events ---------- */
