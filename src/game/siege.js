@@ -48,7 +48,7 @@ export function siegeHouse() {
     const cx = (h.x + h.w / 2) * TILE,
       cy = (h.y + h.h / 2) * TILE,
       d = Math.hypot(cx - GS.P.x, cy - GS.P.y),
-      score = Math.abs(d - 650) - floor.length * 90; // the biggest there is (room to step back from a spore cloud), not across the map
+      score = (h.big ? -1e6 : 0) + Math.abs(d - 650) - floor.length * 90; // the big ruin, built for it // the biggest there is (room to step back from a spore cloud), not across the map
     if (!best || score < best.score) best = { h, gaps, floor, cx, cy, score };
   }
   return best;

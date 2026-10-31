@@ -5,7 +5,7 @@
 // browser storage in memory only, so nothing is saved and no profile is touched.
 // Any night, kind of night, character and district straight away; every gun, invulnerable, a trap kit; K clears the
 // night; and a sound board with every gun's shot and reload.
-/* global document, setInterval, clearInterval, setTimeout, addEventListener */
+/* global document, window, atob, setInterval, clearInterval, setTimeout, addEventListener */
 import '../../src/index.js';
 import { GS } from '../../src/core/gs.js';
 import { pick } from '../../src/core/util.js';
@@ -22,7 +22,7 @@ import { giveTraps } from '../../src/game/traps.js';
 import { endHorde } from '../../src/game/horde.js';
 import { freeSpot } from '../../src/actors/backups.js';
 import { RSTEP, sfx } from '../../src/audio/sfx.js';
-import { initAudio, playS } from '../../src/audio/audio.js';
+import { AC, SBV, initAudio, playS } from '../../src/audio/audio.js';
 import { soundWait } from '../../src/ui/loading.js';
 
 function boot() {
@@ -69,10 +69,11 @@ function boot() {
 #trPanel .set>label{grid-column:1}
 #trPanel .segnote{margin:0}
 #trPanel .nights button{min-width:34px;padding:7px 8px}
-#trBoard{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
-#trBoard .perk{padding:8px 12px}
-#trBoard .nm{font-size:16px}
-#trBoard .seg button{background:#323c46;padding:6px 12px}
+#trBoard,#trCands{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+#trCands{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+#trBoard .perk,#trCands .perk{padding:8px 12px}
+#trBoard .nm,#trCands .nm{font-size:16px}
+#trBoard .seg button,#trCands .seg button{background:#323c46;padding:6px 12px}
 #trTag{position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:60;font:600 11px var(--font-mono,monospace);color:#ffd08a;background:rgba(20,24,29,.8);padding:4px 10px;border-radius:8px;pointer-events:none}`;
   document.head.appendChild(css);
   const open = document.createElement('button');
@@ -93,6 +94,8 @@ function boot() {
     <div class="set" id="trBody"></div>
     <div class="sec">Sound board</div>
     <div class="perks" id="trBoard"></div>
+    <div class="sec">Pick a sound · the lever-action and the grenade launcher, side by side</div>
+    <div class="perks" id="trCands"></div>
     <div class="btns"><button class="btn" id="trStart" type="button">Start</button
       ><button class="btn ghost" id="trBack" type="button">Back</button></div></div>`;
   document.body.appendChild(ov);
@@ -144,6 +147,73 @@ function boot() {
     ([id, nm]) =>
       `<div class="perk"><span class="nm">${nm}</span><span class="seg"><button type="button" data-shot="${id}">Shot</button><button type="button" data-rld="${id}">Reload</button></span></div>`
   ).join('');
+  // the candidates: decoded into the game's own sound set under their own names, played the way the game plays them
+  const CANDS = [
+    [
+      'Lever-action · now in the game',
+      [
+        ['lever', 0.8],
+        ['leverAct', 0.55, 0.36],
+      ],
+      0.8,
+    ],
+    [
+      'Lever A · Winchester 1894, its own lever',
+      [
+        ['lvA_shot', 0.8],
+        ['lvA_cyc', 0.6, 0.36],
+      ],
+      0.8,
+    ],
+    [
+      'Lever B · Marlin, short crisp lever',
+      [
+        ['lvB_shot', 0.8],
+        ['lvB_cyc', 0.6, 0.34],
+      ],
+      0.8,
+    ],
+    [
+      'Lever C · Winchester heavier, crisp lever',
+      [
+        ['lvC_shot', 0.8],
+        ['lvC_cyc', 0.6, 0.34],
+      ],
+      0.8,
+    ],
+    ['Launcher · now in the game', [['launcher', 0.9]], 0.72],
+    ['Launcher B · a dry hollow pop', [['glB', 0.5]], 0.72],
+    ['Launcher C · a deep boom', [['glC', 0.62]], 0.72],
+  ];
+  let decoded = false;
+  function decodeCands() {
+    if (decoded || !AC || !window.__TR_CANDS) return;
+    decoded = true;
+    for (const [nm, b64] of Object.entries(window.__TR_CANDS))
+      AC.decodeAudioData(Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer)
+        .then(buf => (SBV[nm] = [buf]))
+        .catch(() => {});
+  }
+  const playC = (parts, at = 0) => {
+    for (const [key, vol, d = 0] of parts) setTimeout(() => playS(key, vol, 1, 0, 0.3), (at + d) * 1000);
+  };
+  q('trCands').innerHTML = CANDS.map(
+    ([nm], i) =>
+      `<div class="perk"><span class="nm">${nm}</span><span class="seg"><button type="button" data-c1="${i}">Shot</button><button type="button" data-c3="${i}">3 shots</button></span></div>`
+  ).join('');
+  for (const b of q('trCands').querySelectorAll('[data-c1]'))
+    b.onclick = () => {
+      initAudio();
+      decodeCands();
+      setTimeout(() => playC(CANDS[+b.dataset.c1][1]), 150);
+    };
+  for (const b of q('trCands').querySelectorAll('[data-c3]'))
+    b.onclick = () => {
+      initAudio();
+      decodeCands();
+      const [, parts, gap] = CANDS[+b.dataset.c3];
+      for (let k = 0; k < 3; k++) setTimeout(() => playC(parts), 150 + k * gap * 1000);
+    };
   for (const b of q('trBoard').querySelectorAll('[data-shot]')) b.onclick = () => shot(b.dataset.shot);
   for (const b of q('trBoard').querySelectorAll('[data-rld]')) b.onclick = () => reload(b.dataset.rld);
   function shot(id) {

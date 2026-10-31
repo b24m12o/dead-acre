@@ -68,7 +68,7 @@ export function prepBlocks() {
       if (st === 'int' && faceShown) WVAR[i] = r < 0.1 ? 1 : r < 0.17 ? 2 : r < 0.23 ? 3 : r < 0.3 ? 4 : 0;
     }
   for (const o of houses)
-    (o.roof = o.style === 'crypt' || o.style === 'store' || (o.style !== 'chapel' && hsh(o.x, o.y) < 0.5)),
+    (o.roof = !o.open && (o.style === 'crypt' || o.style === 'store' || (o.style !== 'chapel' && hsh(o.x, o.y) < 0.5))),
       (o.fade = 1);
   for (const c of cars) {
     c.tint = hexTint(c.col || '#a0a0a0');

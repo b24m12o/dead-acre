@@ -133,6 +133,7 @@ export function genDecor() {
         ty = randi(3, MH - 4),
         i = ty * MW + tx;
       if (grid[i] || !pred(tx, ty, i) || Math.hypot(tx - c0, ty - c0) < 4) continue;
+      if (houses.some(o => o.open && tx >= o.x - 1 && tx <= o.x + o.w && ty >= o.y - 1 && ty <= o.y + o.h)) continue; // the big ruin kept clear, inside and round its windows
       if (GS.decor.some(d => Math.hypot(d.tx - tx, d.ty - ty) < minGap)) continue;
       return [tx, ty];
     }

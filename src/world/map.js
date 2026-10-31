@@ -58,9 +58,52 @@ export function generateMap() {
   };
   for (let y = 0; y < MH; y++)
     for (let x = 0; x < MW; x++) if (x < 2 || y < 2 || x >= MW - 2 || y >= MH - 2) set(x, y, 1);
+  const RES = new Uint8Array(MW * MH); // the big ruin's floor and windows: nothing else is placed on them
   const c0 = MW / 2,
-    clearOK = (x, y, r = 7) => Math.hypot(x - c0, y - c0) > r;
-  const free = (x, y) => x > 2 && y > 2 && x < MW - 3 && y < MH - 3 && !grid[y * MW + x];
+    clearOK = (x, y, r = 7) => Math.hypot(x - c0, y - c0) > r && !RES[Math.floor(y) * MW + Math.floor(x)];
+  const free = (x, y) => x > 2 && y > 2 && x < MW - 3 && y < MH - 3 && !grid[y * MW + x] && !RES[y * MW + x];
+  // one big open ruin on every map, the house a Siege night is fought in: 11 × 8 (room inside for you, three of your
+  // people and the survivors), no roof, solid corners and six windows mid-wall (two on each long side, one on each
+  // short), each with clear floor right behind it, so every board can be reached and nailed back from inside
+  const bigRuin = () => {
+    for (const [w, h] of [
+      [11, 8],
+      [10, 7],
+      [9, 7],
+    ]) {
+      const fits = [];
+      for (let y = 3; y <= MH - 4 - h; y++)
+        for (let x = 3; x <= MW - 4 - w; x++) {
+          let ok = clearOK(x + w / 2, y + h / 2, 10);
+          for (let j = -1; j <= h && ok; j++)
+            for (let k = -1; k <= w; k++)
+              if (ROAD[(y + j) * MW + x + k] || grid[(y + j) * MW + x + k] || RES[(y + j) * MW + x + k]) {
+                ok = false;
+                break;
+              }
+          if (ok && !houses.some(o => x < o.x + o.w + 2 && x + w + 2 > o.x && y < o.y + o.h + 2 && y + h + 2 > o.y))
+            fits.push([x, y]);
+        } // every place it fits, then one of them at random
+      if (!fits.length) continue;
+      const [x, y] = pick(fits);
+      houses.push({ x, y, w, h, open: true, big: true });
+      const gap = (k, j) =>
+        j === 0 || j === h - 1 ? k === 3 || k === w - 4 : (k === 0 || k === w - 1) && j === Math.floor(h / 2);
+      for (let j = 0; j < h; j++)
+        for (let k = 0; k < w; k++) {
+          RES[(y + j) * MW + x + k] = 1;
+          const edge = j === 0 || j === h - 1 || k === 0 || k === w - 1;
+          if (edge && !gap(k, j)) set(x + k, y + j, 5);
+          else if (edge) {
+            const ox = k === 0 ? -1 : k === w - 1 ? 1 : 0,
+              oy = j === 0 ? -1 : j === h - 1 ? 1 : 0;
+            RES[(y + j + oy) * MW + x + k + ox] = 1;
+          } // a clear step outside each window too
+        }
+      return;
+    }
+  };
+
   const lampAt = (bx, by, hx, hy, lantern) =>
     lamps.push({
       bx,
@@ -86,6 +129,7 @@ export function generateMap() {
           const i = (ry + d) * MW + x;
           ROAD[i] = Math.abs(d) <= 1 ? 1 : ROAD[i] === 1 ? 1 : 2;
         }
+    bigRuin();
     // wrecked cars
     for (let i = 0, tries = 0; i < 15 && tries < 400; tries++) {
       const vert = Math.random() < 0.5,
@@ -251,6 +295,7 @@ export function generateMap() {
     for (let y = 15; y <= 25; y++) for (let x = 10; x <= 36; x++) if (!ROAD[y * MW + x]) ROAD[y * MW + x] = 3;
     const st = { x: 27, y: 16, w: 8, h: 6, style: 'store' };
     houses.push(st);
+    bigRuin();
     for (let k = 0; k < st.w; k++) {
       set(st.x + k, st.y, 5);
       if (k < 3 || k > 4) set(st.x + k, st.y + st.h - 1, 5);
@@ -433,6 +478,7 @@ export function generateMap() {
       }
     const ch = { x: 38, y: 36, w: 8, h: 7, style: 'chapel' };
     houses.push(ch);
+    bigRuin();
     for (let k = 0; k < ch.w; k++) {
       if (Math.random() < 0.85) set(ch.x + k, ch.y, 5);
       if (k < 3 || k > 4) set(ch.x + k, ch.y + ch.h - 1, 5);

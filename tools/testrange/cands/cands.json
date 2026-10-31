@@ -1,0 +1,10 @@
+{
+  "lvA_shot": 1.6,
+  "lvA_cyc": 0.7,
+  "lvB_shot": 0.83,
+  "lvB_cyc": 0.35,
+  "lvC_shot": 1.78,
+  "lvC_cyc": 0.34,
+  "glB": 0.45,
+  "glC": 1.3
+}
