@@ -8,12 +8,15 @@ import { dropCrate } from './combat.js';
 import { bump } from './challenges.js';
 import { BOX_SEARCH, boxSignal, objKey, objName } from './objectives.js';
 import { RADIO, radio } from '../audio/radio.js';
+import { siegeText } from './siege.js';
+import { rollBud } from '../actors/backups.js';
 export const OBJ_TIP = {
   box: 'Watch the signal on the night plate. At the wreck, stand still at a pile to search it',
   hale: 'Reach Dr. Hale, then keep her alive till dawn. She joins as your medic',
   relay: 'Keep the dead off the relay generator till dawn',
   scouts: 'Marked elites run from you. Catch each one before its timer runs out',
   gen: 'Keep the dead off it till dawn. If it blows, the lamps go dark',
+  siege: 'Keep the dead off the boards till dawn. Stand still by a broken one to nail it back',
   rescue: 'Reach them, then keep them alive till dawn. They join your backup',
   fuel: 'Grab all 5 cans before dawn',
   meds: 'Grab all 4 med cases before dawn',
@@ -24,6 +27,7 @@ export const OBJ_NAME = {
   rescue: 'Rescue the survivor',
   fuel: 'Collect 5 fuel cans',
   hunt: 'Hunt the marked',
+  siege: 'Hold the house',
 };
 export function objText() {
   if (GS.evac && GS.evac.leave) return '';
@@ -43,6 +47,7 @@ export function objText() {
   if (!GS.obj) return GS.RUN.low && GS.nightLive && !GS.nightDone ? 'Lying low' : '';
   const pre = ''; // the weather has its own tag beside the night number now
   if (GS.obj.done) return pre + (GS.obj.failed ? 'Job failed' : 'Job done');
+  if (GS.obj.type === 'siege') return siegeText(GS.obj);
   if (GS.obj.type === 'gen')
     return pre + `${GS.obj.title || 'Defend the generator'} · ${Math.ceil((GS.obj.hp / GS.obj.max) * 100)}%`;
   if (GS.obj.type === 'hunt') {
@@ -162,6 +167,28 @@ export function finishObjective(ok, why) {
         for (const b of GS.buddies) b.hp = b.max;
       } // and patch up your people on the way
     }
+    if (GS.obj.type === 'siege') {
+      const n = GS.obj.inside;
+      sc += 8 * n;
+      GS.runSeeds += 8 * n;
+      GS.xp += 10 * n;
+      extra = ` · ${n} of ${GS.obj.n0} made it${extra}`;
+      if (GS.buddies.length < 3) {
+        const s = GS.obj.civ[0];
+        if ((LV.buddy || 0) < 3) LV.buddy = (LV.buddy || 0) + 1;
+        GS.RUN.nextBud = rollBud();
+        UP.find(u => u.id === 'buddy').apply();
+        const b = GS.buddies[GS.buddies.length - 1];
+        if (s) {
+          b.x = s.x;
+          b.y = s.y;
+          b.look = s.look;
+          b.tint = s.tint;
+        }
+        renderMods();
+        extra += ' · one of them joins your backup';
+      } else extra += ' · they head for the convoy';
+    } // the ones you kept alive: scrap and thanks, and one who stays to fight
     if (GS.obj.type === 'fuel') GS.xp += 20;
     radio(
       objKey() === 'hale' && !GS.obj.joined

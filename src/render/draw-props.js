@@ -166,6 +166,34 @@ function drawBarrel(b) {
 function drawPillar(p) {
   drawPole(p[0], p[1], 56, 6, 0.75);
 }
+// a gap in a ruined house's wall, boarded over: three planks across it, fewer as they're torn off, splinters when gone
+function drawBoards(b) {
+  const hz = b.side === 0 || b.side === 2,
+    rot = hz ? 0 : Math.PI / 2,
+    n = b.broken ? 0 : Math.ceil((3 * b.hp) / b.max),
+    sh = b.hitT > 0 ? Math.sin(GS.time * 60) * 1.2 : 0;
+  setH(GS.SHMODE ? 26 : 0);
+  for (let i = 0; i < 3; i++) {
+    const off = (i - 1) * 11,
+      x = b.x + (hz ? sh : off),
+      y = b.y + (hz ? off - 8 : sh) - (hz ? 0 : 8),
+      t = 0.8 + 0.12 * ((i * 7) % 3),
+      tilt = ((i * 13) % 5) * 0.04 - 0.08;
+    if (i < n) quad(R.pixel, x, y, rot + tilt, 11.5, 2, 0.42 * t, 0.3 * t, 0.18 * t, 1, 0, 0, 0, 0);
+    else if (!GS.SHMODE) {
+      quad(R.pixel, x - (hz ? 12 : 0), y - (hz ? 0 : 12), rot + 0.5, 3, 1.6, 0.36, 0.26, 0.15, 1, 0, 0, 0, 0);
+      quad(R.pixel, x + (hz ? 13 : 0), y + (hz ? 0 : 13), rot - 0.4, 2.4, 1.6, 0.36, 0.26, 0.15, 1, 0, 0, 0, 0);
+    } // torn off: a stub of plank left on each side
+  }
+  if (n && !GS.SHMODE)
+    for (let i = 0; i < n; i++)
+      for (const s of [-1, 1]) {
+        const off = (i - 1) * 11,
+          x = b.x + (hz ? s * 15 : off),
+          y = b.y + (hz ? off - 8 : s * 15 - 8);
+        quad(R.pixel, x, y, 0, 0.5, 0.5, 0.15, 0.15, 0.16, 1, 0, 0, 0, 0);
+      } // nail heads
+}
 function drawGen() {
   if (GS.SHMODE && propShadow('o_gen', GS.obj.x, GS.obj.y)) return;
   if (GS.SHMODE) {
@@ -280,6 +308,10 @@ export function drawCasters() {
   }
   if (GS.state !== 'over' && GS.P && !GS.NOHERO) push(GS.P.y, drawRanger, GS.P);
   if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) push(GS.obj.y, drawGen, null);
+  if (GS.obj && GS.obj.type === 'siege') {
+    for (const b of GS.obj.bars) if (vis(b.x, b.y)) push(b.y + 18, drawBoards, b);
+    if (!GS.NOHERO || GS.SHMODE === 1) for (const s of GS.obj.civ) push(s.y, drawRanger, s);
+  }
   if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && !GS.obj.joined) push(GS.obj.s.y, drawRanger, GS.obj.s);
   if (GS.obj && GS.obj.type === 'fuel') for (const c of GS.obj.cans) if (!c.got) push(c.y, drawCan, c);
   if (GS.obj && GS.obj.type === 'box') for (const q of GS.obj.piles) if (vis(q.x, q.y)) push(q.y - 30, drawPile, q);

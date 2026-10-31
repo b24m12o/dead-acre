@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
+import { siegeTarget, tickSiege } from './siege.js';
 import { angDiff, d2, damp, lerp, randi } from '../core/util.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
@@ -45,6 +46,7 @@ export function budTarget(e, pd2) {
 }
 export function objTarget(e) {
   if (!GS.obj || GS.obj.done || e.big || e.type === 'wasp' || e.type === 'flower') return null;
+  if (GS.obj.type === 'siege') return siegeTarget(e);
   if (GS.obj.type === 'gen') {
     const dg = d2(e.x, e.y, GS.obj.x, GS.obj.y);
     if (dg < 300 * 300 && dg < d2(e.x, e.y, GS.P.x, GS.P.y) * 1.1) return GS.obj;
@@ -63,6 +65,7 @@ export function objHold(dt) {
     GS.nightDone ||
     !GS.nightLive ||
     GS.obj.type === 'gen' ||
+    GS.obj.type === 'siege' ||
     GS.obj.type === 'hunt' ||
     (GS.obj.type === 'rescue' && GS.obj.state === 'follow')
   )
@@ -106,7 +109,8 @@ export function updateObjective(dt) {
   } // a full team: they walk off toward the convoy instead of freezing in place
   if (!GS.obj || GS.obj.done) return;
   if (GS.obj.hold && GS.enemies.length && !GS.queue.length) GS.obj.grace -= dt; // the grace runs down while you fight the stragglers too
-  if (GS.obj.type === 'gen') {
+  if (GS.obj.type === 'siege') tickSiege(dt);
+  else if (GS.obj.type === 'gen') {
     for (const o of [GS.P, ...GS.enemies]) {
       if (o.dead) continue;
       const rr2 = 24 + (o.cr || o.r),

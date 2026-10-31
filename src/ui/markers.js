@@ -14,6 +14,7 @@ import { drawRainUI } from '../world/weather.js';
 import { cars } from '../world/map.js';
 import { FINAL_NIGHT } from '../game/districts.js';
 import { rigTarget } from '../game/traps.js';
+import { siegePrompt } from '../game/siege.js';
 import { kn } from '../core/binds.js';
 export function drawObjectiveGlow() {
   if (GS.evac) {
@@ -56,6 +57,7 @@ export function drawObjectiveGlow() {
 }
 export function objectiveLights() {
   if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) addLight(GS.obj.x, GS.obj.y - 30, 200, 0.4, 0.36, 0.28);
+  if (GS.obj && GS.obj.type === 'siege' && GS.obj.inside > 0) addLight(GS.obj.cx, GS.obj.cy, 190, 0.5, 0.36, 0.2); // a lantern on the floor in there
   if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && !GS.obj.joined)
     addLight(
       GS.obj.s.x + Math.cos(GS.obj.s.aimA) * 8,
@@ -99,6 +101,7 @@ export function markerList() {
     m.push({ x: GS.horde.x, y: GS.horde.y, col: '#e8b25a', label: 'HORDE' }); // where the mass is while it roams
   if (GS.obj && !GS.obj.done) {
     if (GS.obj.type === 'gen') m.push({ x: GS.obj.x, y: GS.obj.y, col: '#ffe08a', label: 'GENERATOR' });
+    if (GS.obj.type === 'siege') m.push({ x: GS.obj.cx, y: GS.obj.cy, col: '#ffd08a', label: 'SURVIVORS' });
     if (GS.obj.type === 'rescue' && !GS.obj.joined)
       m.push({ x: GS.obj.s.x, y: GS.obj.s.y, col: '#bff4ff', label: 'SURVIVOR' });
     if (GS.obj.type === 'fuel')
@@ -321,6 +324,32 @@ export function drawMarkersUI(toS) {
       ui.fillText(lb, x, y - R0 - 15 * k);
     }
   } // the car rig picked and a car in reach: which car it goes on, and the key
+  if (GS.obj && GS.obj.type === 'siege' && !GS.obj.done) {
+    const k = TS();
+    for (const b of GS.obj.bars) {
+      if (b.hp >= b.max && !b.broken) continue;
+      const [x, y] = toS(b.x, b.y - 26),
+        f = b.hp / b.max;
+      if (x < 0 || y < 0 || x > VW || y > VH) continue;
+      ui.fillStyle = 'rgba(20,24,29,0.8)';
+      ui.fillRect(x - 17 * k, y, 34 * k, 5 * k);
+      ui.fillStyle = b.broken ? '#ff5a4a' : f > 0.6 ? '#c8e6a0' : f > 0.3 ? '#ffc04a' : '#ff7a4a';
+      ui.fillRect(x - 16 * k, y + 1 * k, 32 * k * Math.max(0.04, f), 3 * k);
+    } // each battered board: how much is left of it
+    const pr = siegePrompt();
+    if (pr) {
+      const [x, y] = toS(pr.b.x, pr.b.y + 30);
+      ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
+      ui.textAlign = 'center';
+      ui.textBaseline = 'middle';
+      const w = ui.measureText(pr.label).width + 16 * k;
+      ui.fillStyle = 'rgba(20,24,29,0.78)';
+      rr(ui, x - w / 2, y, w, 20 * k, 10 * k);
+      ui.fill();
+      ui.fillStyle = pr.b.fix > 0 ? '#c8e6a0' : '#f2ead8';
+      ui.fillText(pr.label, x, y + 10 * k);
+    } // by a board that needs you: what to do
+  }
   drawTraitTags(toS);
   if (
     GS.obj &&

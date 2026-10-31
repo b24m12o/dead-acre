@@ -130,7 +130,7 @@ export function updateEnemy(e, dt, p) {
   const [ux, uy, dist] = ot
       ? e.losO
         ? steer(e, ot.x, ot.y, null, true)
-        : steer(e, ot.x, ot.y, flow)
+        : steer(e, ot.x, ot.y, ot.flow || flow)
       : lure
         ? steer(e, lure.x, lure.y, lure.flow)
         : steer(e, p.x, p.y),

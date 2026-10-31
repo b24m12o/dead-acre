@@ -101,6 +101,7 @@ export function nightCleared() {
     else if (GS.obj.type === 'hunt') finishObjective(GS.obj.got >= GS.obj.need, 'A marked one got away');
     else if (GS.obj.type === 'rescue')
       finishObjective(GS.obj.state === 'follow' && GS.obj.s.hp > 0, 'You never reached them');
+    else if (GS.obj.type === 'siege') finishObjective(GS.obj.inside > 0, 'They got inside. Nobody left');
     else finishObjective(GS.obj.hp > 0);
   }
   if (GS.RUN.low && GS.wave > 0) {
