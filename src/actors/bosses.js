@@ -29,6 +29,7 @@ import { BILE, BLOOD, ZSKIN } from '../render/draw-enemies.js';
 import { hsh } from '../render/blocks.js';
 import { carAt, damageCar, firePool, ignite, smoke } from '../world/fire.js';
 import { makeNoise, startAlarm } from '../game/noise.js';
+import { radarTile } from '../ui/radar.js';
 export const WCOL = {
   friend: [0.7, 0.62, 0.45],
   dust: [0.8, 0.68, 0.5],
@@ -818,6 +819,7 @@ export function bossGrave(dist, dt, e, lead, ph) {
           grid[gi] = 0;
           ttype[gi] = 0;
           GS.flowTile = -1;
+          radarTile(gi);
           chips(gx, gy, 10, [0.62, 0.6, 0.56], 4, 220);
           dust(gx, gy, 8, 70, 1.2, 1);
           sfx.crunch(gx, gy);

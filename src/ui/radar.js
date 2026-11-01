@@ -14,41 +14,46 @@ export function bakeRadar() {
   radarBg.width = MW;
   radarBg.height = MH;
   const r = radarBg.getContext('2d');
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) paintTile(r, x, y);
+}
+function paintTile(r, x, y) {
+  const i = y * MW + x,
+    rd = ROAD[i],
+    t = ttype[i];
   r.fillStyle = 'rgba(70,70,58,0.6)';
-  r.fillRect(0, 0, MW, MH);
-  for (let y = 0; y < MH; y++)
-    for (let x = 0; x < MW; x++)
-      if (ROAD[y * MW + x]) {
-        r.fillStyle =
-          ROAD[y * MW + x] === 1 || ROAD[y * MW + x] === 3
-            ? 'rgba(40,40,44,0.9)'
-            : ROAD[y * MW + x] === 4
-              ? 'rgba(130,122,106,0.8)'
-              : 'rgba(110,108,100,0.8)';
-        r.fillRect(x, y, 1, 1);
-      }
-  for (let y = 0; y < MH; y++)
-    for (let x = 0; x < MW; x++) {
-      const t = ttype[y * MW + x];
-      if (!grid[y * MW + x] || t === 4) continue;
-      r.fillStyle =
-        t === 1
-          ? 'rgba(20,18,16,0.95)'
-          : t === 3
-            ? 'rgba(90,70,50,0.9)'
-            : t === 5
-              ? 'rgba(160,96,72,0.95)'
-              : t === 6
-                ? 'rgba(130,140,150,0.95)'
-                : t === 7
-                  ? 'rgba(255,150,50,1)'
-                  : t === 8
-                    ? 'rgba(170,170,166,0.9)'
-                    : t === 9
-                      ? 'rgba(20,20,20,0.9)'
-                      : 'rgba(150,142,124,0.95)';
-      r.fillRect(x, y, 1, 1);
-    }
+  r.fillRect(x, y, 1, 1);
+  if (rd) {
+    r.fillStyle =
+      rd === 1 || rd === 3 ? 'rgba(40,40,44,0.9)' : rd === 4 ? 'rgba(130,122,106,0.8)' : 'rgba(110,108,100,0.8)';
+    r.fillRect(x, y, 1, 1);
+  }
+  if (!grid[i] || t === 4) return;
+  r.fillStyle =
+    t === 1
+      ? 'rgba(20,18,16,0.95)'
+      : t === 3
+        ? 'rgba(90,70,50,0.9)'
+        : t === 5
+          ? 'rgba(160,96,72,0.95)'
+          : t === 6
+            ? 'rgba(130,140,150,0.95)'
+            : t === 7
+              ? 'rgba(255,150,50,1)'
+              : t === 8
+                ? 'rgba(170,170,166,0.9)'
+                : t === 9
+                  ? 'rgba(20,20,20,0.9)'
+                  : 'rgba(150,142,124,0.95)';
+  r.fillRect(x, y, 1, 1);
+}
+// a tile changed in the night (a wall blown open, torn down): the map shows the gap too
+export function radarTile(i) {
+  if (!radarBg) return;
+  const r = radarBg.getContext('2d'),
+    x = i % MW,
+    y = (i / MW) | 0;
+  r.clearRect(x, y, 1, 1);
+  paintTile(r, x, y);
 }
 const RADAR_COL = {
   skitter: '#ff6a45',
@@ -75,6 +80,10 @@ export function drawRadar() {
   ui.imageSmoothingEnabled = true;
   ui.strokeStyle = 'rgba(255,255,255,0.5)';
   ui.lineWidth = 1;
+  ui.save();
+  ui.beginPath();
+  ui.rect(x0, y0, S0, S0);
+  ui.clip(); // nothing spills off the map: the view box at an edge, the dead under the chopper past it
   ui.strokeRect(x0 + cam.x * k, y0 + cam.y * k, viewW * k, viewH * k);
   for (const c of crystals)
     if (c.alive) {
@@ -105,6 +114,36 @@ export function drawRadar() {
     ui.fillRect(x0 + c.x * k - 3, y0 + c.y * k - 3, 6, 6);
     ui.strokeRect(x0 + c.x * k - 3, y0 + c.y * k - 3, 6, 6);
   }
+  // your traps, where you set them: a mine a small amber cross, a drum an amber square, a rigged car outlined
+  ui.fillStyle = '#ffc04a';
+  ui.strokeStyle = '#14181d';
+  ui.lineWidth = 1;
+  ui.lineCap = 'round';
+  for (const m of GS.lmines) {
+    const mx = x0 + m.x * k,
+      my = y0 + m.y * k;
+    ui.beginPath();
+    ui.moveTo(mx - 2.2, my - 2.2);
+    ui.lineTo(mx + 2.2, my + 2.2);
+    ui.moveTo(mx + 2.2, my - 2.2);
+    ui.lineTo(mx - 2.2, my + 2.2);
+    ui.lineWidth = 3;
+    ui.strokeStyle = '#14181d';
+    ui.stroke();
+    ui.lineWidth = 1.4;
+    ui.strokeStyle = '#ffc04a';
+    ui.stroke();
+  } // a mine is a small cross, so it never reads as one of the dead
+  ui.strokeStyle = '#14181d';
+  ui.lineWidth = 1;
+  for (const d of GS.barrels)
+    if (d.gas && !d.dead) {
+      ui.fillRect(x0 + d.x * k - 2, y0 + d.y * k - 2, 4, 4);
+      ui.strokeRect(x0 + d.x * k - 2, y0 + d.y * k - 2, 4, 4);
+    }
+  ui.strokeStyle = '#ff8a6a';
+  ui.lineWidth = 1.5;
+  for (const c of cars) if (c.rig && !c.dead) ui.strokeRect(x0 + c.x * k - 3, y0 + c.y * k - 3, 6, 6);
   for (const e of GS.enemies) {
     if (opt.los && !few && e.type !== 'queen' && (e.sv ?? 1) < 0.5 && d2(e.x, e.y, GS.P.x, GS.P.y) > 260 * 260)
       continue;
@@ -177,8 +216,24 @@ export function drawRadar() {
       }
     ui.restore();
   }
-  const px = x0 + GS.P.x * k,
-    py = y0 + GS.P.y * k;
+  // your people: the backup, and the survivors in the house you're holding, as pale blue dots
+  {
+    const dot = (x, y, col) => {
+      ui.fillStyle = col;
+      ui.beginPath();
+      ui.arc(x0 + x * k, y0 + y * k, 2.3, 0, TAU);
+      ui.fill();
+      ui.stroke();
+    };
+    ui.strokeStyle = '#14181d';
+    ui.lineWidth = 1;
+    for (const b of GS.buddies) if (!b.dead) dot(b.x, b.y, b.down > 0 ? '#ff6a5a' : '#bff4ff');
+    if (GS.obj && GS.obj.type === 'siege' && !GS.obj.done && GS.obj.civ)
+      for (const c of GS.obj.civ) if (!c.dead && c.hp > 0) dot(c.x, c.y, '#bff4ff');
+  }
+  ui.restore(); // the clip
+  const px = clamp(x0 + GS.P.x * k, x0 + 3, x0 + S0 - 3),
+    py = clamp(y0 + GS.P.y * k, y0 + 3, y0 + S0 - 3);
   ui.translate(px, py);
   ui.rotate(GS.P.aimA);
   ui.fillStyle = '#ffffff';

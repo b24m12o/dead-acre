@@ -1,7 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { SIG } from '../game/objectives.js';
 import { GS } from '../core/gs.js';
-import { lvBank } from '../game/upgrades.js';
+import { lvBank, lvRest } from '../game/upgrades.js';
 import { $ } from '../core/errors.js';
 import { clamp } from '../core/util.js';
 import { GUNS } from '../game/arsenal.js';
@@ -310,10 +310,10 @@ export function updateHud() {
     }
   } // your people, by name
   setT('lv', `Level ${GS.level}`);
-  setB('xpFill', Math.min(1, GS.xp / GS.xpNeed));
   {
     const bank = GS.xp >= GS.xpNeed ? lvBank() : 0,
       lr = $('lvReady');
+    setB('xpFill', bank ? lvRest() : GS.xp / GS.xpNeed); // past a banked level the bar keeps filling toward the next
     if (lr.hidden !== !bank) {
       lr.hidden = !bank;
       $('xpBar').classList.toggle('full', !!bank);

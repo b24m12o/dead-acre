@@ -546,6 +546,18 @@ export function lvBank() {
   }
   return n;
 }
+// how far the bar is toward the level after the banked ones
+export function lvRest() {
+  let x = GS.xp,
+    nd = GS.xpNeed,
+    n = 0;
+  while (x >= nd && n < 9) {
+    x -= nd;
+    n++;
+    nd = need(GS.level + n);
+  }
+  return Math.min(1, x / nd);
+}
 // never in the chopper, at a boss's entrance or in the tutorial's scripted bits
 export const lvCan = () =>
   GS.state === 'play' &&

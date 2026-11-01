@@ -17,6 +17,7 @@ import { WHOLES } from './wear.js';
 import { radarBg } from '../ui/radar.js';
 import { WHT, windows } from '../render/blocks.js';
 import { carAt, flame, ignite, smoke } from './fire.js';
+import { radarTile } from '../ui/radar.js';
 export let WINDX = 14,
   hazeSrc = [],
   physT = 0,
@@ -313,6 +314,7 @@ export function breakTile(i) {
   for (const w of windows) if (w.i === i) w.broke = true;
   GS.flowTile = -1;
   repaintGround(tx, ty, t);
+  radarTile(i);
   if (t === 9) {
     for (let k = 0; k < 2; k++) {
       const dd = decal(
