@@ -107,6 +107,9 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 .thin{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.14);position:relative;overflow:hidden;min-width:110px}
 .thin i{position:absolute;inset:0;transform-origin:left;background:var(--teal)}
 #xpBar i{background:linear-gradient(90deg,#ffb43a,#ffd98a)}
+#xpBar.full{box-shadow:0 0 0 1px rgba(255,192,74,.5),0 0 10px rgba(255,180,58,.45)}
+#lvReady{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#1c1508;background:#ffc04a;padding:2px 8px;border-radius:4px;white-space:nowrap;text-shadow:none;animation:lvPulse 1.8s ease-in-out infinite}
+@keyframes lvPulse{50%{box-shadow:0 0 14px rgba(255,192,74,.75)}}
 .rollrow{display:flex;align-items:center;gap:8px;color:var(--mute);margin-top:2px}
 #dashBar,#abBar{flex:0 0 72px;min-width:60px;height:3px;margin-left:auto}#abBar i{background:#7a8a92}.abrow.ready{color:#ffd08a}.abrow.pulse{animation:abPulse .9s ease-out 2}@keyframes abPulse{0%{color:#fff;text-shadow:0 0 8px rgba(255,180,58,.9)}100%{}}.abrow.ready #abBar i{background:#ffb43a}
 .rollrow{display:flex;align-items:center;gap:6px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,234,216,.74)}

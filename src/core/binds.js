@@ -22,6 +22,8 @@ export const FIXED_ROWS = [
   ['Roll (also)', 'Right mouse · Shift'],
   ['Swap gun', '1–9 · mouse wheel'],
   ['Move (also)', 'Arrow keys'],
+  ['Level-up cards (open · later)', 'Tab'],
+  ['Start the night · call the horde', 'Enter'],
   ['Pause', 'Esc · P'],
   ['Mute · music', 'M · N'],
 ];

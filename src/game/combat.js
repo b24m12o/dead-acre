@@ -592,6 +592,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   e.dying = 0;
   e.dieDir = Math.random() < 0.5 ? -1 : 1;
   GS.kills++;
+  GS.lastKillT = GS.time; // the level-up cards wait until the killing has stopped for a few seconds
   hordeKilled(e, src);
   if (e.kind === 'spore') sporeBurst(e);
   else if (e.kind === 'drag') dropCarried(e);

@@ -16,7 +16,7 @@ import { sfx } from '../audio/sfx.js';
 import { setMuted } from '../audio/music.js';
 import { AMMO_NAME, S, armGuns, resetStats } from '../game/state.js';
 import { newRun } from '../game/run.js';
-import { EVOS, UP, doReroll, offerUpgrades, renderMods } from '../game/upgrades.js';
+import { EVOS, UP, doReroll, offerUpgrades, pickLater, renderMods } from '../game/upgrades.js';
 import { AB_B, AB_DEF, abOwned, abPickB } from '../game/abilities.js';
 import { updateHint } from './settings-ui.js';
 import { showMenuRec } from './screens.js';
@@ -397,6 +397,7 @@ export function init() {
     menuInit();
   });
   $('rerollBtn').addEventListener('click', doReroll);
+  $('laterBtn').addEventListener('click', pickLater);
   $('toMenuBtn').addEventListener('click', () => {
     $('over').hidden = true;
     $('hud').hidden = true;

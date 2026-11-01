@@ -11,8 +11,7 @@ import { N8, buildFlow, collide, flow, los, query, rebuildHash, solidPt } from '
 import { SBV, noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, WHEEL, addAmmo, addAmmoType, ammoRoomFor, ammoRoomK, cam, gd, magSize, reloadTime } from '../game/state.js';
-import { need } from '../game/run.js';
-import { offerUpgrades } from '../game/upgrades.js';
+import { lvCan, openLevel } from '../game/upgrades.js';
 import { makeElite, makeEnemy } from '../actors/enemies.js';
 import { bossNight, spawnPoint } from '../game/waves.js';
 import { chips, decal, dust, floatText, glowBurst, part, pool, ring } from '../render/effects.js';
@@ -27,7 +26,6 @@ import { BILE } from '../render/draw-enemies.js';
 import { throwMolotov } from '../world/fire.js';
 import { alarmTick } from '../game/noise.js';
 import { FINAL_NIGHT, INF } from '../game/districts.js';
-import { statMax } from '../game/challenges.js';
 import { budBoard, budPerk, buddyHurt, buddyShoot, buddySlot, regroupSpot, rescueFollower } from '../actors/backups.js';
 import { radioTick } from '../audio/radio.js';
 import { nightCleared } from '../game/night-flow.js';
@@ -786,36 +784,31 @@ export function update(dt) {
   GS.pickups = GS.pickups.filter(k => !k.got && k.t - (k.hold || 0) < 40);
   keepIf(GS.arcs, a => a.life > 0);
   keepIf(GS.ghosts, g => g.life > 0);
-  // in the thick of a fight a level-up waits for a breath (a lull, the street thinning out), so the cards don't
-  // freeze a surge every half minute; it never waits more than 25 s
-  let close = 0;
-  if (GS.xp >= GS.xpNeed && GS.state === 'play')
-    for (const e of GS.enemies)
-      if (!e.dead && !e.dormant && e.aw > 0 && d2(e.x, e.y, p.x, p.y) < 380 * 380 && ++close >= 5) break;
+  // a level-up is banked, never thrown over a fight: a ring and a chip by the level bar say it's there, Tab opens the
+  // cards whenever you like, and on their own they only come up in a real lull: nothing awake within reach and no
+  // kill for a few seconds, so the blast you just set off plays out in full. "Later" puts them back until the next
+  // fight is over
   if (GS.xp >= GS.xpNeed && GS.state === 'play') {
-    if (close >= 5) {
-      if (!GS.lvWait) {
-        GS.lvWait = GS.time;
-        showStreak('Level up', 'Your pick waits for a breath');
+    if (!GS.lvReady) {
+      GS.lvReady = GS.time;
+      GS.lvCalm = GS.time;
+      ring(p.x, p.y, 20, 120, 0.9, [3.2, 2.2, 0.8], 0.9);
+      sfx.ting();
+      if (!GS.RUN.lvTold) {
+        GS.RUN.lvTold = 1;
+        showStreak('Level up', 'Tab to pick now · or it waits for a lull');
       }
     }
-  }
-  const lvGo = !GS.lvWait || close < 3 || GS.time - GS.lvWait > 25;
-  if (
-    GS.xp >= GS.xpNeed &&
-    GS.state === 'play' &&
-    lvGo &&
-    GS.time > (GS.RUN.lvHold || 0) &&
-    !GS.evac &&
-    !GS.bossDue &&
-    !(GS.RUN.practice && (!GS.boss || GS.boss.dead))
-  ) {
-    GS.lvWait = 0;
-    // never during the evac or a boss's entrance: the cards wait
-    GS.xp -= GS.xpNeed;
-    GS.level++;
-    GS.xpNeed = need(GS.level);
-    statMax('maxLevel', GS.level);
-    offerUpgrades();
-  }
+    const killing = GS.time - (GS.lastKillT || -99) < 3; // the last kill's blast and gibs get three seconds to play out
+    let near = killing;
+    if (!near)
+      for (const e of GS.enemies)
+        if (!e.dead && !e.dormant && e.aw > 0 && d2(e.x, e.y, p.x, p.y) < 520 * 520) {
+          near = true;
+          break;
+        }
+    if (near) GS.lvSnooze = false; // a new fight: once it's over, the cards may come up on their own again
+    if (near && !killing) GS.lvCalm = GS.time;
+    if (!killing && GS.time - GS.lvCalm > 1.5 && !GS.lvSnooze && lvCan() && GS.time > (GS.RUN.lvHold || 0)) openLevel();
+  } else GS.lvReady = 0;
 }

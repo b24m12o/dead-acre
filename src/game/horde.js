@@ -246,6 +246,13 @@ function statMaxH(k, v) {
   GS.meta.stats = GS.meta.stats || {};
   GS.meta.stats[k] = Math.max(GS.meta.stats[k] || 0, v);
 }
+// Enter while the horde is still on its way: no more waiting, it walks in now (lay the traps in the fight, or not at all)
+export function callHorde() {
+  const H = GS.horde;
+  if (!H || H.done || H.finale || !(H.startT > 1) || !GS.nightLive || GS.nightDone || GS.state !== 'play') return false;
+  H.startT = 0.8;
+  return true;
+}
 // it's still out there: the night can't end until it is dead
 export const hordeLive = () => !!(GS.horde && !GS.horde.done);
 export function tickHorde(dt) {

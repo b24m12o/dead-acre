@@ -1,6 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { SIG } from '../game/objectives.js';
 import { GS } from '../core/gs.js';
+import { lvBank } from '../game/upgrades.js';
 import { $ } from '../core/errors.js';
 import { clamp } from '../core/util.js';
 import { GUNS } from '../game/arsenal.js';
@@ -242,19 +243,21 @@ export function updateHud() {
             ? GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14
               ? 'Drop waiting · Enter to skip'
               : `Next night in ${Math.ceil(GS.interT)}${GS.RUN.nextSig ? ' · ' + SIG[GS.RUN.nextSig.s] : ''} · Enter to start`
-            : quiet
-              ? sg.i >= sg.cuts.length
-                ? 'Quiet · last surge next'
-                : 'Quiet · more coming'
-              : GS.RUN.tut
-                ? 'Training'
-                : left
-                  ? sg && GS.nightLive && !GS.nightDone
-                    ? `Surge ${Math.min(sg.i + 1, 3)} of 3 · ${left} still walking`
-                    : `Survive till dawn · ${left} still walking`
-                  : GS.obj && !GS.obj.done
-                    ? 'Finish the job'
-                    : 'Hold on'
+            : GS.horde && !GS.horde.done && !GS.horde.finale && GS.horde.startT > 1 && GS.nightLive
+              ? `Horde in ${Math.ceil(GS.horde.startT)} s · Enter to call it now`
+              : quiet
+                ? sg.i >= sg.cuts.length
+                  ? 'Quiet · last surge next'
+                  : 'Quiet · more coming'
+                : GS.RUN.tut
+                  ? 'Training'
+                  : left
+                    ? sg && GS.nightLive && !GS.nightDone
+                      ? `Surge ${Math.min(sg.i + 1, 3)} of 3 · ${left} still walking`
+                      : `Survive till dawn · ${left} still walking`
+                    : GS.obj && !GS.obj.done
+                      ? 'Finish the job'
+                      : 'Hold on'
   );
   {
     const w = GS.ev && !GS.nightDone && !GS.evac ? GS.ev : null;
@@ -307,7 +310,16 @@ export function updateHud() {
     }
   } // your people, by name
   setT('lv', `Level ${GS.level}`);
-  setB('xpFill', GS.xp / GS.xpNeed);
+  setB('xpFill', Math.min(1, GS.xp / GS.xpNeed));
+  {
+    const bank = GS.xp >= GS.xpNeed ? lvBank() : 0,
+      lr = $('lvReady');
+    if (lr.hidden !== !bank) {
+      lr.hidden = !bank;
+      $('xpBar').classList.toggle('full', !!bank);
+    }
+    if (bank) setT('lvReady', bank > 1 ? `${bank} level-ups · Tab` : 'Level up · Tab');
+  } // banked level-ups wait here until you open them, or a lull does
   setB('dashFill', 1 - GS.P.dashCd / S.dashCd);
   setB('abFill', 1 - (GS.P.abT || 0) / abCd());
   {

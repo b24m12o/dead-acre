@@ -7,13 +7,15 @@ import { glc } from '../render/gl.js';
 import { AC, initAudio } from '../audio/audio.js';
 import { setMusic, setMuted } from '../audio/music.js';
 import { WHEEL, cycleGun, startReload, switchGun, wheelRelease } from '../game/state.js';
-import { choose, doReroll } from '../game/upgrades.js';
+import { choose, doReroll, openLevel, pickLater } from '../game/upgrades.js';
 import { tryDash, useAbility } from '../game/abilities.js';
 import { begin } from '../ui/hangar.js';
 import { setPause } from '../ui/screens.js';
 import { openPractice } from '../game/practice.js';
 import { tutEnd } from '../game/tutorial.js';
 import { cycleTrap, trapDown } from '../game/traps.js';
+import { callHorde } from '../game/horde.js';
+
 /* =====================================================================
    Input
    ===================================================================== */
@@ -92,6 +94,7 @@ export function init() {
     const k = keyOf(e);
     initAudio();
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) && GS.state !== 'menu') e.preventDefault();
+    if (k === 'tab' && (GS.state === 'play' || GS.state === 'levelup')) e.preventDefault(); // Tab is the level-up key in a run
     if (GS.state === 'play' && document.activeElement && document.activeElement !== document.body)
       document.activeElement.blur();
     keys.add(k);
@@ -116,6 +119,8 @@ export function init() {
         GS.interT = 0.6;
         GS.RUN.dawnX = 99;
       } // the number is the gun's place in your row, as the HUD shows it
+      if (k === 'enter' && !e.repeat) callHorde(); // the kit is down (or you'd rather lay it in the fight): bring it on
+      if (k === 'tab' && !e.repeat) openLevel();
       if (k === 'q' && !e.repeat) {
         WHEEL.downT = performance.now();
         WHEEL.held = 'kbm';
@@ -128,6 +133,7 @@ export function init() {
     else if (GS.state === 'pause' && (k === 'escape' || k === 'p')) setPause(false);
     else if (GS.state === 'levelup' && !e.repeat && ['1', '2', '3'].includes(k)) choose(+k - 1);
     else if (GS.state === 'levelup' && !e.repeat && k === 'r') doReroll();
+    else if (GS.state === 'levelup' && !e.repeat && k === 'tab') pickLater();
     else if (k === 'enter' && GS.state === 'over' && !$('over').hidden) {
       e.preventDefault();
       begin(false);

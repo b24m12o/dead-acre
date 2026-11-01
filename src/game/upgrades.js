@@ -12,7 +12,8 @@ import { updateHint } from '../ui/settings-ui.js';
 import { HLOOK } from '../render/draw-player.js';
 import { NPC_TINTS, TRAITS, budSetup, makeSurvivor, rollBud } from '../actors/backups.js';
 import { FAVOURS } from './objectives.js';
-import { chalDone } from './challenges.js';
+import { chalDone, statMax } from './challenges.js';
+import { need } from './run.js';
 const DMG_STEP = [1.25, 1.22, 1.18, 1.15, 1.12, 1.1],
   RATE_STEP = [1.18, 1.15, 1.12, 1.1, 1.08, 1.06]; // each rank of these two adds a little less than the last: strong early, no runaway late
 export const UP = [
@@ -529,20 +530,62 @@ export function renderPicks() {
   });
   $('rerollBtn').textContent = `Reroll · ${GS.rerolls} left`;
   $('rerollBtn').hidden = GS.rerolls <= 0;
+  $('laterBtn').hidden = GS.pickSource !== 'level';
   updateHint();
   markSel();
 }
+// how many level-ups are banked
+export function lvBank() {
+  let x = GS.xp,
+    nd = GS.xpNeed,
+    n = 0;
+  while (x >= nd && n < 9) {
+    x -= nd;
+    n++;
+    nd = need(GS.level + n);
+  }
+  return n;
+}
+// never in the chopper, at a boss's entrance or in the tutorial's scripted bits
+export const lvCan = () =>
+  GS.state === 'play' &&
+  GS.xp >= GS.xpNeed &&
+  !(GS.P && GS.P.ride) &&
+  !(GS.evac && GS.evac.ride) &&
+  !GS.bossDue &&
+  !(GS.RUN.practice && (!GS.boss || GS.boss.dead));
+export function openLevel() {
+  if (!lvCan()) return false;
+  offerUpgrades('level');
+  return true;
+}
+// a level is only spent when a card is taken
+export function spendLevel() {
+  GS.xp -= GS.xpNeed;
+  GS.level++;
+  GS.xpNeed = need(GS.level);
+  GS.lvReady = 0;
+  statMax('maxLevel', GS.level);
+}
 export function offerUpgrades(source = 'level') {
-  rollPicks();
+  if (source === 'level' && GS.heldPicks && GS.heldPicks.length) GS.picks = GS.heldPicks;
+  else rollPicks(); // cards put off with Later come back the same: no free reroll
+  GS.heldPicks = null;
   if (!GS.picks.length) {
+    if (source === 'level') spendLevel();
     GS.P.hp = S.maxHp;
     S.dmg *= 1.1;
     return;
   }
   GS.pickSource = source;
   renderPicks();
+  const bank = source === 'level' ? lvBank() : 0;
   $('luEye').textContent =
-    source === 'crate' ? 'Supply crate · free gear' : source === 'start' ? 'Go bag' : `Level ${GS.level}`;
+    source === 'crate'
+      ? 'Supply crate · free gear'
+      : source === 'start'
+        ? 'Go bag'
+        : `Level ${GS.level + 1}${bank > 1 ? ` · ${bank - 1} more after this` : ''}`;
   $('luTitle').textContent = source === 'crate' ? 'Crate unpacked' : 'Pick your gear';
   hideCallouts();
   GS.state = 'levelup';
@@ -577,6 +620,7 @@ export function offerGuns(gs) {
   GS.pickSource = 'weapon';
   renderPicks();
   $('rerollBtn').hidden = true;
+  $('laterBtn').hidden = true;
   updateHint();
   $('luEye').textContent = gs.length > 1 ? 'Weapon case · the other goes back for good' : 'Weapon case';
   $('luTitle').textContent = 'Take one gun';
@@ -597,6 +641,7 @@ export function offerKits(ids) {
   GS.pickSource = 'weapon';
   renderPicks();
   $('rerollBtn').hidden = true;
+  $('laterBtn').hidden = true;
   updateHint();
   $('luEye').textContent = 'Weapon case · gun kits';
   $('luTitle').textContent = 'Fit one';
@@ -609,6 +654,16 @@ export function offerKits(ids) {
   setTimeout(() => $('levelup').classList.remove('arming'), 650);
 }
 export const kitName = id => (KITS[id] ? KITS[id].name : id);
+// Tab or the Later button: the cards go back in the bank, as they were, and come up again when you press Tab or the
+// next fight is over
+export function pickLater() {
+  if (GS.state !== 'levelup' || GS.pickSource !== 'level' || performance.now() < GS.luOpenT) return;
+  GS.heldPicks = GS.picks.slice();
+  GS.lvSnooze = true;
+  $('levelup').hidden = true;
+  GS.state = 'play';
+  GS.P.inv = Math.max(GS.P.inv, 0.6);
+}
 export function doReroll() {
   if (
     GS.state !== 'levelup' ||
@@ -631,7 +686,9 @@ function markSel() {
 }
 export function choose(i) {
   if (GS.state !== 'levelup' || !GS.picks[i] || performance.now() < GS.luOpenT) return;
-  const u = GS.picks[i];
+  const u = GS.picks[i],
+    lvl = GS.pickSource === 'level';
+  if (lvl) spendLevel();
   if (!u.job) LV[u.id] = (LV[u.id] || 0) + 1;
   u.apply();
   $('levelup').hidden = true;
@@ -642,6 +699,7 @@ export function choose(i) {
     showStreak(u.name, 'Combo ready');
     sfx.elite();
   }
+  if (lvl && lvCan()) openLevel(); // more banked: the next set straight away, one stop for all of them
 }
 export function renderMods() {
   $('mods').innerHTML =
