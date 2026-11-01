@@ -68,6 +68,7 @@ export function newRun(forMenu = false) {
   GS.bossDue = false;
   cam.peek = null;
   MUS.cutT = 0;
+  MUS.ride = MUS.jump = false;
   MUS.floorT = 0;
   GS.P = {
     x: WW / 2,

@@ -9,7 +9,7 @@ import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, rand } from '../core/util.js';
 import { MH, MW, TILE, WH, WW, grid } from '../world/map.js';
 import { dijk, query } from '../world/nav.js';
-import { noise, playR, playS } from '../audio/audio.js';
+import { MUS, noise, playR, playS } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { cam } from './state.js';
 import { mouse } from '../core/input.js';
@@ -72,6 +72,7 @@ function spotNear(x, y, r0, r1) {
   return null;
 }
 export function startRide(e) {
+  MUS.ride = MUS.jump = true; // the band jumps to its ride-out run at the next bar: the chorus and the solos
   const R = route(e);
   R.Lmap = R.L;
   for (let s = 0; s < R.L; s += 20) {

@@ -68,7 +68,7 @@ function sp(
   nm,
   t,
   vol,
-  { rate = 1, dur = 0, rel = 0.08, rev = 0, dly = 0, att = 0, loop = false, det = 0, off = 0 } = {}
+  { rate = 1, dur = 0, rel = 0.08, rev = 0, dly = 0, att = 0, loop = false, det = 0, off = 0, bend = 0 } = {}
 ) {
   const s = MS[nm];
   if (!s) return null;
@@ -103,6 +103,11 @@ function sp(
     lfo.start(t);
     lfo.stop(end + 0.05);
   }
+  if (bend) {
+    src.detune.setValueAtTime(-100 * bend, t);
+    src.detune.setValueAtTime(-100 * bend, t + 0.03);
+    src.detune.linearRampToValueAtTime(0, t + 0.03 + 0.07 * bend);
+  } // the string pushed up a step: it speaks flat and rises to the note
   src.connect(g);
   g.connect(musBus);
   for (const [bus, k] of [
@@ -164,12 +169,12 @@ function ensureGtr() {
   post.connect(send);
   send.connect(revIn);
 }
-export function mGtr(fret, t, dur, palm, vol = 1) {
+export function mGtr(fret, t, dur, palm, vol = 1, bDur = 0) {
   if (MS) {
     const root = 40 + fret;
     if (palm) spN('gp', root, t, 0.34 * vol, { dur: Math.min(dur, 0.4), rel: 0.05 });
     else spN('go', root, t, 0.3 * vol, { dur, rel: 0.12, rev: 0.12 });
-    spN('b', root - 12, t, 0.3 * vol, { dur: palm ? dur * 0.9 : dur, rel: palm ? 0.04 : 0.1 }); // the bass locks to the guitar
+    spN('b', root - 12, t, 0.3 * vol, { dur: bDur || (palm ? dur * 0.9 : dur), rel: palm ? 0.04 : 0.1 }); // the bass locks to the guitar
     return;
   }
   ensureGtr();
@@ -369,7 +374,15 @@ function mRiser(tEnd, vol) {
   sp('rz0', Math.max(now, t0), vol, { off: Math.max(0, now - t0), rev: 0.3 });
   const tr = Math.max(now, tEnd - 3.2);
   sp('tr0', tr, vol * 0.8, { att: tEnd - tr, dur: tEnd - tr, rel: 0.04 });
-} // a cymbal swell and a timpani roll timed to break on tEnd (started part-way in when there is not time for all of it)
+  const q = 60 / TEMPO.fight / 4; // sixteenths at the fight's tempo
+  for (let i = 0; i < 16; i++) {
+    const tt = tEnd - (16 - i) * q;
+    if (tt < now) continue;
+    if (i < 12) mSnare(tt, 0.1 + i * 0.022);
+    else mTom(tt, 0.5 + (i - 12) * 0.08, i >= 14);
+  }
+} // a cymbal swell and a timpani roll timed to break on tEnd (started part-way in when there is not time for all of it),
+// and the drummer's build: a snare roll getting louder, then down the toms into the first hit
 function mTrem(m, t, dur, vol) {
   spN('vt', m, t, vol, { dur, att: dur * 0.45, rel: 1.6, loop: true, rev: 0.45 });
 }
@@ -377,17 +390,33 @@ function mHeart(t, vol) {
   sp(take('k'), t, vol, { rate: 0.5 });
   sp(take('k'), t + 0.27, vol * 0.65, { rate: 0.5 });
 } // lub-dub
+function rockEnd(t, big) {
+  const q = 60 / TEMPO.fight / 4;
+  mGtr(0, t, q * 22, false, 0.75);
+  mGtr(12, t, q * 22, false, 0.35);
+  mKick(t, 0.75);
+  mCrash(t, 0.14);
+  for (let i = 2; i < 18; i++) {
+    const tt = t + i * q;
+    if (i % 2 === 0 || i > 11) (i < 10 ? mSnare : mTom)(tt, 0.14 + i * 0.02, i > 14);
+  } // the roll over the ringing chord
+  const tf = t + 20 * q;
+  mGtr(0, tf, q * (big ? 16 : 10), false, 0.8);
+  mGtr(12, tf, q * 10, false, 0.4);
+  mKick(tf, 0.8);
+  mSnare(tf, 0.5);
+  mCrash(tf, 0.16);
+}
 function mStinger(win, t) {
+  rockEnd(t, win);
   if (win) {
     sp('gg0', t, 0.42, { rev: 0.5 });
     mBraam(0, t, 0.6);
     sp('hj52', t + 0.5, 0.5, { rev: 0.55 });
   } // a boss goes down: the gong, the brass, and for once a major chord
   else {
-    mBoom(t, 0.5);
-    sp('gg1', t, 0.2, { rev: 0.4 });
-    sp('hm52', t + 0.08, 0.45, { rev: 0.55 });
-  } // the street goes quiet: one low hit and the horns settle on a minor chord
+    sp('hm52', t + 2.2, 0.28, { rev: 0.55 });
+  } // the street goes quiet: the band's last hit, then the horns settle on a minor chord
 }
 export function startMusic() {
   if (!AC || MUS.timer) return;
@@ -440,6 +469,11 @@ function scheduleMusic() {
       } // a stop is a real stop: pads and ringing chords are cut too
       MUS.level = MUS.want;
       MUS.fresh = true;
+    } else if (MUS.level === 'fight' && MUS.jump && MUS.step % 16 === 0) {
+      MUS.jump = false;
+      MUS.step = 0;
+      MUS.sec = null;
+      MUS.fresh = MUS.sting = true;
     } else if (MUS.level === 'boss' && MUS.phJump != null && MUS.step % 16 === 0) {
       const n = (SONGS['boss_' + MUS.bt] || SONGS.boss).length * 2;
       MUS.pos.boss = Math.floor(MUS.pos.boss / n) * n + MUS.phJump * 4;
@@ -567,6 +601,95 @@ function makeLead(kind) {
     for (let i = 0; i < run; i++) L[48 + i] = pn(up ? i : top - i);
     L[48 + run] = pn(up ? 5 : 0); // up the scale to the high root, or down it home to the low one
     for (let k = 48 + run + 1; k < 64; k++) L[k] = -1;
+  } else if (kind === 'rock') {
+    // a hard-rock solo, the way it's played: licks from the blues scale (minor pentatonic plus the flat fifth), the
+    // long notes bent up a whole step into pitch, a fast repeating lick, and a climb that lands on a bent high root
+    const BL = [0, 3, 5, 6, 7, 10],
+      bn = d => 64 + 12 * Math.floor(d / 6) + BL[((d % 6) + 6) % 6], // 0 = E4, 6 = E5, 12 = E6
+      B = (L.bend = new Array(64).fill(0)),
+      LK = [
+        [
+          [4, 2],
+          [4, 6, 2],
+          [3, 2],
+          [2, 2],
+          [0, 4],
+        ], // bend the fifth, fall to the root
+        [
+          [6, 3],
+          [6, 3, 2],
+          [5, 2],
+          [4, 4],
+          [2, 4],
+        ], // call
+        [
+          [8, 1],
+          [7, 1],
+          [6, 1],
+          [8, 1],
+          [7, 1],
+          [6, 1],
+          [8, 1],
+          [7, 1],
+          [6, 1],
+          [8, 1],
+          [7, 1],
+          [6, 1],
+          [6, 4],
+        ], // the repeating lick
+        [
+          [5, 2],
+          [6, 2],
+          [6, 4, 2],
+          [5, 2],
+          [4, 2],
+          [2, 4],
+        ], // push to the high root
+        [
+          [2, 2],
+          [4, 2],
+          [5, 2],
+          [4, 2],
+          [2, 2],
+          [0, 6, 2],
+        ], // answer, low
+      ],
+      END = [
+        [
+          [0, 1],
+          [1, 1],
+          [2, 1],
+          [3, 1],
+          [4, 1],
+          [5, 1],
+          [4, 1],
+          [5, 1],
+          [6, 8, 2],
+        ], // climb to a bent high root
+        [
+          [8, 1],
+          [7, 1],
+          [6, 1],
+          [5, 1],
+          [4, 1],
+          [3, 1],
+          [2, 1],
+          [1, 1],
+          [0, 8, 2],
+        ], // tear down to a bent low root
+      ],
+      bars = [pick(LK), pick(LK), pick(LK), pick(END)];
+    if (bars[1] === bars[0]) bars[1] = LK[(LK.indexOf(bars[0]) + 2) % LK.length];
+    bars.forEach((lk, b) => {
+      let st = b * 16;
+      for (const [d, len, bd = 0] of lk) {
+        if (st >= (b + 1) * 16) break;
+        L[st] = bn(d);
+        B[st] = bd;
+        for (let k = 1; k < len && st + k < (b + 1) * 16; k++) L[st + k] = -1;
+        st += len;
+      }
+    });
   } else if (kind === 'arp') {
     const ch = [
       [0, 2, 4, 7],
@@ -597,9 +720,9 @@ function mTom(t, vol, low) {
   if (MS) sp(take(low ? 'tl' : 't'), t + hum(), vol, { rev: 0.2 });
   else mSnare(t, vol * 0.6);
 }
-function mLead2(m, t, dur, vol) {
+function mLead2(m, t, dur, vol, bend = 0) {
   if (MS) {
-    spN('l', m, t, vol * 2.6, { dur, rel: 0.12, rev: 0.22, dly: 0.18, det: dur > 0.25 ? 16 : 0 });
+    spN('l', m, t, vol * 2.6, { dur, rel: 0.12, rev: 0.22, dly: 0.18, det: dur > 0.25 ? 16 : 0, bend });
     return;
   } // the lead guitar, singing: vibrato on the held notes
   // sustained, vibrato-ed lead through the amp
@@ -655,23 +778,25 @@ function mPluck(m, t, vol) {
   o.stop(t + 1.5);
 }
 function nextSection(L) {
-  const song = (L === 'boss' && SONGS['boss_' + MUS.bt]) || SONGS[L];
+  const P = L === 'fight' && MUS.ride ? 'ride' : L,
+    song = (L === 'boss' && SONGS['boss_' + MUS.bt]) || SONGS[P];
   if (!song) {
     MUS.sec = null;
     return;
   }
   // every part plays twice (the repeat gets its lead line), and each pass through the song shifts key
+  MUS.pos[P] = MUS.pos[P] || 0;
   const n = song.length * 2,
-    k = MUS.pos[L] % n,
-    cyc = Math.floor(MUS.pos[L] / n),
+    k = MUS.pos[P] % n,
+    cyc = Math.floor(MUS.pos[P] / n),
     i = k >> 1,
     rep = k & 1;
-  MUS.pos[L]++;
+  MUS.pos[P]++;
   let [riff, drums, key, lead] = song[i];
   if (!rep && lead && lead !== 'bells' && lead !== 'arp' && L !== 'boss') lead = null;
-  if (rep && !lead && L === 'fight' && Math.random() < 0.35) lead = 'solo';
+  if (rep && !lead && L === 'fight' && Math.random() < 0.4) lead = Math.random() < 0.6 ? 'rock' : 'solo';
   key += [0, 2, -2, 3][cyc % 4];
-  MUS.sec = { L, riff: RIFFS[riff], drums, key, first: k === 0 };
+  MUS.sec = { L, riff: RIFFS[riff], drums, key, first: k === 0, rock: riff[0] === 'r' };
   MUS.lead = lead ? makeLead(lead) : null;
   MUS.leadKind = lead;
 }
@@ -716,16 +841,26 @@ function playStep(st, t) {
     K = S2.key,
     sparse =
       L === 'fight' && (st % 16 === 0 ? (MUS.sparse = (MUS.heat || 0) < (MUS.sparse ? 0.35 : 0.25)) : MUS.sparse),
-    D = sparse && S2.drums !== 'none' ? 'half' : S2.drums; // quiet street: half-time groove, no leads
+    D = sparse && S2.drums !== 'none' && S2.drums !== 'stop' ? 'rock' : S2.drums; // quiet street: the band keeps a straight rock beat, without the leads and the orchestra
   if (tok) {
     let n = 1;
     while (n < 16 && st + n < 64 && !riff[st + n]) n++;
     const palm = tok[0] === 'p';
-    mGtr(+tok.slice(1) + K, t, palm ? spb * 0.85 : spb * n * 0.97, palm, L === 'calm' ? 0.75 : 1);
-    if (L === 'fight' && !sparse && (MUS.heat || 0) > 0.7)
+    mGtr(
+      +tok.slice(1) + K,
+      t,
+      palm ? spb * 0.85 : spb * n * 0.97,
+      palm,
+      L === 'calm' ? 0.75 : S2.rock ? 1.15 : 1,
+      S2.rock && !palm && D !== 'stop' ? spb * 1.7 : 0
+    ); // in hard rock the bass takes the chord as eighths (below) instead of holding it
+    if (L === 'fight' && !sparse && (MUS.heat || 0) > (S2.rock && D === 'drive' ? 0.4 : 0.7))
       mGtr(+tok.slice(1) + K + 12, t, palm ? spb * 0.8 : spb * n * 0.95, palm, 0.3);
-  } // the thick of it: a second guitar an octave up joins in
-  if (s === 0) MUS.leadOn = !(L === 'fight' && (MUS.heat || 0) < (MUS.leadOn ? 0.35 : 0.45)); // decided once a bar, with a little hysteresis
+    MUS.rRoot = +tok.slice(1);
+  } // the thick of it (or a hard-rock chorus): a second guitar an octave up joins in
+  else if (MS && S2.rock && s % 2 === 0 && D !== 'stop' && MUS.rRoot != null)
+    spN('b', 28 + MUS.rRoot + K, t, 0.27, { dur: spb * 1.7, rel: 0.05 }); // under a ringing chord the bass keeps driving eighths
+  if (s === 0) MUS.leadOn = !(L === 'fight' && (MUS.heat || 0) < (MUS.leadOn ? 0.25 : 0.35)); // decided once a bar, with a little hysteresis
   if (MUS.lead && MUS.leadOn !== false) {
     const m = MUS.lead[st];
     if (m > 0) {
@@ -734,6 +869,8 @@ function playStep(st, t) {
       const k2 = MUS.leadKind;
       if (k2 === 'arp') mPluck(m + K, t, 0.06);
       else if (k2 === 'bells') mBell(m + K, t, 0.05);
+      else if (k2 === 'rock') mLead2(m + K, t, spb * n * 0.95, 0.1, MUS.lead.bend[st]);
+      // one guitar, out front, bending
       else {
         mLead2(m + K, t, spb * n * 0.95, k2 === 'build' ? 0.07 : 0.085);
         if (k2 === 'solo' || k2 === 'boss' || k2 === 'hook') mLead2(third(m) + K, t + 0.008, spb * n * 0.95, 0.05);
@@ -797,6 +934,25 @@ function playStep(st, t) {
       if (s === 4 || s === 12 || s === 14 || s === 15) mSnare(t, s > 12 ? 0.28 : 0.45);
       if (s % 2 === 0) mHat(t, 0.06);
       break;
+    case 'rock':
+      if (s === 0 || s === 8 || s === 10) mKick(t, s === 10 ? 0.5 : 0.64);
+      if (s === 4 || s === 12) mSnare(t, 0.44);
+      if (s % 2 === 0) mHat(t, s % 4 ? 0.06 : 0.085, s === 14 && bar === 3);
+      break; // the hard-rock beat: kick on one and three, the backbeat cracking on two and four, eighths on the hats
+    case 'drive':
+      if (s % 4 === 0 || s === 10) mKick(t, 0.64);
+      if (s === 4 || s === 12) mSnare(t, 0.47);
+      if (s % 2 === 0) mHat(t, 0.08, s % 4 === 2);
+      if (s === 8 && bar % 2 === 1) mCrash(t, 0.09);
+      break; // the chorus: four on the floor under it, the hats opened up
+    case 'stop':
+      if (tok && tok[0] === 'o') {
+        mKick(t, 0.7);
+        mSnare(t, 0.4);
+        if (s === 0) mCrash(t, 0.1);
+      } // stop-time: the whole band on the hits, silence between
+      else if (s % 4 === 0) mHat(t, 0.05);
+      break;
     case 'calm':
       if (s === 0 || s === 10) mKick(t, 0.5);
       if (s === 8) mSnare(t, 0.3);
@@ -814,9 +970,9 @@ function playStep(st, t) {
       MUS.braam = false;
       mBraam(K, t, 0.55);
     } else if (L === 'boss' && st === 0 && (D === 'doom' || D === 'blast') && S2.first) mBraam(K, t, 0.45);
-    if (sparse) {
-      if (s % 4 === 0) mSpic(r, t, a ? 0.2 : 0.13);
-    } // a quiet street: just the celli ticking under the half-time groove
+    if (sparse || (S2.rock && h < 0.75)) {
+      if (sparse && s % 4 === 0) mSpic(r, t, a ? 0.14 : 0.09);
+    } // a quiet street, or a hard-rock part: the band on its own, the celli at most ticking under it
     else {
       if (h > 0.3 || L === 'boss') mSpic(a ? r + 12 : r, t, (a ? 0.3 : 0.17) * (0.7 + 0.45 * h));
       if ((h > 0.68 || (L === 'boss' && MUS.bph >= 1)) && s % 2 === 0)
@@ -833,9 +989,19 @@ function playStep(st, t) {
     mHat(t, 0.035); // and the hats double up
   if (st === 0 && MUS.sting) {
     MUS.sting = false;
-    if (MS) mBraam(K, t, 0.62); // a surge, or a boss changing its game: the brass hits with the stab
-    mGtr(K, t, spb * 6, false, 0.55);
-    mGtr(1 + K, t + spb * 2, spb * 6, false, 0.55);
+    if (MS) mBraam(K, t, 0.4); // a surge, or a boss changing its game: the brass hits with the stab
+    for (const [d, f] of [
+      [0, 0],
+      [3, 0],
+      [6, 1],
+    ]) {
+      const tt = t + spb * d;
+      mGtr(f + K, tt, spb * (d === 6 ? 8 : 2.6), false, 0.55);
+      mGtr(f + K + 12, tt, spb * (d === 6 ? 8 : 2.6), false, 0.22);
+      mKick(tt, 0.66);
+      mSnare(tt, 0.42);
+      mCrash(tt, d ? 0.06 : 0.1);
+    } // three hits, the band together: dun, dun, DUN
   }
   if (MS && L === 'calm' && st === 0 && Math.random() < 0.45)
     mTrem(64 + keyRoot(K) + [0, 7, 12][randi(0, 2)], t + spb * randi(0, 16), spb * 40, 0.035); // now and then high strings shiver in, and fade
@@ -900,6 +1066,19 @@ export function init() {
     f_solo: RF(
       `p0 p0 p0 p0 p0 p0 p0 p0 o5 . . . o3 . . .  p0 p0 p0 p0 p0 p0 p0 p0 o6 . . . o5 . . .  p0 p0 p0 p0 p0 p0 p0 p0 o8 . . . o7 . . .  p0 p0 p0 p0 o5 . o6 . o7 . o8 . o10 . . .`
     ),
+    // hard rock: straight eighths, open power chords, the blues in it
+    r_drive: RF(
+      `o0 . . . p0 . p0 . p0 . p0 . o10 . o5 .  o0 . . . p0 . p0 . p0 . p0 . o3 . o5 .  o0 . . . p0 . p0 . p0 . p0 . o10 . o5 .  o7 . . . o7 . o5 . o5 . o3 . o3 . o2 .`
+    ),
+    r_stomp: RF(
+      `o0 . . . . . o3 . o5 . . . . . o3 .  o0 . . . . . o3 . o10 . . . o5 . . .  o0 . . . . . o3 . o5 . . . . . o3 .  o7 . . . . . . . o7 . o7 . o7 . o7 .`
+    ),
+    r_stop: RF(
+      `o0 . . . . . o0 . . . . . . . . .  o3 . . . . . o3 . . . . . o5 . o6 .  o0 . . . . . o0 . . . . . . . . .  o10 . . . o10 . . . o7 . o7 . o5 . o3 .`
+    ),
+    r_run: RF(
+      `p0 p0 p0 p0 o3 . p0 p0 o5 . p0 p0 o6 . o5 .  p0 p0 p0 p0 o3 . p0 p0 o5 . p0 p0 o3 . o0 .  p0 p0 p0 p0 o3 . p0 p0 o5 . p0 p0 o6 . o5 .  o10 . o10 . o7 . o7 . o5 . o5 . o3 . o2 .`
+    ),
     // boss
     b_main: RF(
       `p0 p0 p0 p0 p1 p1 p1 p1 p0 p0 p0 p0 p4 p4 p3 p3  p0 p0 p0 p0 p1 p1 p1 p1 p0 p0 p0 p0 p6 p6 p5 p5  o0 . . . o1 . . . o6 . . . o5 . . .  o0 . . . o1 . . . o3 . o4 . o6 . o7 .`
@@ -933,20 +1112,28 @@ export function init() {
   };
   SONGS = {
     fight: [
-      ['f_main', 'std', 0],
+      ['r_drive', 'rock', 0],
+      ['r_drive', 'rock', 0, 'rock'],
+      ['r_stomp', 'drive', 0, 'hook'],
       ['f_main', 'std', 0, 'hook'],
+      ['r_stop', 'stop', 0],
+      ['r_run', 'drive', 0, 'rock'],
+      ['r_stomp', 'drive', 5, 'hook'],
       ['f_gallop', 'gallop', 0],
-      ['f_chorus', 'open', 0, 'hook'],
       ['f_thrash', 'thrash', 0],
-      ['f_thrash', 'thrash', 5],
-      ['f_chorus', 'open', 5, 'hook'],
-      ['f_break', 'half', 0],
-      ['f_break', 'half', 0, 'build'],
-      ['f_solo', 'std', 0, 'solo'],
-      ['f_solo', 'gallop', 3, 'solo'],
       ['f_chorus', 'open', 0, 'hook'],
-      ['f_gallop', 'gallop', -2],
-      ['f_main', 'thrash', 0],
+      ['r_stop', 'stop', 5],
+      ['r_run', 'drive', 5, 'rock'],
+      ['f_break', 'half', 0, 'build'],
+      ['f_solo', 'std', 0, 'rock'],
+      ['r_stomp', 'drive', 0, 'hook'],
+      ['r_drive', 'rock', -2, 'rock'],
+    ],
+    ride: [
+      ['r_stomp', 'drive', 0, 'hook'],
+      ['r_run', 'drive', 0, 'rock'],
+      ['f_solo', 'std', 0, 'rock'],
+      ['r_stomp', 'drive', 5, 'rock'],
     ],
     boss: [
       ['b_doom', 'doom', 0],
@@ -999,7 +1186,7 @@ export function init() {
       ['c_low', 'calm', -2, 'arp'],
     ],
   };
-  MUS.pos = { fight: 0, boss: 0, calm: 0 };
+  MUS.pos = { fight: 0, boss: 0, calm: 0, ride: 0 };
   MUS.sec = null;
   MUS.lead = null;
   SCALE = [0, 2, 3, 5, 7, 8, 10];
