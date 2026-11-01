@@ -1,7 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { rand, randi } from '../core/util.js';
-import { AC, DRYS, RLD, SBV, duck, noise, playR, playS, spat, stab, thr, tone } from './audio.js';
+import { AC, DRYS, RLD, SBV, duck, noise, playR, playS, spat, thr, tone } from './audio.js';
 import { alarmNote } from '../game/noise.js';
 // each gun's reload: [when, as a share of the reload, sound, only after an empty mag, volume, rate]
 export const RSTEP = {
@@ -448,7 +448,8 @@ export const sfx = {
     tone(180, 0.12, 'sine', 0.05, 0.8, 0.05);
   }, // tape torn off a dressing
   level() {
-    stab([0, 7], 0.32);
+    noise(0.2, 0.05, 2400, 600, 'bandpass'); // the cards slide in: a soft swish and a low tap, nothing musical, so it
+    tone(150, 0.14, 'sine', 0.05, 0.6, 0.02); // never lands off the beat or out of key over the band
   },
   hurt() {
     noise(0.25, 0.28, 1200, 120);
@@ -593,7 +594,7 @@ export const sfx = {
     tone(90, 0.35, 'sine', 0.16, 0.4, 0, 0, b);
   },
   streak() {
-    stab([5], 0.28);
+    noise(0.12, 0.035, 3000, 1200, 'bandpass');
   },
   crate(x, y) {
     const b = spat(x, y);
@@ -602,7 +603,8 @@ export const sfx = {
     noise(0.05, 0.08, 800, 600, 'bandpass', 0.015, b);
   }, // a wooden thud, not a boing
   elite() {
-    stab([3, 0], 0.26);
+    noise(0.06, 0.06, 1800, 900, 'bandpass');
+    tone(110, 0.2, 'sine', 0.07, 0.7, 0.01); // a combo or a challenge: a tap and a low thump, no chord over the band
   },
   beat(k) {
     const v = 0.05 + 0.05 * k;
