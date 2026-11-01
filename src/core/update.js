@@ -101,6 +101,10 @@ function separate(L) {
   }
 }
 export function update(dt) {
+  if (GS.fxTr && GS.fxTr.length) {
+    for (const t of GS.fxTr) t.t -= dt;
+    GS.fxTr = GS.fxTr.filter(t => t.t > 0);
+  } // the survivors' pistol tracers fade wherever they were fired
   radioTick(dt);
   GS.time += dt;
   GS.press = (GS.press || 0) * Math.pow(0.5, dt / 8); // the pressure fades with an 8 s half-life
@@ -238,11 +242,11 @@ export function update(dt) {
   if (firing && !p.ride && p.fireCd <= 0 && p.swap <= 0 && !(p.reload > 0 && (!GUNS[p.gun].perShell || !p.trigFresh)))
     firePlayer(cwx, cwy, p, target);
   rope(p, dt, p.x - Math.cos(p.bodyA) * 9, p.y - Math.sin(p.bodyA) * 9);
-  if (S.molo) {
+  if (S.molo && !p.ride) {
     p.moloT = (p.moloT ?? 2) - dt;
     if (p.moloT <= 0) p.moloT = throwMolotov(p) ? 7 / (1 + 0.3 * (S.molo - 1)) : 0.5;
   }
-  if (S.darts) {
+  if (S.darts && !p.ride) {
     p.dartT -= dt;
     if (p.dartT <= 0) {
       const tg = [];
@@ -275,7 +279,7 @@ export function update(dt) {
       } else p.dartT = 0.4;
     }
   }
-  if (S.pulse) {
+  if (S.pulse && !p.ride) {
     p.pulseT -= dt;
     if (p.pulseT <= 0) {
       let best = null,
@@ -332,7 +336,7 @@ export function update(dt) {
     // a copy: one may bleed out and leave mid-loop
     if (buddyHurt(s, p, dt)) return; // down: it sits where it fell and keeps shooting
     budPerk(s, dt, Math.hypot(p.x - s.x, p.y - s.y));
-    if (GS.evac && GS.evac.t >= GS.evac.land - 3 && !GS.evac.leave && budBoard(s, dt)) return; // wheels down: they run for the door
+    if (GS.evac && GS.evac.t >= GS.evac.land - 3 && !GS.evac.leave && !GS.evac.ride && budBoard(s, dt)) return; // wheels down: they run for the door
     // each survivor holds a spot round you: open ground you can see, out of your line of fire, clear of the others; kept while you stand still, so nobody shuffles about
     const taken = p.__slots;
     let sl = s.slot;
@@ -573,7 +577,12 @@ export function update(dt) {
       fx = viewW / 2 + 260,
       fy = viewH / 2 + 260;
     for (const e of GS.enemies) {
-      if (!e.big && !e.dead && (Math.abs(e.x - vcx) > fx || Math.abs(e.y - vcy) > fy)) {
+      if (
+        !e.big &&
+        !e.dead &&
+        Math.abs(e.kx || 0) + Math.abs(e.ky || 0) < 40 &&
+        (Math.abs(e.x - vcx) > fx || Math.abs(e.y - vcy) > fy)
+      ) {
         if ((e.id + GS.aiTick) & 1) continue;
         updateEnemy(e, aiDt * 2, p);
       } else updateEnemy(e, aiDt, p);
@@ -675,7 +684,7 @@ export function update(dt) {
       k.pull = false;
       if (GS.pickups.length < 25 && (k.k !== 'hp' || ++hpWait <= 4)) k.hold = (k.hold || 0) + dt;
     } /* full: leave it for later instead of wasting it, and don't let it run out while it waits */
-    if (!full && ((dd < S.magnet && k.t > 0.25) || k.pull)) {
+    if (!full && !p.ride && ((dd < S.magnet && k.t > 0.25) || k.pull)) {
       k.pull = true;
       const s = 650 + k.t * 250,
         ux = (p.x - k.x) / (dd || 1),

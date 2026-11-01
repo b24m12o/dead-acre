@@ -464,7 +464,7 @@ export function startReload() {
     g = p.gun,
     G = GUNS[g],
     n = magSize(g);
-  if (p.reload > 0 || p.swap > 0 || p.mag[g] >= n) return;
+  if (p.reload > 0 || p.swap > 0 || p.mag[g] >= n || p.ride) return;
   if (G.ammo && p.ammo[G.ammo] <= 0) {
     if (p.mag[g] <= 0) {
       tip('dry');

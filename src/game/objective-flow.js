@@ -177,7 +177,7 @@ export function finishObjective(ok, why) {
       GS.xp += 10 * n;
       extra = ` · ${n} of ${GS.obj.n0} made it${extra}`;
       if (GS.buddies.length < 3) {
-        const s = GS.obj.civ[0];
+        const s = GS.obj.civ.shift(); // the one who stays to fight leaves the group
         if ((LV.buddy || 0) < 3) LV.buddy = (LV.buddy || 0) + 1;
         GS.RUN.nextBud = rollBud();
         UP.find(u => u.id === 'buddy').apply();
@@ -191,6 +191,7 @@ export function finishObjective(ok, why) {
         renderMods();
         extra += ' · one of them joins your backup';
       } else extra += ' · they head for the convoy';
+      GS.obj.civ = []; // the rest go off to the convoy
     } // the ones you kept alive: scrap and thanks, and one who stays to fight
     if (GS.obj.type === 'fuel') GS.xp += 20;
     radio(

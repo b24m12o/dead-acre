@@ -1328,7 +1328,14 @@ export function updateCrates(dt) {
         dust(c.x - Math.sign(c.vx) * 14, c.y + 6, 1, 20, 0.5, 0.5);
       c.ang += (c.vx || 0) * 0.0015 * dt * 60 * (c.z === 0 ? 1 : 0.2);
       if (Math.abs(c.vx) < 2 && Math.abs(c.vy) < 2 && !c.vz) c.vx = c.vy = 0;
-    } else if (GS.state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40 && c.kit) {
+    } else if (
+      GS.state === 'play' &&
+      !GS.P.ride &&
+      !c.vz &&
+      c.z === 0 &&
+      d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40 &&
+      c.kit
+    ) {
       c.open = true;
       const ks = c.kit.filter(id => !(GS.RUN.kits || []).includes(id)),
         go = () => {
@@ -1343,7 +1350,14 @@ export function updateCrates(dt) {
       GS.later.push({ t: 0.15, fn: go });
       glowBurst(c.x, c.y, [1, 0.8, 0.3], 22, 240, 0.5, 0.6);
       chips(c.x, c.y, 10, [0.45, 0.5, 0.3], 3, 260);
-    } else if (GS.state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40 && c.gun) {
+    } else if (
+      GS.state === 'play' &&
+      !GS.P.ride &&
+      !c.vz &&
+      c.z === 0 &&
+      d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40 &&
+      c.gun
+    ) {
       c.open = true;
       if (c.alt && !GS.P.owned.includes(c.alt) && !GS.P.owned.includes(c.gun)) {
         const gs = [c.gun, c.alt];
@@ -1362,7 +1376,7 @@ export function updateCrates(dt) {
       } else giveGun(c.alt && GS.P.owned.includes(c.gun) ? c.alt : c.gun);
       glowBurst(c.x, c.y, [1, 0.8, 0.3], 22, 240, 0.5, 0.6);
       chips(c.x, c.y, 10, [0.45, 0.5, 0.3], 3, 260);
-    } else if (GS.state === 'play' && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40) {
+    } else if (GS.state === 'play' && !GS.P.ride && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40) {
       c.open = true;
       for (const t of new Set(GS.P.owned.map(g => GUNS[g].ammo).filter(Boolean)))
         GS.pickups.push({ k: 'ammo', at: t, v: 1.35, x: c.x, y: c.y, vx: rand(-140, 140), vy: rand(-140, 140), t: 0 }); // a box for every kind of round you carry: about what the crate used to add invisibly

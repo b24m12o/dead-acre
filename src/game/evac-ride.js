@@ -8,7 +8,7 @@
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, rand } from '../core/util.js';
 import { MH, MW, TILE, WH, WW, grid } from '../world/map.js';
-import { query } from '../world/nav.js';
+import { dijk, query } from '../world/nav.js';
 import { noise, playR, playS } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { cam } from './state.js';
@@ -88,7 +88,7 @@ export function startRide(e) {
     heat: 0,
     over: 0,
     cd: 0,
-    kills0: GS.kills,
+    kills: 0,
     saved: 0,
     lost: 0,
     spawnT: 0,
@@ -116,7 +116,7 @@ export function startRide(e) {
   banner('Wheels up', 'You are on the door gun · hold click to fire, let it cool when it glows', false);
   shake(0.12);
 }
-export const rideKills = e => (e && e.ride ? GS.kills - e.ride.kills0 : 0);
+export const rideKills = e => (e && e.ride ? e.ride.kills : 0);
 // one frame of the ride; returns true when the chopper is clear of the map and the run can end
 export function rideTick(e, dt) {
   const r = e.ride;
@@ -210,7 +210,10 @@ function doorGun(e, r, dt) {
       best = z;
     }
   });
-  if (best) hurtEnemy(best, 46 + 2 * GS.wave, false, tx - gx, ty - gy, 1.3, 'gunner');
+  if (best) {
+    hurtEnemy(best, 46 + 2 * GS.wave, false, tx - gx, ty - gy, 1.3, 'gunner');
+    if (best.dead || best.hp <= 0 || best.dying !== undefined) r.kills++;
+  } // only what the door gun drops counts as its kills
   else {
     dust(tx, ty, 2, 50, 0.6, 0.5);
     sparks(tx, ty, [1, 0.8, 0.5], 2, 140);
@@ -249,6 +252,13 @@ function groups(e, r, dt) {
     const ahead = g.s - r.s;
     if (!g.on && ahead < 950) {
       g.on = true;
+      {
+        const tx = Math.floor(g.x / TILE),
+          ty = Math.floor(g.y / TILE),
+          fl = new Uint16Array(MW * MH);
+        dijk(fl, [ty * MW + tx], false);
+        g.lure = { x: g.x, y: g.y, alarm: 1e9, flare: true, flow: fl };
+      } // one lure for the group, with its own way through the streets
       showStreak('Survivors below', 'Cover them as you go over · keep the dead off them', true);
       for (let i = 0; i < 12; i++) {
         const sp = spotNear(g.x, g.y, 300, 460);
@@ -316,9 +326,12 @@ function groups(e, r, dt) {
       if (z.civT === g && !z.dead) {
         const t = g.civ.find(s => s.hp > 0);
         if (t) {
-          z.lure = { x: t.x, y: t.y, alarm: 1, flare: true };
+          z.lure = g.lure;
           z.aw = 0;
-        } else z.civT = null;
+        } else {
+          z.civT = null;
+          if (z.lure === g.lure) z.lure = null;
+        }
       }
     if (ahead < -650 || !g.civ.some(s => s.hp > 0)) {
       g.done = true;
@@ -333,7 +346,12 @@ function groups(e, r, dt) {
         18
       );
       if (n) sfx.heal();
-      for (const z of GS.enemies) if (z.civT === g) z.civT = null;
+      for (const z of GS.enemies)
+        if (z.civT === g) {
+          z.civT = null;
+          if (z.lure === g.lure) z.lure = null;
+        }
+      if (g.lure) g.lure.alarm = 0;
     }
   }
 }

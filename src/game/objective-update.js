@@ -115,10 +115,12 @@ export function updateObjective(dt) {
       if (o.dead) continue;
       const rr2 = 24 + (o.cr || o.r),
         dd = d2(o.x, o.y, GS.obj.x, GS.obj.y);
-      if (dd < rr2 * rr2 && dd > 0.01) {
-        const d = Math.sqrt(dd);
-        o.x += ((o.x - GS.obj.x) / d) * (rr2 - d);
-        o.y += ((o.y - GS.obj.y) / d) * (rr2 - d);
+      if (dd < (rr2 + 4) * (rr2 + 4) && dd > 0.01) {
+        if (dd < rr2 * rr2) {
+          const d = Math.sqrt(dd);
+          o.x += ((o.x - GS.obj.x) / d) * (rr2 - d);
+          o.y += ((o.y - GS.obj.y) / d) * (rr2 - d);
+        } // pushed off it; still at it, just behind, until it walks back in
         if (o !== GS.P && o.dmg > 0) {
           GS.obj.hp -= o.dmg * dt * 1.1;
           if (Math.random() < dt * 6) sparks(GS.obj.x, GS.obj.y - 10, [1, 0.8, 0.4], 2, 160);

@@ -8,7 +8,7 @@ import { ZOOM } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { crystals } from '../world/map.js';
 import { los, query, solidPt } from '../world/nav.js';
-import { noise, playS, spat } from '../audio/audio.js';
+import { noise, playS, spat, SBV } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, gd, heroGun, startReload } from '../game/state.js';
 import { makeEnemy } from './enemies.js';
@@ -254,7 +254,13 @@ export function firePlayer(cwx, cwy, p, target) {
               reg: R.mf_pistol,
               fs: 0.7,
             });
-            playS(G.snd === 'hunter' || G.snd === 'lever' ? 'rifle' : G.snd, 0.35, 1.08, 0, 0.15);
+            playS(
+              G.rev && SBV.revolver ? 'revolver' : G.snd === 'hunter' || G.snd === 'lever' ? 'rifle' : G.snd,
+              0.35,
+              1.08,
+              0,
+              0.15
+            );
           },
         }); // Burst Fire: the follow-up rounds go down the same line a beat later, lighter than the first
       const push = big ? 70 : g === 'pistol' ? 18 : g === 'lmg' ? 16 : 10;

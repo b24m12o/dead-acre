@@ -249,7 +249,7 @@ export function buddyHurt(s, p, dt) {
     return false;
   }
   s.down -= dt;
-  const close = d2(p.x, p.y, s.x, s.y) < 70 * 70 && p.hp > 0;
+  const close = d2(p.x, p.y, s.x, s.y) < 70 * 70 && p.hp > 0 && !p.ride;
   const med = GS.buddies.some(b => b !== s && b.tr === 'medic' && !(b.down > 0) && d2(b.x, b.y, s.x, s.y) < 200 * 200);
   s.rev = close ? s.rev + dt : med ? s.rev + dt * 0.5 : s.rev; // what you put in stays; a medic nearby works on them too
   if (close && thr('revtick', 400)) tone(660 + s.rev * 200, 0.05, 'sine', 0.025);

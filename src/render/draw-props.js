@@ -292,9 +292,9 @@ export function drawCasters() {
     if (GS.SHMODE === 2) {
       L = L.filter(e => (e._fd = d2(e.x, e.y, GS.FLX, GS.FLY)) < 800 * 800);
       if (L.length > FL_CAP) {
-        L.sort((a, b) => a._fd - b._fd);
+        L.sort((a, b) => (b.big ? 1 : 0) - (a.big ? 1 : 0) || a._fd - b._fd);
         L.length = FL_CAP;
-      }
+      } // a boss always throws its shadow
     } // the flashlight's shadows: only the nearest of a crowd (the ones behind stand in their shadows anyway)
     else if (GS.SHMODE === true) {
       for (const e of L) e._lod = false;
@@ -311,7 +311,7 @@ export function drawCasters() {
   for (const s of rideCiv()) push(s.y, drawRanger, s);
   if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) push(GS.obj.y, drawGen, null);
   if (GS.obj && GS.obj.type === 'siege') {
-    for (const b of GS.obj.bars) if (vis(b.x, b.y)) push(b.y + 18, drawBoards, b);
+    if (!GS.obj.done) for (const b of GS.obj.bars) if (vis(b.x, b.y)) push(b.y + 18, drawBoards, b); // at dawn the boards come down
     if (!GS.NOHERO || GS.SHMODE === 1) for (const s of GS.obj.civ) push(s.y, drawRanger, s);
   }
   if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && !GS.obj.joined) push(GS.obj.s.y, drawRanger, GS.obj.s);

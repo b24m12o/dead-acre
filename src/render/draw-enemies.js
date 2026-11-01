@@ -176,7 +176,7 @@ function zArm(W, sh, hand, L, w1, w2, side, skin, sleeve, fl, handSc, gone, ls =
   armSeg(shx, shy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, handSc, ls);
 }
 export function drawEnemy(e) {
-  if (GS.SHMODE === true && e._lod && !e.__std) {
+  if (GS.SHMODE === true && e._lod && !e.__std && e.dying === undefined && !(e.down > 0) && !e.lurk) {
     const k = (e.sc || 1) * 1.2 * (e.emerge < 1 ? e.emerge : 1);
     setH(34);
     quad(R.blob, e.x, e.y - e.z, e.a, (e.r * 1.9 * k) / 32, (e.r * 2.7 * k) / 32, 1, 1, 1, 1, 0, 0, 0, 0);

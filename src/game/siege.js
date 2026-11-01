@@ -163,7 +163,10 @@ export function siegeTarget(e) {
 export function tickSiege(dt) {
   const o = GS.obj;
   if (!o || o.type !== 'siege') return;
-  for (const s of o.civ) s.hurt = Math.max(0, (s.hurt || 0) - dt); // the flash of a hit fades, night or day
+  for (const s of o.civ) {
+    s.hurt = Math.max(0, (s.hurt || 0) - dt);
+    s.hitT = Math.max(0, (s.hitT || 0) - dt);
+  } // the flash of a hit fades, night or day
   if (o.done) return;
   const P = GS.P;
   if (!o.sealed && P && inHouse(o, P.x, P.y)) {
@@ -181,10 +184,27 @@ export function tickSiege(dt) {
     if (P && !b.broken && (o.sealed || !b.door)) {
       const rr = BAR_R + (P.r || 14),
         dd = d2(P.x, P.y, b.x, b.y);
-      if (dd < rr * rr && dd > 0.01) {
-        const d = Math.sqrt(dd);
-        P.x += ((P.x - b.x) / d) * (rr - d);
-        P.y += ((P.y - b.y) / d) * (rr - d);
+      if (dd < rr * rr) {
+        if (o.sealed) {
+          const dx = P.x - b.x,
+            dy = P.y - b.y,
+            al = dx * b.nx + dy * b.ny,
+            px = dx - al * b.nx,
+            py = dy - al * b.ny,
+            pl = Math.hypot(px, py);
+          if (pl < rr) {
+            const inn = -Math.sqrt(rr * rr - pl * pl);
+            if (al > inn) {
+              P.x = b.x + px + b.nx * inn;
+              P.y = b.y + py + b.ny * inn;
+            }
+          }
+        } // barred in: a board only ever pushes you back inside, never out of the house
+        else if (dd > 0.01) {
+          const d = Math.sqrt(dd);
+          P.x += ((P.x - b.x) / d) * (rr - d);
+          P.y += ((P.y - b.y) / d) * (rr - d);
+        }
       }
     } // you can't get through the boards either: only by the door, and only until it's barred
     if (!b.broken)
@@ -192,10 +212,15 @@ export function tickSiege(dt) {
         if (e.dead || e.fly || !(e.emerge >= 1)) continue;
         const rr = BAR_R + e.r,
           dd = d2(e.x, e.y, b.x, b.y);
-        if (dd >= rr * rr || dd < 0.01) continue;
-        const d = Math.sqrt(dd);
-        e.x += ((e.x - b.x) / d) * (rr - d);
-        e.y += ((e.y - b.y) / d) * (rr - d);
+        if (dd >= (rr + 4) * (rr + 4)) continue; // at the board: touching it, or just pushed back off it
+        if (dd < 0.01) {
+          e.x = b.x + b.nx * rr;
+          e.y = b.y + b.ny * rr;
+        } else if (dd < rr * rr) {
+          const d = Math.sqrt(dd);
+          e.x += ((e.x - b.x) / d) * (rr - d);
+          e.y += ((e.y - b.y) / d) * (rr - d);
+        }
         if (e.dmg > 0 && e.sg) {
           b.hp -= e.dmg * dt * 0.5;
           b.hitT = 0.25;
@@ -233,8 +258,8 @@ export function tickSiege(dt) {
     if (e.dead || e.fly || !inHouse(o, e.x, e.y)) continue;
     if (!(e.emerge >= 1) && !e.sgIn) {
       const b = pick(o.bars);
-      e.x = b.x + b.nx * 120;
-      e.y = b.y + b.ny * 120;
+      e.x = b.x + b.nx * TILE;
+      e.y = b.y + b.ny * TILE; // the clear step outside a window (kept free when the map was made)
       continue;
     } // it came up out of the floor of the house itself: it surfaces outside instead
     if (!e.sgIn) {
@@ -247,8 +272,7 @@ export function tickSiege(dt) {
     for (const s of o.civ) {
       if (d2(e.x, e.y, s.x, s.y) > (e.r + s.r + 8) ** 2 || !(e.dmg > 0)) continue;
       s.hp -= e.dmg * dt * 1.1;
-      s.hitT = (s.hitT || 0) - dt;
-      if (s.hitT <= 0) {
+      if (!(s.hitT > 0)) {
         s.hitT = 0.45;
         s.hurt = 0.1;
       } // a flash for each blow, not a steady glare
@@ -279,8 +303,6 @@ export function tickSiege(dt) {
   // the ones inside: a pistol each, and they use it on anything they can see coming for them; otherwise they watch
   // the nearest board under attack
   if (!GS.fxTr) GS.fxTr = [];
-  for (const t of GS.fxTr) t.t -= dt;
-  if (GS.fxTr.length && GS.fxTr[0].t <= 0) GS.fxTr = GS.fxTr.filter(t => t.t > 0);
   for (const s of o.civ) {
     s.recoil = Math.max(0, (s.recoil || 0) - dt * 40);
     s.cd = (s.cd ?? rand(0, 0.6)) - dt;

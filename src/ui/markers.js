@@ -56,6 +56,7 @@ export function drawObjectiveGlow() {
     } // door-gun tracers
   if (GS.fxTr && GS.fxTr.length) {
     for (const t of GS.fxTr) {
+      if (t.t <= 0) continue;
       const f = 1 - Math.max(0, t.t) / 0.07,
         f0 = Math.max(0, f - 0.45),
         dx = t.x1 - t.x0,
