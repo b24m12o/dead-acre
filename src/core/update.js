@@ -792,7 +792,7 @@ export function update(dt) {
     if (!GS.lvReady) {
       GS.lvReady = GS.time;
       GS.lvCalm = GS.time;
-      ring(p.x, p.y, 20, 120, 0.9, [3.2, 2.2, 0.8], 0.9);
+      floatText(p.x, p.y - 34, 'Level up', '#ffd27a', 15); // a word that drifts up and fades: nothing on the ground that reads as a target
       sfx.ting();
       if (!GS.RUN.lvTold) {
         GS.RUN.lvTold = 1;
