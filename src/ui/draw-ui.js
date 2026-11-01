@@ -24,7 +24,7 @@ export function drawUI() {
     ui.textAlign = 'right';
     ui.textBaseline = 'alphabetic';
     ui.fillStyle = f >= 55 ? 'rgba(160,230,180,0.85)' : f >= 40 ? 'rgba(240,210,140,0.9)' : 'rgba(255,140,120,0.95)';
-    ui.fillText(`${f} FPS · ${RW}×${RH}`, VW - 14, VH - 30 * TS());
+    ui.fillText(`${f} FPS · ${RW}×${RH}`, VW - 14, VH - 36 * TS());
     ui.textAlign = 'left';
   } // the frame-rate readout: bottom right, clear of the HUD
   if (GS.P && GS.P.spore > 0.01 && GS.state === 'play') {

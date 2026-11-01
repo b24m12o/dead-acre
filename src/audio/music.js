@@ -6,7 +6,7 @@ import { opt, store } from '../core/settings.js';
 import { AC, MUS, MUSK, dlyIn, master, musBus, musGate, noise, radBus, revIn, sfxBus } from './audio.js';
 import { syncOpts } from '../ui/settings-ui.js';
 export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
-const TEMPO = { none: 70, menu: 70, calm: 84, fight: 150, boss: 172 };
+const TEMPO = { none: 70, menu: 70, calm: 84, fight: 160, boss: 172 };
 const BOSS_TEMPO = { abom: 1, roadkill: 1.1, grave: 0.74, chief: 0.94, pz: 0.88 }; // each boss gets its own take on the boss theme: Roadkill gallops, the Gravekeeper drags
 function tempoOf(L) {
   if (L !== 'boss') return TEMPO[L];
@@ -390,10 +390,12 @@ function mHeart(t, vol) {
   sp(take('k'), t, vol, { rate: 0.5 });
   sp(take('k'), t + 0.27, vol * 0.65, { rate: 0.5 });
 } // lub-dub
-function rockEnd(t, big) {
-  const q = 60 / TEMPO.fight / 4;
-  mGtr(0, t, q * 22, false, 0.75);
-  mGtr(12, t, q * 22, false, 0.35);
+function rockEnd(t, big, K = 0) {
+  // in the key the band was in, so the ending never jumps somewhere else
+  const q = 60 / TEMPO.fight / 4,
+    r = ((K % 12) + 12) % 12;
+  mGtr(r, t, q * 22, false, 0.75);
+  mGtr(r + 12, t, q * 22, false, 0.35);
   mKick(t, 0.75);
   mCrash(t, 0.14);
   for (let i = 2; i < 18; i++) {
@@ -401,22 +403,15 @@ function rockEnd(t, big) {
     if (i % 2 === 0 || i > 11) (i < 10 ? mSnare : mTom)(tt, 0.14 + i * 0.02, i > 14);
   } // the roll over the ringing chord
   const tf = t + 20 * q;
-  mGtr(0, tf, q * (big ? 16 : 10), false, 0.8);
-  mGtr(12, tf, q * 10, false, 0.4);
+  mGtr(r, tf, q * (big ? 16 : 10), false, 0.8);
+  mGtr(r + 12, tf, q * 10, false, 0.4);
   mKick(tf, 0.8);
   mSnare(tf, 0.5);
   mCrash(tf, 0.16);
 }
-function mStinger(win, t) {
-  rockEnd(t, win);
-  if (win) {
-    sp('gg0', t, 0.42, { rev: 0.5 });
-    mBraam(0, t, 0.6);
-    sp('hj52', t + 0.5, 0.5, { rev: 0.55 });
-  } // a boss goes down: the gong, the brass, and for once a major chord
-  else {
-    sp('hm52', t + 2.2, 0.28, { rev: 0.55 });
-  } // the street goes quiet: the band's last hit, then the horns settle on a minor chord
+function mStinger(win, t, K) {
+  rockEnd(t, win, K);
+  if (win) sp('gg0', t + (20 * 60) / TEMPO.fight / 4, 0.36, { rev: 0.5 }); // a boss goes down: the gong under the last hit
 }
 export function startMusic() {
   if (!AC || MUS.timer) return;
@@ -443,8 +438,11 @@ function scheduleMusic() {
       const from = MUS.level,
         to = MUS.want;
       if (MS) {
-        if (from === 'boss' && MUS.win) mStinger(true, MUS.nextT);
-        else if (from === 'fight' && to === 'calm' && MUS.clear) mStinger(false, MUS.nextT);
+        const end = (from === 'boss' && MUS.win) || (from === 'fight' && to === 'calm' && MUS.clear);
+        if (end) {
+          mStinger(from === 'boss', MUS.nextT, MUS.sec ? MUS.sec.key : 0);
+          MUS.hushT = MUS.nextT + 2.6; // the next music waits for the ending's last chord to ring out
+        }
         MUS.braam = (to === 'fight' && (from === 'calm' || from === 'none')) || to === 'boss'; // the first downbeat lands with a braam
       }
       MUS.win = MUS.clear = false;
@@ -495,7 +493,14 @@ function scheduleMusic() {
     if (MUS.step === 0) MUS.loop++;
   }
   if (!MS) return;
-  if (MUS.level === 'calm' && MUS.want === 'calm' && (MUS.preT ?? 99) < 3.5 && !MUS.riseEnd) {
+  if (
+    MUS.level === 'calm' &&
+    MUS.want === 'calm' &&
+    (MUS.preT ?? 99) < 3.5 &&
+    !MUS.riseEnd &&
+    AC.currentTime > (MUS.riseLast || 0) + 5
+  ) {
+    MUS.riseLast = AC.currentTime + MUS.preT;
     MUS.riseEnd = AC.currentTime + MUS.preT + 0.2;
     mRiser(MUS.riseEnd, 0.65);
   } // the last seconds before a wave swell into it, and the band comes in on the break
@@ -702,7 +707,13 @@ function makeLead(kind) {
       L[st] = scaleNote(c[(st >> 1) % 4], 52);
     }
   } else if (kind === 'bells') {
-    for (const st of [8, 24, 30, 40, 56]) L[st] = scaleNote(pick([0, 2, 4, 7, 9]), 64);
+    for (const [st, d] of [
+      [8, 4],
+      [24, 2],
+      [40, 4],
+      [56, 0],
+    ])
+      L[st] = scaleNote(d, 64); // a fixed falling phrase, the same each time: a tune, not stray notes
   } else if (kind === 'siren') {
     for (let b = 0; b < 4; b++) {
       L[b * 16] = scaleNote(4, 64);
@@ -835,6 +846,7 @@ function playStep(st, t) {
     return;
   }
   if (st === 0 || !MUS.sec || MUS.sec.L !== L) nextSection(L);
+  if (t < (MUS.hushT || 0)) return;
   const S2 = MUS.sec,
     riff = S2.riff,
     tok = riff[st],
@@ -854,7 +866,7 @@ function playStep(st, t) {
       L === 'calm' ? 0.75 : S2.rock ? 1.15 : 1,
       S2.rock && !palm && D !== 'stop' ? spb * 1.7 : 0
     ); // in hard rock the bass takes the chord as eighths (below) instead of holding it
-    if (L === 'fight' && !sparse && (MUS.heat || 0) > (S2.rock && D === 'drive' ? 0.4 : 0.7))
+    if (L === 'fight' && !sparse && (MUS.heat || 0) > (S2.rock ? (D === 'drive' ? 0.35 : 0.55) : 0.7))
       mGtr(+tok.slice(1) + K + 12, t, palm ? spb * 0.8 : spb * n * 0.95, palm, 0.3);
     MUS.rRoot = +tok.slice(1);
   } // the thick of it (or a hard-rock chorus): a second guitar an octave up joins in
@@ -881,7 +893,9 @@ function playStep(st, t) {
     mCrash(t, L === 'calm' ? 0.07 : 0.13);
     MUS.fresh = false;
   }
-  const fill = (bar === 3 || MUS.want !== L) && s >= 12 && D !== 'none' && D !== 'calm';
+  const fill =
+    ((bar === 3 || MUS.want !== L) && s >= 12 && D !== 'none' && D !== 'calm') ||
+    (S2.rock && bar === 1 && s >= 14 && D !== 'stop' && !sparse); // hard rock: a quick fill halfway too
   switch (D) {
     case 'std':
       if ((tok && tok[0] === 'p') || s === 0 || s === 8) mKick(t, 0.6);
@@ -943,7 +957,7 @@ function playStep(st, t) {
       if (s % 4 === 0 || s === 10) mKick(t, 0.64);
       if (s === 4 || s === 12) mSnare(t, 0.47);
       if (s % 2 === 0) mHat(t, 0.08, s % 4 === 2);
-      if (s === 8 && bar % 2 === 1) mCrash(t, 0.09);
+      if ((s === 8 && bar % 2 === 1) || (s === 0 && (MUS.heat || 0) > 0.5)) mCrash(t, 0.09);
       break; // the chorus: four on the floor under it, the hats opened up
     case 'stop':
       if (tok && tok[0] === 'o') {
@@ -1004,7 +1018,7 @@ function playStep(st, t) {
     } // three hits, the band together: dun, dun, DUN
   }
   if (MS && L === 'calm' && st === 0 && Math.random() < 0.45)
-    mTrem(64 + keyRoot(K) + [0, 7, 12][randi(0, 2)], t + spb * randi(0, 16), spb * 40, 0.035); // now and then high strings shiver in, and fade
+    mTrem(64 + keyRoot(K) + [0, 7, 12][MUS.loop % 3], t, spb * 40, 0.03); // now and then high strings shiver in on the bar, and fade
   if (L === 'calm' && st === 0)
     mPad(
       [40, 47, 52].map(n => n + K),

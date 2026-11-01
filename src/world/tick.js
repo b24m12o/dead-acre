@@ -238,7 +238,16 @@ export function tickWorld(dt) {
     MUS.heat = (MUS.heat || 0) + (ht - (MUS.heat || 0)) * Math.min(1, dt * (ht > (MUS.heat || 0) ? 1.6 : 0.22));
     const play = GS.state === 'play' && GS.P;
     MUS.low = play ? clamp((0.3 - GS.P.hp / S.maxHp) / 0.22, 0, 1) : 0; // badly hurt: the music muffles and a heart beats
-    MUS.preT = play && !GS.enemies.length && !GS.queue.length && GS.wave > 0 && !GS.evac ? GS.interT : 99; // the seconds until the next wave
+    const H = GS.horde,
+      hWait = H && !H.done && H.startT > 0 && !GS.enemies.some(e => !e.dead);
+    MUS.preT =
+      !play || GS.evac || !GS.wave
+        ? 99
+        : hWait
+          ? H.startT // a horde on its way: the build lands on its arrival, not on the start of the night
+          : !GS.nightLive && !GS.enemies.length && !GS.queue.length
+            ? GS.interT + (GS.RUN.hm ? 4 : 0) // in Horde Mode the night opens on the horde's own short walk in
+            : 99; // the seconds until the fighting starts
     if (AC && musLP) {
       let f = MUS.level === 'fight' ? 1800 + Math.pow(MUS.heat, 1.5) * 16000 : 18000;
       if (MUS.low > 0) f = Math.min(f, 18000 * Math.pow(0.04, MUS.low)); // down to 700 Hz: heard through the blood in your ears
