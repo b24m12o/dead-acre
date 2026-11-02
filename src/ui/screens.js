@@ -8,7 +8,8 @@ import { DIFF } from '../core/profile.js';
 import { AC, initAudio } from '../audio/audio.js';
 import { setMuted } from '../audio/music.js';
 import { S, rec } from '../game/state.js';
-import { explode } from '../game/combat.js';
+import { BLOOD } from '../render/draw-enemies.js';
+import { bleed, pool, shake } from '../render/effects.js';
 import { syncOpts } from './settings-ui.js';
 import { PK, begin, continueRun, openHangar, renderHeroes, renderPauseGuns, seedsLine } from './hangar.js';
 import { setB, setT } from './hud.js';
@@ -43,7 +44,18 @@ export function gameOver() {
   setB('hpFill', 0);
   setT('hpTxt', `0 / ${Math.round(S.maxHp)}`);
   $('hpBar').classList.add('low');
-  explode(GS.P.x, GS.P.y, 110, 0, false);
+  {
+    const P = GS.P;
+    P.down = 1; // no blast: you go down where you stood, slumped against nothing, and bleed out
+    P.dashT = 0;
+    P.inv = 0;
+    P.hurt = 0; // the game stops here: a hit flash would stay on for good
+    P.strideAmp = 0;
+    P.vx = P.vy = 0;
+    bleed(P.x, P.y, 16, 0, 0, 22, BLOOD, 260, 1.2);
+    pool(P.x, P.y, 1.6, BLOOD);
+    shake(0.45);
+  }
   GS.hitstop = 0.3; // the HUD stops updating once you're dead: show the zero
 
   stopHeli();
