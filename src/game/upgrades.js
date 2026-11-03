@@ -21,7 +21,7 @@ const DMG_STEP = [1.25, 1.22, 1.18, 1.15, 1.12, 1.1],
 export const UP = [
   {
     id: 'dmg',
-    short: () => `+${Math.round((DMG_STEP[LV.dmg || 0] - 1) * 100)}% damage`,
+    short: () => `+${Math.round((DMG_STEP[LV.dmg || 0] - 1) * 100)}% damage with every gun`,
     cat: 'Gun mod',
     name: 'Hollow Points',
     desc: () => `+${Math.round((DMG_STEP[LV.dmg || 0] - 1) * 100)}% damage.`,
@@ -32,7 +32,7 @@ export const UP = [
   },
   {
     id: 'rate',
-    short: () => `+${Math.round((RATE_STEP[LV.rate || 0] - 1) * 100)}% fire rate`,
+    short: () => `Every gun fires ${Math.round((RATE_STEP[LV.rate || 0] - 1) * 100)}% faster`,
     cat: 'Gun mod',
     name: 'Light Trigger',
     desc: () => `+${Math.round((RATE_STEP[LV.rate || 0] - 1) * 100)}% fire rate.`,
@@ -43,7 +43,7 @@ export const UP = [
   },
   {
     id: 'multi',
-    short: '+1 round each pull',
+    short: 'Each trigger pull fires one more round',
     cat: 'Gun mod',
     name: 'Burst Fire',
     desc: 'Every trigger pull fires one more round right behind the first (40%, then 30%, then 25% damage). Shotguns load two more pellets.',
@@ -54,7 +54,7 @@ export const UP = [
   },
   {
     id: 'pierce',
-    short: 'Through +1 body',
+    short: 'Each round goes through one more zombie',
     cat: 'Gun mod',
     name: 'AP Rounds',
     desc: 'Shots punch through one more body.',
@@ -65,7 +65,7 @@ export const UP = [
   },
   {
     id: 'bounce',
-    short: 'Glances to the next one',
+    short: 'Rounds bounce off to hit another zombie',
     cat: 'Gun mod',
     name: 'Ricochet',
     desc: 'A round that stops in a zombie or hits a wall glances off toward the next zombie nearby. One more ricochet per level.',
@@ -76,7 +76,7 @@ export const UP = [
   },
   {
     id: 'frag',
-    short: 'Hits wound the ones beside',
+    short: 'Hits also wound the zombies next to your target',
     cat: 'Gun mod',
     name: 'Frangible Rounds',
     desc: 'Rounds break apart on impact and wound the zombies next to your target.',
@@ -87,7 +87,7 @@ export const UP = [
   },
   {
     id: 'crit',
-    short: '+10% crits · 2.5×',
+    short: '+10% crit chance; crits do 2.5× damage',
     cat: 'Gun mod',
     name: 'Red Dot Sight',
     desc: '+10% critical chance. Crits hit for 2.5×.',
@@ -98,7 +98,7 @@ export const UP = [
   },
   {
     id: 'arc',
-    short: 'Hits can set them alight',
+    short: 'Your hits can set zombies on fire',
     cat: 'Gun mod',
     name: 'Incendiary Rounds',
     desc: 'Hits can set zombies on fire. Burning zombies spread it.',
@@ -109,7 +109,7 @@ export const UP = [
   },
   {
     id: 'choke',
-    short: 'Shotgun: tighter, +25% range',
+    short: 'Shotgun: tighter spread, reaches 25% further',
     cat: 'Gun mod',
     name: 'Tight Choke',
     desc: 'Shotgun: tighter spread and 25% more range.',
@@ -122,7 +122,7 @@ export const UP = [
   },
   {
     id: 'quiet',
-    short: 'Heard half as far',
+    short: 'Pistol, SMG and rifle are heard half as far',
     cat: 'Gun mod',
     name: 'Suppressor',
     only: ['pistol', 'smg', 'rifle'],
@@ -134,7 +134,7 @@ export const UP = [
   },
   {
     id: 'ambush',
-    short: '+80% on the unaware',
+    short: "+80% damage to zombies that haven't seen you",
     cat: 'Gun mod',
     name: 'Ambush',
     desc: '+80% damage to zombies that have not noticed you yet, are dazed or are down.',
@@ -156,7 +156,7 @@ export const UP = [
   },
   {
     id: 'mags',
-    short: '+35% mag · +25% ammo',
+    short: '35% bigger magazines, 25% more ammo carried',
     cat: 'Gun mod',
     name: 'Extended Mags',
     desc: '+35% magazine size, +25% ammo carried, and a box of ammo now.',
@@ -169,7 +169,7 @@ export const UP = [
   },
   {
     id: 'darts',
-    short: 'A pipe bomb every 2.5 s',
+    short: 'Throws a pipe bomb into a crowd every 2.5 s',
     cat: 'Gear',
     name: 'Pipe Bombs',
     desc: 'Toss a homemade pipe bomb into the crowd every 2.5 s. One more per level.',
@@ -180,7 +180,7 @@ export const UP = [
   },
   {
     id: 'pulse',
-    short: 'A stun grenade every 4 s',
+    short: 'Throws a stun grenade at the nearest crowd every 4 s',
     cat: 'Gear',
     name: 'Stun Grenades',
     desc: 'Every 4 s toss a stun grenade into the nearest crowd: it dazes the dead, knocks them back and clears their spit.',
@@ -191,7 +191,7 @@ export const UP = [
   },
   {
     id: 'molotov',
-    short: 'A firebomb every 7 s',
+    short: 'Throws a firebomb at the biggest crowd every 7 s',
     cat: 'Gear',
     name: 'Molotovs',
     desc: 'Every 7 s lob a firebomb into the biggest crowd. Burning zombies spread the fire.',
@@ -202,7 +202,7 @@ export const UP = [
   },
   {
     id: 'buddy',
-    short: 'A survivor joins you',
+    short: 'A survivor joins you and fights beside you',
     cat: 'Gear',
     name: 'Backup',
     desc: 'A survivor joins you and covers you. Each one is a medic, marksman, scavenger or ex-cop.',
@@ -225,7 +225,7 @@ export const UP = [
   },
   {
     id: 'hull',
-    short: '+25 max health · heal 40',
+    short: '+25 max health, and heals you 40 now',
     cat: 'Body',
     name: 'Plate Carrier',
     desc: '+25 max health and heal 40 now.',
@@ -237,7 +237,7 @@ export const UP = [
   },
   {
     id: 'regen',
-    short: 'Heal 1.5 a second',
+    short: 'Heals you 1.5 health every second',
     cat: 'Body',
     name: 'Field Medkit',
     desc: 'Heal 1.5 health every second.',
@@ -248,7 +248,7 @@ export const UP = [
   },
   {
     id: 'leech',
-    short: 'Each kill heals 1',
+    short: 'Every kill heals you 1 health',
     cat: 'Body',
     name: 'Adrenaline',
     desc: 'Each kill heals 1 health.',
@@ -259,7 +259,7 @@ export const UP = [
   },
   {
     id: 'speed',
-    short: '+10% move speed',
+    short: 'You move 10% faster',
     cat: 'Body',
     name: 'Running Shoes',
     desc: '+10% move speed.',
@@ -270,7 +270,7 @@ export const UP = [
   },
   {
     id: 'abcd',
-    short: () => `${AB().name} recharges 25% faster`,
+    short: () => `${AB().name} is ready again 25% sooner`,
     cat: 'Skill',
     get name() {
       return AB().cdName;
@@ -296,7 +296,7 @@ export const UP = [
   },
   {
     id: 'dash',
-    short: 'Roll recharges 25% faster',
+    short: 'Your roll is ready again 25% sooner',
     cat: 'Body',
     name: 'Cardio',
     desc: 'Dodge roll recharges 25% faster.',
@@ -307,7 +307,7 @@ export const UP = [
   },
   {
     id: 'magnet',
-    short: 'Pick up from 60% further',
+    short: 'Pick up ammo and medkits from 60% further',
     cat: 'Body',
     name: 'Long Reach',
     desc: 'Grab ammo and medkits from 60% further away.',
@@ -319,7 +319,7 @@ export const UP = [
   // the Field Manual: gear that only turns up in runs once a challenge has taught it to you (see the Armory)
   {
     id: 'wind',
-    short: 'Once a night: live on 30',
+    short: 'Once a night, a hit that would nearly kill you leaves you on 30 health',
     cat: 'Body',
     name: 'Second Wind',
     lock: 'flawless3',
@@ -331,7 +331,7 @@ export const UP = [
   },
   {
     id: 'scav',
-    short: '+30% ammo drops',
+    short: 'Zombies drop 30% more ammo',
     cat: 'Gear',
     name: 'Scavenger',
     lock: 'rescue5',
@@ -345,7 +345,7 @@ export const UP = [
 export const EVOS = [
   {
     id: 'inferno',
-    short: 'Fire burns 2× long, 50% hotter',
+    short: 'Anything you set on fire burns twice as long, 50% hotter',
     name: 'Inferno',
     lock: 'boss1',
     need: { arc: 2, molotov: 2 },
@@ -357,7 +357,7 @@ export const EVOS = [
   // the guns' own combos: a gun from a case plus the gear that suits it
   {
     id: 'dtap',
-    short: 'Pistol fires two each shot',
+    short: 'Every pistol shot fires two rounds',
     name: 'Double Tap',
     need: { crit: 2, rate: 1 },
     desc: 'Every pistol shot is two: a second round follows the first.',
@@ -367,7 +367,7 @@ export const EVOS = [
   },
   {
     id: 'hose',
-    short: 'SMG: +30% mag, +1 ricochet',
+    short: 'SMG: 30% bigger magazines, rounds bounce once more',
     name: 'Bullet Hose',
     need: { gun_smg: 1, bounce: 1 },
     desc: 'SMG magazines hold 30% more and every round ricochets once more.',
@@ -378,7 +378,7 @@ export const EVOS = [
   },
   {
     id: 'marks',
-    short: 'Rifle always braced, +15% crit',
+    short: 'Assault rifle stays steady on the move, +15% crit chance',
     name: 'Marksman',
     need: { gun_rifle: 1, pierce: 2 },
     desc: 'The assault rifle is always braced, even on the move, and gets +15% critical chance.',
@@ -388,7 +388,7 @@ export const EVOS = [
   },
   {
     id: 'oneshot',
-    short: 'Hunting rifle: sure crits on the unaware',
+    short: "Hunting rifle always crits zombies that haven't seen you",
     name: 'One Shot',
     need: { gun_hunter: 1, ambush: 1 },
     desc: "Hunting rifle rounds always crit on the dead that haven't seen you, are dazed or are down.",
@@ -398,7 +398,7 @@ export const EVOS = [
   },
   {
     id: 'cowboy',
-    short: 'Lever-action loads 2× fast',
+    short: 'The lever-action reloads twice as fast',
     name: 'Cowboy Reload',
     need: { gun_lever: 1, reload: 2 },
     desc: 'The lever-action loads twice as fast.',
@@ -408,7 +408,7 @@ export const EVOS = [
   },
   {
     id: 'walkfire',
-    short: 'LMG: no slowdown, +15% rate',
+    short: "Machine gun: you don't slow down while firing, 15% faster",
     name: 'Walking Fire',
     need: { gun_lmg: 1, mags: 2 },
     desc: 'The machine gun no longer slows you while it fires, and fires 15% faster.',
@@ -418,7 +418,7 @@ export const EVOS = [
   },
   {
     id: 'airburst',
-    short: 'Grenades burst 40% wider',
+    short: 'Grenade blasts are 40% wider',
     name: 'Airburst',
     need: { gun_launcher: 1, frag: 1 },
     desc: 'Grenades burst 40% wider.',
@@ -428,7 +428,7 @@ export const EVOS = [
   },
   {
     id: 'tempest',
-    short: 'Every hit burns, 2× long',
+    short: 'Every hit sets zombies on fire, and it burns twice as long',
     name: "Dragon's Breath",
     need: { arc: 2, frag: 2 },
     desc: 'Every hit sets zombies on fire, and the fire burns twice as long.',
@@ -438,7 +438,7 @@ export const EVOS = [
   },
   {
     id: 'overclock',
-    short: '+25% rate and damage, +1 pierce',
+    short: '+25% fire rate and damage; rounds go through one more zombie',
     name: 'Gunsmith',
     need: { rate: 3, dmg: 3 },
     desc: '+25% fire rate and damage, and every round goes through one more zombie.',
@@ -450,7 +450,7 @@ export const EVOS = [
   },
   {
     id: 'nova',
-    short: 'Stuns every 2 s, and they heal',
+    short: 'Stun grenades every 2 s; each zombie they hit heals you 2',
     name: 'Combat Medic',
     need: { pulse: 2, regen: 2 },
     desc: 'Stun grenades go out every 2 s and heal 2 health per zombie they hit.',
@@ -461,7 +461,7 @@ export const EVOS = [
   },
   {
     id: 'swarm',
-    short: 'Bombs 2× often, backup 2× fast',
+    short: 'Pipe bombs twice as often; your backup fires twice as fast',
     name: 'Demolition Crew',
     need: { darts: 2, buddy: 2 },
     desc: 'Pipe bombs go out twice as often and your backup fires twice as fast.',
@@ -472,7 +472,7 @@ export const EVOS = [
   },
   {
     id: 'speedload',
-    short: 'Half-time reloads, heal 3',
+    short: 'Reloads take half the time and heal you 3',
     name: 'Speed Loader',
     need: { reload: 2, mags: 2 },
     desc: 'Reloads take half as long and every finished reload heals 3 health.',
@@ -483,7 +483,7 @@ export const EVOS = [
   },
   {
     id: 'storm',
-    short: 'Shotguns +20% damage, big knockback',
+    short: 'Shotguns do 20% more damage and knock zombies far back',
     name: 'Buck and Ball',
     need: { choke: 2, multi: 2 },
     desc: 'Shotguns hit 20% harder and knock zombies much further.',
