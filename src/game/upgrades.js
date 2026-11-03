@@ -13,12 +13,15 @@ import { HLOOK } from '../render/draw-player.js';
 import { NPC_TINTS, TRAITS, budSetup, makeSurvivor, rollBud } from '../actors/backups.js';
 import { FAVOURS } from './objectives.js';
 import { chalDone, statMax } from './challenges.js';
+import { PERK_ICONS, perkIcon } from '../ui/perk-icons.js';
+import { icon as gunIcon, iconId } from '../ui/icons.js';
 import { need } from './run.js';
 const DMG_STEP = [1.25, 1.22, 1.18, 1.15, 1.12, 1.1],
   RATE_STEP = [1.18, 1.15, 1.12, 1.1, 1.08, 1.06]; // each rank of these two adds a little less than the last: strong early, no runaway late
 export const UP = [
   {
     id: 'dmg',
+    short: () => `+${Math.round((DMG_STEP[LV.dmg || 0] - 1) * 100)}% damage`,
     cat: 'Gun mod',
     name: 'Hollow Points',
     desc: () => `+${Math.round((DMG_STEP[LV.dmg || 0] - 1) * 100)}% damage.`,
@@ -29,6 +32,7 @@ export const UP = [
   },
   {
     id: 'rate',
+    short: () => `+${Math.round((RATE_STEP[LV.rate || 0] - 1) * 100)}% fire rate`,
     cat: 'Gun mod',
     name: 'Light Trigger',
     desc: () => `+${Math.round((RATE_STEP[LV.rate || 0] - 1) * 100)}% fire rate.`,
@@ -39,6 +43,7 @@ export const UP = [
   },
   {
     id: 'multi',
+    short: '+1 round each pull',
     cat: 'Gun mod',
     name: 'Burst Fire',
     desc: 'Every trigger pull fires one more round right behind the first (40%, then 30%, then 25% damage). Shotguns load two more pellets.',
@@ -49,6 +54,7 @@ export const UP = [
   },
   {
     id: 'pierce',
+    short: 'Through +1 body',
     cat: 'Gun mod',
     name: 'AP Rounds',
     desc: 'Shots punch through one more body.',
@@ -59,6 +65,7 @@ export const UP = [
   },
   {
     id: 'bounce',
+    short: 'Glances to the next one',
     cat: 'Gun mod',
     name: 'Ricochet',
     desc: 'A round that stops in a zombie or hits a wall glances off toward the next zombie nearby. One more ricochet per level.',
@@ -69,6 +76,7 @@ export const UP = [
   },
   {
     id: 'frag',
+    short: 'Hits wound the ones beside',
     cat: 'Gun mod',
     name: 'Frangible Rounds',
     desc: 'Rounds break apart on impact and wound the zombies next to your target.',
@@ -79,6 +87,7 @@ export const UP = [
   },
   {
     id: 'crit',
+    short: '+10% crits · 2.5×',
     cat: 'Gun mod',
     name: 'Red Dot Sight',
     desc: '+10% critical chance. Crits hit for 2.5×.',
@@ -89,6 +98,7 @@ export const UP = [
   },
   {
     id: 'arc',
+    short: 'Hits can set them alight',
     cat: 'Gun mod',
     name: 'Incendiary Rounds',
     desc: 'Hits can set zombies on fire. Burning zombies spread it.',
@@ -99,6 +109,7 @@ export const UP = [
   },
   {
     id: 'choke',
+    short: 'Shotgun: tighter, +25% range',
     cat: 'Gun mod',
     name: 'Tight Choke',
     desc: 'Shotgun: tighter spread and 25% more range.',
@@ -111,6 +122,7 @@ export const UP = [
   },
   {
     id: 'quiet',
+    short: 'Heard half as far',
     cat: 'Gun mod',
     name: 'Suppressor',
     only: ['pistol', 'smg', 'rifle'],
@@ -122,6 +134,7 @@ export const UP = [
   },
   {
     id: 'ambush',
+    short: '+80% on the unaware',
     cat: 'Gun mod',
     name: 'Ambush',
     desc: '+80% damage to zombies that have not noticed you yet, are dazed or are down.',
@@ -132,6 +145,7 @@ export const UP = [
   },
   {
     id: 'reload',
+    short: 'Reload 30% faster',
     cat: 'Gun mod',
     name: 'Fast Hands',
     desc: 'Reload 30% faster.',
@@ -142,6 +156,7 @@ export const UP = [
   },
   {
     id: 'mags',
+    short: '+35% mag · +25% ammo',
     cat: 'Gun mod',
     name: 'Extended Mags',
     desc: '+35% magazine size, +25% ammo carried, and a box of ammo now.',
@@ -154,6 +169,7 @@ export const UP = [
   },
   {
     id: 'darts',
+    short: 'A pipe bomb every 2.5 s',
     cat: 'Gear',
     name: 'Pipe Bombs',
     desc: 'Toss a homemade pipe bomb into the crowd every 2.5 s. One more per level.',
@@ -164,6 +180,7 @@ export const UP = [
   },
   {
     id: 'pulse',
+    short: 'A stun grenade every 4 s',
     cat: 'Gear',
     name: 'Stun Grenades',
     desc: 'Every 4 s toss a stun grenade into the nearest crowd: it dazes the dead, knocks them back and clears their spit.',
@@ -174,6 +191,7 @@ export const UP = [
   },
   {
     id: 'molotov',
+    short: 'A firebomb every 7 s',
     cat: 'Gear',
     name: 'Molotovs',
     desc: 'Every 7 s lob a firebomb into the biggest crowd. Burning zombies spread the fire.',
@@ -184,6 +202,7 @@ export const UP = [
   },
   {
     id: 'buddy',
+    short: 'A survivor joins you',
     cat: 'Gear',
     name: 'Backup',
     desc: 'A survivor joins you and covers you. Each one is a medic, marksman, scavenger or ex-cop.',
@@ -206,6 +225,7 @@ export const UP = [
   },
   {
     id: 'hull',
+    short: '+25 max health · heal 40',
     cat: 'Body',
     name: 'Plate Carrier',
     desc: '+25 max health and heal 40 now.',
@@ -217,6 +237,7 @@ export const UP = [
   },
   {
     id: 'regen',
+    short: 'Heal 1.5 a second',
     cat: 'Body',
     name: 'Field Medkit',
     desc: 'Heal 1.5 health every second.',
@@ -227,6 +248,7 @@ export const UP = [
   },
   {
     id: 'leech',
+    short: 'Each kill heals 1',
     cat: 'Body',
     name: 'Adrenaline',
     desc: 'Each kill heals 1 health.',
@@ -237,6 +259,7 @@ export const UP = [
   },
   {
     id: 'speed',
+    short: '+10% move speed',
     cat: 'Body',
     name: 'Running Shoes',
     desc: '+10% move speed.',
@@ -247,6 +270,7 @@ export const UP = [
   },
   {
     id: 'abcd',
+    short: () => `${AB().name} recharges 25% faster`,
     cat: 'Skill',
     get name() {
       return AB().cdName;
@@ -259,6 +283,7 @@ export const UP = [
   },
   {
     id: 'abpow',
+    short: () => AB().upShort,
     cat: 'Skill',
     get name() {
       return AB().upName;
@@ -271,6 +296,7 @@ export const UP = [
   },
   {
     id: 'dash',
+    short: 'Roll recharges 25% faster',
     cat: 'Body',
     name: 'Cardio',
     desc: 'Dodge roll recharges 25% faster.',
@@ -281,6 +307,7 @@ export const UP = [
   },
   {
     id: 'magnet',
+    short: 'Pick up from 60% further',
     cat: 'Body',
     name: 'Long Reach',
     desc: 'Grab ammo and medkits from 60% further away.',
@@ -292,6 +319,7 @@ export const UP = [
   // the Field Manual: gear that only turns up in runs once a challenge has taught it to you (see the Armory)
   {
     id: 'wind',
+    short: 'Once a night: live on 30',
     cat: 'Body',
     name: 'Second Wind',
     lock: 'flawless3',
@@ -303,6 +331,7 @@ export const UP = [
   },
   {
     id: 'scav',
+    short: '+30% ammo drops',
     cat: 'Gear',
     name: 'Scavenger',
     lock: 'rescue5',
@@ -316,6 +345,7 @@ export const UP = [
 export const EVOS = [
   {
     id: 'inferno',
+    short: 'Fire burns 2× long, 50% hotter',
     name: 'Inferno',
     lock: 'boss1',
     need: { arc: 2, molotov: 2 },
@@ -327,6 +357,7 @@ export const EVOS = [
   // the guns' own combos: a gun from a case plus the gear that suits it
   {
     id: 'dtap',
+    short: 'Pistol fires two each shot',
     name: 'Double Tap',
     need: { crit: 2, rate: 1 },
     desc: 'Every pistol shot is two: a second round follows the first.',
@@ -336,6 +367,7 @@ export const EVOS = [
   },
   {
     id: 'hose',
+    short: 'SMG: +30% mag, +1 ricochet',
     name: 'Bullet Hose',
     need: { gun_smg: 1, bounce: 1 },
     desc: 'SMG magazines hold 30% more and every round ricochets once more.',
@@ -346,6 +378,7 @@ export const EVOS = [
   },
   {
     id: 'marks',
+    short: 'Rifle always braced, +15% crit',
     name: 'Marksman',
     need: { gun_rifle: 1, pierce: 2 },
     desc: 'The assault rifle is always braced, even on the move, and gets +15% critical chance.',
@@ -355,6 +388,7 @@ export const EVOS = [
   },
   {
     id: 'oneshot',
+    short: 'Hunting rifle: sure crits on the unaware',
     name: 'One Shot',
     need: { gun_hunter: 1, ambush: 1 },
     desc: "Hunting rifle rounds always crit on the dead that haven't seen you, are dazed or are down.",
@@ -364,6 +398,7 @@ export const EVOS = [
   },
   {
     id: 'cowboy',
+    short: 'Lever-action loads 2× fast',
     name: 'Cowboy Reload',
     need: { gun_lever: 1, reload: 2 },
     desc: 'The lever-action loads twice as fast.',
@@ -373,6 +408,7 @@ export const EVOS = [
   },
   {
     id: 'walkfire',
+    short: 'LMG: no slowdown, +15% rate',
     name: 'Walking Fire',
     need: { gun_lmg: 1, mags: 2 },
     desc: 'The machine gun no longer slows you while it fires, and fires 15% faster.',
@@ -382,6 +418,7 @@ export const EVOS = [
   },
   {
     id: 'airburst',
+    short: 'Grenades burst 40% wider',
     name: 'Airburst',
     need: { gun_launcher: 1, frag: 1 },
     desc: 'Grenades burst 40% wider.',
@@ -391,6 +428,7 @@ export const EVOS = [
   },
   {
     id: 'tempest',
+    short: 'Every hit burns, 2× long',
     name: "Dragon's Breath",
     need: { arc: 2, frag: 2 },
     desc: 'Every hit sets zombies on fire, and the fire burns twice as long.',
@@ -400,6 +438,7 @@ export const EVOS = [
   },
   {
     id: 'overclock',
+    short: '+25% rate and damage, +1 pierce',
     name: 'Gunsmith',
     need: { rate: 3, dmg: 3 },
     desc: '+25% fire rate and damage, and every round goes through one more zombie.',
@@ -411,6 +450,7 @@ export const EVOS = [
   },
   {
     id: 'nova',
+    short: 'Stuns every 2 s, and they heal',
     name: 'Combat Medic',
     need: { pulse: 2, regen: 2 },
     desc: 'Stun grenades go out every 2 s and heal 2 health per zombie they hit.',
@@ -421,6 +461,7 @@ export const EVOS = [
   },
   {
     id: 'swarm',
+    short: 'Bombs 2× often, backup 2× fast',
     name: 'Demolition Crew',
     need: { darts: 2, buddy: 2 },
     desc: 'Pipe bombs go out twice as often and your backup fires twice as fast.',
@@ -431,6 +472,7 @@ export const EVOS = [
   },
   {
     id: 'speedload',
+    short: 'Half-time reloads, heal 3',
     name: 'Speed Loader',
     need: { reload: 2, mags: 2 },
     desc: 'Reloads take half as long and every finished reload heals 3 health.',
@@ -441,6 +483,7 @@ export const EVOS = [
   },
   {
     id: 'storm',
+    short: 'Shotguns +20% damage, big knockback',
     name: 'Buck and Ball',
     need: { choke: 2, multi: 2 },
     desc: 'Shotguns hit 20% harder and knock zombies much further.',
@@ -499,6 +542,24 @@ function rollPicks() {
     GS.picks.push(pool.splice(k, 1)[0]);
   }
 }
+// a pick's icon, as a fresh canvas (the drawn ones are cached and shared, and a canvas can only sit in one place)
+export function pickIcon(u, s) {
+  const col = u.evo ? '#ffd87a' : '#f2ead8',
+    g = u.gun || (u.kit && KITS[u.kit] && KITS[u.kit].gun);
+  let src = null;
+  if (u.id === 'abcd' || u.id === 'abpow') src = perkIcon(AB().ico, s, col, u.id === 'abcd' ? 'cd' : 'up');
+  else if (PERK_ICONS.includes(u.id)) src = perkIcon(u.id, s, col);
+  else if (g) src = gunIcon(iconId(g), s * 2.2, s * 0.88, col);
+  if (!src) return null;
+  const cv = document.createElement('canvas');
+  cv.width = src.width;
+  cv.height = src.height;
+  cv.getContext('2d').drawImage(src, 0, 0);
+  cv.style.width = src.width / Math.min(2, window.devicePixelRatio || 1) + 'px';
+  cv.style.height = src.height / Math.min(2, window.devicePixelRatio || 1) + 'px';
+  return cv;
+}
+const txt = v => (typeof v === 'function' ? v() : v);
 export function renderPicks() {
   const box = $('cards');
   box.innerHTML = '';
@@ -509,19 +570,31 @@ export function renderPicks() {
     b.className = 'card' + (u.evo ? ' evo' : '');
     b.id = 'card' + i;
     const lv = LV[u.id] || 0;
-    const ds = typeof u.desc === 'function' ? u.desc() : u.desc,
+    const ds = txt(u.short) || txt(u.desc), // the one line; the full text is on hover and in the Pause screen
       cb = EVOS.find(v => !LV[v.id] && v.need[u.id] && (LV[u.id] || 0) < v.need[u.id]); // say which combo this card builds toward
     if (u.job) {
       b.className = 'card job' + (u.job === 'low' ? ' low' : '') + (FAVOURS.includes(u.job) ? ' fav' : '');
       b.innerHTML = `<span class="k"><span>${i + 1} · ${u.cat}</span><em>${u.risk}</em></span><span class="nm">${u.name}</span><span class="ds">${u.desc}</span><span class="need pay">Pays · ${u.pay}</span>`;
     } else
-      b.innerHTML = `<span class="k"><span>${i + 1} · ${u.cat}</span><em>${u.evo ? 'Ready' : lv ? `Rank ${lv + 1}/${u.max}` : 'New'}</em></span><span class="nm">${u.name}</span>${
+      b.innerHTML = `<span class="k"><span>${i + 1} · ${u.cat}</span><em>${u.evo ? 'Ready' : lv ? `Rank ${lv + 1}/${u.max}` : 'New'}</em></span><span class="hd"><i class="ico"></i><span class="nm">${u.name}</span></span>${
         u.evo
           ? `<span class="need">${Object.keys(u.need)
               .map(k => (k.startsWith('gun_') ? GUNS[k.slice(4)] : UP.find(x => x.id === k) || { name: k }).name)
               .join(' + ')}</span>`
           : ''
-      }<span class="ds">${ds}</span>${!u.evo && cb ? `<span class="need combo">Combo part · ${cb.name}</span>` : ''}${u.gun ? '' : `<span class="pips">${Array.from({ length: u.max }, (_, k) => `<i class="${k < lv ? 'on' : k === lv && !u.evo ? 'next' : u.evo ? 'on' : ''}"></i>`).join('')}</span>`}`;
+      }<span class="ds">${ds}</span>${!u.evo && cb ? `<span class="need combo"><i class="ci"></i>Combo part · ${cb.name}</span>` : ''}${u.gun ? '' : `<span class="pips">${Array.from({ length: u.max }, (_, k) => `<i class="${k < lv ? 'on' : k === lv && !u.evo ? 'next' : u.evo ? 'on' : ''}"></i>`).join('')}</span>`}`;
+    if (!u.job) {
+      const ic = pickIcon(u, u.gun || u.kit ? 30 : 52),
+        slot = b.querySelector('.ico');
+      if (ic) slot.appendChild(ic);
+      else slot.remove();
+      const ci = b.querySelector('.ci');
+      if (ci) {
+        const c2 = pickIcon(cb, 16);
+        if (c2) ci.appendChild(c2);
+      } // the combo it builds toward, in gold
+      if (u.short) b.title = txt(u.desc);
+    }
     b.addEventListener('click', () => choose(i));
     b.addEventListener('mouseenter', () => {
       markSel();
@@ -714,11 +787,20 @@ export function choose(i) {
   if (lvl && lvCan()) openLevel(); // more banked: the next set straight away, one stop for all of them
 }
 export function renderMods() {
-  $('mods').innerHTML =
-    EVOS.filter(u => LV[u.id])
-      .map(u => `<span style="background:rgba(255,207,58,.22);color:#ffe7a0">${u.name}</span>`)
-      .join('') +
-      UP.filter(u => LV[u.id])
-        .map(u => `<span>${u.name} ${LV[u.id]}</span>`)
-        .join('') || '<span class="none">Nothing picked up yet</span>';
+  // the Pause screen: every pick so far, its icon, its rank and the full text of what it does
+  const box = $('mods'),
+    list = [...EVOS.filter(u => LV[u.id]).map(u => Object.assign({ evo: true }, u)), ...UP.filter(u => LV[u.id])];
+  box.innerHTML = '';
+  if (!list.length) {
+    box.innerHTML = '<span class="none">Nothing picked up yet</span>';
+    return;
+  }
+  for (const u of list) {
+    const r = document.createElement('div');
+    r.className = 'mod' + (u.evo ? ' evo' : '');
+    r.innerHTML = `<i></i><b>${u.name}${u.evo || u.max <= 1 ? '' : ` <em>${LV[u.id]}/${u.max}</em>`}</b><span>${txt(u.desc)}</span>`;
+    const ic = pickIcon(u, 30);
+    if (ic) r.firstChild.appendChild(ic);
+    box.appendChild(r);
+  }
 }

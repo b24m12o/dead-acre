@@ -13,7 +13,7 @@ on:
         default: false
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest moved to 26.04, which Playwright 1.56 cannot install a browser on
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4

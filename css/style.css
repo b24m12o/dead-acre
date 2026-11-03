@@ -136,8 +136,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 #radio.show{opacity:var(--hf,1);transform:none}
 #radio b{color:#8ef0a0;font-weight:700;letter-spacing:.12em;margin-right:7px}
 .lastcall{margin:0;font-family:var(--font-mono);font-size:13px;line-height:1.5;color:#d6e4d0;background:rgba(142,240,160,.06);border-left:3px solid #8ef0a0;border-radius:6px;padding:9px 12px}.lastcall b{display:block;color:#8ef0a0;font-size:10px;letter-spacing:.16em;margin-bottom:3px}
-#pause #mods{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 4px;font-family:var(--font-mono);font-size:12px}
-#pause #mods span{padding:4px 8px}
+#pause #mods{margin:6px 0 4px}
+#pause #mods .mod span{padding:0}
 #pause #mods .none{color:var(--mute);background:none;padding:0}
 #pGuns{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:8px 0 6px;font-family:var(--font-mono);font-size:12px}
 #pGuns .g{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);min-width:0}
@@ -149,8 +149,6 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 #pGuns .next{grid-column:1/-1;color:var(--mute);font-size:11px}
 #dashBar i{background:rgba(242,234,216,.7)}
 #lv{color:var(--cream);font-weight:600;white-space:nowrap}
-#mods{display:flex;gap:5px;flex-wrap:wrap}
-#mods span{background:rgba(224,166,64,.18);color:#ffe2b0;padding:2px 6px;border-radius:4px}
 #hint{color:var(--mute)}
 .chal-intro{margin:4px 0 10px;color:#d3d7d4;line-height:1.5;max-width:66ch}
 .tag{display:inline-block;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:4px}
@@ -390,3 +388,17 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 .gtrap img{height:14px;width:35px;object-fit:contain;opacity:.95}
 .gtrap .tk{color:var(--mute);font-size:10px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.08)}
 .gtrap .on{color:#1b0f06;background:#e8b25a;border-radius:5px;padding:1px 6px}
+/* gear picks: each card leads with its icon; the Pause screen lists every pick with its full text */
+.card .hd{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px}
+.card .hd .ico{display:grid;place-items:center;min-width:52px;height:52px}
+.card canvas,#mods canvas{position:static;inset:auto;display:block} /* not the full-screen rule the game canvases use */
+.card .need.combo{display:flex;align-items:center;gap:6px}
+.card .ci{display:inline-grid}
+#mods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;font-family:inherit;font-size:13px;max-height:38vh;overflow:auto}
+#mods .mod{display:grid;grid-template-columns:36px minmax(0,1fr);grid-template-rows:auto 1fr;column-gap:9px;row-gap:1px;align-items:start}
+#mods .mod i{grid-row:span 2;display:grid;place-items:center;width:36px;height:36px;background:rgba(255,255,255,.05);border-radius:7px}
+#mods .mod b{font-family:var(--font-display);font-style:italic;font-weight:700;color:var(--cream);font-size:14px;line-height:1.2}
+#mods .mod b em{font-style:normal;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--ember);margin-left:4px}
+#mods .mod span{color:#b9bdb8;font-family:var(--font-body);font-size:13px;line-height:1.3;background:none;padding:0;border-radius:0}
+#mods .mod.evo b{color:#ffe7a0}
+#mods .mod.evo i{background:rgba(255,207,58,.12)}

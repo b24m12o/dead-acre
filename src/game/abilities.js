@@ -15,6 +15,8 @@ import { makeNoise } from './noise.js';
 export const AB_DEF = {
   ranger: {
     name: 'Mortar strike',
+    ico: 'mortar', // its icon on the skill picks (src/ui/perk-icons.js)
+    upShort: '+2 rounds, +20% damage',
     cd: 26,
     desc: 'Calls three mortar rounds onto the cursor. They land after a second and a half.',
     up: 'Mortar strike fires 2 more rounds and hits 20% harder.',
@@ -23,6 +25,8 @@ export const AB_DEF = {
   },
   breacher: {
     name: 'Flashbang',
+    ico: 'flashbang', // its icon on the skill picks (src/ui/perk-icons.js)
+    upShort: '25% wider, +1 s stun',
     cd: 20,
     desc: 'Throws a big flashbang at the cursor. Everything near it is stunned for 2.5 s.',
     up: 'Flashbang reaches 25% wider and stuns 1 s longer.',
@@ -31,6 +35,8 @@ export const AB_DEF = {
   },
   grenadier: {
     name: 'Fan the hammer',
+    ico: 'fan', // its icon on the skill picks (src/ui/perk-icons.js)
+    upShort: '+3 shots',
     cd: 16,
     desc: 'Six fast revolver shots at everything in front of you, no ammo used.',
     up: 'Fan the hammer fires 3 more shots.',
@@ -42,6 +48,8 @@ export const AB_DEF = {
 export const AB_B = {
   ranger: {
     name: 'Claymore',
+    ico: 'claymore', // its icon on the skill picks (src/ui/perk-icons.js)
+    upShort: '25% wider, +1 set',
     cd: 16,
     desc: 'Plants a claymore at your feet, facing your aim. It blows when the dead walk into its front.',
     up: 'Claymores blast 25% wider and you can keep one more set.',
@@ -50,6 +58,8 @@ export const AB_B = {
   },
   breacher: {
     name: 'Road flare',
+    ico: 'flare', // its icon on the skill picks (src/ui/perk-icons.js)
+    upShort: '+4 s burn, pulls further',
     cd: 22,
     desc: 'Throws a road flare. For 8 s every zombie that sees it goes to it, and any that crowd it catch fire.',
     up: 'Flares burn 4 s longer and draw them from further off.',
@@ -58,6 +68,8 @@ export const AB_B = {
   },
   grenadier: {
     name: 'Dynamite',
+    ico: 'dynamite', // its icon on the skill picks (src/ui/perk-icons.js)
+    upShort: '25% wider, +20% damage',
     cd: 18,
     desc: 'Lobs a lit bundle of dynamite at the cursor. It goes off a second later, wide and hard.',
     up: 'Dynamite blasts 25% wider and hits 20% harder.',
