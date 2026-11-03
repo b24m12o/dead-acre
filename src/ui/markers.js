@@ -1,6 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2 } from '../core/util.js';
+import { hordeMasses } from '../game/horde.js';
 import { TS } from '../core/settings.js';
 import { ui } from '../render/gl.js';
 import { VH, VW, ZOOM, addLight, lineQ, quad, viewH, viewW } from '../render/sprites.js';
@@ -111,7 +112,7 @@ export function markerList() {
   if (GS.horde && !GS.horde.done)
     for (const c of cars) if (c.tanker && !c.dead) m.push({ x: c.x, y: c.y, col: '#ff9a4a', label: 'FUEL TANKER' }); // tonight it's a weapon
   if (GS.horde && !GS.horde.done && GS.horde.startT <= 0 && !GS.horde.alert && GS.horde.spawned)
-    m.push({ x: GS.horde.x, y: GS.horde.y, col: '#e8b25a', label: 'HORDE' }); // where the mass is while it roams
+    for (const g of hordeMasses()) m.push({ x: g.sx, y: g.sy, col: '#e8b25a', label: 'HORDE' }); // where each mass is while it roams
   if (GS.obj && !GS.obj.done) {
     if (GS.obj.type === 'gen') m.push({ x: GS.obj.x, y: GS.obj.y, col: '#ffe08a', label: 'GENERATOR' });
     if (GS.obj.type === 'siege' && !GS.obj.sealed) {

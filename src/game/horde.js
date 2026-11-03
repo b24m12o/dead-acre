@@ -278,23 +278,18 @@ export function tickHorde(dt) {
     H.reT = 10;
     sfx.rumble(H.x, H.y);
   } // all of it is here: it moves off
-  let cx = 0,
-    cy = 0,
-    m = 0;
+  let m = 0;
+  const G = H.ents.map(() => ({ x: 0, y: 0, n: 0, pts: [] }));
   for (const e of GS.enemies)
     if (e.horde && !e.dead) {
       m++;
-      cx += e.x;
-      cy += e.y;
+      if (!(e.aw > 0) || !H.moving) G[Math.min(G.length - 1, e.gi || 0)].pts.push(e); // the ones still with their mass: a few peeled off after you don't drag the marker
       if (H.alert) e.aw = Math.max(e.aw || 0, 3);
       else if (!e.lure && !(e.aw > 0))
         e.lure = H.moving ? H.lure : H.gather[e.gi || 0]; // a clock rang out and stopped: back on the route
       else if (!(e.lure && e.lure.horde) && e.aw > 0) H.woke = (H.woke || 0) + 1; // a shot or a glimpse of you pulled this one off the route
     }
-  if (m) {
-    H.x = cx / m;
-    H.y = cy / m;
-  } // where the mass is now: its middle
+  massAt(H, G, dt); // where each mass is now: the middle of its main body
   if (!H.alert && H.moving) {
     H.roamT += dt;
     H.reT -= dt;
@@ -321,6 +316,72 @@ export function tickHorde(dt) {
   if (!H.alert && (H.woke || 0) >= 3) alertAll(H); // three of them have you: it all comes
   H.woke = 0;
   hordeBox(true);
+}
+// The middle of each mass, from the bulk of it: the mean, then again over the ones near that mean, so stragglers and
+// the odd one cut off down a side street don't pull it about. The point the marker shows is eased toward it, so the label
+// glides with the mass instead of jittering as zombies fall, spawn and shuffle. Two masses are two markers until they meet.
+function massAt(H, G, dt) {
+  const prev = H.grp || [];
+  H.grp = G.map((g, i) => {
+    const P = g.pts;
+    if (!P.length) return { n: 0, x: 0, y: 0 };
+    let x = 0,
+      y = 0;
+    for (const e of P) {
+      x += e.x;
+      y += e.y;
+    }
+    x /= P.length;
+    y /= P.length;
+    for (let it = 0; it < 2; it++) {
+      const r = it ? 260 : 420;
+      let sx = 0,
+        sy = 0,
+        k = 0;
+      for (const e of P)
+        if (d2(e.x, e.y, x, y) < r * r) {
+          sx += e.x;
+          sy += e.y;
+          k++;
+        }
+      if (k >= Math.max(3, P.length * 0.25)) {
+        x = sx / k;
+        y = sy / k;
+      }
+    }
+    const o = prev[i];
+    if (o && o.n) {
+      const f = Math.min(1, dt * 1.6);
+      return { n: P.length, x, y, sx: o.sx + (x - o.sx) * f, sy: o.sy + (y - o.sy) * f };
+    }
+    return { n: P.length, x, y, sx: x, sy: y };
+  });
+  let big = null;
+  for (const g of H.grp) if (g.n && (!big || g.n > big.n)) big = g;
+  if (big) {
+    H.x = big.x;
+    H.y = big.y;
+  } // the route and the rumble go by the bigger mass
+  if (
+    H.grp.length > 1 &&
+    H.grp[0].n &&
+    H.grp[1].n &&
+    d2(H.grp[0].sx, H.grp[0].sy, H.grp[1].sx, H.grp[1].sy) < 380 * 380
+  ) {
+    const [a, b] = H.grp,
+      n = a.n + b.n;
+    a.sx = (a.sx * a.n + b.sx * b.n) / n;
+    a.sy = (a.sy * a.n + b.sy * b.n) / n;
+    a.n = n;
+    b.n = 0;
+  } // met up: one mass, one marker
+}
+// where to put a HORDE marker: each mass big enough to matter
+export function hordeMasses() {
+  const H = GS.horde;
+  if (!H || !H.grp) return [];
+  const tot = H.grp.reduce((a, g) => a + (g.n || 0), 0);
+  return H.grp.filter(g => g.n >= Math.max(6, tot * 0.15));
 }
 export function endHorde() {
   GS.horde = null;
