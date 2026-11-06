@@ -36,6 +36,7 @@ import {
 import { startPractice } from '../game/practice.js';
 import { menuInit, renderChallenges, renderDistricts } from './menu.js';
 import { keysIn } from '../core/binds.js';
+import { JOBS_J } from '../game/route.js';
 const AB_COST = 300; // a second ability, per character
 export function renderHeroes() {
   $('heroes').innerHTML = Object.entries(HEROES)
@@ -275,7 +276,8 @@ export function begin() {
   } // Horde Mode: wave after wave of hordes, no evac
   GS.RUN.abB = abPickB(GS.RUN.hero);
   if (!GS.RUN.practice) clearSave(); // a new run replaces whatever was saved
-  GS.RUN.jobN = [3, 7, 12, pick([9, 13])];
+  GS.RUN.jobN = camp ? JOBS_J.slice() : [3, 7, 12, pick([9, 13])];
+  if (camp) GS.RUN.stop = 0; // Main Street, Dead Acre
   {
     const sh = a => {
       for (let i = a.length - 1; i > 0; i--) {

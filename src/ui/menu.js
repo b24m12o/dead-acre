@@ -33,7 +33,7 @@ export function renderDistricts() {
     $('distWrap').hidden = camp;
     $('survTitle').textContent = camp ? 'The road out' : 'Pick your ground';
     $('modeDesc').innerHTML = camp
-      ? '<b>Dead Acre</b>, then <b>Route 9</b>, then <b>Hollow Hill</b>: five nights in each, and after each boss a truck to the next. Your gear, guns and people go with you.'
+      ? 'Eight stops on the road from <b>Dead Acre</b> to the <b>County Hospital</b>: walk on to some, ride a convoy truck to others. Five bosses on the way. Your gear, guns and people go with you.'
       : 'All fifteen nights in one place you pick. A place opens here once you reach it in the campaign.';
   } // the campaign takes you down the road; one location keeps you in the one you pick
   $('districts').innerHTML = Object.entries(DISTRICTS)

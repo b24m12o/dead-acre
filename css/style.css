@@ -422,14 +422,18 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 
 /* the travel card between the places of the campaign: the road so far and the truck on it */
 #route{background:rgba(8,10,12,.82)}
-#route .panel.narrow{width:min(560px,100%)}
-#route .road{position:relative;height:58px;margin:10px 44px 4px}
-#route .road::before{content:'';position:absolute;left:0;right:0;top:7px;border-top:2px dashed rgba(207,214,217,.28)}
-#route .stop{position:absolute;top:0;transform:translateX(-50%);display:grid;justify-items:center;gap:9px;white-space:nowrap;font:600 11px "JetBrains Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:#7d878d}
+#route .panel.narrow{width:min(620px,100%)}
+#route .road{position:relative;height:66px;margin:6px 34px 0}
+#route .road::before{content:'';position:absolute;left:0;right:0;top:30px;border-top:2px dashed rgba(207,214,217,.28)}
+#route .stop{position:absolute;top:23px;transform:translateX(-50%);display:grid;justify-items:center;gap:8px;white-space:nowrap;font:600 10px "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:#7d878d}
+#route .stop.lo{top:2px}#route .stop.lo i{order:2}
 #route .stop i{width:12px;height:12px;border-radius:50%;background:#262c32;border:2px solid #59636a}
 #route .stop.done{color:#a9d9bf}#route .stop.done i{background:#8ef0b8;border-color:#8ef0b8}
 #route .stop.next{color:#ffd08a}#route .stop.next i{border-color:#ffd08a;box-shadow:0 0 0 5px rgba(255,208,138,.14)}
-#route .van{position:absolute;top:2px;width:22px;height:11px;margin-left:-11px;border-radius:3px;background:#c9d49a;box-shadow:0 0 12px rgba(216,228,168,.45);left:calc(var(--from) * 50%);transition:left 3.2s cubic-bezier(.45,0,.3,1) .5s}
-#route.go .van{left:calc(var(--to) * 50%)}
+#route .van{position:absolute;top:25px;width:22px;height:11px;margin-left:-11px;border-radius:3px;background:#c9d49a;box-shadow:0 0 12px rgba(216,228,168,.45);left:calc(var(--from) * 100%);transition:left 3.2s cubic-bezier(.45,0,.3,1) .5s}
+#route.go .van{left:calc(var(--to) * 100%)}
+/* the walk from one place into the next */
+#fade{position:fixed;inset:0;background:#07090b;opacity:0;pointer-events:none;transition:opacity .45s ease;z-index:40}
+#fade.on{opacity:1}
 #distWrap{display:grid;gap:12px}
 #survSetup>.panel{width:min(660px,calc(100vw - 32px))}

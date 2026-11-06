@@ -6,12 +6,21 @@ import { viewH, viewW } from '../render/sprites.js';
 import { TILE, WH, WW, isWall } from '../world/map.js';
 import { cam } from './state.js';
 import { FINAL_NIGHT, INF, TW } from './districts.js';
-export const bossNight = w => !(GS.RUN && GS.RUN.hm) && w % 5 === 0; // Horde Mode has no bosses: the hordes are the bosses
+import { BOSS_J } from './route.js';
+export const bossNight = w =>
+  !(GS.RUN && GS.RUN.hm) && (GS.RUN && GS.RUN.journey && !GS.RUN.practice ? !!BOSS_J[w] : w % 5 === 0); // Horde Mode has no bosses: the hordes are the bosses; the campaign has one at most of its stops (route.js)
+// nights since the last boss (0 the night after one, up to 4): the dead come faster as the next one nears
+export const sinceBoss = w => {
+  if (!(GS.RUN && GS.RUN.journey && !GS.RUN.practice)) return (w - 1) % 5;
+  let k = 0;
+  for (let i = w - 1; i >= 1 && !bossNight(i) && k < 4; i--) k++;
+  return k;
+};
 export const lastNight = w => !GS.RUN.endless && w === FINAL_NIGHT; // endless: Horde Mode's runs, which have no last night
 export function buildWave(w) {
   const q = [];
   let n = Math.round(9 + Math.min(w, 8) * 5 + Math.max(0, w - 8) * 3);
-  if (w > 5 && (w - 1) % 5 === 0) n = Math.round(n * 0.8); // the night after a boss is a lighter one
+  if (w > 1 && bossNight(w - 1)) n = Math.round(n * 0.8); // the night after a boss is a lighter one
   const T = [['skitter', 6]];
   const Dn = GS.RUN.district;
   if (w >= 2) T.push(['hopper', 0.9], ['wasp', 1.2 * (INF(8) ? 1.8 : 1)]);

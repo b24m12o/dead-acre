@@ -1,33 +1,97 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// The campaign: fifteen nights on the road, five in each place. Dead Acre first, where you keep relay 9 on the air
-// for the convoy; then Route 9, holding the road behind the trucks; then Hollow Hill, where the chopper can land at
-// the hospital. After the boss at the end of a leg the dawn doesn't run out: a convoy truck pulls up, and you walk
-// to it (the dead that heard the fight start drifting in) and climb aboard. The run goes with you, gear, guns,
-// survivors and all, and the next dawn starts in the new place.
+// The campaign: fifteen nights on the road from Dead Acre to the County Hospital, a night or a few at each stop
+// (route.js). When it's time to move on, the dawn doesn't run out. Either the road out is marked at the edge of
+// the map and you walk it, coming in on the same road at the next place; or a convoy truck pulls up, you climb
+// into the back, and you ride the mounted gun across the map while the dead come at it. The dead that heard the
+// night's fight drift in while you make your way out. The whole run goes with you: gear, guns, ammo, traps, your
+// people and your level.
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
-import { TAU, clamp, d2, rand } from '../core/util.js';
-import { MW, RY, TILE, WW, isWall } from '../world/map.js';
-import { addLight } from '../render/sprites.js';
-import { tone, noise } from '../audio/audio.js';
+import { TAU, angDiff, clamp, d2, damp, rand } from '../core/util.js';
+import { MH, MW, ROAD, RY, TILE, WH, WW, isWall } from '../world/map.js';
+import { ZOOM, addLight, viewH, viewW } from '../render/sprites.js';
+import { R } from '../render/atlas.js';
+import { noise, playS, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
-import { floatText } from '../render/effects.js';
+import { dust, floatText } from '../render/effects.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { freeSpot } from '../actors/backups.js';
-import { DISTRICTS } from './districts.js';
+import { mouse } from '../core/input.js';
+import { cam } from './state.js';
+import { hurtEnemy } from './combat.js';
+import { query } from '../world/nav.js';
+import { STOPS, stopAt } from './route.js';
 
-export const LEGS = ['town', 'highway', 'cemetery'];
-export const LEG_NIGHTS = 5;
 export const journeyOn = () => !!(GS.RUN && GS.RUN.journey && !GS.RUN.hm && !GS.RUN.practice);
-export const legOf = w => clamp(Math.floor((Math.max(1, w) - 1) / LEG_NIGHTS), 0, LEGS.length - 1);
-// the dawn after this night is the one you leave on
-export const legEnd = w => journeyOn() && w % LEG_NIGHTS === 0 && legOf(w) < LEGS.length - 1;
-export const nextPlace = () => DISTRICTS[LEGS[legOf(GS.wave) + 1]];
+export const stopNow = () => (GS.RUN && Number.isInteger(GS.RUN.stop) ? GS.RUN.stop : stopAt(GS.wave + 1));
+// how you leave after this night, if this is the place's last one: 'foot' or 'truck'
+export const leaveAfter = w => {
+  if (!journeyOn()) return null;
+  const s = STOPS[stopNow()];
+  return s && s.to === w && s.leave ? s.leave : null;
+};
+export const nextStop = () => STOPS[Math.min(STOPS.length - 1, stopNow() + 1)];
 
-// ---- the truck ----
 const TL = 118,
   TW_ = 44; // the box truck's length and width, as the parked ones on the map
+const lo = () => 5 * TILE,
+  hi = () => (MW - 5) * TILE; // the map's inner edge (as functions: this module loads before the map's sizes do)
+const open = (x, y) => {
+  const tx = Math.floor(x / TILE),
+    ty = Math.floor(y / TILE);
+  return tx > 1 && ty > 1 && tx < MW - 2 && ty < MH - 2 && !isWall(tx, ty);
+};
+const roomy = (x, y, r = 16) => open(x, y) && open(x + r, y) && open(x - r, y) && open(x, y + r) && open(x, y - r);
+// a spot near one edge of the map: on the main road if there is one, else the open ground nearest the middle
+// of that edge. side 1 is east, -1 west
+function edgeSpot(side) {
+  const xs = [];
+  for (let k = 0; k < 12; k++) xs.push(side > 0 ? hi() - k * TILE : lo() + k * TILE);
+  if (RY && RY.includes(30)) for (const x of xs) if (roomy(x, 30.5 * TILE, 18)) return [x, 30.5 * TILE];
+  for (const x of xs)
+    for (let d = 0; d < 20; d++)
+      for (const sg of [1, -1]) {
+        const y = WH / 2 + sg * d * TILE;
+        if (roomy(x, y, 18)) return [x, y];
+      }
+  return null;
+}
+// ---- the dead that heard the fight: a few drift in while you head out, more the longer you take ----
+function stragglers(J, dt) {
+  J.strT = (J.strT ?? 9) - dt;
+  J.str = J.str || 0;
+  if (J.strT > 0 || J.str >= 10) return;
+  J.strT = Math.max(1.6, 4.2 - J.str * 0.25);
+  J.str++;
+  const [x, y] = freeSpot(560, 900, true),
+    e = makeEnemy(Math.random() < 0.8 ? 'skitter' : 'hound', x, y);
+  e.emerge = 1;
+  e.aw = 6;
+}
+
+// ---- on foot: the road out, marked at the east edge ----
+export function markRoadOut() {
+  const sp = edgeSpot(1) || freeSpot(500, 800);
+  GS.roadOut = { x: sp[0], y: sp[1], t: 0 };
+  showStreak('The road out', `${nextStop().name} is up the road · walk east to the marker`, true);
+}
+export function roadOutLive() {
+  return !!(GS.roadOut && !GS.roadOut.gone);
+}
+function tickRoadOut(dt, onLeave) {
+  const O = GS.roadOut,
+    P = GS.P;
+  O.t += dt;
+  if (P.hp > 0 && d2(P.x, P.y, O.x, O.y) < 70 * 70) {
+    O.gone = true;
+    onLeave('foot');
+    return;
+  }
+  stragglers(O, dt);
+}
+
+// ---- the truck ----
 export function truckLive() {
   return !!(GS.truck && !GS.truck.gone);
 }
@@ -39,8 +103,6 @@ export function callTruck(now = false) {
   let t = null;
   if (row !== null) {
     const y = (row + 0.5) * TILE,
-      lo = 5 * TILE,
-      hi = (MW - 5) * TILE,
       clear = (x0, x1) => {
         const a = clamp(Math.min(x0, x1), TILE / 2, WW - TILE / 2),
           b = clamp(Math.max(x0, x1), TILE / 2, WW - TILE / 2);
@@ -50,10 +112,10 @@ export function callTruck(now = false) {
       }; // the lane from the map's edge to the spot, inside the map
     for (const side of P.x < WW / 2 ? [1, -1] : [-1, 1]) {
       const edge = side > 0 ? (MW - 4.5) * TILE : 4.5 * TILE; // in from just inside the map's edge, well off screen
-      let stop = clamp(P.x + side * rand(440, 560), lo, hi);
+      let stop = clamp(P.x + side * rand(440, 560), lo(), hi());
       if (Math.abs(stop - P.x) < 300) continue;
-      while (stop > lo && stop < hi && !clear(edge, stop - side * (TL / 2 + 10))) stop += side * TILE; // something on the road: pull up on the near side of it
-      if (stop <= lo || stop >= hi || !clear(edge, stop - side * (TL / 2 + 10))) continue;
+      while (stop > lo() && stop < hi() && !clear(edge, stop - side * (TL / 2 + 10))) stop += side * TILE; // something on the road: pull up on the near side of it
+      if (stop <= lo() || stop >= hi() || !clear(edge, stop - side * (TL / 2 + 10))) continue;
       t = { x: now ? stop : edge, y, a: side > 0 ? Math.PI : 0, stopX: stop, v: now ? 0 : 260, drive: !now };
       break;
     }
@@ -71,8 +133,6 @@ export function callTruck(now = false) {
     col: '#7a8466',
     t: 0,
     board: 0,
-    strT: 9,
-    str: 0,
     honked: now,
   });
   if (now) GS.truck.parked = true;
@@ -84,10 +144,14 @@ function honk(k = 1) {
   tone(196, 0.3, 'sawtooth', 0.04 * k, 1, 0.55, 900);
   tone(247, 0.3, 'sawtooth', 0.03 * k, 1, 0.55, 900);
 } // a tired two-tone horn, twice
-export function tickTruck(dt, onBoard) {
+function diesel(T, P, dt, k = 1) {
+  if ((T.engT = (T.engT || 0) - dt) > 0) return;
+  T.engT = 0.18;
+  noise(0.22, 0.02 * k * clamp(1 - Math.hypot(T.x - P.x, T.y - P.y) / 1400, 0, 1), 140, 90, 'lowpass');
+}
+function tickTruck(dt) {
   const T = GS.truck,
     P = GS.P;
-  if (!T || T.gone || !P) return;
   T.t += dt;
   if (T.drive) {
     const left = (T.stopX - T.x) * Math.cos(T.a);
@@ -99,15 +163,12 @@ export function tickTruck(dt, onBoard) {
       T.parked = true;
       T.v = 0;
     }
-    if ((T.engT = (T.engT || 0) - dt) <= 0) {
-      T.engT = 0.18;
-      noise(0.22, 0.02 * clamp(1 - Math.hypot(T.x - P.x, T.y - P.y) / 1400, 0, 1), 140, 90, 'lowpass');
-    } // the diesel, as it comes up the road
+    diesel(T, P, dt);
   }
   if (T.parked && !T.honked) {
     T.honked = true;
     honk();
-    showStreak('The truck is here', `${nextPlace().name} is next · walk to it to climb aboard`, true);
+    showStreak('The truck is here', `${nextStop().name} is next · walk to it to climb aboard`, true);
   }
   // you can't walk through it
   {
@@ -132,66 +193,307 @@ export function tickTruck(dt, onBoard) {
     const near = d2(P.x, P.y, T.x, T.y) < (TL / 2 + 46) ** 2 && P.hp > 0 && !(P.dashT > 0);
     T.board = near ? T.board + dt : Math.max(0, T.board - dt * 2);
     if (T.board >= 1.1) {
-      T.gone = true;
       sfx.ammo();
       floatText(P.x, P.y - 44, 'Aboard', '#8ef0b8', 16);
-      onBoard();
+      startRide(T);
       return;
     }
-    // the dead heard the fight: a few drift in while you make for the truck, more the longer you take
-    T.strT -= dt;
-    if (T.strT <= 0 && T.str < 10) {
-      T.strT = Math.max(1.6, 4.2 - T.str * 0.25);
-      T.str++;
-      const [x, y] = freeSpot(560, 900, true),
-        e = makeEnemy(Math.random() < 0.8 ? 'skitter' : 'hound', x, y);
-      e.emerge = 1;
-      e.aw = 6;
-    }
+    stragglers(T, dt);
   }
 }
-// where it is for the off-screen marker, and how far boarding has got
-export function truckMarker() {
-  const T = GS.truck;
-  return T && !T.gone ? { x: T.x, y: T.y, board: T.board / 1.1 } : null;
+
+// ---- the ride: the truck drives on across the map and out, and you're on the gun in the back ----
+const RIDE_V = 100;
+// the way out over open ground, keeping to the road where there is one: cheapest path from the truck to the far
+// edge, then rounded off so the truck takes the corners in curves
+function ridePath(T) {
+  const side = T.x > WW / 2 ? -1 : 1,
+    N = MW * MH,
+    cost = new Float32Array(N).fill(1e9),
+    from = new Int32Array(N).fill(-1),
+    done = new Uint8Array(N),
+    s0 = Math.floor(T.y / TILE) * MW + Math.floor(T.x / TILE),
+    goal = i => (side > 0 ? i % MW >= MW - 6 : i % MW <= 5),
+    step = i => {
+      const tx = i % MW,
+        ty = (i / MW) | 0;
+      if (isWall(tx, ty)) return 1e9;
+      let near = 0;
+      for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) if (isWall(tx + k, ty + j)) near++;
+      return 1 + near * 1.6 + (ROAD && ROAD[i] ? 0 : 1.2);
+    };
+  cost[s0] = 0;
+  let end = -1;
+  const heap = [s0];
+  while (heap.length) {
+    let bi = 0;
+    for (let k = 1; k < heap.length; k++) if (cost[heap[k]] < cost[heap[bi]]) bi = k;
+    const i = heap[bi];
+    heap[bi] = heap[heap.length - 1];
+    heap.pop();
+    if (done[i]) continue;
+    done[i] = 1;
+    if (goal(i) && i !== s0) {
+      end = i;
+      break;
+    }
+    const tx = i % MW,
+      ty = (i / MW) | 0;
+    for (const [ox, oy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
+      const nx = tx + ox,
+        ny = ty + oy;
+      if (nx < 2 || ny < 2 || nx >= MW - 2 || ny >= MH - 2) continue;
+      const j = ny * MW + nx,
+        c = cost[i] + step(j);
+      if (c < cost[j]) {
+        cost[j] = c;
+        from[j] = i;
+        heap.push(j);
+      }
+    }
+  }
+  let pts = [];
+  if (end >= 0)
+    for (let i = end; i >= 0; i = from[i]) pts.push([(i % MW) * TILE + TILE / 2, ((i / MW) | 0) * TILE + TILE / 2]);
+  pts.reverse();
+  if (pts.length < 4)
+    pts = [
+      [T.x, T.y],
+      [T.x + Math.cos(T.a) * 600, T.y + Math.sin(T.a) * 600],
+    ]; // nowhere to go: straight on
+  pts[0] = [T.x, T.y];
+  for (let it = 0; it < 3; it++) {
+    const q = [pts[0]];
+    for (let k = 0; k < pts.length - 1; k++) {
+      const [ax, ay] = pts[k],
+        [bx, by] = pts[k + 1];
+      q.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25], [ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+    }
+    q.push(pts[pts.length - 1]);
+    pts = q;
+  } // corner-cutting smooths the tile path into curves
+  const L = [0];
+  for (let k = 1; k < pts.length; k++)
+    L.push(L[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]));
+  return { pts, L, len: L[L.length - 1] };
 }
-export function truckLights() {
-  const T = GS.truck;
-  if (!T || T.gone) return;
-  const c = Math.cos(T.a),
-    s = Math.sin(T.a),
-    fx = T.x + c * (TL / 2 + 8),
-    fy = T.y + s * (TL / 2 + 8);
-  addLight(fx, fy, 520, 1.0, 0.95, 0.8, T.a, 0.55); // headlights down the road
-  const bx = T.x - c * (TL / 2 + 2),
-    by = T.y - s * (TL / 2 + 2),
-    k = T.parked ? 0.55 + 0.45 * (Math.sin(GS.time * 5) > 0 ? 1 : 0) : 0.8;
-  addLight(bx, by, 150, 1.1 * k, 0.55 * k, 0.12 * k); // the hazards blinking at the back, where you climb in
+function along(Rp, s) {
+  s = clamp(s, 0, Rp.len);
+  let k = 1;
+  while (k < Rp.L.length - 1 && Rp.L[k] < s) k++;
+  const [ax, ay] = Rp.pts[k - 1],
+    [bx, by] = Rp.pts[k],
+    f = (s - Rp.L[k - 1]) / Math.max(1e-6, Rp.L[k] - Rp.L[k - 1]);
+  return [ax + (bx - ax) * f, ay + (by - ay) * f, Math.atan2(by - ay, bx - ax)];
 }
-export function clearTruck() {
+function startRide(T) {
+  const P = GS.P;
+  T.ride = { t: 0, s: 0, path: ridePath(T), heat: 0, over: 0, cd: 0, spawnT: 1.5, kills0: GS.kills };
+  T.parked = false;
+  T.bud = GS.buddies; // your people are in the cab
+  GS.buddies = [];
+  P.ride = 'truck';
+  P.inv = 1e9;
+  P.vx = P.vy = 0;
+  honk(0.6);
+  showStreak('On the gun', 'Hold click to fire where you aim · let it cool when it glows', true);
+}
+export const riding = () => !!(GS.truck && GS.truck.ride && !GS.truck.gone);
+function tickRide(dt, onLeave) {
+  const T = GS.truck,
+    r = T.ride,
+    P = GS.P;
+  r.t += dt;
+  const v = RIDE_V * clamp(r.t / 2.5, 0, 1) * (r.s > r.path.len - 160 ? 0.7 : 1);
+  r.s += v * dt;
+  const [x, y, a] = along(r.path, r.s);
+  T.x = x;
+  T.y = y;
+  T.a += angDiff(T.a, a) * damp(2.4, dt);
+  diesel(T, P, dt, 1.6);
+  // whatever stands in the road ahead goes under the bumper or is thrown aside
+  if (v > 30) {
+    const fx = T.x + Math.cos(T.a) * (TL / 2 - 6),
+      fy = T.y + Math.sin(T.a) * (TL / 2 - 6);
+    query(fx, fy, 46, z => {
+      if (z.dead || z.dying !== undefined || z.type === 'queen' || (z.ramT || 0) > GS.time) return;
+      if (d2(z.x, z.y, fx, fy) > 46 * 46) return;
+      z.ramT = GS.time + 0.5;
+      hurtEnemy(z, 160 + 10 * GS.wave, false, Math.cos(T.a), Math.sin(T.a), 3.2, 'truck');
+      if (thr('ram', 90)) sfx.crate(z.x, z.y); // the thump of it
+    });
+  }
+  // you ride in the bed, behind the cab
+  P.x = T.x - Math.cos(T.a) * 30;
+  P.y = T.y - Math.sin(T.a) * 30;
+  P.vx = Math.cos(T.a) * v;
+  P.vy = Math.sin(T.a) * v;
+  P.inv = 1e9;
+  P.hp = Math.max(P.hp, 1);
+  P.aimA = Math.atan2(cam.y + mouse.y / ZOOM - P.y, cam.x + mouse.x / ZOOM - P.x);
+  P.bodyA += angDiff(P.bodyA, P.aimA) * damp(10, dt);
+  mountedGun(r, P, dt);
+  // the dead come out of the side streets ahead of the truck, running
+  r.spawnT -= dt;
+  if (r.spawnT <= 0 && GS.enemies.length < 120 && r.s < r.path.len - 300) {
+    r.spawnT = 0.42;
+    const [ax, ay] = along(r.path, r.s + 380);
+    for (let k = 0; k < 30; k++) {
+      const aa = rand(0, TAU),
+        rr = rand(140, 380),
+        sx = ax + Math.cos(aa) * rr,
+        sy = ay + Math.sin(aa) * rr;
+      if (!roomy(sx, sy, 12)) continue;
+      const n = 2 + ((Math.random() * 2) | 0);
+      for (let i = 0; i < n; i++) {
+        const z = makeEnemy(Math.random() < 0.1 ? 'hound' : 'skitter', sx + rand(-14, 14), sy + rand(-14, 14));
+        z.emerge = 0.6;
+        z.aw = 9;
+        if (Math.random() < 0.55) {
+          z.run = true;
+          z.sp *= 1.8;
+        }
+      }
+      dust(sx, sy, 4, 50, 1, 1);
+      break;
+    }
+  }
+  if (r.s >= r.path.len - 1) {
+    T.gone = true;
+    P.ride = false;
+    GS.buddies = T.bud || [];
+    const k = GS.kills - r.kills0;
+    if (k) floatText(P.x, P.y - 50, `${k} from the back of the truck`, '#ffd08a', 15);
+    onLeave('truck');
+  }
+}
+// the gun in the truck bed: where you aim, while you hold it, until it overheats
+function mountedGun(r, P, dt) {
+  r.cd -= dt;
+  if (r.over > 0) {
+    r.over -= dt;
+    r.heat = Math.max(0, r.heat - dt * 0.7);
+    if (r.over <= 0) r.heat = 0.35;
+  } else if (!mouse.down) r.heat = Math.max(0, r.heat - dt * 0.55);
+  if (!mouse.down || r.over > 0 || r.cd > 0 || r.t < 1.2) return;
+  r.cd = 0.08;
+  r.heat += 0.026;
+  const c = Math.cos(P.aimA),
+    s = Math.sin(P.aimA),
+    sp = 0.03 + r.heat * 0.09,
+    a = P.aimA + rand(-sp, sp);
+  GS.pbullets.push({
+    x: P.x + c * 30,
+    y: P.y + s * 30,
+    vx: Math.cos(a) * 1500,
+    vy: Math.sin(a) * 1500,
+    life: 0.6,
+    dmg: 40 + 2.5 * GS.wave,
+    pierce: 1,
+    bounce: 0,
+    hits: [],
+  });
+  GS.flashes.push({ x: P.x + c * 36, y: P.y + s * 36, rot: P.aimA, life: 0.05, max: 0.05, reg: R.mf_rifle, fs: 1 });
+  P.recoil = 4;
+  if (!playS('lmg', 0.36, 0.92, 0, 0.4)) noise(0.06, 0.12, 2200, 500, 'bandpass');
+  if (r.heat >= 1) {
+    r.over = 1.5;
+    noise(0.6, 0.08, 6000, 3000, 'highpass');
+    floatText(P.x, P.y - 60, 'Overheated', '#ff8a5a', 15);
+  } // the barrel glows and the gun locks up a moment
+}
+export function rideHeat() {
+  return riding() ? GS.truck.ride.heat : 0;
+}
+
+// one frame of whatever the journey has going: the truck coming, the ride, or the road out
+export function tickJourney(dt, onLeave) {
+  if (!GS.P) return;
+  if (riding()) tickRide(dt, onLeave);
+  else if (truckLive()) tickTruck(dt);
+  else if (roadOutLive()) tickRoadOut(dt, onLeave);
+}
+// where your way on is, for the markers, the radar and the boarding ring
+export function wayOut() {
+  const T = GS.truck;
+  if (T && !T.gone && !T.ride && T.parked) return { x: T.x, y: T.y, label: 'TRUCK', board: T.board / 1.1 };
+  if (roadOutLive()) return { x: GS.roadOut.x, y: GS.roadOut.y, label: 'ROAD OUT', board: 0 };
+  return null;
+}
+export function journeyLights() {
+  const T = GS.truck;
+  if (T && !T.gone) {
+    const c = Math.cos(T.a),
+      s = Math.sin(T.a),
+      fx = T.x + c * (TL / 2 + 8),
+      fy = T.y + s * (TL / 2 + 8);
+    addLight(fx, fy, 520, 1.0, 0.95, 0.8, T.a, 0.55); // headlights down the road
+    const bx = T.x - c * (TL / 2 + 2),
+      by = T.y - s * (TL / 2 + 2),
+      k = T.parked ? 0.55 + 0.45 * (Math.sin(GS.time * 5) > 0 ? 1 : 0) : 0.8;
+    addLight(bx, by, 150, 1.1 * k, 0.55 * k, 0.12 * k); // the hazards blinking at the back, where you climb in
+  }
+  if (roadOutLive()) {
+    const O = GS.roadOut,
+      f = 0.8 + Math.sin(GS.time * 13) * 0.1 + Math.sin(GS.time * 5.1) * 0.1;
+    addLight(O.x, O.y, 240 * f, 1.3 * f, 0.35 * f, 0.18 * f); // a road flare where the road leaves
+  }
+}
+export function clearJourney() {
   GS.truck = null;
+  GS.roadOut = null;
 }
-// the travel card: the road so far, the stop ahead, what the radio says
+// where you come in at a new place: at its west edge, on the road if there is one, your people with you
+export function placeArrival() {
+  const P = GS.P,
+    sp = edgeSpot(-1);
+  if (!sp) return;
+  P.x = sp[0];
+  P.y = sp[1];
+  P.moveA = P.bodyA = P.aimA = 0;
+  P.ant.x = P.x;
+  P.ant.y = P.y;
+  for (const q of P.scarf) {
+    q.x = q.px = P.x;
+    q.y = q.py = P.y;
+  }
+  GS.buddies.forEach((b, i) => {
+    b.x = P.x - 40 - i * 22;
+    b.y = P.y + (i % 2 ? -28 : 28);
+    b.slot = null;
+  });
+  cam.x = P.x - viewW / 2;
+  cam.y = P.y - viewH / 2;
+  cam.vx = cam.vy = 0;
+}
+
+// the travel card: the road so far, the stop ahead, what comes with you
 export function showRoute(onGo) {
   const el = $('route'),
-    from = legOf(GS.wave),
-    to = from + 1;
-  if (!el) return onGo();
+    to = stopNow(),
+    S = STOPS[to];
+  if (!el) return () => onGo();
   el.querySelector('.eyebrow').textContent = `Night ${GS.wave} survived · on the road`;
-  el.querySelector('h2').textContent = DISTRICTS[LEGS[to]].name;
-  el.querySelector('.rdesc').textContent = DISTRICTS[LEGS[to]].desc;
-  const stops = el.querySelectorAll('.stop');
-  stops.forEach((s, i) => {
-    s.classList.toggle('done', i < to);
-    s.classList.toggle('next', i === to);
-  });
+  el.querySelector('h2').textContent = S.name;
+  el.querySelector('.rdesc').textContent = S.desc;
+  const road = el.querySelector('.road');
+  road.innerHTML =
+    STOPS.map(
+      (s, i) =>
+        `<span class="stop${i < to ? ' done' : ''}${i === to ? ' next' : ''}${i % 2 ? ' lo' : ''}" style="left: ${(i / (STOPS.length - 1)) * 100}%"><i></i>${s.short}</span>`
+    ).join('') + '<b class="van"></b>';
   el.querySelector('.rcarry').textContent = [
     `${GS.P.owned.length} ${GS.P.owned.length === 1 ? 'gun' : 'guns'}`,
     GS.buddies.length ? `${GS.buddies.length} with you` : 'on your own',
     `level ${GS.level}`,
   ].join(' · '); // what comes with you
-  el.style.setProperty('--from', from);
-  el.style.setProperty('--to', to);
+  el.style.setProperty('--from', (to - 1) / (STOPS.length - 1));
+  el.style.setProperty('--to', to / (STOPS.length - 1));
   el.classList.remove('go');
   void el.offsetWidth;
   el.classList.add('go');
@@ -222,4 +524,9 @@ export function showRoute(onGo) {
     btn.disabled = false;
     btn.textContent = 'Climb out · Enter';
   }; // the caller says when the new place is laid out
+}
+// a quick fade to black and back, for the walk from one place into the next
+export function fade(on) {
+  const f = $('fade');
+  if (f) f.classList.toggle('on', on);
 }

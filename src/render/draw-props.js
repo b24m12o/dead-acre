@@ -308,7 +308,8 @@ export function drawCasters() {
     } // the moon's shadows: in a big crowd, the ones further off cast a soft blob, not every limb
     for (const e of L) push(e.y + (e.type === 'queen' ? 240 : 0), drawEnemy, e); // bosses tower over the cars and clutter they wade through
   }
-  if (GS.P && (GS.state !== 'over' || GS.P.down > 0) && !GS.NOHERO && !GS.P.ride) push(GS.P.y, drawRanger, GS.P); // aboard the chopper, you're up in its door; dead, you lie where you fell
+  if (GS.P && (GS.state !== 'over' || GS.P.down > 0) && !GS.NOHERO && !GS.P.ride) push(GS.P.y, drawRanger, GS.P);
+  else if (GS.P && GS.P.ride === 'truck' && GS.truck && !GS.NOHERO) push(carKey(GS.truck) + 1, drawRanger, GS.P); // standing in the truck bed, on the gun // aboard the chopper, you're up in its door; dead, you lie where you fell
   for (const s of rideCiv()) push(s.y, drawRanger, s);
   if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) push(GS.obj.y, drawGen, null);
   if (GS.obj && GS.obj.type === 'siege') {

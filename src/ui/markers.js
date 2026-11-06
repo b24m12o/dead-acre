@@ -17,7 +17,7 @@ import { rigTarget } from '../game/traps.js';
 import { siegePrompt } from '../game/siege.js';
 import { kn } from '../core/binds.js';
 import { mouse } from '../core/input.js';
-import { truckMarker } from '../game/journey.js';
+import { wayOut } from '../game/journey.js';
 export function drawObjectiveGlow() {
   if (GS.evac && !GS.evac.ride) {
     const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1); // once it is down, the ring fades so the chopper itself reads
@@ -109,9 +109,9 @@ export function markerList() {
   if (GS.RUN.sg && GS.RUN.sg.horde && GS.time < GS.RUN.sg.horde.t && GS.nightLive && !GS.nightDone)
     m.push({ x: GS.RUN.sg.horde.x, y: GS.RUN.sg.horde.y, col: '#ff8a6a', label: 'HORDE' });
   {
-    const T = truckMarker();
-    if (T && GS.truck.parked) m.push({ x: T.x, y: T.y, col: '#d8e4a8', label: 'TRUCK' });
-  } // your ride to the next place
+    const W = wayOut();
+    if (W) m.push({ x: W.x, y: W.y, col: '#d8e4a8', label: W.label });
+  } // the way on to the next place: the truck, or the road out
   if (GS.RUN.lz && !GS.evac && !GS.RUN.hm && GS.wave >= FINAL_NIGHT - 1)
     m.push({ x: GS.RUN.lz[0], y: GS.RUN.lz[1], col: '#8ef0a0', label: 'LANDING ZONE' }); // named at the last dawn
   if (GS.horde && !GS.horde.done)

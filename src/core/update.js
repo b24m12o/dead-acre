@@ -13,7 +13,7 @@ import { sfx } from '../audio/sfx.js';
 import { S, WHEEL, addAmmo, addAmmoType, ammoRoomFor, ammoRoomK, cam, gd, magSize, reloadTime } from '../game/state.js';
 import { lvCan, openLevel } from '../game/upgrades.js';
 import { makeElite, makeEnemy } from '../actors/enemies.js';
-import { bossNight, spawnPoint } from '../game/waves.js';
+import { bossNight, sinceBoss, spawnPoint } from '../game/waves.js';
 import { chips, decal, dust, floatText, glowBurst, part, pool, ring } from '../render/effects.js';
 import { bossOf, explode, hurtPlayer, makeLurker, makeShield, updateCrates } from '../game/combat.js';
 import { mouse, moveInput } from './input.js';
@@ -47,8 +47,8 @@ import { hordeLive, tickHorde } from '../game/horde.js';
 import { tickTraps } from '../game/traps.js';
 import { tickSpores } from '../actors/specials.js';
 import { SPECIAL, makeSpecial } from '../actors/specials.js';
-import { tickTruck } from '../game/journey.js';
-import { boardTruck } from '../game/night-flow.js';
+import { tickJourney } from '../game/journey.js';
+import { leaveStop } from '../game/night-flow.js';
 // Bodies shove each other apart, the lighter giving way. A fine grid of its own (cells as wide as two walkers) in flat
 // arrays: a horde of 400 packed round you is ~30 neighbours each to check, not ~120 through a callback
 const SEP = 40,
@@ -559,7 +559,7 @@ export function update(dt) {
     if (GS.spawnT <= 0) {
       GS.spawnT =
         Math.max(0.22, 1.0 - GS.wave * 0.05) *
-        (1 - 0.07 * ((GS.wave - 1) % 5)) *
+        (1 - 0.07 * sinceBoss(GS.wave)) *
         (SG && SG.horde ? 0.7 : 1) *
         (1 + clamp((GS.press || 0) - 0.25, 0, 0.6)) *
         ((GS.press || 0) < 0.03 ? 0.88 : 1) *
@@ -594,7 +594,7 @@ export function update(dt) {
           t !== 'queen' &&
           t !== 'flower' &&
           !ne.kind &&
-          Math.random() < (0.03 + GS.wave * 0.005 + 0.012 * ((GS.wave - 1) % 5)) * (INF(3) ? 2 : 1)
+          Math.random() < (0.03 + GS.wave * 0.005 + 0.012 * sinceBoss(GS.wave)) * (INF(3) ? 2 : 1)
         )
           makeElite(ne);
         if (mark && !i && ne) {
@@ -627,7 +627,7 @@ export function update(dt) {
     }
   }
   updateObjective(dt);
-  tickTruck(dt, boardTruck);
+  tickJourney(dt, leaveStop);
   if (GS.evac) updateEvac(dt);
   if (GS.RUN.tut) tutTick(dt);
   heliVolume();

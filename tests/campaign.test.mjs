@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// The long one (about 30 minutes): the bot plays the campaign's fifteen nights, unkillable, walking to the truck
-// after each place's boss, and must make the evac. It catches anything that stalls a night, breaks the evac, or throws during a whole run.
+// The long one (about 30 minutes): the bot plays the campaign's fifteen nights, unkillable, walking out of each
+// place on foot or to its truck, and must make the evac. It catches anything that stalls a night, breaks the evac, or throws during a whole run.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openGame, check, ROOT } from './lib/harness.mjs';
@@ -24,7 +24,7 @@ const RUN = String.raw`(()=>{
     if (GS.state === 'travel') { travelStep(); $('routeGo').click(); continue; } /* on the truck to the next place: straight off at the other end */
     if (GS.state !== 'play') break;
     if (GS.wave !== curW) { if (curW >= 0) close(); curW = GS.wave; startN(); }
-    __bot2(); const goal = GS.evac || (GS.truck && GS.truck.parked && !GS.truck.gone ? GS.truck : null); if (goal) { let gx = goal.x, gy = goal.y; { /* walk the flow field backwards from the landing zone: the path to it from here */ let cx = Math.floor(goal.x / TILE), cy = Math.floor(goal.y / TILE); const path = []; for (let k = 0; k < 400; k++) { path.push([cx, cy]); let best = flow[cy * MW + cx], bx = cx, by = cy; for (const [ox, oy] of N8) { const nx = cx + ox, ny = cy + oy; if (isWall(nx, ny) || (ox && oy && (isWall(cx + ox, cy) || isWall(cx, cy + oy)))) continue; const v = flow[ny * MW + nx]; if (v < best) { best = v; bx = nx; by = ny; } } if (bx === cx && by === cy) break; cx = bx; cy = by; } if (path.length > 3) { const w = path[Math.max(0, path.length - 3)]; gx = (w[0] + 0.5) * TILE; gy = (w[1] + 0.5) * TILE; } }
+    __bot2(); const goal = GS.evac || (GS.truck && GS.truck.parked && !GS.truck.gone ? GS.truck : GS.roadOut && !GS.roadOut.gone ? GS.roadOut : null); if (goal) { let gx = goal.x, gy = goal.y; { /* walk the flow field backwards from the landing zone: the path to it from here */ let cx = Math.floor(goal.x / TILE), cy = Math.floor(goal.y / TILE); const path = []; for (let k = 0; k < 400; k++) { path.push([cx, cy]); let best = flow[cy * MW + cx], bx = cx, by = cy; for (const [ox, oy] of N8) { const nx = cx + ox, ny = cy + oy; if (isWall(nx, ny) || (ox && oy && (isWall(cx + ox, cy) || isWall(cx, cy + oy)))) continue; const v = flow[ny * MW + nx]; if (v < best) { best = v; bx = nx; by = ny; } } if (bx === cx && by === cy) break; cx = bx; cy = by; } if (path.length > 3) { const w = path[Math.max(0, path.length - 3)]; gx = (w[0] + 0.5) * TILE; gy = (w[1] + 0.5) * TILE; } }
       const dx = gx - GS.P.x, dy = gy - GS.P.y, dl = Math.hypot(dx, dy), de = Math.hypot(goal.x - GS.P.x, goal.y - GS.P.y); if (de > 30) { __pad.lx = dx / (dl || 1); __pad.ly = dy / (dl || 1); } else __pad.lx = __pad.ly = 0; __kmApply(); } update(1/60); tickWorld(1/60); updateCamera(1/60); T += 1/60;
     for (const k of GS.pickups) if (!seenPk.has(k)) { seenPk.add(k); if (k.k === 'hp') N.hpDrops++; else N.ammoDrops++; }
     if (GS.P.owned.some(g => g !== 'pistol' && g !== 'launcher') && GS.P.gun === 'pistol') N.dry += 1/60;

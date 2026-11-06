@@ -24,6 +24,7 @@ import { OBJ_NAME, finishObjective } from './objective-flow.js';
 import { planHorde } from './horde.js';
 import { giveTraps, trapKitStreak } from './traps.js';
 import { planSiege, siegeHouse } from './siege.js';
+import { BOSS_HORDE_J, HORDE_J } from './route.js';
 // every ordinary night from the second on has its own signature, known at dawn: weather, a horde, car alarms, a dog
 // pack, brutes. The first ones bring in one new threat each; later ones are dealt from a deck, never the same twice
 // running. Job and boss nights have their own story instead
@@ -43,16 +44,19 @@ export function planSig(w) {
   if (GS.RUN.hm) return 'horde'; // Horde Mode: every wave is one
   if (bossNight(w) || lastNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice || jobNight(w) || TW('dark')) return null;
   const used = GS.RUN.sigUsed || [];
+  const J = GS.RUN.journey;
+  if (J && HORDE_J[w]) return 'horde'; // the campaign's hordes are where the story puts them (route.js)
   if (w === 2) return 'pack';
   if (w === 3) return 'brute';
   if (w === 4) return 'horde';
   const deck = Object.keys(SIG).filter(
     s =>
+      !(J && s === 'horde') &&
       !used.slice(-3).includes(s) &&
       !(s === 'alarm' && !cars.some(c => c.hasAlarm && !c.alarmUsed && !c.dead)) &&
       !(s === 'siege' && ((used.includes('siege') && used.lastIndexOf('siege') > used.length - 5) || !siegeHouse()))
   );
-  return pick(deck.length ? deck : ['horde', 'storm']);
+  return pick(deck.length ? deck : J ? ['storm'] : ['horde', 'storm']);
 }
 export function nightSetup() {
   GS.obj = null;
@@ -88,6 +92,11 @@ export function nightSetup() {
       GS.later.push({ t: 3, fn: () => trapKitStreak(kit) });
     }
   } // tonight is the horde's: a thin trickle of the usual dead, then the mass
+  if (boss && GS.RUN.journey && BOSS_HORDE_J[GS.wave] && !GS.horde) {
+    planHorde();
+    GS.horde.n = Math.round(GS.horde.n * BOSS_HORDE_J[GS.wave]);
+    GS.horde.startT = 34;
+  } // the boss brings its own: a smaller horde rises half a minute into the night
   if (sig === 'siege' && !planSiege()) GS.RUN.sig = null; // no house fit to hold after all: an ordinary night
   if (sig === 'pack' || sig === 'brute') {
     const t = sig === 'pack' ? 'hound' : 'beetle',

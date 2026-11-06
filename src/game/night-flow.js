@@ -24,7 +24,20 @@ import { endHorde } from './horde.js';
 import { giveTraps, trapKitStreak } from './traps.js';
 import { freeSpot } from '../actors/backups.js';
 import { bark } from '../audio/barks.js';
-import { LEGS, callTruck, clearTruck, legEnd, legOf, nextPlace, showRoute, truckLive } from './journey.js';
+import {
+  callTruck,
+  clearJourney,
+  fade,
+  leaveAfter,
+  markRoadOut,
+  nextStop,
+  placeArrival,
+  roadOutLive,
+  showRoute,
+  stopNow,
+  truckLive,
+} from './journey.js';
+import { BOSS_HORDE_J, STOPS } from './route.js';
 import { newRun } from './run.js';
 import { $ } from '../core/errors.js';
 function dawnDrops() {
@@ -178,17 +191,17 @@ export function nightCleared() {
         L.on = GS.time;
       }
     }
-    if (!legEnd(GS.wave)) tip('dawn'); // no 'press Enter' when the only way on is the truck
+    if (!leaveAfter(GS.wave)) tip('dawn'); // no 'press Enter' when the only way on is the truck
     banner(
       GS.RUN.hm ? 'Wave cleared' : 'Dawn',
       GS.RUN.hm
         ? `Horde ${GS.wave} is down · set the traps for the next`
-        : legEnd(GS.wave)
-          ? `Night ${GS.wave} survived · a truck is coming to take you to ${nextPlace().name}`
+        : leaveAfter(GS.wave)
+          ? `Night ${GS.wave} survived · ${leaveAfter(GS.wave) === 'truck' ? 'a truck is coming to take you' : 'time to move on'} to ${nextStop().name}`
           : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
     );
     GS.RUN.dawnX = 0;
-    if (legEnd(GS.wave)) legDawn();
+    if (leaveAfter(GS.wave)) legDawn(leaveAfter(GS.wave));
     else planDawn();
     saveRun(); // a dawn is a checkpoint: a closed tab costs a night at most
   }
@@ -217,6 +230,18 @@ function planDawn() {
       });
       GS.later.push({ t: 11, fn: () => GS.nightDone && trapKitStreak(kit) });
     } // the last dawn: where the bird will land, and everything the convoy can spare to hold it
+    if (GS.RUN.journey && BOSS_HORDE_J[GS.wave + 1]) {
+      const kit = { mine: 3, drum: 2, noise: 1, rig: 1 };
+      giveTraps(kit);
+      GS.interT = 45;
+      GS.later.push({
+        t: 3.2,
+        fn: () =>
+          GS.nightDone &&
+          showStreak(`Night ${GS.wave + 1}`, 'A boss tonight, and the dead it raises with it · set the traps', true),
+      });
+      GS.later.push({ t: 11, fn: () => GS.nightDone && trapKitStreak(kit) });
+    } // a boss and a horde on the same night: the kit, and a long dawn to lay it
     if (s === 'horde') {
       const kit = { mine: 3, drum: 2, noise: 1, rig: 1 + (GS.wave >= 8 || GS.RUN.hm ? 1 : 0) };
       giveTraps(kit);
@@ -230,42 +255,62 @@ function planDawn() {
     GS.later.push({ t: 2.4, fn: openJobs });
   }
 }
-// the end of a leg: there is no next night here. The dawn holds while a convoy truck comes for you
-function legDawn() {
-  GS.RUN.moveOut = true;
+// the last dawn at a stop: there is no next night here. The dawn holds while you make your way on: the road out
+// gets marked, or a truck comes for you
+function legDawn(how) {
+  GS.RUN.moveOut = how;
   GS.interT = 0;
-  GS.later.push({ t: 3.5, fn: () => GS.nightDone && GS.RUN.moveOut && !truckLive() && callTruck() });
+  GS.later.push({
+    t: 3.5,
+    fn: () => {
+      if (!GS.nightDone || GS.RUN.moveOut !== how || truckLive() || roadOutLive()) return;
+      if (how === 'truck') callTruck();
+      else markRoadOut();
+    },
+  });
 }
-// aboard: the travel card goes up, and behind it the next place is laid out with the whole run carried over
-let travelReady = null;
-export function boardTruck() {
+// on your way: on foot, a fade and you walk in at the next place; off the back of the truck, the route card while
+// the next place is laid out. Either way the whole run is carried over
+let travelHow = null;
+export function leaveStop(how) {
   GS.state = 'travel';
   $('hud').hidden = true;
   for (const b of GS.buddies) b.say = null;
-  travelReady = showRoute(arrive);
-  setTimeout(travelStep, 60); // a frame for the card to show before the new place is laid out behind it
+  travelHow = how;
+  fade(true);
+  setTimeout(travelStep, 480); // the fade, then the new place behind it
 }
 export function travelStep() {
-  const ready = travelReady;
-  if (!ready) return;
-  travelReady = null;
+  const how = travelHow;
+  if (!how) return;
+  travelHow = null;
   try {
     moveOn();
   } catch (e) {
     console.warn('Dead Acre: moving on failed', e);
   }
-  ready();
+  if (how === 'foot') {
+    fade(false);
+    arrive();
+  } else {
+    const ready = showRoute(arrive);
+    fade(false);
+    ready();
+  }
 }
 function moveOn() {
   const d = runData(),
-    leg = legOf(GS.wave) + 1;
-  d.RUN.district = LEGS[leg];
+    stop = stopNow() + 1,
+    S = STOPS[stop];
+  d.RUN.stop = stop;
+  d.RUN.district = S.map;
   d.RUN.moveOut = false;
   GS.RUN = { ...d.RUN, resumed: true };
-  clearTruck();
+  clearJourney();
   newRun();
   restoreRun(d);
-  statMax('reached', leg);
+  placeArrival();
+  statMax('reached', DISTRICTS[S.map].camp);
   saveMeta();
 }
 function arrive() {
@@ -276,9 +321,9 @@ function arrive() {
   GS.nightDone = true;
   GS.interT = 30; // time to get the lie of the new place
   GS.RUN.dawnX = 0;
-  const D = DISTRICTS[GS.RUN.district];
-  banner(D.name, `Night ${GS.wave + 1} tonight · ${FINAL_NIGHT - GS.wave} to go`);
-  storyArrive(legOf(GS.wave + 1));
+  const S = STOPS[stopNow()];
+  banner(S.name, `${S.area} · night ${GS.wave + 1} tonight · ${FINAL_NIGHT - GS.wave} to go`);
+  storyArrive(stopNow());
   planDawn();
   saveRun(); // the new place is the checkpoint now
 }
@@ -293,14 +338,14 @@ export function resumeDawn() {
     GS.RUN.hm
       ? `Horde ${GS.wave} is down · back on the air`
       : GS.RUN.moveOut
-        ? `Night ${GS.wave} survived · a truck is coming to take you to ${nextPlace().name}`
+        ? `Night ${GS.wave} survived · on to ${nextStop().name}`
         : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
   );
   if (GS.RUN.moveOut) {
-    GS.interT = 0;
-    GS.later.push({ t: 2, fn: () => GS.RUN.moveOut && !truckLive() && callTruck() });
+    if (GS.RUN.moveOut === true) GS.RUN.moveOut = 'truck'; // a save from before there were two ways on
+    legDawn(GS.RUN.moveOut);
     return;
-  } // saved while the truck was on its way: it comes again
+  } // saved while you were on your way: the truck comes again, or the road out is marked again
   const s = planSig(GS.wave + 1);
   GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
   if (s === 'horde') GS.interT = GS.RUN.hm ? 20 : 45; // the kit came with the save

@@ -25,6 +25,8 @@ import { PRACTICE_SET } from './practice.js';
 import { nightCleared } from './night-flow.js';
 import { startEvac } from './evac.js';
 import { bark, nearestUp } from '../audio/barks.js';
+import { BOSS_J } from './route.js';
+import { endHorde } from './horde.js';
 GS.FOGB = 0;
 GS.FOGBT = 0;
 GS.bossDue = false;
@@ -76,8 +78,7 @@ const BOSS_RADIO = {
   },
 };
 export function bossType() {
-  if (GS.RUN.journey && !GS.RUN.endless && !GS.RUN.practice)
-    return GS.wave >= FINAL_NIGHT ? 'pz' : GS.wave >= 10 ? 'roadkill' : 'abom'; // one for each place on the road
+  if (GS.RUN.journey && !GS.RUN.endless && !GS.RUN.practice) return BOSS_J[GS.wave] || 'abom'; // each where it belongs on the road (route.js)
   return !GS.RUN.endless && GS.wave === FINAL_NIGHT
     ? 'pz'
     : !GS.RUN.endless && GS.wave === 10
@@ -572,6 +573,8 @@ export function bossDown(e, alone) {
       n++;
     }
   if (n) GS.later.push({ t: 2.3, fn: () => showStreak('They scatter', 'The horde breaks without it') });
+  if (GS.horde && !GS.horde.done && !GS.horde.finale && !GS.enemies.some(z => z.type === 'queen' && !z.dead && z !== e))
+    endHorde(); // the horde it raised dies with it: what is left of it scatters, and whatever had not risen yet never does
   GS.later.push({
     t: 2.6,
     fn: () => {

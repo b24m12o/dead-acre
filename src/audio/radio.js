@@ -137,9 +137,14 @@ export const STORY = {
   13: ['Reyes', 'Nine? Reyes. We lost two trucks at the quarry, but we are across. Hold on. Please.'],
   14: ['Reyes', 'Last night tomorrow. Whatever walks out of that hospital, Hale said it is where this began.'],
 };
-// the campaign tells the same story on the road: what changes is where you are when it happens. A third entry is a
-// second voice on the same dawn
+// the campaign tells the same story on the road: what changes is where you are when it happens. A dawn line here
+// replaces the one-place line for that night; a third entry is a second voice on the same dawn. The leaving dawns
+// say where to go next
 export const STORY_J = {
+  2: [
+    'Reyes',
+    "Hale left her notes at St. Mary's when the town fell. She needs them. It is east of you, past the crossroads. Go now, before dark.",
+  ],
   5: [
     'Reyes',
     'Nine, that was the last of the relay. There is nothing left to hold in that town. I sent a truck back for you. Get on it.',
@@ -148,27 +153,52 @@ export const STORY_J = {
     'Reyes',
     'Hale took the van to a motel up the road for medicine. She has not come back. I am trying her on every channel.',
   ],
+  7: [
+    'Reyes',
+    STORY[7][1],
+    ['Reyes', 'The Starlite Motel is up the road. The trucks stopped there for water. Walk it, nine.'],
+  ],
+  8: ['Reyes', STORY[8][1], ['Reyes', 'We are down in the quarry, waiting on fuel. Follow the haul road east.']],
   10: [
     'Reyes',
     STORY[10][1],
     [
       'Hawk',
-      'Nine, this is Hawk, the pilot. I lost the convoy at the quarry. There is a fuel truck coming for you. Take it up to Hollow Hill. The hospital helipad is the only place I can land.',
+      'Nine, this is Hawk, the pilot. I lost the convoy at the quarry. A fuel truck is coming for you. Take it to the Mill River bridge. If any of them got out, that is where they went.',
     ],
   ],
   11: ['Hawk', 'Nothing from the convoy. I will look for their lights on the way in. You just hold.'],
-  12: ['Hawk', 'The hospital looks dead from up here. Keep that hill clear for me, nine.'],
+  12: [
+    'Hawk',
+    'The road climbs from the bridge to Hollow Hill. The hospital is over the top of it. Walk up before dark.',
+  ],
+  14: [
+    'Reyes',
+    STORY[14][1],
+    ['Reyes', 'We sent the last truck back over the bridge for you. Ride it up to the hospital, nine.'],
+  ],
 };
-// the first dawn in a new place
+// the first dawn at each stop on the road, by its place in route.js
 export const ARRIVE = {
   1: [
     'Reyes',
+    "That is St. Mary's. Hale worked there before all this. Look for a red binder. She says it is everything she knows about the first patient.",
+  ],
+  2: [
+    'Reyes',
     'Reyes. Good, you are out. We are on Route 9, a few miles south. Hold the road behind us. Whatever gets past you catches the trucks.',
   ],
-  2: ['Hawk', 'Hawk. I see you on the hill. Five more nights, then I put down at the hospital.'],
+  3: ['Reyes', 'Careful at the Starlite. Something big came out of the fire station across the road last night.'],
+  4: ['Reyes', 'You see us down there? Stay up on the rim and keep them off the trucks.'],
+  5: [
+    'Hawk',
+    'That bridge is the only way over the river for thirty miles. If the convoy is alive, they will come to it. Hold it.',
+  ],
+  6: ['Hawk', 'Hawk. I see you on the hill. Three more nights, then I put down at the hospital.'],
+  7: ['Hawk', 'County Hospital. The helipad is on the roof of the east wing. Tonight, nine. Hold till I come down.'],
 };
-export function storyArrive(leg) {
-  const a = ARRIVE[leg];
+export function storyArrive(stop) {
+  const a = ARRIVE[stop];
   if (a && !GS.RUN.practice) GS.later.push({ t: 2.2, fn: () => radio(a[1], a[0], 2) });
 }
 const haleAlive = () => GS.RUN.haleOk && !(GS.RUN.lost || []).includes('Dr. Hale');
