@@ -6,6 +6,7 @@
 // way there are survivors in the open with the dead closing on them: whoever is still standing when you have flown
 // past made it, and the convoy picks them up. The end screen counts what you did from the door.
 import { GS } from '../core/gs.js';
+import { bump } from './challenges.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, rand } from '../core/util.js';
 import { MH, MW, TILE, WH, WW, grid } from '../world/map.js';
 import { dijk, query } from '../world/nav.js';
@@ -213,7 +214,10 @@ function doorGun(e, r, dt) {
   });
   if (best) {
     hurtEnemy(best, 46 + 2 * GS.wave, false, tx - gx, ty - gy, 1.3, 'gunner');
-    if (best.dead || best.hp <= 0 || best.dying !== undefined) r.kills++;
+    if (best.dead || best.hp <= 0 || best.dying !== undefined) {
+      r.kills++;
+      bump('gunner');
+    }
   } // only what the door gun drops counts as its kills
   else {
     dust(tx, ty, 2, 50, 0.6, 0.5);

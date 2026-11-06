@@ -190,7 +190,9 @@ export function tickTraps(dt) {
     });
     if (m.done) {
       sparks(m.x, m.y, [1, 0.8, 0.45], 18, 600);
+      GS.trapBlast = true;
       explode(m.x, m.y, 125, (85 + 15 * GS.wave) * (0.5 + 0.5 * S.dmg), false);
+      GS.trapBlast = false;
     }
   }
   GS.lmines = GS.lmines.filter(m => !m.done);

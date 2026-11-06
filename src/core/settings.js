@@ -43,7 +43,7 @@ export function mergeSavedMeta(raw) {
   // Copy only known top-level fields. Object spread creates data properties safely, including for a
   // malformed "__proto__" key, instead of allowing imported profile data to alter object prototypes.
   GS.meta = META_DEF();
-  for (const k of ['seeds', 'diff', 'district', 'inf', 'infMax', 'hero', 'outfit', 'tutDone', 'tutForce', 'v']) {
+  for (const k of ['seeds', 'diff', 'district', 'inf', 'infMax', 'hero', 'loadout', 'tutDone', 'tutForce', 'v']) {
     if (Object.prototype.hasOwnProperty.call(m, k)) GS.meta[k] = m[k];
   }
   for (const k of [

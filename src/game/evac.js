@@ -327,6 +327,7 @@ function winRun() {
     rs = GS.evac && GS.evac.ride ? GS.evac.ride.saved : 0,
     rl = GS.evac && GS.evac.ride ? GS.evac.ride.lost : 0;
   GS.runSeeds += 25 * rs; // the ones you covered from the door: the convoy picks them up
+  if (rs && !rl) bump('rideAll');
   for (let i = 0; i < out.length; i++) bump('saved'); // every one you bring out pays
   $('wCrew').innerHTML =
     out.length || left.length

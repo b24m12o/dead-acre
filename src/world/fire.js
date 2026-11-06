@@ -214,7 +214,10 @@ function blowCar(c) {
   c.warn = null;
   bump('cars');
   const k = c.tanker ? 2 : c.rig ? 1.45 : 1; // a rigged car goes up half again as wide; the fuel tanker twice
+  if (c.rig) bump('rigs');
+  GS.trapBlast = !!c.rig;
   explode(c.x, c.y, (c.truck ? 150 : 125) * k, (90 + GS.wave * 12) * (c.tanker ? 2.2 : c.rig ? 1.6 : 1), true);
+  GS.trapBlast = false;
   firePool(c.x, c.y, (c.truck ? 95 : 75) * k, c.tanker ? 14 : 7);
   if (c.tanker)
     for (let i = 0; i < 7; i++) {

@@ -172,6 +172,8 @@ export function finishObjective(ok, why) {
     }
     if (GS.obj.type === 'siege') {
       const n = GS.obj.inside;
+      bump('sieges');
+      if (n >= GS.obj.n0) bump('siegeAll'); // not one of them lost
       sc += 8 * n;
       GS.runSeeds += 8 * n;
       GS.xp += 10 * n;

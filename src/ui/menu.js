@@ -3,7 +3,7 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, d2, damp, rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
-import { PERKS } from '../game/arsenal.js';
+import { GUNS, PERKS } from '../game/arsenal.js';
 import { DIFF } from '../core/profile.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { collide, los, solidPt } from '../world/nav.js';
@@ -13,10 +13,10 @@ import { newRun } from '../game/run.js';
 import { hideCallouts } from './callouts.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { HUMAN } from '../render/effects.js';
-import { HPV, PK, cleanRun, pvLabel } from './hangar.js';
+import { PK, cleanRun, pvLabel } from './hangar.js';
 import { rope } from '../core/later.js';
 import { DISTRICTS, INFECTION, TWISTS } from '../game/districts.js';
-import { CHAL, OUTFITS, chalDone, districtOpen, lockLine } from '../game/challenges.js';
+import { CHAL, LOADOUTS, chalDone, districtOpen, loadoutOpen, lockLine } from '../game/challenges.js';
 export function renderDistricts() {
   if (!GS.meta.district || !districtOpen(GS.meta.district)) GS.meta.district = 'town';
   $('districts').innerHTML = Object.entries(DISTRICTS)
@@ -109,35 +109,22 @@ function renderTwists() {
     `<br>This run: <b>${{ relaxed: 'Relaxed', normal: 'Normal', hard: 'Hard' }[GS.meta.diff] || 'Normal'}</b> difficulty · Infection <b>${Math.min(GS.meta.inf || 0, GS.meta.infMax || 0)}</b>${on.length ? ` · <b>${on.length}</b> twist${on.length > 1 ? 's' : ''}` : ''} · scrap <b>×${runScrapK().toFixed(2)}</b>`;
 }
 export function renderChallenges() {
-  $('hangarOutfits').innerHTML = Object.entries(OUTFITS)
+  // starting loadouts: earned from challenges, one taken into each new run
+  $('hangarOutfits').innerHTML = Object.entries(LOADOUTS)
     .map(([id, o]) => {
-      const open = !o.req || chalDone(o.req),
-        on = (GS.meta.outfit || 'std') === id;
-      return `<div class="perk"><span class="nm"><i class="swatch" style="background:rgb(${o.tint.map(v => Math.round(Math.min(255, v * 140))).join(',')})"></i>${o.name}</span><button type="button" class="buy" data-outfit="${id}" ${!open || on ? 'disabled' : ''}>${on ? 'Wearing' : open ? 'Wear' : 'Locked'}</button><span class="ds">${open ? "Tints every survivor's clothes." : lockLine(o.req)}</span></div>`;
+      const open = loadoutOpen(id),
+        on = (GS.meta.loadout || 'std') === id,
+        ds = o.desc || `Start with the ${GUNS[o.gun].name} and its ammo.`;
+      return `<div class="perk"><span class="nm">${o.name}</span><button type="button" class="buy" data-load="${id}" ${!open || on ? 'disabled' : ''}>${on ? 'Taking' : open ? 'Take' : 'Locked'}</button><span class="ds">${ds}${open ? '' : ' ' + lockLine(o.req)}</span></div>`;
     })
     .join('');
   for (const b of document.querySelectorAll('#hangarOutfits .buy'))
     b.addEventListener('click', () => {
-      GS.meta.outfit = b.dataset.outfit;
+      GS.meta.loadout = b.dataset.load;
       saveMeta();
       renderChallenges();
       if ($('pvName')) pvLabel();
     });
-  for (const r of document.querySelectorAll('#hangarOutfits .perk')) {
-    const id = r.querySelector('.buy').dataset.outfit,
-      on = () => {
-        HPV.outfit = id;
-        if ($('pvName')) pvLabel();
-      },
-      off = () => {
-        HPV.outfit = null;
-        if ($('pvName')) pvLabel();
-      };
-    r.addEventListener('mouseenter', on);
-    r.addEventListener('mouseleave', off);
-    r.addEventListener('focusin', on);
-    r.addEventListener('focusout', off);
-  } // hover any outfit, locked ones too, to see it on your character
 }
 
 /* ---------- Menu attract ---------- */

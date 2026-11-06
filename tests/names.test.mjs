@@ -19,6 +19,7 @@ const CHECK = String.raw`(() => {
   for (const [k, v] of Object.entries(TRAP)) at('trap ' + k, v.name);
   for (const [k, v] of Object.entries(GUNS)) at('gun ' + k, v.name);
   for (const c of CHAL) at('challenge ' + c.id, c.name);
+  for (const [k, v] of Object.entries(LOADOUTS)) at('loadout ' + k, v.name);
   const by = {};
   for (const [n, s] of out) (by[n] = by[n] || []).push(s);
   return Object.entries(by).filter(([, s]) => s.length > 1).map(([n, s]) => n + ' (' + s.join(', ') + ')');

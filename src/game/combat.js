@@ -603,6 +603,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   statMax('bestChain', GS.combo);
   if (src === 'bolt' && GS.P && GS.P.gun) bump(GUNS[GS.P.gun].fam);
   if (src === 'fire') bump('fire');
+  if (GS.trapBlast) bump('trapKills'); // killed in the blast of a mine, a gas drum or a rigged car you set
   if (e.type === 'queen') {
     bump('bosses');
     MUS.win = true;
@@ -1447,7 +1448,9 @@ export function blowBarrel(b) {
   if (b.dead) return;
   b.dead = true;
   tip('barrel');
+  GS.trapBlast = !!b.gas; // the gas drums are yours: you set them
   explode(b.x, b.y, b.gas ? 120 : 105, (70 + GS.wave * 6) * (b.gas ? 1.2 : 1));
+  GS.trapBlast = false;
   if (b.gas) {
     firePool(b.x, b.y, 115, 11);
     for (let i = 0; i < 4; i++) {

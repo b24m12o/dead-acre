@@ -5,170 +5,239 @@ import { saveMeta } from '../core/settings.js';
 import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
 import { DISTRICTS } from './districts.js';
+// Challenges come in families: one goal, tiers I, II and III further along it. Each tier is its own entry with its own
+// id (the save only stores which ids are done), so the ids things are gated on (a perk's req, a district's lock) stay
+// as they were. Rewards: scrap, and for some tiers an Armory perk to buy, a district, or a starting loadout.
+const ROM = ['I', 'II', 'III'];
+const fmt = n => n.toLocaleString('en-US');
+function fam(grp, name, stat, desc, hint, tiers) {
+  return tiers.map(([id, goal, scrap, unlock], i) => ({
+    id,
+    grp,
+    fam: name,
+    stat,
+    goal,
+    scrap,
+    unlock,
+    tier: i + 1,
+    of: tiers.length,
+    name: tiers.length > 1 ? `${name} ${ROM[i]}` : name,
+    desc: desc(goal),
+    hint,
+  }));
+}
+const pl = (n, one, many) => (n === 1 ? one : many.replace('#', fmt(n)));
 export const CHAL = [
-  { id: 'k100', name: 'First blood', desc: 'Kill 100 zombies', stat: 'kills', goal: 100, scrap: 50 },
-  {
-    id: 'k1000',
-    name: 'Exterminator',
-    desc: 'Kill 1,000 zombies',
-    stat: 'kills',
-    goal: 1000,
-    scrap: 200,
-    unlock: 'Laser Sight',
-  },
-  {
-    id: 'heads50',
-    name: 'Headhunter',
-    desc: 'Pop 50 heads with critical hits',
-    stat: 'heads',
-    goal: 50,
-    scrap: 80,
-    unlock: 'Bloodstained outfit',
-  },
-  {
-    id: 'pistol300',
-    name: 'Sidearm',
-    desc: '300 kills with the pistol or SMG',
-    stat: 'pistol',
-    goal: 300,
-    scrap: 100,
-    unlock: 'Compensator',
-  },
-  {
-    id: 'shotgun300',
-    name: 'Buckshot',
-    desc: '300 kills with shotguns',
-    stat: 'shotgun',
-    goal: 300,
-    scrap: 100,
-    unlock: 'Drum Magazines',
-  },
-  {
-    id: 'rifle300',
-    name: 'Rifleman',
-    desc: '300 kills with rifles',
-    stat: 'rifle',
-    goal: 300,
-    scrap: 100,
-    unlock: 'Steel-Core Ammo',
-  },
-  { id: 'boss1', name: 'Giant slayer', desc: 'Kill a district boss', stat: 'bosses', goal: 1, scrap: 100 },
-  {
-    id: 'night10',
-    name: 'Long night',
-    desc: 'Survive to night 10',
-    stat: 'maxNight',
-    goal: 10,
-    scrap: 100,
-    unlock: 'Route 9',
-  },
-  {
-    id: 'evac1',
-    name: 'Get to the chopper',
-    desc: 'Make the evac on night 15',
-    stat: 'evacs',
-    goal: 1,
-    scrap: 300,
-    unlock: 'Hollow Hill',
-  },
-  {
-    id: 'obj10',
-    name: 'Odd jobs',
-    desc: 'Complete 10 Channel 9 jobs',
-    stat: 'objs',
-    goal: 10,
-    scrap: 120,
-    unlock: 'Trauma Training',
-  },
-  {
-    id: 'rescue5',
-    name: 'Good Samaritan',
-    desc: 'Rescue 5 survivors',
-    stat: 'rescues',
-    goal: 5,
-    scrap: 120,
-    unlock: 'Hazmat outfit',
-  },
-  { id: 'cars10', name: 'Road rage', desc: 'Blow up 10 cars', stat: 'cars', goal: 10, scrap: 80 },
-  {
-    id: 'fire100',
-    name: 'Arsonist',
-    desc: 'Burn 100 zombies',
-    stat: 'fire',
-    goal: 100,
-    scrap: 120,
-    unlock: 'Molotov Start',
-  },
-  {
-    id: 'flawless3',
-    name: 'Untouchable',
-    desc: 'Get through 3 nights without a scratch',
-    stat: 'flawless',
-    goal: 3,
-    scrap: 120,
-    unlock: 'Night camo outfit',
-  },
-  { id: 'chain150', name: 'Meat grinder', desc: 'Reach a 150-kill chain', stat: 'bestChain', goal: 150, scrap: 150 },
-  { id: 'horde1', name: 'Breakwater', desc: 'Wipe out a whole horde', stat: 'hordes', goal: 1, scrap: 120 },
-  { id: 'horde5', name: 'Floodgate', desc: 'Wipe out 5 hordes', stat: 'hordes', goal: 5, scrap: 300 },
-  {
-    id: 'hchain100',
-    name: 'Riptide',
-    desc: 'Reach a 100 chain against a horde',
-    stat: 'hordeBest',
-    goal: 100,
-    scrap: 200,
-  },
-  { id: 'lv20', name: 'Veteran', desc: 'Reach level 20 in one run', stat: 'maxLevel', goal: 20, scrap: 150 },
-  {
-    id: 'inf5',
-    name: 'Carrier',
-    desc: 'Make the evac on Infection 5',
-    stat: 'bestInf',
-    goal: 5,
-    scrap: 300,
-    unlock: 'Gilded outfit',
-  },
-  {
-    id: 'evac3',
-    name: 'Tour guide',
-    desc: 'Make the evac in all three districts',
-    stat: 'evacDistricts',
-    goal: 3,
-    scrap: 500,
-    unlock: 'Convoy outfit',
-  },
-  {
-    id: 'boss5',
-    name: 'Horde breaker',
-    desc: 'Kill 5 bosses',
-    stat: 'bosses',
-    goal: 5,
-    scrap: 250,
-    unlock: 'Guardsman outfit',
-  },
+  // ---- killing ----
+  ...fam('Killing', 'Exterminator', 'kills', g => `Kill ${fmt(g)} zombies`, '', [
+    ['k100', 100, 50],
+    ['k1000', 1000, 200, 'Laser Sight'],
+    ['k10000', 10000, 500],
+  ]),
+  ...fam(
+    'Killing',
+    'Headhunter',
+    'heads',
+    g => `Pop ${fmt(g)} heads with critical hits`,
+    'A critical hit that kills a zombie can take its head off.',
+    [
+      ['heads50', 50, 80, 'Sharpshooter loadout'],
+      ['heads250', 250, 150],
+      ['heads1000', 1000, 300],
+    ]
+  ),
+  ...fam(
+    'Killing',
+    'Meat grinder',
+    'bestChain',
+    g => `Reach a ${fmt(g)}-kill chain`,
+    'Keep killing without a 2.4 s pause; the chain shows next to your score.',
+    [
+      ['chain50', 50, 60],
+      ['chain150', 150, 150],
+      ['chain300', 300, 300],
+    ]
+  ),
+  ...fam(
+    'Killing',
+    'Arsonist',
+    'fire',
+    g => `Burn ${fmt(g)} zombies`,
+    'Molotovs, incendiary rounds, burning cars and fuel pumps all count.',
+    [
+      ['fire100', 100, 120, 'Molotov Start'],
+      ['fire500', 500, 200],
+      ['fire2000', 2000, 400],
+    ]
+  ),
+  ...fam(
+    'Killing',
+    'Road rage',
+    'cars',
+    g => `Blow up ${fmt(g)} cars`,
+    'Shoot a wrecked car until it catches fire and blows.',
+    [
+      ['cars10', 10, 80],
+      ['cars50', 50, 200, 'Demolition loadout'],
+    ]
+  ),
+  // ---- weapons ----
+  ...fam('Weapons', 'Sidearm', 'pistol', g => `${fmt(g)} kills with the pistol or SMG`, '', [
+    ['pistol300', 300, 100, 'Compensator'],
+    ['pistol1500', 1500, 250],
+  ]),
+  ...fam('Weapons', 'Buckshot', 'shotgun', g => `${fmt(g)} kills with shotguns`, '', [
+    ['shotgun300', 300, 100, 'Drum Magazines'],
+    ['shotgun1500', 1500, 250, 'Door Kicker loadout'],
+  ]),
+  ...fam(
+    'Weapons',
+    'Rifleman',
+    'rifle',
+    g => `${fmt(g)} kills with rifles`,
+    'Assault Rifle, Hunting Rifle and Machine Gun all count.',
+    [
+      ['rifle300', 300, 100, 'Steel-Core Ammo'],
+      ['rifle1500', 1500, 250, 'Patrol loadout'],
+    ]
+  ),
+  // ---- traps ----
+  ...fam(
+    'Traps',
+    'Minefield',
+    'trapKills',
+    g => `Kill ${fmt(g)} zombies with mines, gas drums and rigged cars`,
+    'The dawn kit brings traps; set the one you hold with F.',
+    [
+      ['trap50', 50, 100, 'Trapper loadout'],
+      ['trap250', 250, 200],
+      ['trap1000', 1000, 400],
+    ]
+  ),
+  ...fam(
+    'Traps',
+    'Car bomb',
+    'rigs',
+    g => pl(g, 'Set off a rigged car', 'Set off # rigged cars'),
+    'Use a car rig by a parked car; the next hit blows it big.',
+    [
+      ['rig5', 5, 100],
+      ['rig25', 25, 250],
+    ]
+  ),
+  // ---- survival ----
+  ...fam('Survival', 'Long night', 'maxNight', g => `Survive to night ${g}`, '', [['night10', 10, 100, 'Route 9']]),
+  ...fam(
+    'Survival',
+    'Untouchable',
+    'flawless',
+    g => `Get through ${fmt(g)} nights without a scratch`,
+    'Clear a whole night without taking any damage.',
+    [
+      ['flawless3', 3, 120],
+      ['flawless10', 10, 300],
+    ]
+  ),
+  ...fam(
+    'Survival',
+    'Odd jobs',
+    'objs',
+    g => `Complete ${fmt(g)} Channel 9 jobs`,
+    'On a few dawns Channel 9 offers a job for the night. Take one instead of lying low.',
+    [
+      ['obj10', 10, 120, 'Trauma Training'],
+      ['obj30', 30, 300],
+    ]
+  ),
+  ...fam('Survival', 'Good Samaritan', 'rescues', g => `Rescue ${fmt(g)} survivors`, '', [
+    ['rescue5', 5, 120, 'Buddy System loadout'],
+    ['rescue20', 20, 300],
+  ]),
+  ...fam(
+    'Survival',
+    'Hold the house',
+    'sieges',
+    g => pl(g, 'Hold the house through a Siege night', 'Hold the house through # Siege nights'),
+    'On a Siege night, bar yourself into the big ruin and keep the survivors alive till dawn.',
+    [
+      ['siege1', 1, 120],
+      ['siege5', 5, 250],
+    ]
+  ),
+  ...fam('Survival', 'Full house', 'siegeAll', () => 'Hold a Siege night with every survivor alive', '', [
+    ['siegeAll', 1, 200],
+  ]),
+  ...fam('Survival', 'Veteran', 'maxLevel', g => `Reach level ${g} in one run`, '', [
+    ['lv20', 20, 150],
+    ['lv30', 30, 300],
+  ]),
+  // ---- bosses and hordes ----
+  ...fam(
+    'Bosses and hordes',
+    'Giant slayer',
+    'bosses',
+    g => pl(g, 'Kill a district boss', 'Kill # bosses'),
+    'A boss comes every fifth night.',
+    [
+      ['boss1', 1, 100],
+      ['boss5', 5, 250, 'Heavy Weapons loadout'],
+      ['boss15', 15, 500],
+    ]
+  ),
+  ...fam('Bosses and hordes', 'Breakwater', 'hordes', g => pl(g, 'Wipe out a whole horde', 'Wipe out # hordes'), '', [
+    ['horde1', 1, 120],
+    ['horde5', 5, 300],
+    ['horde20', 20, 500],
+  ]),
+  ...fam('Bosses and hordes', 'Riptide', 'hordeBest', g => `Reach a ${g} chain against a horde`, '', [
+    ['hchain100', 100, 200],
+  ]),
+  ...fam(
+    'Bosses and hordes',
+    'Last stand',
+    'hmBest',
+    g => `Clear wave ${g} in Horde Mode`,
+    'Horde Mode opens on the menu once you have wiped out a horde.',
+    [
+      ['hm5', 5, 120],
+      ['hm10', 10, 250],
+      ['hm20', 20, 500],
+    ]
+  ),
+  // ---- evac ----
+  ...fam(
+    'Evac',
+    'Get to the chopper',
+    'evacs',
+    g => pl(g, 'Make the evac on night 15', 'Make the evac # times'),
+    'Survive all 15 nights, then reach the chopper.',
+    [
+      ['evac1', 1, 300, 'Hollow Hill'],
+      ['evac5', 5, 400],
+    ]
+  ),
+  ...fam('Evac', 'Door gunner', 'gunner', g => `${fmt(g)} kills from the helicopter's door gun`, '', [
+    ['gun100', 100, 150],
+    ['gun1000', 1000, 400],
+  ]),
+  ...fam(
+    'Evac',
+    'Nobody left behind',
+    'rideAll',
+    () => 'Cover every group of survivors on the ride out',
+    'Keep the door gun on the dead around each group until the chopper has passed.',
+    [['rideAll', 1, 250]]
+  ),
+  ...fam(
+    'Evac',
+    'Carrier',
+    'bestInf',
+    g => `Make the evac on Infection ${g}`,
+    'Pick Infection 5 when you choose where to fight, before the run.',
+    [['inf5', 5, 300]]
+  ),
+  ...fam('Evac', 'Tour guide', 'evacDistricts', () => 'Make the evac in all three districts', '', [['evac3', 3, 500]]),
 ];
-const CHAL_CAT = {
-  k100: 'Killing',
-  k1000: 'Killing',
-  heads50: 'Killing',
-  chain150: 'Killing',
-  fire100: 'Killing',
-  cars10: 'Killing',
-  pistol300: 'Weapons',
-  shotgun300: 'Weapons',
-  rifle300: 'Weapons',
-  boss1: 'Survival',
-  night10: 'Survival',
-  flawless3: 'Survival',
-  lv20: 'Survival',
-  obj10: 'Survival',
-  rescue5: 'Survival',
-  evac1: 'Evac',
-  inf5: 'Evac',
-  evac3: 'Evac',
-  boss5: 'Survival',
-};
 const UNLOCK_KIND = {
   'Laser Sight': ['perk', 'Laser Sight'],
   Compensator: ['perk', 'Compensator'],
@@ -176,51 +245,50 @@ const UNLOCK_KIND = {
   'Steel-Core Ammo': ['perk', 'Steel-Core Ammo'],
   'Trauma Training': ['perk', 'Trauma Training'],
   'Molotov Start': ['perk', 'Molotov Start'],
-  'Bloodstained outfit': ['outfit', 'Bloodstained'],
-  'Hazmat outfit': ['outfit', 'Hazmat'],
-  'Night camo outfit': ['outfit', 'Night camo'],
-  'Gilded outfit': ['outfit', 'Gilded'],
   'Route 9': ['district', 'Route 9'],
   'Hollow Hill': ['district', 'Hollow Hill'],
-  'Guardsman outfit': ['outfit', 'Guardsman'],
-  'Convoy outfit': ['outfit', 'Convoy'],
-};
-const CHAL_HINT = {
-  boss5: 'A boss comes every fifth night.',
-  heads50: 'A critical hit that kills a zombie can take its head off.',
-  flawless3: 'Clear a whole night without taking any damage.',
-  chain150: 'Keep killing without a 2.4 s pause; the chain shows next to your score.',
-  obj10: 'On a few dawns Channel 9 offers a job for the night. Take one instead of lying low.',
-  fire100: 'Molotovs, incendiary rounds, burning cars and fuel pumps all count.',
-  cars10: 'Shoot a wrecked car until it catches fire and blows.',
-  evac1: 'Survive all 15 nights, then reach the chopper.',
-  inf5: 'Pick Infection 5 when you choose where to fight, before the run.',
-  rifle300: 'Assault Rifle, Hunting Rifle and Machine Gun all count.',
+  'Sharpshooter loadout': ['loadout', 'Sharpshooter'],
+  'Door Kicker loadout': ['loadout', 'Door Kicker'],
+  'Patrol loadout': ['loadout', 'Patrol'],
+  'Heavy Weapons loadout': ['loadout', 'Heavy Weapons'],
+  'Trapper loadout': ['loadout', 'Trapper'],
+  'Demolition loadout': ['loadout', 'Demolition'],
+  'Buddy System loadout': ['loadout', 'Buddy System'],
 };
 function rewardChips(c) {
   let h = `<span class="tag t-scrap">+${c.scrap} scrap</span>`;
   if (c.unlock && UNLOCK_KIND[c.unlock]) {
     const [k, n] = UNLOCK_KIND[c.unlock];
-    h += `<span class="tag t-${k}">${k}: ${n}</span><span class="note">${k === 'perk' ? 'then buy it in the Armory' : k === 'outfit' ? 'wear it from the Armory' : 'pick it when you choose where to fight'}</span>`;
+    h += `<span class="tag t-${k}">${k}: ${n}</span><span class="note">${k === 'perk' ? 'then buy it in the Armory' : k === 'loadout' ? 'take it from the Armory' : 'pick it when you choose where to fight'}</span>`;
   }
   return h;
 }
 function renderChalScreen() {
   checkChal(true);
   const done = CHAL.filter(c => chalDone(c.id)).length,
-    open = CHAL.filter(c => !chalDone(c.id)).sort((a, b) => chalValue(b) / b.goal - chalValue(a) / a.goal);
+    open = CHAL.filter(c => !chalDone(c.id) && (c.tier === 1 || chalDone(CHAL[CHAL.indexOf(c) - 1].id))).sort(
+      (a, b) => chalValue(b) / b.goal - chalValue(a) / a.goal
+    );
   $('chalSum').innerHTML =
     `<b>${done}</b> of <b>${CHAL.length}</b> done${open.length ? ` · closest: <b>${open[0].name}</b> (${Math.floor(Math.min(1, chalValue(open[0]) / open[0].goal) * 100)}%)` : ' · all done!'}`;
-  const groups = ['Killing', 'Weapons', 'Survival', 'Evac'];
+  const groups = [...new Set(CHAL.map(c => c.grp))],
+    fams = [...new Set(CHAL.map(c => c.fam))];
   $('chalList').innerHTML = groups
     .map(
       g =>
         `<div class="chal-grp">${g}</div><div class="chal-grid">` +
-        CHAL.filter(c => CHAL_CAT[c.id] === g)
-          .map(c => {
-            const v = Math.min(c.goal, chalValue(c)),
-              ok = chalDone(c.id);
-            return `<div class="ch${ok ? ' done' : ''}"><span class="nm">${c.name}</span><span class="how">${c.desc}.${CHAL_HINT[c.id] ? ' ' + CHAL_HINT[c.id] : ''}</span><span class="bar"><i style="width:${(v / c.goal) * 100}%"></i></span><span class="num">${v.toLocaleString()} / ${c.goal.toLocaleString()}</span><span class="rw">${rewardChips(c)}</span></div>`;
+        fams
+          .filter(f => CHAL.find(c => c.fam === f).grp === g)
+          .map(f => {
+            const T = CHAL.filter(c => c.fam === f),
+              c = T.find(t => !chalDone(t.id)) || T[T.length - 1], // the tier you're working on, or the last one
+              all = T.every(t => chalDone(t.id)),
+              v = Math.min(c.goal, chalValue(c)),
+              pips =
+                T.length > 1
+                  ? `<span class="tiers">${T.map(t => `<i class="${chalDone(t.id) ? 'on' : ''}">${ROM[t.tier - 1]}</i>`).join('')}</span>`
+                  : '';
+            return `<div class="ch${all ? ' done' : ''}"><span class="nm">${c.name}${pips}</span><span class="how">${c.desc}.${c.hint ? ' ' + c.hint : ''}</span><span class="bar"><i style="width:${(v / c.goal) * 100}%"></i></span><span class="num">${fmt(v)} / ${fmt(c.goal)}</span><span class="rw">${all ? '<span class="tag t-scrap">All tiers done</span>' : rewardChips(c)}</span></div>`;
           })
           .join('') +
         '</div>'
@@ -256,15 +324,28 @@ export function chalRunSummary() {
       .join('')
   );
 }
-export const OUTFITS = {
-  std: { name: 'Standard issue', tint: [1, 1, 1] },
-  night: { name: 'Night camo', tint: [0.5, 0.56, 0.68], req: 'flawless3' },
-  blood: { name: 'Bloodstained', tint: [1.15, 0.55, 0.5], req: 'heads50' },
-  hazmat: { name: 'Hazmat', tint: [1.3, 1.18, 0.4], req: 'rescue5' },
-  gold: { name: 'Gilded', tint: [1.4, 1.12, 0.5], req: 'inf5' },
-  guard: { name: 'Guardsman', tint: [0.78, 0.88, 0.7], req: 'boss5' },
-  convoy: { name: 'Convoy', tint: [0.62, 0.62, 0.58], req: 'evac3' },
+// starting loadouts, earned from challenges: what you carry into night 1 besides the pistol. One at a time
+export const LOADOUTS = {
+  std: { name: 'Standard Issue', desc: 'The pistol, and whatever the nights give you.' },
+  sharp: { name: 'Sharpshooter', gun: 'hunter', req: 'heads50' },
+  kicker: { name: 'Door Kicker', gun: 'shotgun', req: 'shotgun1500' },
+  patrol: { name: 'Patrol', gun: 'rifle', req: 'rifle1500' },
+  heavy: { name: 'Heavy Weapons', gun: 'lmg', req: 'boss5' },
+  trapper: {
+    name: 'Trapper',
+    traps: { mine: 2, noise: 1 },
+    desc: 'Start with 2 mines and a noise maker.',
+    req: 'trap50',
+  },
+  demo: {
+    name: 'Demolition',
+    traps: { drum: 2, rig: 1 },
+    desc: 'Start with 2 gas drums and a car rig.',
+    req: 'cars50',
+  },
+  buddy: { name: 'Buddy System', buddy: true, desc: 'Start with one survivor in your backup.', req: 'rescue5' },
 };
+export const loadoutOpen = id => LOADOUTS[id] && (!LOADOUTS[id].req || chalDone(LOADOUTS[id].req));
 function chalDoneSafe(chal, id) {
   return !!(chal && chal[id] === true);
 }
@@ -311,10 +392,11 @@ export let districtOpen;
 export function init() {
   // Reject missing, misspelled or still-locked outfits from older/corrupt local saves.
   if (
-    !OUTFITS[GS.meta.outfit] ||
-    (OUTFITS[GS.meta.outfit].req && !chalDoneSafe(GS.meta.chal, OUTFITS[GS.meta.outfit].req))
+    !LOADOUTS[GS.meta.loadout] ||
+    (LOADOUTS[GS.meta.loadout].req && !chalDoneSafe(GS.meta.chal, LOADOUTS[GS.meta.loadout].req))
   )
-    GS.meta.outfit = 'std';
+    GS.meta.loadout = 'std';
+  delete GS.meta.outfit; // outfits are gone: loadouts took their place
   chalDone = id => !!(GS.meta.chal && GS.meta.chal[id]);
   districtOpen = d => !DISTRICTS[d].lock || chalDone(DISTRICTS[d].lock);
 }

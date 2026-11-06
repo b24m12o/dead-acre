@@ -14,14 +14,16 @@ import { RW, VW, ZOOM } from '../render/sprites.js';
 import { initAudio } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { setMuted } from '../audio/music.js';
-import { AMMO_NAME, S, armGuns, resetStats } from '../game/state.js';
+import { AMMO_NAME, LV, S, armGuns, giveGun, resetStats } from '../game/state.js';
 import { newRun } from '../game/run.js';
 import { EVOS, UP, doReroll, offerUpgrades, pickLater, renderMods } from '../game/upgrades.js';
+import { giveTraps } from '../game/traps.js';
 import { AB_B, AB_DEF, abOwned, abPickB } from '../game/abilities.js';
 import { updateHint } from './settings-ui.js';
 import { showMenuRec } from './screens.js';
 import {
-  OUTFITS,
+  LOADOUTS,
+  loadoutOpen,
   chalDone,
   chalFrom,
   checkChal,
@@ -85,15 +87,13 @@ export function cleanRun() {
     off = GS.meta.perkOff || {};
   return own.length > 0 && own.every(k => off[k]);
 } // every perk you own switched off: +25% scrap
-export const HPV = { on: false, hero: null, outfit: null }; // what the Armory preview shows
+export const HPV = { on: false, hero: null }; // what the Armory preview shows
 export function pvLabel() {
   const h = HEROES[HPV.hero || GS.meta.hero] || HEROES.ranger,
-    oid = HPV.outfit || GS.meta.outfit || 'std',
-    o = OUTFITS[oid] || OUTFITS.std,
-    own = GS.meta.unlocked[HPV.hero || GS.meta.hero],
-    open = !o.req || chalDone(o.req);
+    o = LOADOUTS[GS.meta.loadout] || LOADOUTS.std,
+    own = GS.meta.unlocked[HPV.hero || GS.meta.hero];
   $('pvName').textContent = h.name;
-  $('pvSub').textContent = `${o.name}${open ? '' : ' · locked'}${own ? '' : ' · not bought yet'}`;
+  $('pvSub').textContent = `${o.name}${own ? '' : ' · not bought yet'}`;
 }
 export function copyPreview() {
   // the hero standing in the live menu scene, lit by its own flashlight, cut out of the frame that was just drawn
@@ -311,6 +311,7 @@ export function begin() {
   GS.state = 'play';
   updateHint();
   setMuted(GS.muted);
+  if (!GS.RUN.practice && !GS.RUN.resumed) applyLoadout();
   if (PK().start && !GS.RUN.practice && !GS.RUN.resumed)
     GS.later.push({
       t: 0.4,
@@ -318,6 +319,18 @@ export function begin() {
         if (GS.state === 'play') offerUpgrades('start');
       },
     });
+}
+// the starting loadout taken in the Armory: a gun and its ammo, a few traps, or a survivor at your side from night 1
+function applyLoadout() {
+  const id = GS.meta.loadout,
+    L = LOADOUTS[id];
+  if (!L || id === 'std' || !loadoutOpen(id)) return;
+  if (L.gun) giveGun(L.gun);
+  if (L.traps) giveTraps(L.traps);
+  if (L.buddy) {
+    LV.buddy = (LV.buddy || 0) + 1;
+    UP.find(u => u.id === 'buddy').apply();
+  }
 }
 // Continue: the run saved at its last dawn, picked up at that dawn
 export function continueRun() {

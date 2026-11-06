@@ -7,7 +7,6 @@ import { R } from './atlas.js';
 import { lamps } from '../world/map.js';
 import { ik2 } from '../actors/legs.js';
 import { HPV } from '../ui/hangar.js';
-import { OUTFITS } from '../game/challenges.js';
 export const E1 = 1.6,
   NIGHT = { sun: [0.33, 0.39, 0.58], sky: [0.25, 0.28, 0.4] };
 export function lampHot(x, y) {
@@ -150,7 +149,7 @@ export function drawRanger(p) {
   const pv = !p.npc && HPV.on && GS.state === 'menu',
     look = p.look ?? (HLOOK[(pv && HPV.hero) || GS.RUN.hero] || 0),
     st = HSTYLE[look],
-    ot = p.npc ? p.tint || [1, 1, 1] : (OUTFITS[(pv && HPV.outfit) || GS.meta.outfit] || OUTFITS.std).tint;
+    ot = p.npc ? p.tint || [1, 1, 1] : [1, 1, 1];
   const dn = p.down > 0,
     amp = dn ? 0 : p.strideAmp,
     ph = p.stride * TAU,

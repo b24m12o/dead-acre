@@ -113,7 +113,8 @@ export function nightCleared() {
     bump('flawless');
     showStreak('Flawless night', 'Not a scratch');
   }
-  statMax('maxNight', GS.wave);
+  if (GS.RUN.hm) statMax('hmBest', GS.wave);
+  else statMax('maxNight', GS.wave);
   checkChal();
   saveMeta();
   if (GS.RUN.endless || GS.wave < FINAL_NIGHT) {

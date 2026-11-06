@@ -410,3 +410,7 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 .gauge .gcur .ga{flex:none}
 .gauge>*{min-width:0}
 .gauge .squad,.gauge .gtrap{overflow:hidden;text-overflow:ellipsis}
+/* challenge tiers: I · II · III beside the name, lit as each is done */
+.ch .tiers{display:inline-flex;gap:3px;margin-left:8px;vertical-align:2px}
+.ch .tiers i{font:600 9px/1.4 var(--font-mono);font-style:normal;letter-spacing:.06em;padding:0 4px;border-radius:3px;background:rgba(255,255,255,.08);color:var(--mute)}
+.ch .tiers i.on{background:rgba(224,166,64,.32);color:#ffe2b0}

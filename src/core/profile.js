@@ -119,7 +119,7 @@ export function normalizeMeta() {
   }
   for (const k of Object.keys(GS.meta.tips)) GS.meta.tips[k] = GS.meta.tips[k] === true || GS.meta.tips[k] === 1;
   if (!record(GS.meta.daily)) GS.meta.daily = {};
-  if (typeof GS.meta.outfit !== 'string') GS.meta.outfit = 'std';
+  if (typeof GS.meta.loadout !== 'string') GS.meta.loadout = 'std';
 }
 
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
