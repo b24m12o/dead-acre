@@ -261,10 +261,19 @@ export function tickWorld(dt) {
   }
   let liveN = 0;
   for (const e of GS.enemies) if (!e.dead && !(e.rout > 0) && e.type !== 'flower' && e.type !== 'egg') liveN++;
-  // at dawn a straggler or two is not a fight: the band only comes in for a real one, and once in it holds a while
+  // the band comes in for a real fight, not for one walker wandering up: a wave on its way, a few of them, or the
+  // ones there are right on you. Once in, it stays in while any are still about, and through a night's short lulls
+  // between surges; it only drops back once it's been quiet a good while. So it changes when the fight does, not
+  // with every kill.
   const dawn = GS.nightDone && !GS.evac,
-    live = GS.queue.length > 0 || (dawn ? liveN >= 4 || (liveN > 0 && MUS.heat > 0.35) : liveN > 0);
+    night = GS.nightLive && !GS.nightDone,
+    fightOn = MUS.want === 'fight',
+    threat =
+      GS.queue.length > 0 ||
+      (dawn ? liveN >= 6 || (liveN > 0 && MUS.heat > 0.5) : liveN >= 3 || (liveN > 0 && MUS.heat > 0.3)),
+    live = threat || (fightOn && liveN > 0);
   MUS.quietT = live ? 0 : (MUS.quietT || 0) + dt;
+  const hold = fightOn && MUS.quietT < (night ? 14 : dawn ? 5 : 4);
   {
     const on = GS.state !== 'menu';
     if (ambG && on !== GS.ambOn) {
@@ -287,7 +296,7 @@ export function tickWorld(dt) {
                 ? 'none'
                 : GS.state === 'travel'
                   ? 'calm' // on the road card the fight is over: the ride's ending rings out and the quiet takes over
-                  : live || (MUS.level === 'fight' && MUS.quietT < (dawn ? 5 : 3))
+                  : live || hold
                     ? 'fight'
                     : 'calm';
 }

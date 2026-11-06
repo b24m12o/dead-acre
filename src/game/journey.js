@@ -218,21 +218,24 @@ function tickTruck(dt) {
 }
 
 // ---- the ride: the truck drives on across the map and out, and you're on the gun in the back ----
-const RIDE_V = 100;
+const RIDE_V = 175; // a working truck's pace through wrecked streets: quicker than you can run, slow enough to be caught on the corners
 // the way out over open ground, keeping to the road where there is one: cheapest path from the truck to the far
 // edge, then rounded off so the truck takes the corners in curves
+// the drive out: not straight for the nearest edge but the long way round, through the streets, by a couple of
+// waypoints out on through-roads (the truck has to go round what's blocking the short way), then off the far side.
+// Each leg is a cheapest-path search over the tiles; roads it has already driven cost more, so it loops round blocks
+// instead of doubling back.
 function ridePath(T) {
   const side = T.x > WW / 2 ? -1 : 1,
     N = MW * MH,
-    cost = new Float32Array(N).fill(1e9),
-    from = new Int32Array(N).fill(-1),
-    done = new Uint8Array(N),
+    used = new Uint8Array(N),
+    shut = new Uint8Array(N), // the road just driven, behind the truck: no turning round on it
     s0 = Math.floor(T.y / TILE) * MW + Math.floor(T.x / TILE),
-    goal = i => (side > 0 ? i % MW >= MW - 6 : i % MW <= 5),
+    edge = i => (side > 0 ? i % MW >= MW - 6 : i % MW <= 5),
     step = i => {
       const tx = i % MW,
         ty = (i / MW) | 0;
-      if (isWall(tx, ty)) return 1e9;
+      if (isWall(tx, ty) || shut[i]) return 1e9;
       let near = 0,
         far = 0;
       for (let j = -2; j <= 2; j++)
@@ -241,71 +244,172 @@ function ridePath(T) {
             if (Math.abs(j) <= 1 && Math.abs(k) <= 1) near++;
             else far++;
           }
-      return 1 + near * 6 + far * 0.6 + (ROAD && ROAD[i] ? 0 : 1.2); // down the middle of the road, clear of the wrecks: the truck is wider than a tile
+      return 1 + near * 6 + far * 0.6 + (ROAD && ROAD[i] ? 0 : 1.2) + used[i] * 8; // down the middle of the road, clear of the wrecks: the truck is wider than a tile
     };
-  cost[s0] = 0;
-  let end = -1;
-  // a binary heap on cost (stale entries are skipped when they come up)
-  const heap = [s0],
-    hpush = v => {
-      heap.push(v);
-      for (let c = heap.length - 1; c > 0; ) {
-        const pa = (c - 1) >> 1;
-        if (cost[heap[pa]] <= cost[heap[c]]) break;
-        [heap[pa], heap[c]] = [heap[c], heap[pa]];
-        c = pa;
+  const leg = (from0, goal) => {
+    const cost = new Float32Array(N).fill(1e9),
+      from = new Int32Array(N).fill(-1),
+      done = new Uint8Array(N);
+    cost[from0] = 0;
+    let end = -1;
+    // a binary heap on cost (stale entries are skipped when they come up)
+    const heap = [from0],
+      hpush = v => {
+        heap.push(v);
+        for (let c = heap.length - 1; c > 0; ) {
+          const pa = (c - 1) >> 1;
+          if (cost[heap[pa]] <= cost[heap[c]]) break;
+          [heap[pa], heap[c]] = [heap[c], heap[pa]];
+          c = pa;
+        }
+      },
+      hpop = () => {
+        const top = heap[0],
+          last = heap.pop();
+        if (heap.length) {
+          heap[0] = last;
+          for (let c = 0; ; ) {
+            const l = 2 * c + 1,
+              r = l + 1;
+            let m = c;
+            if (l < heap.length && cost[heap[l]] < cost[heap[m]]) m = l;
+            if (r < heap.length && cost[heap[r]] < cost[heap[m]]) m = r;
+            if (m === c) break;
+            [heap[m], heap[c]] = [heap[c], heap[m]];
+            c = m;
+          }
+        }
+        return top;
+      };
+    while (heap.length) {
+      const i = hpop();
+      if (done[i]) continue;
+      done[i] = 1;
+      if (goal(i) && i !== from0) {
+        end = i;
+        break;
       }
-    },
-    hpop = () => {
-      const top = heap[0],
-        last = heap.pop();
-      if (heap.length) {
-        heap[0] = last;
-        for (let c = 0; ; ) {
-          const l = 2 * c + 1,
-            r = l + 1;
-          let m = c;
-          if (l < heap.length && cost[heap[l]] < cost[heap[m]]) m = l;
-          if (r < heap.length && cost[heap[r]] < cost[heap[m]]) m = r;
-          if (m === c) break;
-          [heap[m], heap[c]] = [heap[c], heap[m]];
-          c = m;
+      const tx = i % MW,
+        ty = (i / MW) | 0;
+      for (const [ox, oy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const nx = tx + ox,
+          ny = ty + oy;
+        if (nx < 2 || ny < 2 || nx >= MW - 2 || ny >= MH - 2) continue;
+        const j = ny * MW + nx,
+          c = cost[i] + step(j);
+        if (c < cost[j]) {
+          cost[j] = c;
+          from[j] = i;
+          hpush(j);
         }
       }
-      return top;
-    };
-  while (heap.length) {
-    const i = hpop();
-    if (done[i]) continue;
-    done[i] = 1;
-    if (goal(i) && i !== s0) {
-      end = i;
-      break;
     }
-    const tx = i % MW,
-      ty = (i / MW) | 0;
-    for (const [ox, oy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = tx + ox,
-        ny = ty + oy;
-      if (nx < 2 || ny < 2 || nx >= MW - 2 || ny >= MH - 2) continue;
-      const j = ny * MW + nx,
-        c = cost[i] + step(j);
-      if (c < cost[j]) {
-        cost[j] = c;
-        from[j] = i;
-        hpush(j);
+    const out = [];
+    for (let i = end; i >= 0 && i !== from0; i = from[i]) out.push(i);
+    return end >= 0 ? out.reverse() : null;
+  };
+  // the waypoints: through-road tiles (road on both sides along it), well apart
+  let loose = false; // when the map has too few streets for that: any paved ground will do
+  const through = i => {
+      const tx = i % MW,
+        ty = (i / MW) | 0,
+        rd = (x, y) => ROAD && (loose ? ROAD[y * MW + x] : ROAD[y * MW + x] === 1) && !isWall(x, y);
+      return (
+        tx > 6 &&
+        ty > 6 &&
+        tx < MW - 7 &&
+        ty < MH - 7 &&
+        rd(tx, ty) &&
+        ((rd(tx - 1, ty) && rd(tx + 1, ty)) || (rd(tx, ty - 1) && rd(tx, ty + 1)))
+      );
+    },
+    tpos = i => [((i % MW) + 0.5) * TILE, (((i / MW) | 0) + 0.5) * TILE],
+    pickWp = (fromI, minD, goalSide) => {
+      const [fx, fy] = tpos(fromI);
+      for (let k = 0; k < 300; k++) {
+        const i = ((Math.random() * N) | 0) % N;
+        if (!through(i)) continue;
+        const [x, y] = tpos(i);
+        if (Math.hypot(x - fx, y - fy) < minD) continue;
+        if (goalSide && (x - WW / 2) * side < WW * 0.05) continue;
+        if (!goalSide && (x - WW / 2) * side > WW * 0.15) continue;
+        return i;
       }
-    }
+      return -1;
+    };
+  let w1 = pickWp(s0, 700, false),
+    w2 = w1 >= 0 ? pickWp(w1, 700, true) : -1;
+  if (w1 < 0 || w2 < 0) {
+    loose = true;
+    if (w1 < 0) w1 = pickWp(s0, 700, false);
+    if (w1 >= 0) w2 = pickWp(w1, 700, true);
   }
-  let pts = [];
-  if (end >= 0)
-    for (let i = end; i >= 0; i = from[i]) pts.push([(i % MW) * TILE + TILE / 2, ((i / MW) | 0) * TILE + TILE / 2]);
-  pts.reverse();
+  // the whole drive through the given waypoints and off the far edge
+  let idx, at, badRun;
+  const drive = wps => {
+    badRun = false;
+    idx = [s0];
+    at = s0;
+    used.fill(0);
+    const behind = () => {
+      shut.fill(0);
+      const ax = at % MW,
+        ay = (at / MW) | 0,
+        b0 = idx[Math.max(0, idx.length - 5)];
+      let dx = ax - (b0 % MW),
+        dy = ay - ((b0 / MW) | 0);
+      if (idx.length < 3) {
+        dx = Math.cos(T.a);
+        dy = Math.sin(T.a);
+      } // at the start, behind is where the truck's tailgate points
+      for (let k = Math.max(0, idx.length - 9); k < idx.length; k++)
+        for (let j = -3; j <= 3; j++)
+          for (let q = -3; q <= 3; q++) {
+            const tx = (idx[k] % MW) + q,
+              ty = ((idx[k] / MW) | 0) + j;
+            if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) continue;
+            if ((tx - ax) * dx + (ty - ay) * dy < 0) shut[ty * MW + tx] = 1;
+          }
+    }; // the road behind it, its whole width, is shut for the next leg: it drives on, round the block, not back
+    for (const w of wps) {
+      if (w < 0) continue;
+      behind();
+      const near = i => Math.abs((i % MW) - (w % MW)) + Math.abs(((i / MW) | 0) - ((w / MW) | 0)) <= 1;
+      let L1 = leg(at, near);
+      if (!L1 && idx.length < 3) {
+        shut.fill(0);
+        L1 = leg(at, near);
+      } // parked facing a dead end: it turns round first
+      if (!L1) continue;
+      for (const i of L1) used[i] = 1;
+      idx = idx.concat(L1);
+      at = idx[idx.length - 1];
+    }
+    behind();
+    let L2 = leg(at, edge);
+    if (!L2) {
+      shut.fill(0);
+      L2 = leg(at, edge);
+      badRun = true;
+    } // a dead end after all: turning round is better than stopping
+    if (L2) idx = idx.concat(L2);
+    else if (idx.length < 4) idx = [];
+    return idx;
+  };
+  const tries = [];
+  for (const wps of [[w1, w2], [w1], []]) {
+    const r = drive(wps);
+    tries.push({ idx: r.slice(), bad: badRun });
+  }
+  const fit = t => (t.bad ? 1e6 : 0) + Math.abs(t.idx.length - 95);
+  tries.sort((p, q) => fit(p) - fit(q));
+  idx = tries[0].idx; // of the ways round, the one nearest half a minute's drive (about 95 tiles) that never doubles back
+  let pts = idx.map(i => [(i % MW) * TILE + TILE / 2, ((i / MW) | 0) * TILE + TILE / 2]);
   if (pts.length < 4)
     pts = [
       [T.x, T.y],
@@ -425,12 +529,19 @@ function tickRide(dt, onLeave) {
   r.t += dt;
   const B = r.block && r.block.hp > 0 ? r.block : null,
     stopAt = B ? B.s - TL / 2 - 34 : 1e9;
-  let v = RIDE_V * clamp(r.t / 2.5, 0, 1) * (r.s > r.path.len - 160 ? 0.7 : 1);
-  if (B && r.s > stopAt - 160) v = Math.min(v, 30 + (stopAt - r.s) * 0.45); // he brakes for it
+  // it brakes for the corners and the end of the road, and picks up speed again after
+  const [, , ca] = along(r.path, r.s + 30),
+    [, , cb] = along(r.path, r.s + 150),
+    turn = Math.abs(angDiff(ca, cb)),
+    vw = RIDE_V * clamp(1.15 - turn * 0.85, 0.42, 1) * (r.s > r.path.len - 200 ? 0.6 : 1);
+  r.v = r.v ?? 0;
+  r.v += (vw - r.v) * damp(vw < r.v ? 3 : 0.9, dt);
+  let v = r.v;
+  if (B && r.s > stopAt - 220) v = r.v = Math.min(v, 30 + (stopAt - r.s) * 0.6); // he brakes for it
   r.s = Math.min(r.s + Math.max(0, v) * dt, stopAt);
   let back = 0;
   if (B && r.s >= stopAt - 0.5) {
-    v = 0;
+    v = r.v = 0;
     if (!B.on) {
       B.on = true;
       honk(1);
@@ -517,9 +628,9 @@ function tickRide(dt, onLeave) {
   r.spawnT -= dt;
   if (r.spawnT <= 0 && GS.enemies.length < 120 && r.s < r.path.len - 300) {
     const rush = r.rush > 0;
-    r.spawnT = rush ? 0.3 : 0.5;
+    r.spawnT = rush ? 0.3 : 0.42;
     if (rush) r.rush -= 2;
-    const sp = rush ? sideSpot(r, -380, 380, 300, 520) : sideSpot(r, 340, 700, 150, 440);
+    const sp = rush ? sideSpot(r, -380, 380, 300, 520) : sideSpot(r, 480, 900, 150, 460);
     if (sp) {
       const n = 2 + ((Math.random() * 2) | 0);
       for (let i = 0; i < n; i++) {
