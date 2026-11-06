@@ -26,6 +26,12 @@ export function renderDistricts() {
   const hm = SETUP === 'hm';
   if (!STOPS.some((s, i) => s.id === GS.meta.hmPlace && stopOpen(i))) GS.meta.hmPlace = 'main';
   $('distWrap').hidden = !hm;
+  $('roadList').hidden = hm;
+  $('roadList').innerHTML = STOPS.map((s, i) => {
+    const from = i ? STOPS[i - 1].to + 1 : 1,
+      nights = from === s.to ? `Night ${s.to}` : `Nights ${from}–${s.to}`;
+    return `<li><span>${nights}</span><b>${s.name}</b><i>${s.area}</i></li>`;
+  }).join(''); // the road, stop by stop
   $('survEye').textContent = hm ? 'Horde Mode' : 'Fifteen nights till the chopper';
   $('survTitle').textContent = hm ? 'Pick your ground' : 'The road out';
   $('survLede').innerHTML = hm
@@ -33,9 +39,15 @@ export function renderDistricts() {
     : 'Eight stops on the road from <b>Dead Acre</b> to the <b>County Hospital</b>, on foot or in the back of a convoy truck, and five bosses on the way. Heavier guns come down as the nights go on, and on the last one the Guard chopper lands for you.';
   $('startBtn').textContent = hm ? 'Bring them on' : 'Hold the line';
   $('districts').innerHTML = STOPS.map((s, i) => {
-    const open = stopOpen(i);
-    return `<button type="button" class="hero${GS.meta.hmPlace === s.id ? ' on' : ''}${open ? '' : ' locked'}" data-p="${s.id}" data-i="${i}"><span class="nm">${s.name}</span><span class="ds">${s.desc}</span>${open ? `<span class="wp">${s.area}</span>` : '<span class="lk">Locked · reach it in the campaign</span>'}</button>`;
+    const open = stopOpen(i),
+      on = GS.meta.hmPlace === s.id;
+    return `<button type="button" role="radio" aria-checked="${on}" class="place${on ? ' on' : ''}${open ? '' : ' locked'}" data-p="${s.id}" data-i="${i}"${open ? '' : ' aria-disabled="true" title="Reach it in the campaign to fight here"'}><b>${s.name}</b><span>${open ? s.area : 'Locked'}</span></button>`;
   }).join('');
+  {
+    const S = STOPS.find(s => s.id === GS.meta.hmPlace) || STOPS[0];
+    $('placeDesc').innerHTML =
+      `<b>${S.name}</b> · ${S.desc}${STOPS.some((s, i) => !stopOpen(i)) ? ' The locked places open as the campaign takes you there.' : ''}`;
+  } // one description, for the place picked
   for (const b of $('districts').children)
     b.addEventListener('click', () => {
       if (!stopOpen(+b.dataset.i) || GS.meta.hmPlace === b.dataset.p) return;
@@ -98,8 +110,20 @@ function renderTwists() {
   if (!box) return;
   box.innerHTML = TWISTS.map(
     t =>
-      `<button type="button" class="tw${GS.meta.twists[t.id] ? ' on' : ''}" data-t="${t.id}" aria-pressed="${GS.meta.twists[t.id] ? 'true' : 'false'}"><b>${t.name}</b><span>${t.desc}</span><em>+${Math.round(t.scrap * 100)}% scrap</em></button>`
+      `<button type="button" class="chip${GS.meta.twists[t.id] ? ' on' : ''}" data-t="${t.id}" aria-pressed="${GS.meta.twists[t.id] ? 'true' : 'false'}" aria-describedby="twHint"><b>${t.name}</b><em>+${Math.round(t.scrap * 100)}%</em></button>`
   ).join('');
+  const hint = $('twHint'),
+    idle = 'Optional rules for the run. Each one pays more scrap. Point at one to read it.';
+  hint.textContent = idle;
+  for (const b of box.children) {
+    const t = TWISTS.find(q => q.id === b.dataset.t),
+      show = () => (hint.innerHTML = `<b>${t.name}</b> · ${t.desc} · +${Math.round(t.scrap * 100)}% scrap`),
+      hide = () => (hint.textContent = idle);
+    b.addEventListener('mouseenter', show);
+    b.addEventListener('focus', show);
+    b.addEventListener('mouseleave', hide);
+    b.addEventListener('blur', hide);
+  } // the chip says what it is; what it does shows when you point at it or tab to it
   for (const b of box.children)
     b.addEventListener('click', () => {
       const id = b.dataset.t;
@@ -111,10 +135,8 @@ function renderTwists() {
   const on = TWISTS.filter(t => GS.meta.twists[t.id]),
     k = on.reduce((a, t) => a + t.scrap, 0);
   $('twDesc').innerHTML =
-    (on.length
-      ? `${on.map(t => t.name).join(' · ')} · +${Math.round(k * 100)}% scrap`
-      : 'Optional rules for the run. Each one pays more scrap.') +
-    `<br>This run: <b>${{ relaxed: 'Relaxed', normal: 'Normal', hard: 'Hard' }[GS.meta.diff] || 'Normal'}</b> difficulty · Infection <b>${Math.min(GS.meta.inf || 0, GS.meta.infMax || 0)}</b>${on.length ? ` · <b>${on.length}</b> twist${on.length > 1 ? 's' : ''}` : ''} · scrap <b>×${runScrapK().toFixed(2)}</b>`;
+    (on.length ? `Twists on: ${on.map(t => t.name).join(', ')} (+${Math.round(k * 100)}% scrap).<br>` : '') +
+    `This run: <b>${{ relaxed: 'Relaxed', normal: 'Normal', hard: 'Hard' }[GS.meta.diff] || 'Normal'}</b> difficulty · Infection <b>${Math.min(GS.meta.inf || 0, GS.meta.infMax || 0)}</b>${on.length ? ` · <b>${on.length}</b> twist${on.length > 1 ? 's' : ''}` : ''} · scrap <b>×${runScrapK().toFixed(2)}</b>`;
 }
 export function renderChallenges() {
   // starting loadouts: earned from challenges, one taken into each new run

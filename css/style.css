@@ -436,5 +436,34 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #fade{position:fixed;inset:0;background:#07090b;opacity:0;pointer-events:none;transition:opacity .45s ease;z-index:40}
 #fade.on{opacity:1}
 #distWrap{display:grid;gap:12px}
-#survSetup>.panel{width:min(660px,calc(100vw - 32px))}
-#districts{grid-template-columns:repeat(4,minmax(0,1fr))}#districts .hero .ds{font-size:11.5px}
+/* run setup: two columns on a wide screen (the story and the ground; the options and the start), so it fits
+   without being shrunk; plain sentence-case notes instead of small capitals */
+#survSetup>.panel.setup{width:min(1080px,calc(100vw - 32px));grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);column-gap:36px;align-items:start}
+#survSetup .scol{display:grid;gap:14px;align-content:start;min-width:0}
+#distWrap{display:grid;gap:10px}
+@media (max-width:900px){#survSetup>.panel.setup{grid-template-columns:minmax(0,1fr)}}
+.places{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.place{font:inherit;text-align:left;display:grid;gap:2px;padding:10px 13px;border-radius:12px;border:2px solid transparent;background:#232a31;color:var(--cream);cursor:pointer;min-width:0}
+.place b{font-family:var(--font-display);font-style:italic;font-weight:700;font-size:18px;line-height:1.15}
+.place span{font-family:var(--font-mono);font-size:12px;letter-spacing:.06em;color:var(--teal)}
+.place.on{border-color:var(--ember);background:#2a2f33}
+.place.locked{opacity:.45;cursor:default}.place.locked span{color:var(--mute)}
+.place:focus-visible,.chip:focus-visible{outline:3px solid #ffd08a;outline-offset:2px}
+.note{margin:0;font-size:15px;line-height:1.45;color:#b9c0c3}.note b{color:var(--cream);font-weight:600}
+.note.sum{font-size:14px;color:#9aa3a7}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:600 15px var(--font-body);display:inline-flex;align-items:baseline;gap:8px;padding:8px 12px;border-radius:10px;border:2px solid transparent;background:#232a31;color:var(--cream);cursor:pointer}
+.chip em{font:500 12px var(--font-mono);font-style:normal;color:var(--teal)}
+.chip.on{border-color:var(--ember);background:rgba(255,122,47,.14)}
+#survSetup .seg button{font-size:14px;padding:8px 12px}
+#survSetup .sec{font-size:12px}
+/* the Settings button on the menu is just its gear, so the row of buttons stays on one line */
+.btn.icon{display:inline-grid;place-items:center;padding:0;width:54px;height:50px}
+.btn.icon svg{display:block}
+.road-list{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:7px}
+.road-list li{display:grid;grid-template-columns:7.5em 1fr;align-items:baseline;column-gap:12px;font-size:15px;color:#c9cfd1}
+.road-list span{font:500 13px var(--font-mono);color:var(--teal)}
+.road-list b{font-weight:600;color:var(--cream)}.road-list i{font-style:normal;color:#8c959a;grid-column:2;font-size:13px;margin-top:-3px}
+/* readable small text: the character cards' labels and the controls line */
+.hero .wp,.hero .lk{font-size:12px;letter-spacing:.06em}
+.rec.keysline{text-transform:none;letter-spacing:0;font-family:var(--font-body);font-size:14px;line-height:1.5;color:#a6aeb2}
