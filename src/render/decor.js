@@ -157,6 +157,16 @@ export function genDecor() {
     road = (tx, ty, i) => ROAD[i] === 1 || ROAD[i] === 3;
   const nearHouse = (tx, ty, i) =>
     !ROAD[i] && houses.some(o => tx >= o.x - 1 && tx <= o.x + o.w && ty >= o.y - 1 && ty <= o.y + o.h);
+  const inHouse = (tx, ty) => houses.some(o => tx >= o.x && tx <= o.x + o.w - 1 && ty >= o.y && ty <= o.y + o.h - 1),
+    dumpOK = (tx, ty, i) =>
+      nearHouse(tx, ty, i) &&
+      !inHouse(tx, ty) &&
+      ![
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ].some(([a, b]) => inHouse(tx + a, ty + b) && !grid[(ty + b) * MW + tx + a]); // against a wall outside, never in a doorway
   if (D === 'town') {
     put('hydrant', 14, side, { fn: () => ({ a: 0 }) });
     put('mailbox', 6, side, { fn: () => ({ a: 0 }) });
@@ -167,7 +177,7 @@ export function genDecor() {
     put('bench', 5, side, { fn: () => ({ a: 0 }) });
     put('tire', 5, lot);
     for (let j = 0; j < 5; j++) {
-      const s = spot(nearHouse, 4);
+      const s = spot(dumpOK, 4);
       if (!s) continue;
       const [tx, ty] = s;
       grid[ty * MW + tx] = 1;
@@ -216,7 +226,7 @@ export function genDecor() {
     put('tire', 12, (tx, ty, i) => true);
     put('trash', 5, nearHouse);
     for (let j = 0; j < 2; j++) {
-      const s = spot(nearHouse, 4);
+      const s = spot(dumpOK, 4);
       if (!s) continue;
       const [tx, ty] = s;
       grid[ty * MW + tx] = 1;
