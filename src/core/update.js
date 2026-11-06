@@ -26,7 +26,16 @@ import { BILE } from '../render/draw-enemies.js';
 import { throwMolotov } from '../world/fire.js';
 import { alarmTick } from '../game/noise.js';
 import { FINAL_NIGHT, INF } from '../game/districts.js';
-import { budBoard, budPerk, buddyHurt, buddyShoot, buddySlot, regroupSpot, rescueFollower } from '../actors/backups.js';
+import {
+  budBoard,
+  budLook,
+  budPerk,
+  buddyHurt,
+  buddyShoot,
+  buddySlot,
+  regroupSpot,
+  rescueFollower,
+} from '../actors/backups.js';
 import { radioTick } from '../audio/radio.js';
 import { nightCleared } from '../game/night-flow.js';
 import { tutTick } from '../game/tutorial.js';
@@ -325,6 +334,8 @@ export function update(dt) {
   const pspd = Math.hypot(p.vx, p.vy);
   if (p.formA === undefined) p.formA = p.moveA;
   if (pspd > 60) p.formA += angDiff(p.formA, p.moveA) * damp(2.5, dt);
+  const setOff = pspd > 60 && (p.spdWas || 0) <= 60; // you just started walking: each of your people takes a moment to react
+  p.spdWas = pspd;
   {
     p.__slots = [];
     const rs = rescueFollower();
@@ -358,6 +369,32 @@ export function update(dt) {
       s.stuckT = 0;
       s.pgD = undefined;
     } // can't get to any spot: it simply stands where it is
+    if (pspd < 20 && Math.hypot(sl.x - s.x, sl.y - s.y) < 22) {
+      s.idleT = (s.idleT ?? rand(3, 8)) - dt;
+      if (s.idleT <= 0) {
+        s.idleT = rand(5, 11);
+        const a = rand(0, TAU),
+          r = rand(14, 30),
+          nx = sl.x + Math.cos(a) * r,
+          ny = sl.y + Math.sin(a) * r;
+        if (
+          !solidPt(nx, ny) &&
+          !solidPt(nx + 13, ny) &&
+          !solidPt(nx - 13, ny) &&
+          !solidPt(nx, ny + 13) &&
+          !solidPt(nx, ny - 13) &&
+          Math.hypot(nx - p.x, ny - p.y) > 44 &&
+          Math.abs(angDiff(p.aimA, Math.atan2(ny - p.y, nx - p.x))) > 0.6 &&
+          !taken.some(q => d2(q[0], q[1], nx, ny) < 44 * 44) &&
+          los(p.x, p.y, nx, ny)
+        ) {
+          sl.x = nx;
+          sl.y = ny;
+        }
+      }
+    } else s.idleT = undefined; // standing about, nobody stays rooted to one spot: a step this way or that every few seconds
+    if (setOff) s.react = rand(0.12, 0.45);
+    s.react = Math.max(0, (s.react || 0) - dt);
     taken.push([sl.x, sl.y]);
     const tx = sl.x,
       ty = sl.y;
@@ -367,7 +404,9 @@ export function update(dt) {
       dy = ty - s.y,
       dd = Math.hypot(dx, dy),
       pd = Math.hypot(p.x - s.x, p.y - s.y);
-    if (dd > 22) {
+    let dvx = 0,
+      dvy = 0;
+    if (dd > 22 && !(s.react > 0 && dd < 160)) {
       let ux = dx / dd,
         uy = dy / dd;
       if (pd > 110 && (s.flowT > 0 || !los(s.x, s.y, tx, ty))) {
@@ -410,10 +449,35 @@ export function update(dt) {
         }
       } // you are in the way: go round you, not into you
       const v = Math.min(Math.max(S.speed * 1.15, pspd * 1.1), dd * 5);
-      s.x += ux * v * dt;
-      s.y += uy * v * dt;
+      dvx = ux * v;
+      dvy = uy * v;
+      if (pspd > 60) {
+        const fx = p.vx / pspd,
+          fy = p.vy / pspd,
+          ax = s.x - p.x,
+          ay = s.y - p.y,
+          ahead = ax * fx + ay * fy,
+          side = ax * fy - ay * fx;
+        if (ahead > 10) {
+          const back = dvx * fx + dvy * fy;
+          if (back < 0) {
+            dvx -= back * fx;
+            dvy -= back * fy;
+          }
+          if (Math.abs(side) < 46) {
+            const sg = side >= 0 ? 1 : -1;
+            dvx += fy * sg * 150;
+            dvy -= fx * sg * 150;
+          }
+        }
+      } // you turned round and they are in front of you now: they step out of your way and let you pass, then fall in behind, instead of running back through you
       s.wantV = v;
     } else s.wantV = 0;
+    const acc = damp(dvx * s.cvx + dvy * s.cvy < 0 ? 12 : 8, dt);
+    s.cvx = (s.cvx || 0) + (dvx - (s.cvx || 0)) * acc;
+    s.cvy = (s.cvy || 0) + (dvy - (s.cvy || 0)) * acc;
+    s.x += s.cvx * dt;
+    s.y += s.cvy * dt; // they speed up and slow down like someone on foot, not from a standstill to a run in one frame
     s.flowT = (s.flowT || 0) - dt;
     s.chkT = (s.chkT || 0) - dt;
     if (s.chkT <= 0) {
@@ -483,6 +547,7 @@ export function update(dt) {
     s.bodyA += angDiff(s.bodyA, s.aim) * damp(8, dt);
     s.recoil = Math.max(0, s.recoil - dt * 40);
     buddyShoot(s, dt, 1);
+    budLook(s, p, dt, spd);
   });
   const SG = GS.RUN.sg;
   if (GS.queue.length && SG && SG.lull > 0)

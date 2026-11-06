@@ -1,6 +1,6 @@
 # Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE.
 # On every push and pull request: the source must be formatted and lint-clean, dist/ must match a fresh
-# build, and the quick tests (startup from one script tag, radio voices, every boss) must pass.
+# build (npm run verify runs those checks locally), and the quick tests (startup from one script tag, radio voices, every boss) must pass.
 name: check
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # the quick checks first, so a formatting slip fails in seconds rather than after the browser install
       - name: Formatting
         run: npx prettier --check "src/**/*.js" "tools/**/*.mjs" "tests/**/*.mjs" eslint.config.js
       - name: Lint
@@ -31,6 +31,12 @@ jobs:
         run: npm run build
       - name: dist matches the source
         run: git diff --exit-code -- dist index.html
+      - name: Browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
       - name: Tests
         run: npm test
       - name: Campaign

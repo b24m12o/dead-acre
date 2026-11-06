@@ -14,6 +14,7 @@ import { BILE, ZSKIN } from '../render/draw-enemies.js';
 import { FINAL_NIGHT, INF } from '../game/districts.js';
 import { tip } from '../audio/radio.js';
 import { bossName } from '../game/boss-flow.js';
+import { bark } from '../audio/barks.js';
 export const ET = {
   skitter: { hp: 20, r: 14, sp: 84, dmg: 9, xp: 1, score: 10, col: [0.62, 0.04, 0.03] },
   hopper: { hp: 70, r: 24, sp: 46, dmg: 0, xp: 3, score: 30, col: [0.42, 0.62, 0.1] },
@@ -291,7 +292,7 @@ function setTrait(e, t) {
         t: 0.9,
         fn: () => {
           const b = pick(up);
-          if (GS.state === 'play' && b && !(b.down > 0)) playR(budKey(b, 'Look'), 0.22, b.x, b.y);
+          if (GS.state === 'play' && b && !(b.down > 0) && !bark(b, 'elite')) playR(budKey(b, 'Look'), 0.22, b.x, b.y);
         },
       });
   } /* one of your people spots it first */

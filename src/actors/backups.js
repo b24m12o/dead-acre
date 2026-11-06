@@ -18,6 +18,7 @@ import { BLOOD } from '../render/draw-enemies.js';
 import { makeNoise } from '../game/noise.js';
 import { TW } from '../game/districts.js';
 import { radio } from '../audio/radio.js';
+import { bark } from '../audio/barks.js';
 GS.nightLive = false;
 GS.obj = null;
 GS.ev = null;
@@ -93,15 +94,40 @@ export function budPerk(s, dt, pd) {
       if (GS.P.hp < S.maxHp * 0.6 && !TW('nomeds') && Math.random() < 0.35) {
         GS.pickups.push({ k: 'hp', v: 20, x: s.x, y: s.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
         floatText(s.x, s.y - 40, `${s.nm} found a medkit`, '#8ef0b8', 14);
+        bark(s, 'found');
       } else if (ts.length && ammoFill(ts[0]) < 0.95) {
         GS.pickups.push({ k: 'ammo', at: ts[0], v: 1, x: s.x, y: s.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
         floatText(s.x, s.y - 40, `${s.nm} found rounds`, '#ffd08a', 14);
+        bark(s, 'found');
       } else s.scT = 6;
     }
   }
 }
+// what each backup's gun holds and how long a reload takes. They run dry and reload like you do (a little faster
+// between shots to make up for it), and top up in a quiet moment rather than walk into the next fight half empty
+const BMAG = { pistol: [17, 1.3], shotgun: [8, 2.2], rifle: [10, 2.0] };
+const BRLD = {
+  pistol: ['magOutP', 'magInP', 'slideP'],
+  shotgun: ['magOutR', 'magInR', 'rack'],
+  rifle: ['magOutR', 'magInR', 'rack'],
+};
+function budReload(s, rt, loud) {
+  s.rl = rt;
+  const k = BRLD[s.gun] || BRLD.pistol;
+  playR(k[0], 0.16, s.x, s.y, 1, 0.05);
+  playR(k[1], 0.16, s.x, s.y, 1, rt * 0.55);
+  playR(k[2], 0.18, s.x, s.y, 1, rt * 0.9);
+  if (loud) bark(s, 'reload');
+}
 export function buddyShoot(s, dt, slow) {
   s.cd -= dt / (slow || 1);
+  const [mag, rt] = BMAG[s.gun] || BMAG.pistol;
+  if (s.mag === undefined) s.mag = mag;
+  if (s.rl > 0) {
+    s.rl -= dt / (slow || 1);
+    if (s.rl <= 0) s.mag = mag;
+  }
+  const ready = !(s.rl > 0);
   const mm = s.tr === 'marksman',
     cop = s.tr === 'cop',
     rng = mm ? 600 : cop ? 300 : 420;
@@ -118,11 +144,31 @@ export function buddyShoot(s, dt, slow) {
       tgt = e;
     }
   });
-  if (tgt && (mm || cop) && s.cd <= 0 && Math.abs(angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x))) < 0.12) {
+  if (s.tgt && s.tgt.dead && s.tgt !== tgt) bark(s, 'kill');
+  s.tgt = null;
+  if (tgt) {
+    const P = GS.P;
+    if (
+      P &&
+      d2(tgt.x, tgt.y, P.x, P.y) < 120 * 120 &&
+      Math.abs(angDiff(P.aimA, Math.atan2(tgt.y - P.y, tgt.x - P.x))) > 2.2
+    )
+      bark(s, 'behind'); // one closing on you from behind, where you are not looking
+    if (GS.time - (s.seenT ?? -99) > 4) bark(s, tgt.elite || tgt.maxHp > 150 ? 'big' : 'contact');
+    s.seenT = GS.time;
+    s.tgt = tgt;
+  } else if (ready && s.mag < mag * 0.6 && GS.time - (s.seenT ?? -99) > 2.5) budReload(s, rt, false);
+  if (
+    tgt &&
+    ready &&
+    (mm || cop) &&
+    s.cd <= 0 &&
+    Math.abs(angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x))) < 0.12
+  ) {
     const c = Math.cos(s.aim),
       sn = Math.sin(s.aim);
     if (mm) {
-      s.cd = S.buddyCd * 2.3;
+      s.cd = S.buddyCd * 2;
       GS.pbullets.push({
         x: s.x + c * 34,
         y: s.y + sn * 34,
@@ -146,7 +192,7 @@ export function buddyShoot(s, dt, slow) {
       });
       playS('rifle_m', 0.2, 1.05, 0, 0.2);
     } else {
-      s.cd = S.buddyCd * 1.7;
+      s.cd = S.buddyCd * 1.3;
       for (let k = 0; k < 4; k++) {
         const a = s.aim + rand(-0.16, 0.16),
           v = rand(900, 1050);
@@ -177,11 +223,12 @@ export function buddyShoot(s, dt, slow) {
     }
     s.recoil = 5;
     if (thr('bnoise', 400)) makeNoise(s.x, s.y, 480, true);
+    if (--s.mag <= 0) budReload(s, rt, true);
   }
   if (tgt) {
     s.aim += angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x)) * damp(14, dt);
-    if (s.cd <= 0 && !mm && !cop) {
-      s.cd = S.buddyCd;
+    if (ready && s.cd <= 0 && !mm && !cop) {
+      s.cd = S.buddyCd * 0.87;
       GS.pbullets.push({
         x: s.x + Math.cos(s.aim) * 30,
         y: s.y + Math.sin(s.aim) * 30,
@@ -206,8 +253,45 @@ export function buddyShoot(s, dt, slow) {
         fs: 0.8,
       });
       playS('pistol_m', 0.22, 1.05, 0, 0.2);
+      if (--s.mag <= 0) budReload(s, rt, true);
     }
   }
+}
+// with nothing in range a survivor behaves like a person, not a turret: eyes on the way ahead while walking, with a
+// glance out to the side; standing, they watch their own side of you and look about, now and then at you, and at
+// night toward the dead they can hear but not yet see. Just after a fight the gun stays on the spot a moment
+export function budLook(s, p, dt, spd) {
+  if (GS.time - (s.seenT ?? -99) < 1.1) return;
+  const alert = GS.nightLive && !GS.nightDone;
+  s.gazeT = (s.gazeT ?? rand(0.3, 1.5)) - dt;
+  let rate = 3;
+  if (spd > 70) {
+    if (s.gazeT <= 0) {
+      s.gazeT = rand(0.8, 2.2);
+      s.walkGl = Math.random() < (alert ? 0.35 : 0.2) ? rand(-1.1, 1.1) : 0;
+    }
+    s.gaze = s.moveA + (s.walkGl || 0);
+    rate = Math.abs(angDiff(s.aim, s.gaze)) > 1.5 ? 12 : 7; // turned right round: a quick turn, not a slow pivot
+  } else if (s.gazeT <= 0 || s.gaze === undefined) {
+    s.gazeT = alert ? rand(1, 2.6) : rand(1.8, 4.5);
+    const out = Math.atan2(s.y - p.y, s.x - p.x),
+      r = Math.random();
+    let heard = null;
+    if (alert && r > 0.45) {
+      let bd = 900 * 900;
+      query(s.x, s.y, 900, e => {
+        const dd = d2(s.x, s.y, e.x, e.y);
+        if (!e.dead && dd < bd) {
+          bd = dd;
+          heard = e;
+        }
+      });
+    }
+    if (heard) s.gaze = Math.atan2(heard.y - s.y, heard.x - s.x) + rand(-0.3, 0.3);
+    else if (r < (alert ? 0.08 : 0.2)) s.gaze = out + Math.PI + rand(-0.25, 0.25);
+    else s.gaze = out + rand(-1.1, 1.1);
+  }
+  s.aim += angDiff(s.aim, s.gaze) * damp(rate, dt);
 }
 export function buddyHurt(s, p, dt) {
   s.inv = Math.max(0, (s.inv || 0) - dt);
@@ -224,6 +308,7 @@ export function buddyHurt(s, p, dt) {
           s.inv = 0.6;
           s.hurt = 0.15;
           bleed(s.x, s.y, 16, s.x - e.x, s.y - e.y, 5, BLOOD, 200);
+          if (s.hp > 0) bark(s, 'hurt');
         }
       });
     if (!near && s.hp < s.max && thr('bq' + (s.id || (s.id = GS.nid++)), 250)) {
@@ -245,6 +330,7 @@ export function buddyHurt(s, p, dt) {
       if (Math.abs(s.x - cam.x - viewW / 2) > viewW / 2 || Math.abs(s.y - cam.y - viewH / 2) > viewH / 2)
         sfx.radio(GS.P.x, GS.P.y);
       showStreak('Man down', `${s.nm || 'Backup'} · stand next to them to get them up`);
+      s.callT = 2.2; // the grunt first, then the shouting
     }
     return false;
   }
@@ -256,7 +342,7 @@ export function buddyHurt(s, p, dt) {
   if (!close && (s.callT = (s.callT ?? 1.2) - dt) <= 0) {
     const urg = s.down < (s.downMax || 18) * 0.35;
     s.callT = urg ? rand(2, 2.8) : rand(3.4, 4.8);
-    playR(budKey(s, 'Help'), urg ? 0.3 : 0.24, s.x, s.y, urg ? 1.05 : 1);
+    if (!bark(s, 'down')) playR(budKey(s, 'Help'), urg ? 0.3 : 0.24, s.x, s.y, urg ? 1.05 : 1);
   } /* a downed backup shouts for help from where they lie, faster as they bleed out */
   if (s.rev >= 1) {
     s.down = 0;
@@ -265,6 +351,7 @@ export function buddyHurt(s, p, dt) {
     s.inv = 1.2;
     floatText(s.x, s.y - 40, 'Back on their feet', '#8ef0b8', 15);
     sfx.ammo();
+    bark(s, 'up', 0.5);
     return false;
   }
   if (s.down <= 0) {
@@ -355,6 +442,10 @@ export function budBoard(s, dt) {
     dx = gx - s.x,
     dy = gy - s.y,
     dd = Math.hypot(dx, dy);
+  if (!s.boardSaid) {
+    s.boardSaid = true;
+    bark(s, 'chopper');
+  }
   if (dd < 26) {
     const i = GS.buddies.indexOf(s);
     if (i >= 0) GS.buddies.splice(i, 1);

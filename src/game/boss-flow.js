@@ -24,6 +24,7 @@ import { radio, tip } from '../audio/radio.js';
 import { PRACTICE_SET } from './practice.js';
 import { nightCleared } from './night-flow.js';
 import { startEvac } from './evac.js';
+import { bark, nearestUp } from '../audio/barks.js';
 GS.FOGB = 0;
 GS.FOGBT = 0;
 GS.bossDue = false;
@@ -258,6 +259,10 @@ function bossArrive(x, y, walk) {
   banner(bossName(), GS.RUN.practice ? 'Boss practice' : '', true); // the name; how to fight it is in the boss bar
   sfx.roar(x, y, e.btype);
   shake(0.3);
+  {
+    const b = nearestUp(x, y);
+    if (b) bark(b, 'boss', 1.4);
+  }
   if (!GS.enemies.some(o => o !== e && o.type === 'queen' && !o.dead)) {
     MUS.bt = e.btype;
     MUS.pos.boss = 0;

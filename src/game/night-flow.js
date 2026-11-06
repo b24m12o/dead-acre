@@ -3,7 +3,7 @@ import { saveRun } from './save.js';
 import { kitOffer } from './kits.js';
 import { MUS } from '../audio/audio.js';
 import { GS } from '../core/gs.js';
-import { pick } from '../core/util.js';
+import { pick, rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
 import { WEAPON_NIGHTS, nextGuns } from './arsenal.js';
 import { lamps } from '../world/map.js';
@@ -23,6 +23,7 @@ import { practiceReport } from './practice.js';
 import { endHorde } from './horde.js';
 import { giveTraps, trapKitStreak } from './traps.js';
 import { freeSpot } from '../actors/backups.js';
+import { bark } from '../audio/barks.js';
 function dawnDrops() {
   // dawn has a job now: the convoy drops what the next night needs while it is quiet, and the night waits a little while it sits unopened
   const nx = GS.wave + 1;
@@ -109,6 +110,15 @@ export function nightCleared() {
   }
   if (GS.nightDone) return;
   GS.nightDone = true;
+  {
+    const up = GS.buddies.filter(b => !(b.down > 0));
+    if (up.length) {
+      const a = pick(up),
+        b = pick(up);
+      GS.later.push({ t: 1.4, fn: () => bark(a, 'clear') });
+      if (Math.random() < 0.6) GS.later.push({ t: rand(8, 12), fn: () => bark(b, 'idle') });
+    }
+  } // your people say it first, and now and then someone has something to say at dawn
   endHorde();
   if (GS.wave > 0 && !bossNight(GS.wave)) sfx.clear();
   if (GS.P && GS.P.stains)

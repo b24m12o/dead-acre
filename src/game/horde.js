@@ -18,6 +18,7 @@ import { flashLight, shake } from '../render/effects.js';
 import { TW } from './districts.js';
 import { dropCrate } from './combat.js';
 import { bump } from './challenges.js';
+import { bark } from '../audio/barks.js';
 
 GS.horde = null;
 export const hordeSize = w =>
@@ -92,6 +93,10 @@ export function planHorde(finale = false) {
 }
 function arrive(H) {
   H.arriveT = GS.time;
+  {
+    const up = GS.buddies.filter(b => !(b.down > 0));
+    if (up.length) bark(pick(up), 'horde', 1.2);
+  }
   const [x, y] = entry();
   H.x = x;
   H.y = y;

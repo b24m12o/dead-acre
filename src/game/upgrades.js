@@ -16,6 +16,7 @@ import { chalDone, setGearLocks, statMax } from './challenges.js';
 import { PERK_ICONS, perkIcon } from '../ui/perk-icons.js';
 import { icon as gunIcon, iconId } from '../ui/icons.js';
 import { need } from './run.js';
+import { bark } from '../audio/barks.js';
 const DMG_STEP = [1.25, 1.22, 1.18, 1.15, 1.12, 1.1],
   RATE_STEP = [1.18, 1.15, 1.12, 1.1, 1.08, 1.06]; // each rank of these two adds a little less than the last: strong early, no runaway late
 export const UP = [
@@ -225,6 +226,7 @@ export const UP = [
       budSetup(b, r);
       GS.buddies.push(b);
       showStreak(`${r.nm} joins you`, `${TRAITS[r.tr].name} · ${TRAITS[r.tr].desc}`);
+      GS.later.push({ t: 0.9, fn: () => bark(b, 'join') });
     },
   },
   {

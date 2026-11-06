@@ -502,6 +502,22 @@ export function drawMarkersUI(toS) {
     }
   }
   for (const s of GS.buddies) {
+    if (s.say && GS.time >= s.say.t && GS.time < s.say.end) {
+      const [qx, qy] = toS(s.x, s.y);
+      if (qx > 0 && qy > 0 && qx < VW && qy < VH) {
+        ui.globalAlpha = clamp((s.say.end - GS.time) / 0.4, 0, 1) * clamp((GS.time - s.say.t) / 0.12, 0, 1);
+        ui.font = `italic 600 ${12 * TS()}px "JetBrains Mono", monospace`;
+        ui.textAlign = 'center';
+        ui.lineWidth = 3;
+        ui.strokeStyle = 'rgba(20,24,29,0.85)';
+        const t = s.say.txt,
+          y = qy - 40 * ZOOM;
+        ui.strokeText(t, qx, y);
+        ui.fillStyle = '#e8eef0';
+        ui.fillText(t, qx, y);
+        ui.globalAlpha = 1;
+      }
+    } // what they just said, over their head for a moment
     if (!(s.hp < s.max) && !(s.down > 0)) continue;
     const [bx, by] = toS(s.x, s.y);
     if (bx < 0 || by < 0 || bx > VW || by > VH) continue; // your people: a bar only once they are hurt; down, a bleed-out ring

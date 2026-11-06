@@ -13,6 +13,7 @@ import { explode, hurtEnemy, hurtPlayer } from '../game/combat.js';
 import { WINDX } from './physics.js';
 import { startAlarm } from '../game/noise.js';
 import { bump } from '../game/challenges.js';
+import { bark, nearestUp } from '../audio/barks.js';
 export let carAt = new Int16Array(1);
 GS.firePools = [];
 GS.molos = [];
@@ -203,7 +204,11 @@ export function damageCar(c, dmg) {
   if (c.hasAlarm && !c.alarmUsed && !c.burnt) startAlarm(c);
   if (c.hp < c.max * 0.3 && !c.fire) {
     c.fire = 1;
-    if (c.hp > 0) c.warn = floatText(c.x, c.y - 30, "It's going to blow!", '#ffb070', 15); // only while there's still time to get clear
+    if (c.hp > 0) {
+      c.warn = floatText(c.x, c.y - 30, "It's going to blow!", '#ffb070', 15); // only while there's still time to get clear
+      const b = nearestUp(c.x, c.y, 500);
+      if (b && GS.P && (d2(c.x, c.y, GS.P.x, GS.P.y) < 260 * 260 || d2(c.x, c.y, b.x, b.y) < 200 * 200)) bark(b, 'car');
+    }
   }
   if (c.hp <= 0) blowCar(c);
 }
