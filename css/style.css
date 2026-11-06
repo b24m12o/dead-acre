@@ -402,3 +402,11 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #mods .mod span{color:#b9bdb8;font-family:var(--font-body);font-size:13px;line-height:1.3;background:none;padding:0;border-radius:0}
 #mods .mod.evo b{color:#ffe7a0}
 #mods .mod.evo i{background:rgba(255,207,58,.12)}
+/* the gauge panel never grows past its plate: a long gun name or a "+30" on the ammo squeezes, the bars stay inside */
+.gauge{grid-template-columns:minmax(0,1fr)}
+.gauge .rollrow>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gauge .rollrow .thin{min-width:64px}
+.gauge .gcur .gn{min-width:0}
+.gauge .gcur .ga{flex:none}
+.gauge>*{min-width:0}
+.gauge .squad,.gauge .gtrap{overflow:hidden;text-overflow:ellipsis}

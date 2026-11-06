@@ -673,12 +673,19 @@ export function update(dt) {
   const ammoRoom = ammoRoomK(),
     hpRoom = S.maxHp - p.hp; // only pull what you have real room for; the rest waits on the ground
   let hpWait = 0; // at most four medkits wait for you on the ground; any more run out as usual
+  const claim = {}; // what the pickups already on their way to you will fill: the rest stay where they lie
   for (const k of GS.pickups) {
     k.t += dt;
-    const dd = Math.sqrt(d2(k.x, k.y, p.x, p.y));
+    const dd = Math.sqrt(d2(k.x, k.y, p.x, p.y)),
+      ck = k.k === 'hp' ? 'hp' : k.at || '*',
+      cl = claim[ck] || 0;
     const full =
-      k.k === 'hp' ? hpRoom < Math.min(12, k.v * 0.5) : (k.at ? ammoRoomFor(k) : ammoRoom) < 0.35 * (k.v || 1);
+      k.k === 'hp'
+        ? hpRoom - cl < Math.min(12, k.v * 0.5)
+        : (k.at ? ammoRoomFor(k) : ammoRoom) - cl < 0.35 * (k.v || 1);
+    if (!full && !p.ride && ((dd < S.magnet && k.t > 0.25) || k.pull)) claim[ck] = cl + (k.v || 1);
     if (full) {
+      if (k.pull) k.vx = k.vy = 0; // it was on its way and there's no room after all: it stops where it is, not flung past you
       k.pull = false;
       if (GS.pickups.length < 25 && (k.k !== 'hp' || ++hpWait <= 4)) k.hold = (k.hold || 0) + dt;
     } /* full: leave it for later instead of wasting it, and don't let it run out while it waits */

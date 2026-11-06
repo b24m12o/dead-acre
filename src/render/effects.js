@@ -167,7 +167,9 @@ export function shake(v) {
 export function floatText(x, y, txt, col, size) {
   if (GS.texts.length > 70) GS.texts.shift();
   const L = txt.length > 12 ? 1.6 : 0.8;
-  GS.texts.push({ x, y, txt, col, size, life: L, max: L, vy: -60 });
+  const t = { x, y, txt, col, size, life: L, max: L, vy: -60 };
+  GS.texts.push(t);
+  return t;
 } // a sentence stays up long enough to read
 export function ring(x, y, r0, r1, life, col, w = 1) {
   GS.rings.push({ x, y, r0, r1, life, max: life, c: col, w });

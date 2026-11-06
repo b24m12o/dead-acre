@@ -203,13 +203,15 @@ export function damageCar(c, dmg) {
   if (c.hasAlarm && !c.alarmUsed && !c.burnt) startAlarm(c);
   if (c.hp < c.max * 0.3 && !c.fire) {
     c.fire = 1;
-    floatText(c.x, c.y - 30, "It's going to blow!", '#ffb070', 15);
+    if (c.hp > 0) c.warn = floatText(c.x, c.y - 30, "It's going to blow!", '#ffb070', 15); // only while there's still time to get clear
   }
   if (c.hp <= 0) blowCar(c);
 }
 function blowCar(c) {
   c.dead = true;
   c.fire = 0;
+  if (c.warn) c.warn.life = 0; // the warning goes with the car: never left hanging over the wreck
+  c.warn = null;
   bump('cars');
   const k = c.tanker ? 2 : c.rig ? 1.45 : 1; // a rigged car goes up half again as wide; the fuel tanker twice
   explode(c.x, c.y, (c.truck ? 150 : 125) * k, (90 + GS.wave * 12) * (c.tanker ? 2.2 : c.rig ? 1.6 : 1), true);
