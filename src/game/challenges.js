@@ -31,8 +31,8 @@ export const CHAL = [
   // ---- killing ----
   ...fam('Killing', 'Exterminator', 'kills', g => `Kill ${fmt(g)} zombies`, '', [
     ['k100', 100, 50],
-    ['k1000', 1000, 200, 'Laser Sight'],
-    ['k10000', 10000, 500],
+    ['k1000', 1000, 100, 'Laser Sight'],
+    ['k10000', 10000, 250],
   ]),
   ...fam(
     'Killing',
@@ -42,8 +42,8 @@ export const CHAL = [
     'A critical hit that kills a zombie can take its head off.',
     [
       ['heads50', 50, 80],
-      ['heads250', 250, 150, 'Sharpshooter loadout'],
-      ['heads1000', 1000, 300],
+      ['heads250', 250, 75, 'Sharpshooter loadout'],
+      ['heads1000', 1000, 150],
     ]
   ),
   ...fam(
@@ -54,8 +54,8 @@ export const CHAL = [
     'Keep killing without a 2.4 s pause; the chain shows next to your score.',
     [
       ['chain50', 50, 60],
-      ['chain150', 150, 150],
-      ['chain300', 300, 300],
+      ['chain150', 150, 75],
+      ['chain300', 300, 150],
     ]
   ),
   ...fam(
@@ -66,8 +66,8 @@ export const CHAL = [
     'Molotovs, incendiary rounds, burning cars and fuel pumps all count.',
     [
       ['fire100', 100, 120, 'Molotov Start'],
-      ['fire500', 500, 200],
-      ['fire2000', 2000, 400],
+      ['fire500', 500, 100],
+      ['fire2000', 2000, 200],
     ]
   ),
   ...fam(
@@ -78,17 +78,17 @@ export const CHAL = [
     'Shoot a wrecked car until it catches fire and blows.',
     [
       ['cars10', 10, 80],
-      ['cars50', 50, 200, 'Demolition loadout'],
+      ['cars50', 50, 100, 'Demolition loadout'],
     ]
   ),
   // ---- weapons ----
   ...fam('Weapons', 'Sidearm', 'pistol', g => `${fmt(g)} kills with the pistol or SMG`, '', [
     ['pistol300', 300, 100, 'Compensator'],
-    ['pistol1500', 1500, 250],
+    ['pistol1500', 1500, 125],
   ]),
   ...fam('Weapons', 'Buckshot', 'shotgun', g => `${fmt(g)} kills with shotguns`, '', [
     ['shotgun300', 300, 100, ['Drum Magazines', 'Door Kicker loadout']],
-    ['shotgun1500', 1500, 250],
+    ['shotgun1500', 1500, 125],
   ]),
   ...fam(
     'Weapons',
@@ -98,7 +98,7 @@ export const CHAL = [
     'Assault Rifle, Hunting Rifle and Machine Gun all count.',
     [
       ['rifle300', 300, 100, 'Steel-Core Ammo'],
-      ['rifle1500', 1500, 250, 'Patrol loadout'],
+      ['rifle1500', 1500, 125, 'Patrol loadout'],
     ]
   ),
   // ---- traps ----
@@ -110,8 +110,8 @@ export const CHAL = [
     "The dawn kit brings traps; set the one you hold with F. Claymores and the fire after a blast don't count.",
     [
       ['trap50', 50, 100, 'Trapper loadout'],
-      ['trap250', 250, 200],
-      ['trap1000', 1000, 400],
+      ['trap250', 250, 100],
+      ['trap1000', 1000, 200],
     ]
   ),
   ...fam(
@@ -122,7 +122,7 @@ export const CHAL = [
     'Use a car rig by a parked car; the next hit blows it big.',
     [
       ['rig5', 5, 100],
-      ['rig25', 25, 250],
+      ['rig25', 25, 125],
     ]
   ),
   // ---- survival ----
@@ -135,7 +135,7 @@ export const CHAL = [
     'Clear a whole night without taking any damage.',
     [
       ['flawless3', 3, 120],
-      ['flawless10', 10, 300],
+      ['flawless10', 10, 150],
     ]
   ),
   ...fam(
@@ -146,12 +146,12 @@ export const CHAL = [
     'On a few dawns Channel 9 offers a job for the night. Take one instead of lying low.',
     [
       ['obj10', 10, 120, 'Trauma Training'],
-      ['obj30', 30, 300],
+      ['obj30', 30, 150],
     ]
   ),
   ...fam('Survival', 'Good Samaritan', 'rescues', g => `Rescue ${fmt(g)} survivors`, '', [
     ['rescue5', 5, 120, 'Buddy System loadout'],
-    ['rescue12', 12, 300],
+    ['rescue12', 12, 150],
   ]),
   ...fam(
     'Survival',
@@ -161,15 +161,15 @@ export const CHAL = [
     'When Channel 9 calls in survivors under siege, bar yourself into the big ruin with them and keep them alive till dawn.',
     [
       ['siege1', 1, 120],
-      ['siege5', 5, 250],
+      ['siege5', 5, 125],
     ]
   ),
   ...fam('Survival', 'Full house', 'siegeAll', () => 'Hold the house through a siege with every survivor alive', '', [
-    ['siegeAll', 1, 200],
+    ['siegeAll', 1, 100],
   ]),
   ...fam('Survival', 'Veteran', 'maxLevel', g => `Reach level ${g} in one run`, '', [
     ['lv20', 20, 150],
-    ['lv30', 30, 300],
+    ['lv30', 30, 150],
   ]),
   // ---- bosses and hordes ----
   ...fam(
@@ -180,17 +180,17 @@ export const CHAL = [
     'A boss comes every fifth night.',
     [
       ['boss1', 1, 100],
-      ['boss5', 5, 250, 'Heavy Weapons loadout'],
-      ['boss15', 15, 500],
+      ['boss5', 5, 125, 'Heavy Weapons loadout'],
+      ['boss15', 15, 250],
     ]
   ),
   ...fam('Bosses and hordes', 'Breakwater', 'hordes', g => pl(g, 'Wipe out a whole horde', 'Wipe out # hordes'), '', [
     ['horde1', 1, 120],
-    ['horde5', 5, 300],
-    ['horde20', 20, 500],
+    ['horde5', 5, 150],
+    ['horde20', 20, 250],
   ]),
   ...fam('Bosses and hordes', 'Riptide', 'hordeBest', g => `Reach a ${g} chain against a horde`, '', [
-    ['hchain100', 100, 200],
+    ['hchain100', 100, 100],
   ]),
   ...fam(
     'Bosses and hordes',
@@ -200,8 +200,8 @@ export const CHAL = [
     'Horde Mode opens on the menu once you have wiped out a horde.',
     [
       ['hm5', 5, 120],
-      ['hm10', 10, 250],
-      ['hm20', 20, 500],
+      ['hm10', 10, 125],
+      ['hm20', 20, 250],
     ]
   ),
   // ---- evac ----
@@ -213,12 +213,12 @@ export const CHAL = [
     'Survive all 15 nights, then reach the chopper.',
     [
       ['evac1', 1, 300, 'Hollow Hill'],
-      ['evac5', 5, 400],
+      ['evac5', 5, 200],
     ]
   ),
   ...fam('Evac', 'Door gunner', 'gunner', g => `${fmt(g)} kills from the helicopter's door gun`, '', [
     ['gun100', 100, 150],
-    ['gun400', 400, 400],
+    ['gun400', 400, 200],
   ]),
   ...fam(
     'Evac',
@@ -226,7 +226,7 @@ export const CHAL = [
     'rideAll',
     () => 'Bring every survivor on the ride out through alive',
     'Keep the door gun on the dead around each group until the chopper has passed.',
-    [['rideAll', 1, 250]]
+    [['rideAll', 1, 125]]
   ),
   ...fam(
     'Evac',
@@ -234,9 +234,9 @@ export const CHAL = [
     'bestInf',
     g => `Make the evac on Infection ${g}`,
     'Each evac opens the next Infection level; pick Infection 5 when you choose where to fight.',
-    [['inf5', 5, 300]]
+    [['inf5', 5, 150]]
   ),
-  ...fam('Evac', 'Tour guide', 'evacDistricts', () => 'Make the evac in all three districts', '', [['evac3', 3, 500]]),
+  ...fam('Evac', 'Tour guide', 'evacDistricts', () => 'Make the evac in all three districts', '', [['evac3', 3, 250]]),
 ];
 const UNLOCK_KIND = {
   'Laser Sight': ['perk', 'Laser Sight'],

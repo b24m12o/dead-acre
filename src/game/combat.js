@@ -1164,7 +1164,7 @@ function shatterCrystal(c) {
     floatText(c.x, c.y - 30, 'Short circuit', '#ffe08a', 18);
   }
 }
-export function dropCrate(gun, alt, kits) {
+export function dropCrate(gun, alt, kits, note) {
   if (kits) {
     gun = KITS[kits[0]].gun;
     alt = KITS[kits[1] || kits[0]].gun;
@@ -1196,7 +1196,7 @@ export function dropCrate(gun, alt, kits) {
       const nm = GUNS[gun].name,
         low = /^[A-Z]{2,}/.test(nm) ? nm : nm.toLowerCase();
       showStreak('Convoy airdrop', `${/^[aeiou]|^SMG/i.test(low) ? 'An' : 'A'} ${low} is coming down`, undefined, live);
-    } else showStreak('Supply drop', 'Ammo and a free pick of gear · no gun in this one', undefined, live);
+    } else showStreak('Supply drop', note || 'Ammo and a free pick of gear · no gun in this one', undefined, live);
     sfx.streak();
     return cr;
   }
@@ -1389,6 +1389,10 @@ export function updateCrates(dt) {
         giveTraps({ [t]: 1 });
         floatText(c.x, c.y - 30, `+1 ${TRAP[t].name.toLowerCase()}`, '#e8c46a', 15);
       } // a supply crate carries a trap or two from the second night on
+      if (c.spare) {
+        GS.runSeeds += 40;
+        floatText(c.x, c.y - 48, '+40 scrap', '#ffd08a', 15);
+      } // the crate a gun loadout's weapon case became
       const go = () => {
         if (GS.state === 'play') offerUpgrades('crate');
         else if (GS.state === 'levelup' || GS.state === 'pause') GS.later.push({ t: 0.1, fn: go });

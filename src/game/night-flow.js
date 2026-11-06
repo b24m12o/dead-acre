@@ -27,7 +27,27 @@ function dawnDrops() {
   // dawn has a job now: the convoy drops what the next night needs while it is quiet, and the night waits a little while it sits unopened
   const nx = GS.wave + 1;
   const wcase = GS.RUN.hm ? nx % 2 === 0 : WEAPON_NIGHTS[nx]; // Horde Mode: a case every other wave
-  if (wcase && nextGuns().length && !(nx === 2 && GS.RUN.tutCase))
+  const owed = wcase && GS.RUN.lcase && nextGuns().length;
+  if (owed) {
+    // a gun loadout took the place of the first weapon case. That case would have left one gun on the truck, so
+    // this one does too (the second of the pair: your character's own gun stays in the pool). You end the run with as
+    // many guns as anyone else, and the dawn still drops something: a supply crate with a little scrap on top
+    GS.RUN.lcase = false;
+    const gs = nextGuns();
+    if (gs.length > 1) GS.RUN.declined = (GS.RUN.declined || []).concat(gs[1]);
+    GS.later.push({
+      t: 1.6,
+      fn: () => {
+        if (GS.state !== 'play') return;
+        const c = dropCrate(null, null, null, 'In place of the weapon case your loadout gun took · ammo, gear and scrap');
+        if (c) {
+          c.dawn = true;
+          c.spare = true;
+        }
+      },
+    });
+  }
+  if (wcase && !owed && nextGuns().length && !(nx === 2 && GS.RUN.tutCase))
     GS.later.push({
       t: 1.6,
       fn: () => {
@@ -38,7 +58,7 @@ function dawnDrops() {
         }
       },
     });
-  if (wcase && !nextGuns().length && !TW('pistol') && !bossNight(nx))
+  if (wcase && !owed && !nextGuns().length && !TW('pistol') && !bossNight(nx))
     GS.later.push({
       t: 1.6,
       fn: () => {
@@ -47,7 +67,7 @@ function dawnDrops() {
         if (ks.length) {
           const c = dropCrate(null, null, ks);
           if (c) c.dawn = true;
-        } else if (!GS.crates.some(c => !c.gun && !c.open)) {
+        } else if (!GS.crates.some(c => !c.gun && !c.spare && !c.open)) {
           const c = dropCrate();
           if (c) {
             c.dawn = true;
@@ -62,7 +82,7 @@ function dawnDrops() {
     GS.later.push({
       t: WEAPON_NIGHTS[nx] ? 4.2 : 3.2,
       fn: () => {
-        if (GS.state === 'play' && !GS.crates.some(c => !c.gun && !c.open)) {
+        if (GS.state === 'play' && !GS.crates.some(c => !c.gun && !c.spare && !c.open)) {
           // a boss's own reward crate counts as tonight's supply
           const c = dropCrate();
           if (c) {

@@ -327,7 +327,10 @@ function applyLoadout() {
     L = LOADOUTS[id];
   if (!L || id === 'std' || !loadoutOpen(id)) return;
   if (!GS.RUN.endless && (GS.meta.tutForce || (!GS.meta.tutDone && (stat('maxNight') || 0) < 2))) return; // the training run teaches the guns and traps itself
-  if (L.gun && !TW('pistol')) giveGun(L.gun); // "Sidearm only" means it: the loadout's gun stays home
+  if (L.gun && !TW('pistol')) {
+    giveGun(L.gun);
+    GS.RUN.lcase = true; // the loadout gun is this run's first weapon case: that dawn brings a supply crate instead
+  } // "Sidearm only" means it: the loadout's gun stays home
   if (L.traps) giveTraps(L.traps);
   if (L.buddy) {
     LV.buddy = (LV.buddy || 0) + 1;
@@ -382,7 +385,7 @@ export function renderPauseGuns() {
     const nx = Object.keys(WEAPON_NIGHTS)
       .map(Number)
       .filter(n => n > GS.wave)
-      .sort((a, b) => a - b)[0];
+      .sort((a, b) => a - b)[GS.RUN.lcase && nextGuns().length ? 1 : 0]; // the first case went to the loadout gun
     const left = nextGuns().length || (!TW('pistol') && kitOffer().length);
     h += `<div class="next">${nx && left ? (GS.nightDone && nx === GS.wave + 1 ? 'A weapon case comes down this dawn' : `Next weapon case: at dawn after night ${nx - 1}`) : 'No more weapon cases this run'} · ${keysIn('tap {wheel} for your last gun, hold {wheel} for the wheel')}</div>`;
   }
