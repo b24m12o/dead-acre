@@ -345,7 +345,7 @@ function groups(e, r, dt) {
   for (const g of r.groups) {
     if (g.done) continue;
     const ahead = g.s - r.s;
-    if (!g.on && ahead < 950) {
+    if (!g.on && ahead < (g.pick ? 640 : 950)) {
       g.on = true;
       {
         const tx = Math.floor(g.x / TILE),
@@ -354,8 +354,14 @@ function groups(e, r, dt) {
         dijk(fl, [ty * MW + tx], false);
         g.lure = { x: g.x, y: g.y, alarm: 1e9, flare: true, flow: fl };
       } // one lure for the group, with its own way through the streets
-      showStreak('Survivors below', 'Cover them as you go over · keep the dead off them', true);
-      for (let i = 0; i < 12; i++) {
+      showStreak(
+        'Survivors below',
+        g.pick
+          ? 'Keep the dead off them · the bird is going down for them'
+          : 'Cover them as you go over · keep the dead off them',
+        true
+      );
+      for (let i = 0; i < (g.pick ? 8 : 12); i++) {
         const sp = spotNear(g.x, g.y, 300, 460);
         if (!sp) continue;
         const z = makeEnemy('skitter', sp[0], sp[1]);
