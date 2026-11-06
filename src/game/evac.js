@@ -6,7 +6,7 @@ import { TAU, angDiff, clamp, d2, damp, lerp, pick, rand, randi } from '../core/
 import { saveMeta, store } from '../core/settings.js';
 import { DIFF } from '../core/profile.js';
 import { MW, TILE, lamps } from '../world/map.js';
-import { AC, noise, noiseBuf, playS, sfxBus, spat, stab, tone } from '../audio/audio.js';
+import { AC, MUS, noise, noiseBuf, playS, sfxBus, spat, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { rec } from './state.js';
 import { makeEnemy } from '../actors/enemies.js';
@@ -311,7 +311,7 @@ function winRun() {
   GS.evac.hold = 2.5;
   sfx.level();
   GS.slowmo = 0.6;
-  stab([0, 7, 12], 1.6);
+  MUS.win = true; // the band plays its big ending on the next beat, in its own key (music.js)
   tone(41, 1.8, 'sine', 0.22, 0.7);
   noise(1.4, 0.08, 900, 120, 'lowpass'); /* wheels up: one last chord from the band */
   const inf = GS.RUN.inf || 0;

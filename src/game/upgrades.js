@@ -12,7 +12,7 @@ import { updateHint } from '../ui/settings-ui.js';
 import { HLOOK } from '../render/draw-player.js';
 import { NPC_TINTS, TRAITS, budSetup, makeSurvivor, rollBud } from '../actors/backups.js';
 import { FAVOURS } from './objectives.js';
-import { chalDone, statMax } from './challenges.js';
+import { chalDone, setGearLocks, statMax } from './challenges.js';
 import { PERK_ICONS, perkIcon } from '../ui/perk-icons.js';
 import { icon as gunIcon, iconId } from '../ui/icons.js';
 import { need } from './run.js';
@@ -22,6 +22,8 @@ export const UP = [
   {
     id: 'dmg',
     short: () => `+${Math.round((DMG_STEP[LV.dmg || 0] - 1) * 100)}% damage with every gun`,
+    have: () =>
+      `+${Math.round((DMG_STEP.slice(0, LV.dmg || 0).reduce((a, k) => a * k, 1) - 1) * 100)}% damage with every gun.`,
     cat: 'Gun mod',
     name: 'Hollow Points',
     desc: () => `+${Math.round((DMG_STEP[LV.dmg || 0] - 1) * 100)}% damage.`,
@@ -33,6 +35,8 @@ export const UP = [
   {
     id: 'rate',
     short: () => `Every gun fires ${Math.round((RATE_STEP[LV.rate || 0] - 1) * 100)}% faster`,
+    have: () =>
+      `Every gun fires ${Math.round((RATE_STEP.slice(0, LV.rate || 0).reduce((a, k) => a * k, 1) - 1) * 100)}% faster.`,
     cat: 'Gun mod',
     name: 'Light Trigger',
     desc: () => `+${Math.round((RATE_STEP[LV.rate || 0] - 1) * 100)}% fire rate.`,
@@ -229,6 +233,7 @@ export const UP = [
     cat: 'Body',
     name: 'Plate Carrier',
     desc: '+25 max health and heal 40 now.',
+    have: () => `+${25 * (LV.hull || 0)} max health.`,
     max: 5,
     apply() {
       S.maxHp += 25;
@@ -590,7 +595,7 @@ export function renderPicks() {
       else slot.remove();
       const ci = b.querySelector('.ci');
       if (ci) {
-        const c2 = pickIcon(cb, 16);
+        const c2 = pickIcon(Object.assign({ evo: true }, cb), 16);
         if (c2) ci.appendChild(c2);
       } // the combo it builds toward, in gold
       if (u.short) b.title = txt(u.desc);
@@ -653,9 +658,10 @@ export function spendLevel() {
   statMax('maxLevel', GS.level);
 }
 export function offerUpgrades(source = 'level') {
-  if (source === 'level' && GS.heldPicks && GS.heldPicks.length) GS.picks = GS.heldPicks;
+  const fits = u => (u.evo ? !LV[u.id] : (LV[u.id] || 0) < u.max); // a held card that's maxed out since (a Siege survivor, say) can't come back
+  if (source === 'level' && GS.heldPicks && GS.heldPicks.length && GS.heldPicks.every(fits)) GS.picks = GS.heldPicks;
   else rollPicks(); // cards put off with Later come back the same: no free reroll
-  GS.heldPicks = null;
+  if (source === 'level') GS.heldPicks = null; // a supply crate or the Go Bag leaves them where they are
   if (!GS.picks.length) {
     if (source === 'level') spendLevel();
     GS.P.hp = S.maxHp;
@@ -746,8 +752,7 @@ export function pickLater() {
   GS.heldPicks = GS.picks.slice();
   GS.lvSnooze = true;
   $('levelup').hidden = true;
-  GS.state = 'play';
-  GS.P.inv = Math.max(GS.P.inv, 0.6);
+  GS.state = 'play'; // no grace time on the way out: you opened the cards yourself
 }
 export function doReroll() {
   if (
@@ -798,9 +803,10 @@ export function renderMods() {
   for (const u of list) {
     const r = document.createElement('div');
     r.className = 'mod' + (u.evo ? ' evo' : '');
-    r.innerHTML = `<i></i><b>${u.name}${u.evo || u.max <= 1 ? '' : ` <em>${LV[u.id]}/${u.max}</em>`}</b><span>${txt(u.desc)}</span>`;
+    r.innerHTML = `<i></i><b>${u.name}${u.evo || u.max <= 1 ? '' : ` <em>${LV[u.id]}/${u.max}</em>`}</b><span>${txt(u.have) || txt(u.desc)}</span>`; // what you have now, not the next rank
     const ic = pickIcon(u, 30);
     if (ic) r.firstChild.appendChild(ic);
     box.appendChild(r);
   }
 }
+setGearLocks(id => [...UP, ...EVOS].filter(u => u.lock === id).map(u => u.name)); // the challenge cards show the gear they teach

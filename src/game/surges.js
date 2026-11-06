@@ -214,6 +214,6 @@ export function startWave() {
     }
   if (tutWanted()) tutStart();
   if (!GS.RUN.tut && !GS.RUN.practice && GS.wave <= 2) GS.later.push({ t: 6, fn: () => tip('ability') });
-  statMax('maxNight', GS.wave - 1);
+  if (!GS.RUN.hm) statMax('maxNight', GS.wave - 1); // Horde Mode's waves are not nights of the campaign
 }
 /* ---------- objectives in play ---------- */

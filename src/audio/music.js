@@ -390,6 +390,21 @@ function mHeart(t, vol) {
   sp(take('k'), t, vol, { rate: 0.5 });
   sp(take('k'), t + 0.27, vol * 0.65, { rate: 0.5 });
 } // lub-dub
+function playSting(K, t, spb) {
+  if (MS) mBraam(K, t, 0.4); // the brass hits with the stab
+  for (const [d, f] of [
+    [0, 0],
+    [3, 0],
+    [6, 1],
+  ]) {
+    const tt = t + spb * d;
+    mGtr(f + K, tt, spb * (d === 6 ? 8 : 2.6), false, 0.55);
+    mGtr(f + K + 12, tt, spb * (d === 6 ? 8 : 2.6), false, 0.22);
+    mKick(tt, 0.66);
+    mSnare(tt, 0.42);
+    mCrash(tt, d ? 0.06 : 0.1);
+  } // three hits, the band together: dun, dun, DUN
+}
 function rockEnd(t, big, K = 0) {
   // in the key the band was in, so the ending never jumps somewhere else
   const q = 60 / TEMPO.fight / 4,
@@ -433,18 +448,26 @@ function scheduleMusic() {
         calmOut ||
         MUS.level === 'none' ||
         MUS.want === 'none' ||
+        (MUS.want === 'menu' && (MUS.win || GS.state === 'over')) || // the run is over: no waiting for the bar
         (MUS.riseEnd && MUS.nextT >= MUS.riseEnd - 0.03))
     ) {
       const from = MUS.level,
-        to = MUS.want;
+        to = MUS.want,
+        live = from === 'fight' || from === 'boss',
+        end =
+          MS &&
+          ((from === 'boss' && MUS.win) ||
+            (from === 'fight' && to === 'calm' && MUS.clear) ||
+            (live && to === 'menu' && MUS.win)); // a boss down, the street cleared, or the chopper out: the big ending
+      let wait = 0;
       if (MS) {
-        const end = (from === 'boss' && MUS.win) || (from === 'fight' && to === 'calm' && MUS.clear);
         if (end) {
-          mStinger(from === 'boss', MUS.nextT, MUS.sec ? MUS.sec.key : 0);
-          MUS.hushT = MUS.nextT + 2.6; // the next music waits for the ending's last chord to ring out
-        }
-        MUS.braam = (to === 'fight' && (from === 'calm' || from === 'none')) || to === 'boss'; // the first downbeat lands with a braam
+          mStinger(from === 'boss' || to === 'menu', MUS.nextT, MUS.sec ? MUS.sec.key : 0);
+          wait = 2.45; // the next music starts once the ending's last chord has rung, from its own first beat
+        } else if (live && to === 'menu' && GS.state === 'over') mBoom(MUS.nextT, 0.5, true); // you're down: one low hit, and the band stops
+        MUS.braam = !MUS.sting && ((to === 'fight' && (from === 'calm' || from === 'none')) || to === 'boss'); // the first downbeat lands with a braam (a sting brings its own)
       }
+      if (to !== 'fight' && to !== 'boss') MUS.sting = false; // a stab left over from a fight never plays in the quiet
       MUS.win = MUS.clear = false;
       MUS.riseEnd = 0;
       MUS.step = 0;
@@ -458,15 +481,20 @@ function scheduleMusic() {
         const g = musGate.gain,
           t0 = Math.max(AC.currentTime, MUS.nextT);
         g.cancelScheduledValues(t0);
-        if (MUS.want === 'none') g.setTargetAtTime(0, t0, 0.03);
+        if (MUS.want === 'none')
+          g.setTargetAtTime(0, t0 + (end ? 3.2 : 0), 0.03); // an ending rings out before the stop
         else {
           const lv = MUS.want === 'boss' ? 0.75 : 1;
-          if (MUS.level === 'none') g.setValueAtTime(lv, t0);
+          if (MUS.level === 'none') g.setTargetAtTime(lv, t0, 0.02);
           else g.setTargetAtTime(lv, t0, 0.4);
         } // the boss song sits a little under the fight so your guns stay on top
       } // a stop is a real stop: pads and ringing chords are cut too
       MUS.level = MUS.want;
       MUS.fresh = true;
+      if (wait) {
+        MUS.nextT += wait;
+        continue;
+      } // nothing more is scheduled until then
     } else if (MUS.level === 'fight' && MUS.jump && MUS.step % 16 === 0) {
       MUS.jump = false;
       MUS.step = 0;
@@ -501,7 +529,9 @@ function scheduleMusic() {
     AC.currentTime > (MUS.riseLast || 0) + 5
   ) {
     MUS.riseLast = AC.currentTime + MUS.preT;
-    MUS.riseEnd = AC.currentTime + MUS.preT + 0.2;
+    const cs = 60 / tempoOf('calm') / 4,
+      at = AC.currentTime + MUS.preT + 0.2;
+    MUS.riseEnd = MUS.nextT + Math.max(1, Math.ceil((at - MUS.nextT) / cs)) * cs; // on a step of the calm band: the switch happens exactly there
     mRiser(MUS.riseEnd, 0.65);
   } // the last seconds before a wave swell into it, and the band comes in on the break
   if (MUS.riseEnd && AC.currentTime > MUS.riseEnd + 2) MUS.riseEnd = 0;
@@ -846,7 +876,13 @@ function playStep(st, t) {
     return;
   }
   if (st === 0 || !MUS.sec || MUS.sec.L !== L) nextSection(L);
-  if (t < (MUS.hushT || 0)) return;
+  if (s === 0 && MUS.sting && (L === 'fight' || L === 'boss')) {
+    MUS.sting = false;
+    playSting(MUS.sec.key, t, spb);
+    MUS.stingAt = t;
+    return;
+  } // a surge, the horde, a boss's new game: on the next bar, the band stops dead for three hits
+  if (MUS.stingAt && t > MUS.stingAt && t < MUS.stingAt + spb * 13.5) return; // and nothing else plays between them
   const S2 = MUS.sec,
     riff = S2.riff,
     tok = riff[st],
@@ -1001,22 +1037,6 @@ function playStep(st, t) {
   } // every other turnaround rolls round the toms
   if (L === 'fight' && !sparse && (MUS.heat || 0) > 0.82 && s % 2 === 1 && D !== 'blast' && D !== 'none')
     mHat(t, 0.035); // and the hats double up
-  if (st === 0 && MUS.sting) {
-    MUS.sting = false;
-    if (MS) mBraam(K, t, 0.4); // a surge, or a boss changing its game: the brass hits with the stab
-    for (const [d, f] of [
-      [0, 0],
-      [3, 0],
-      [6, 1],
-    ]) {
-      const tt = t + spb * d;
-      mGtr(f + K, tt, spb * (d === 6 ? 8 : 2.6), false, 0.55);
-      mGtr(f + K + 12, tt, spb * (d === 6 ? 8 : 2.6), false, 0.22);
-      mKick(tt, 0.66);
-      mSnare(tt, 0.42);
-      mCrash(tt, d ? 0.06 : 0.1);
-    } // three hits, the band together: dun, dun, DUN
-  }
   if (MS && L === 'calm' && st === 0 && Math.random() < 0.45)
     mTrem(64 + keyRoot(K) + [0, 7, 12][MUS.loop % 3], t, spb * 40, 0.03); // now and then high strings shiver in on the bar, and fade
   if (L === 'calm' && st === 0)

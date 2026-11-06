@@ -112,7 +112,7 @@ export function markerList() {
   if (GS.horde && !GS.horde.done)
     for (const c of cars) if (c.tanker && !c.dead) m.push({ x: c.x, y: c.y, col: '#ff9a4a', label: 'FUEL TANKER' }); // tonight it's a weapon
   if (GS.horde && !GS.horde.done && GS.horde.startT <= 0 && !GS.horde.alert && GS.horde.spawned)
-    for (const g of hordeMasses()) m.push({ x: g.sx, y: g.sy, col: '#e8b25a', label: 'HORDE' }); // where each mass is while it roams
+    for (const g of hordeMasses()) m.push({ x: g.sx, y: g.sy, col: '#ff5a48', label: 'HORDE' }); // where each mass is while it roams
   if (GS.obj && !GS.obj.done) {
     if (GS.obj.type === 'gen') m.push({ x: GS.obj.x, y: GS.obj.y, col: '#ffe08a', label: 'GENERATOR' });
     if (GS.obj.type === 'siege' && !GS.obj.sealed) {

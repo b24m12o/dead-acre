@@ -6,6 +6,7 @@
 import { GS } from '../core/gs.js';
 import { store } from '../core/settings.js';
 import { LV, S, equip } from './state.js';
+import { EVOS, UP } from './upgrades.js';
 import { makeSurvivor, budSetup } from '../actors/backups.js';
 import { TAU, rand } from '../core/util.js';
 
@@ -14,7 +15,7 @@ const KEY = 'rr_run',
 export function saveRun() {
   if (!GS.RUN || GS.RUN.practice || GS.RUN.tut || !GS.P || GS.state === 'over' || GS.state === 'won') return;
   const P = GS.P,
-    RUN = { ...GS.RUN, sg: null, job: null, jobPend: false, tut: null, metrics: { ...GS.RUN.metrics } };
+    RUN = { ...GS.RUN, sg: null, job: null, jobPend: false, tut: null, lvHold: 0, metrics: { ...GS.RUN.metrics } }; // lvHold is a time on this session's clock
   const d = {
     v: V,
     at: Date.now(),
@@ -29,6 +30,7 @@ export function saveRun() {
     score: GS.score,
     kills: GS.kills,
     rerolls: GS.rerolls,
+    held: GS.heldPicks ? GS.heldPicks.map(u => u.id) : null, // level-up cards put off with Later come back as they were
     runSeeds: GS.runSeeds,
     bud: GS.buddies.map(b => ({ nm: b.nm, tr: b.tr, look: b.look, tint: b.tint, hp: b.hp, max: b.max })),
   };
@@ -69,6 +71,9 @@ export function restoreRun(d) {
   GS.score = d.score;
   GS.kills = d.kills;
   GS.rerolls = d.rerolls;
+  GS.heldPicks = d.held
+    ? d.held.map(id => UP.find(u => u.id === id) || EVOS.find(u => u.id === id)).filter(Boolean)
+    : null;
   GS.runSeeds = d.runSeeds;
   for (const [i, s] of (d.bud || []).entries()) {
     const b = Object.assign(makeSurvivor(P.x - 40 + i * 40, P.y + 40), {

@@ -612,10 +612,9 @@ export const sfx = {
     tone(52, 0.13, 'sine', v * 0.8, 0.6, 0.17);
   }, // a heartbeat under the mix when you are close to dying
   clear() {
-    tone(392, 0.5, 'sine', 0.035, 1, 0, 0);
-    tone(523, 0.7, 'sine', 0.03, 1, 0.16, 0);
-    tone(659, 0.9, 'sine', 0.022, 1, 0.32, 0);
-  }, // the last one down: a soft rising chord before the radio
+    noise(0.5, 0.03, 600, 2400, 'bandpass');
+    tone(62, 0.5, 'sine', 0.06, 0.85, 0.02);
+  }, // the last one down: a breath of air and a low thump, nothing in a key, so the band's ending is the only chord
   ting() {
     if (!thr('ting', 50)) return;
     tone(rand(2200, 2800), 0.12, 'sine', 0.03, 1.02);

@@ -134,6 +134,13 @@ export function init() {
     else if (GS.state === 'levelup' && !e.repeat && ['1', '2', '3'].includes(k)) choose(+k - 1);
     else if (GS.state === 'levelup' && !e.repeat && k === 'r') doReroll();
     else if (GS.state === 'levelup' && !e.repeat && k === 'tab') pickLater();
+    else if (GS.state === 'levelup' && ['arrowleft', 'arrowright', 'a', 'd'].includes(k)) {
+      const cs = [...document.querySelectorAll('#cards .card')],
+        i = cs.indexOf(document.activeElement),
+        n = i < 0 ? 0 : (i + (k === 'arrowleft' || k === 'a' ? cs.length - 1 : 1)) % cs.length;
+      if (cs[n]) cs[n].focus();
+      e.preventDefault();
+    } // the arrow keys walk the cards; Enter or Space takes the one in focus
     else if (k === 'enter' && GS.state === 'over' && !$('over').hidden) {
       e.preventDefault();
       begin(false);

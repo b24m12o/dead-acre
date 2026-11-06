@@ -41,8 +41,8 @@ export const CHAL = [
     g => `Pop ${fmt(g)} heads with critical hits`,
     'A critical hit that kills a zombie can take its head off.',
     [
-      ['heads50', 50, 80, 'Sharpshooter loadout'],
-      ['heads250', 250, 150],
+      ['heads50', 50, 80],
+      ['heads250', 250, 150, 'Sharpshooter loadout'],
       ['heads1000', 1000, 300],
     ]
   ),
@@ -87,8 +87,8 @@ export const CHAL = [
     ['pistol1500', 1500, 250],
   ]),
   ...fam('Weapons', 'Buckshot', 'shotgun', g => `${fmt(g)} kills with shotguns`, '', [
-    ['shotgun300', 300, 100, 'Drum Magazines'],
-    ['shotgun1500', 1500, 250, 'Door Kicker loadout'],
+    ['shotgun300', 300, 100, ['Drum Magazines', 'Door Kicker loadout']],
+    ['shotgun1500', 1500, 250],
   ]),
   ...fam(
     'Weapons',
@@ -106,8 +106,8 @@ export const CHAL = [
     'Traps',
     'Minefield',
     'trapKills',
-    g => `Kill ${fmt(g)} zombies with mines, gas drums and rigged cars`,
-    'The dawn kit brings traps; set the one you hold with F.',
+    g => `Kill ${fmt(g)} zombies in the blast of a land mine, gas drum or rigged car you set`,
+    "The dawn kit brings traps; set the one you hold with F. Claymores and the fire after a blast don't count.",
     [
       ['trap50', 50, 100, 'Trapper loadout'],
       ['trap250', 250, 200],
@@ -126,7 +126,7 @@ export const CHAL = [
     ]
   ),
   // ---- survival ----
-  ...fam('Survival', 'Long night', 'maxNight', g => `Survive to night ${g}`, '', [['night10', 10, 100, 'Route 9']]),
+  ...fam('Survival', 'Long night', 'maxNight', g => `Survive night ${g}`, '', [['night10', 10, 100, 'Route 9']]),
   ...fam(
     'Survival',
     'Untouchable',
@@ -151,20 +151,20 @@ export const CHAL = [
   ),
   ...fam('Survival', 'Good Samaritan', 'rescues', g => `Rescue ${fmt(g)} survivors`, '', [
     ['rescue5', 5, 120, 'Buddy System loadout'],
-    ['rescue20', 20, 300],
+    ['rescue12', 12, 300],
   ]),
   ...fam(
     'Survival',
     'Hold the house',
     'sieges',
-    g => pl(g, 'Hold the house through a Siege night', 'Hold the house through # Siege nights'),
-    'On a Siege night, bar yourself into the big ruin and keep the survivors alive till dawn.',
+    g => pl(g, 'Hold the house through a siege', 'Hold the house through # sieges'),
+    'When Channel 9 calls in survivors under siege, bar yourself into the big ruin with them and keep them alive till dawn.',
     [
       ['siege1', 1, 120],
       ['siege5', 5, 250],
     ]
   ),
-  ...fam('Survival', 'Full house', 'siegeAll', () => 'Hold a Siege night with every survivor alive', '', [
+  ...fam('Survival', 'Full house', 'siegeAll', () => 'Hold the house through a siege with every survivor alive', '', [
     ['siegeAll', 1, 200],
   ]),
   ...fam('Survival', 'Veteran', 'maxLevel', g => `Reach level ${g} in one run`, '', [
@@ -218,13 +218,13 @@ export const CHAL = [
   ),
   ...fam('Evac', 'Door gunner', 'gunner', g => `${fmt(g)} kills from the helicopter's door gun`, '', [
     ['gun100', 100, 150],
-    ['gun1000', 1000, 400],
+    ['gun400', 400, 400],
   ]),
   ...fam(
     'Evac',
     'Nobody left behind',
     'rideAll',
-    () => 'Cover every group of survivors on the ride out',
+    () => 'Bring every survivor on the ride out through alive',
     'Keep the door gun on the dead around each group until the chopper has passed.',
     [['rideAll', 1, 250]]
   ),
@@ -233,7 +233,7 @@ export const CHAL = [
     'Carrier',
     'bestInf',
     g => `Make the evac on Infection ${g}`,
-    'Pick Infection 5 when you choose where to fight, before the run.',
+    'Each evac opens the next Infection level; pick Infection 5 when you choose where to fight.',
     [['inf5', 5, 300]]
   ),
   ...fam('Evac', 'Tour guide', 'evacDistricts', () => 'Make the evac in all three districts', '', [['evac3', 3, 500]]),
@@ -255,12 +255,19 @@ const UNLOCK_KIND = {
   'Demolition loadout': ['loadout', 'Demolition'],
   'Buddy System loadout': ['loadout', 'Buddy System'],
 };
+const unlocks = c => [].concat(c.unlock || []).filter(u => UNLOCK_KIND[u]);
+export let gearLockedBy = () => []; // the level-up gear a challenge teaches (set up in upgrades.js, which knows the picks)
+export function setGearLocks(fn) {
+  gearLockedBy = fn;
+}
 function rewardChips(c) {
   let h = `<span class="tag t-scrap">+${c.scrap} scrap</span>`;
-  if (c.unlock && UNLOCK_KIND[c.unlock]) {
-    const [k, n] = UNLOCK_KIND[c.unlock];
+  for (const u of unlocks(c)) {
+    const [k, n] = UNLOCK_KIND[u];
     h += `<span class="tag t-${k}">${k}: ${n}</span><span class="note">${k === 'perk' ? 'then buy it in the Armory' : k === 'loadout' ? 'take it from the Armory' : 'pick it when you choose where to fight'}</span>`;
   }
+  for (const n of gearLockedBy(c.id))
+    h += `<span class="tag t-perk">gear: ${n}</span><span class="note">it can turn up in level-up picks</span>`;
   return h;
 }
 function renderChalScreen() {
@@ -309,16 +316,24 @@ export function snapChal() {
   for (const c of CHAL) chalAtStart[c.id] = chalValue(c);
 }
 export function chalRunSummary() {
-  const moved = CHAL.filter(c => !(chalAtStart[c.id] >= c.goal) && chalValue(c) > (chalAtStart[c.id] || 0))
-    .sort((a, b) => chalDone(b.id) - chalDone(a.id) || chalValue(b) / b.goal - chalValue(a) / a.goal)
-    .slice(0, 4);
+  const live = c => c.tier === 1 || chalDone(CHAL[CHAL.indexOf(c) - 1].id) || chalDone(c.id), // a tier counts once the one before it is done
+    moved = CHAL.filter(
+      c =>
+        live(c) &&
+        !(chalAtStart[c.id] >= c.goal) &&
+        chalValue(c) > (chalAtStart[c.id] || 0) &&
+        (chalDone(c.id) || !CHAL.some(o => o !== c && o.fam === c.fam && o.tier < c.tier && !chalDone(o.id)))
+    )
+      .filter((c, i, A) => !A.some(o => o.fam === c.fam && o.tier > c.tier)) // one line per family: the furthest tier that moved
+      .sort((a, b) => chalDone(b.id) - chalDone(a.id) || chalValue(b) / b.goal - chalValue(a) / a.goal)
+      .slice(0, 4);
   if (!moved.length) return '';
   return (
     '<div class="sec" style="margin:0 0 4px">Challenge progress this run</div>' +
     moved
       .map(c =>
         chalDone(c.id)
-          ? `<div class="ok">✓ <b>${c.name}</b> complete · +${c.scrap} scrap${c.unlock ? ' · ' + c.unlock + ' unlocked' : ''}</div>`
+          ? `<div class="ok">✓ <b>${c.name}</b> complete · +${c.scrap} scrap${unlocks(c).length ? ' · ' + unlocks(c).join(', ') + ' unlocked' : ''}</div>`
           : `<div><b>${c.name}</b> · ${Math.min(c.goal, chalValue(c)).toLocaleString()} / ${c.goal.toLocaleString()} (+${(chalValue(c) - (chalAtStart[c.id] || 0)).toLocaleString()} this run)</div>`
       )
       .join('')
@@ -327,8 +342,8 @@ export function chalRunSummary() {
 // starting loadouts, earned from challenges: what you carry into night 1 besides the pistol. One at a time
 export const LOADOUTS = {
   std: { name: 'Standard Issue', desc: 'The pistol, and whatever the nights give you.' },
-  sharp: { name: 'Sharpshooter', gun: 'hunter', req: 'heads50' },
-  kicker: { name: 'Door Kicker', gun: 'shotgun', req: 'shotgun1500' },
+  sharp: { name: 'Sharpshooter', gun: 'hunter', req: 'heads250' },
+  kicker: { name: 'Door Kicker', gun: 'shotgun', req: 'shotgun300' },
   patrol: { name: 'Patrol', gun: 'rifle', req: 'rifle1500' },
   heavy: { name: 'Heavy Weapons', gun: 'lmg', req: 'boss5' },
   trapper: {
@@ -345,7 +360,7 @@ export const LOADOUTS = {
   },
   buddy: { name: 'Buddy System', buddy: true, desc: 'Start with one survivor in your backup.', req: 'rescue5' },
 };
-export const loadoutOpen = id => LOADOUTS[id] && (!LOADOUTS[id].req || chalDone(LOADOUTS[id].req));
+export const loadoutOpen = id => Object.hasOwn(LOADOUTS, id) && (!LOADOUTS[id].req || chalDone(LOADOUTS[id].req));
 function chalDoneSafe(chal, id) {
   return !!(chal && chal[id] === true);
 }
@@ -377,8 +392,11 @@ export function checkChal(quiet) {
       GS.meta.seeds += c.scrap;
       any = true;
       if (!quiet) {
-        const u = c.unlock && UNLOCK_KIND[c.unlock];
-        showStreak('Challenge complete', `${c.name} · +${c.scrap} scrap${u ? ' · new ' + u[0] + ': ' + u[1] : ''}`);
+        const u = unlocks(c).map(x => UNLOCK_KIND[x]);
+        showStreak(
+          'Challenge complete',
+          `${c.name} · +${c.scrap} scrap${u.map(([k, n]) => ' · new ' + k + ': ' + n).join('')}`
+        );
         sfx.elite();
       }
     }
@@ -392,11 +410,15 @@ export let districtOpen;
 export function init() {
   // Reject missing, misspelled or still-locked outfits from older/corrupt local saves.
   if (
-    !LOADOUTS[GS.meta.loadout] ||
+    !Object.hasOwn(LOADOUTS, GS.meta.loadout) ||
     (LOADOUTS[GS.meta.loadout].req && !chalDoneSafe(GS.meta.chal, LOADOUTS[GS.meta.loadout].req))
   )
     GS.meta.loadout = 'std';
   delete GS.meta.outfit; // outfits are gone: loadouts took their place
+  if (GS.meta.hm && GS.meta.hm.wave > stat('hmBest')) {
+    GS.meta.stats = GS.meta.stats || {};
+    GS.meta.stats.hmBest = GS.meta.hm.wave;
+  } // Horde Mode records from before Last stand existed count for it
   chalDone = id => !!(GS.meta.chal && GS.meta.chal[id]);
   districtOpen = d => !DISTRICTS[d].lock || chalDone(DISTRICTS[d].lock);
 }
@@ -404,5 +426,5 @@ export function init() {
 // what a locked thing asks of you: the challenge's name and what it takes
 export function lockLine(id) {
   const c = CHAL.find(c => c.id === id);
-  return c ? `Unlock: ${c.name} · ${c.desc}` : '';
+  return c ? `Locked · earn it with ${c.name} (${c.desc.charAt(0).toLowerCase() + c.desc.slice(1)})` : '';
 }

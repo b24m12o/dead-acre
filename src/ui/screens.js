@@ -92,7 +92,7 @@ export function gameOver() {
         : '');
   }
   const nb = GS.score > rec.score,
-    nw = GS.wave > rec.wave;
+    nw = !GS.RUN.hm && GS.wave > rec.wave; // a Horde Mode wave is not a night of the campaign
   if (nb) {
     rec.score = GS.score;
     store.set('rr_best', GS.score);
@@ -204,8 +204,8 @@ export function init() {
     initAudio();
     {
       const d = savedRun();
-      $('saveWarn').hidden = !d;
-      if (d) $('saveWarn').textContent = `A new run replaces the one saved at dawn after night ${d.wave}.`;
+      $('newRunWarn').hidden = !d;
+      if (d) $('newRunWarn').textContent = `A new run replaces the one saved at dawn after night ${d.wave}.`;
     }
     $('menu').hidden = true;
     renderDistricts();

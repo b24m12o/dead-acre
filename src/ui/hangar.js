@@ -24,6 +24,7 @@ import { showMenuRec } from './screens.js';
 import {
   LOADOUTS,
   loadoutOpen,
+  stat,
   chalDone,
   chalFrom,
   checkChal,
@@ -325,7 +326,8 @@ function applyLoadout() {
   const id = GS.meta.loadout,
     L = LOADOUTS[id];
   if (!L || id === 'std' || !loadoutOpen(id)) return;
-  if (L.gun) giveGun(L.gun);
+  if (!GS.RUN.endless && (GS.meta.tutForce || (!GS.meta.tutDone && (stat('maxNight') || 0) < 2))) return; // the training run teaches the guns and traps itself
+  if (L.gun && !TW('pistol')) giveGun(L.gun); // "Sidearm only" means it: the loadout's gun stays home
   if (L.traps) giveTraps(L.traps);
   if (L.buddy) {
     LV.buddy = (LV.buddy || 0) + 1;
@@ -341,6 +343,7 @@ export function continueRun() {
   initAudio();
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   GS.PRACTICE = null;
+  GS.HM = d.RUN.hm ? true : null; // so "Try again" after a continued Horde Mode run is Horde Mode again
   GS.RUN = { ...d.RUN, resumed: true };
   try {
     newRun();

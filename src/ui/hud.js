@@ -107,7 +107,8 @@ function hudFade() {
   for (const c of GS.crates) if (c.landed) pts.push([(c.x - GS.camX) * ZOOM, (c.y - GS.camY) * ZOOM]);
   for (const q of rects) {
     const hid = pts.some(([x, y]) => inRect(x, y, q, 22)),
-      tgt = hid ? (q.id === 'gauge' ? 0.72 : 0.5) : 1, // your guns and health stay readable
+      hw = q.id === 'wavePlate' && GS.horde && !GS.horde.done && GS.horde.startT > 0, // the horde countdown stays readable
+      tgt = hid ? (q.id === 'gauge' || hw ? 0.8 : 0.5) : 1, // so do your guns and health
       cur = HUDF.a[q.id] ?? 1,
       v = cur + (tgt - cur) * Math.min(1, dt * (hid ? 9 : 4));
     HUDF.a[q.id] = v;
@@ -311,7 +312,7 @@ export function updateHud() {
   } // your people, by name
   setT('lv', `Level ${GS.level}`);
   {
-    const bank = GS.xp >= GS.xpNeed ? lvBank() : 0,
+    const bank = GS.xp >= GS.xpNeed && GS.state !== 'levelup' ? lvBank() : 0,
       lr = $('lvReady');
     setB('xpFill', bank ? lvRest() : GS.xp / GS.xpNeed); // past a banked level the bar keeps filling toward the next
     if (lr.hidden !== !bank) {
@@ -324,7 +325,7 @@ export function updateHud() {
   setB('abFill', 1 - (GS.P.abT || 0) / abCd());
   {
     const rd = !(GS.P.abT > 0),
-      lt = rd ? AB().name + ' · ' + kn('ability') : `${AB().name} · ${Math.ceil(GS.P.abT)} s`;
+      lt = rd ? AB().name + ' · ' + kn('ability') : `${AB().name} · ${Math.ceil(GS.P.abT)}s`;
     if (hc.abL !== lt) {
       hc.abL = lt;
       $('abLbl').textContent = lt;
