@@ -1,11 +1,12 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { rideCiv } from '../game/evac-ride.js';
+import { gunPose, heliPt, rideCiv } from '../game/evac-ride.js';
+import { GUNS } from '../game/arsenal.js';
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, setH, viewH, viewW } from './sprites.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
-import { drawRanger, lampHot } from './draw-player.js';
+import { HLOOK, HSTYLE, drawRanger, lampHot } from './draw-player.js';
 import { drawEnemy } from './draw-enemies.js';
 import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
@@ -483,8 +484,118 @@ export function drawCasters() {
       const hk = e.t >= e.land ? 0.8 : 1.4;
       quad(R.heli, e.hx, e.hy - e.z * 0.35, e.ha ?? 2.4, 1 + e.z / 900, 1 + e.z / 900, 1, 1, 1, 1, hk, hk, hk, 0);
     }
+    heliCrew(e);
     heliRotor(e);
   } // in the air it is drawn later, over roofs and trees
+}
+// on the ride out: the open doors, your people in the left-hand one with their guns, you on the door gun in the
+// right-hand one, its flash, its barrel glowing with the heat, and the brass going out of the door
+export function heliCrew(e) {
+  const r = e.ride;
+  if (!r || GS.SHMODE || e.z < 20) return;
+  const S = 1 + e.z / 900,
+    ha = e.ha ?? 2.4,
+    fb = 0.9; // lit by the cabin's own lights: the crew reads against the dark
+  setH(e.z + 63);
+  for (const sd of [1, -1]) {
+    const [x0, y0] = heliPt(e, 18, sd * 14),
+      [x1, y1] = heliPt(e, 62, sd * 14);
+    lineQ(x0, y0, x1, y1, 11 * S, 0.06, 0.07, 0.06, 0.92, 0, 0, 0, 0, R.pixel);
+  } // the doors, slid open: the dark of the cabin floor
+  GS.RUN.aboard.slice(0, 3).forEach((b, i) => {
+    const [bx, by] = heliPt(e, 26 + i * 18, -14),
+      a = b.haim ?? ha - Math.PI / 2,
+      look = b.look ?? 0,
+      st = HSTYLE[look] || HSTYLE[0],
+      t = b.tint || [1, 1, 1],
+      c = Math.cos(a),
+      sn = Math.sin(a),
+      gun = GUNS[b.gun] || GUNS.pistol;
+    setH(e.z + 64);
+    quad(R['hb' + look], bx, by, a, 0.9 * S, 0.9 * S, t[0], t[1], t[2], 1, fb, fb, fb, 0);
+    setH(e.z + 65);
+    quad(R[st.hand], bx + c * 14 * S, by + sn * 14 * S, a, 0.8 * S, 0.8 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+    quad(R[gun.reg], bx + c * 18 * S, by + sn * 18 * S, a, 0.8 * S, 0.8 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+    if (b.hflash > 0)
+      quad(R.muzzle, bx + c * 34 * S, by + sn * 34 * S, a, 0.6 * S, 0.6 * S, 1, 0.85, 0.5, 1, 3, 2.2, 1.2, 0);
+    setH(e.z + 66);
+    quad(R['hh' + look], bx + c * 2, by + sn * 2, a, 0.85 * S, 0.85 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+  });
+  // you, on the gun
+  const G = gunPose(e),
+    look = HLOOK[GS.RUN.hero] || 0,
+    st = HSTYLE[look] || HSTYLE[0],
+    [px, py] = heliPt(e, 34, 10),
+    c = Math.cos(G.a),
+    sn = Math.sin(G.a);
+  setH(e.z + 64);
+  quad(R['hb' + look], px, py, G.a, 0.95 * S, 0.95 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+  setH(e.z + 65);
+  lineQ(
+    G.mx - c * 4 * S,
+    G.my - sn * 4 * S,
+    G.mx + c * 4 * S,
+    G.my + sn * 4 * S,
+    6 * S,
+    0.1,
+    0.1,
+    0.09,
+    1,
+    0,
+    0,
+    0,
+    0,
+    R.pixel
+  ); // the pintle mount
+  quad(R.h_lmg, G.mx + c * 13 * S, G.my + sn * 13 * S, G.a, 0.95 * S, 0.95 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+  {
+    const h = r.over > 0 ? 1 : Math.max(0, (r.heat - 0.35) / 0.65);
+    if (h > 0.02)
+      lineQ(
+        G.mx + c * 22 * S,
+        G.my + sn * 22 * S,
+        G.fx,
+        G.fy,
+        2.6 * S,
+        1,
+        0.45,
+        0.15,
+        0.25 + 0.6 * h,
+        2.6 * h,
+        0.9 * h,
+        0.25 * h,
+        0,
+        R.pixel
+      ); // the barrel, glowing with the heat
+  }
+  quad(R[st.hand], G.mx + c * 2 * S, G.my + sn * 2 * S, G.a, 0.9 * S, 0.9 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+  quad(R[st.hand], G.mx + c * 16 * S, G.my + sn * 16 * S, G.a, 0.9 * S, 0.9 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+  setH(e.z + 66);
+  quad(R['hh' + look], px + c * 2, py + sn * 2, G.a, 0.9 * S, 0.9 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+  if (r.flashT > 0)
+    quad(R.muzzle, G.fx + c * 8 * S, G.fy + sn * 8 * S, G.a, 0.9 * S, 0.9 * S, 1, 0.85, 0.5, 1, 3.2, 2.4, 1.2, 0);
+  const sd = ha + Math.PI / 2;
+  for (const k of r.cases) {
+    const q = k.t / 0.7,
+      out = (6 + 40 * q * k.sd) * S,
+      sc = 1.3 * S * (1 - q * 0.4);
+    quad(
+      R.shell,
+      G.mx + Math.cos(sd) * out,
+      G.my + Math.sin(sd) * out + q * q * e.z * 0.35,
+      k.rot + k.t * 20,
+      sc,
+      sc,
+      1,
+      0.85,
+      0.5,
+      1 - q,
+      0.6,
+      0.5,
+      0.2,
+      0
+    );
+  } // the brass, out of the door and falling away to the street
 }
 export function heliRotor(e) {
   // four main blades smeared by their own speed into a soft disc, the hub on the mast ahead of centre

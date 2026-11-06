@@ -63,7 +63,7 @@ import { BILE, GIANT } from './draw-enemies.js';
 import { LYB, lyState } from './draw-bodies.js';
 import { atmosLights, drawAsh, drawAshGlow, lampShadows, shaftGlow } from '../world/wear.js';
 import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
-import { chuteGeom, drawCasters, drawChutes, heliRotor } from './draw-props.js';
+import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
 import { drawUI } from '../ui/draw-ui.js';
 import { buildVisGPU, visH, visTex, visW } from './visgpu.js';
 import { LAMPV, decorLights, drawHouseRoofs, roofShadows } from './decor.js';
@@ -574,6 +574,7 @@ export function render() {
       const hk = e.t >= e.land ? 0.8 : 1.4;
       quad(R.heli, e.hx, e.hy - e.z * 0.35, e.ha ?? 2.4, 1 + e.z / 900, 1 + e.z / 900, 1, 1, 1, 1, hk, hk, hk, 0);
     }
+    heliCrew(e);
     heliRotor(e);
   } // airborne: above the roofs and the tree crowns
   drawAsh();

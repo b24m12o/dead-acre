@@ -9,7 +9,7 @@ import { GS } from '../core/gs.js';
 import { bump } from './challenges.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, rand } from '../core/util.js';
 import { MH, MW, TILE, WH, WW, grid } from '../world/map.js';
-import { dijk, query } from '../world/nav.js';
+import { collide, dijk, query } from '../world/nav.js';
 import { MUS, noise, playR, playS } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { cam } from './state.js';
@@ -96,7 +96,14 @@ export function startRide(e) {
     spawnT: 0,
     groups: [],
     done: 0,
+    vk: 0, // the chopper's pace, 0..1 of SPEED: it slows to hover for a pickup
+    low: 0, // 0..1: how far down it has come for one
+    flashT: 0,
+    cases: [],
+    picked: 0,
+    crewKills: 0,
   };
+  for (const b of GS.RUN.aboard) b.hcd = rand(0.4, 1.2); // your people, in the cabin's other door
   // two groups of survivors in the open along the way
   for (const f of [0.3, 0.64]) {
     const [x, y] = along(R, R.Lmap * f),
@@ -109,7 +116,7 @@ export function startRide(e) {
       s.gun = 'pistol';
       civ.push(s);
     }
-    e.ride.groups.push({ x: sp[0], y: sp[1], s: R.Lmap * f, civ, on: false, done: false, spawned: 0 });
+    e.ride.groups.push({ x: sp[0], y: sp[1], s: R.Lmap * f, civ, on: false, done: false, spawned: 0, pick: f > 0.5 });
   }
   GS.P.ride = true;
   GS.P.inv = 1e9;
@@ -131,12 +138,26 @@ export function rideTick(e, dt) {
     const [, , a] = along(r.R, 1);
     e.ha += angDiff(e.ha, a) * damp(1.5, dt);
   } else {
-    r.s += SPEED * dt * Math.min(1, (r.t - LIFT) / 1.5);
+    // a pickup ahead: it slows, comes down and hangs over them until they're in (or there's no one left to wait for)
+    const pg = r.groups.find(g => g.pick && !g.done && g.on),
+      over = pg && pg.s - r.s < 40;
+    if (over && !r.hover) {
+      r.hover = pg;
+      pg.hoverT = 0;
+      showStreak('Going down for them', 'Keep the dead off them while they climb aboard', true);
+      sfx.ammo();
+    }
+    const want = r.hover ? 0 : pg && pg.s - r.s < 260 ? 0.35 : 1;
+    r.vk += (want - r.vk) * damp(want < r.vk ? 2.2 : 0.8, dt);
+    r.low += ((r.hover ? 1 : 0) - r.low) * damp(r.hover ? 0.9 : 0.6, dt);
+    r.s += SPEED * dt * Math.min(1, (r.t - LIFT) / 1.5) * r.vk;
     const [x, y, a] = along(r.R, r.s);
     e.hx = x;
     e.hy = y;
     e.ha += angDiff(e.ha, a) * damp(2, dt);
-    e.z = RIDE_Z + Math.min(140, Math.max(0, r.s - r.R.L * 0.7) * 0.25) + Math.sin(r.t * 0.8) * 6;
+    e.z =
+      lerp(RIDE_Z + Math.min(140, Math.max(0, r.s - r.R.L * 0.7) * 0.25), 70, r.low) +
+      Math.sin(r.t * 0.8) * (6 - 4 * r.low);
   }
   // you go with it: in the door, above the street it is flying over
   const P = GS.P;
@@ -167,6 +188,7 @@ export function rideTick(e, dt) {
     });
   }
   doorGun(e, r, dt);
+  crewGuns(e, r, dt);
   pourOut(e, r, dt);
   groups(e, r, dt);
   // clear of the map: the end
@@ -184,6 +206,68 @@ export function rideTick(e, dt) {
   }
   return false;
 }
+// a point on the chopper as drawn: u along its nose, w to its right, in its own (height-scaled) frame
+export function heliPt(e, u, w) {
+  const S = 1 + e.z / 900,
+    ha = e.ha ?? 2.4,
+    c = Math.cos(ha),
+    s = Math.sin(ha);
+  return [e.hx + (u * c - w * s) * S, e.hy - e.z * 0.35 + (u * s + w * c) * S];
+}
+// the door gun as drawn: on its mount in the right-hand door, swung toward where you aim (as far as the mount lets
+// it), and where its muzzle is
+export function gunPose(e) {
+  const S = 1 + e.z / 900,
+    ha = e.ha ?? 2.4,
+    [mx, my] = heliPt(e, 34, 21),
+    want = Math.atan2(cam.y + mouse.y / ZOOM - my, cam.x + mouse.x / ZOOM - mx),
+    side = ha + Math.PI / 2,
+    a = side + clamp(angDiff(side, want), -1.9, 1.9);
+  return { mx, my, a, S, fx: mx + Math.cos(a) * 34 * S, fy: my + Math.sin(a) * 34 * S };
+}
+// your people in the cabin: each fires out of the left-hand door at what's on that side, with what they carry
+const CREW_GUN = {
+  pistol: [0.5, 1, 'pistol'],
+  revolver: [0.7, 1.6, 'pistol'],
+  smg: [0.16, 0.55, 'smg'],
+  rifle: [0.42, 1.5, 'rifle'],
+  auto: [0.2, 0.8, 'rifle'],
+  shotgun: [0.85, 2.6, 'shotgun'],
+  hunter: [0.8, 2.2, 'rifle'],
+};
+function crewGuns(e, r, dt) {
+  if (r.t < LIFT) return;
+  const crew = GS.RUN.aboard.slice(0, 3),
+    ha = e.ha ?? 2.4,
+    lx = Math.sin(ha),
+    ly = -Math.cos(ha); // the left-hand side
+  crew.forEach((b, i) => {
+    const [bx, by] = heliPt(e, 26 + i * 18, -14),
+      [cg, dm, snd] = CREW_GUN[b.gun] || CREW_GUN.pistol;
+    b.hcd = (b.hcd ?? 0.5) - dt;
+    if (b.hcd > 0) return;
+    let tg = null,
+      bd = 480 * 480;
+    query(e.hx, e.hy, 480, z => {
+      if (z.dead || z.dying !== undefined || !(z.emerge >= 1) || z.type === 'queen') return;
+      const dd = d2(z.x, z.y, e.hx, e.hy);
+      if ((z.x - e.hx) * lx + (z.y - e.hy) * ly < -40 || dd > bd) return;
+      bd = dd;
+      tg = z;
+    });
+    b.hcd = tg ? cg * rand(0.9, 1.25) : 0.3;
+    if (!tg) return;
+    b.haim = Math.atan2(tg.y - by, tg.x - bx);
+    b.hflash = 0.05;
+    const mx = bx + Math.cos(b.haim) * 26,
+      my = by + Math.sin(b.haim) * 26;
+    e.tr.push({ x0: mx, y0: my, x1: tg.x + rand(-6, 6), y1: tg.y + rand(-6, 6), t: 0.06 });
+    playR(snd, 0.2, e.hx, e.hy, 1);
+    hurtEnemy(tg, (14 + 1.4 * GS.wave) * dm, false, tg.x - bx, tg.y - by, 0.8, 'buddy');
+    if (tg.dead || tg.hp <= 0 || tg.dying !== undefined) r.crewKills++;
+  });
+  for (const b of crew) b.hflash = Math.max(0, (b.hflash || 0) - dt);
+}
 // the gun in the side door: where you aim, while you hold it, until it overheats
 function doorGun(e, r, dt) {
   r.cd -= dt;
@@ -192,15 +276,21 @@ function doorGun(e, r, dt) {
     r.heat = Math.max(0, r.heat - dt * 0.7);
     if (r.over <= 0) r.heat = 0.35;
   } else if (!mouse.down) r.heat = Math.max(0, r.heat - dt * 0.55);
+  r.flashT = Math.max(0, r.flashT - dt);
+  for (const c of r.cases) c.t += dt;
+  r.cases = r.cases.filter(c => c.t < 0.7);
   if (!mouse.down || r.over > 0 || r.cd > 0 || r.t < LIFT * 0.6) return;
   r.cd = 0.072;
   r.heat += 0.028;
-  const gx = e.hx - Math.sin(e.ha) * 18,
-    gy = e.hy - e.z * 0.35 + Math.cos(e.ha) * 18,
+  const G = gunPose(e),
+    gx = G.fx,
+    gy = G.fy,
     sp = 10 + r.heat * 26,
     tx = cam.x + mouse.x / ZOOM + rand(-sp, sp),
     ty = cam.y + mouse.y / ZOOM + rand(-sp, sp);
   e.tr.push({ x0: gx, y0: gy, x1: tx, y1: ty, t: 0.07 });
+  r.flashT = 0.05;
+  if (r.cases.length < 24) r.cases.push({ t: 0, a: G.a, rot: rand(0, TAU), sd: rand(0.8, 1.2) }); // the brass goes out of the door and down
   if (!playS('lmg', 0.4, 0.88, 0, 0.45)) noise(0.06, 0.12, 2200, 500, 'bandpass');
   let best = null,
     bd = 30 * 30;
@@ -279,9 +369,33 @@ function groups(e, r, dt) {
       }
     }
     if (!g.on) continue;
+    const pick = r.hover === g && r.low > 0.55;
+    if (r.hover === g) g.hoverT += dt;
     for (const s of g.civ) {
       s.hurt = Math.max(0, (s.hurt || 0) - dt); // the flash of a hit fades
-      if (s.hp <= 0) continue;
+      if (s.hp <= 0 || s.aboard) continue;
+      if (pick) {
+        const dx = e.hx - s.x,
+          dy = e.hy - s.y,
+          dd = Math.hypot(dx, dy);
+        if (dd < 24) {
+          s.aboard = true;
+          r.picked++;
+          floatText(s.x, s.y - 40, 'Aboard', '#8ef0b8', 15);
+          sfx.ammo();
+          continue;
+        } // up and in
+        const ox = s.x,
+          oy = s.y,
+          v = Math.min(175, dd * 5);
+        s.x += (dx / dd) * v * dt;
+        s.y += (dy / dd) * v * dt;
+        collide(s);
+        const sp2 = Math.hypot(s.x - ox, s.y - oy) / Math.max(dt, 1e-4);
+        s.moveA = Math.atan2(s.y - oy, s.x - ox);
+        s.strideAmp = lerp(s.strideAmp || 0, Math.min(1, sp2 / 250), damp(10, dt));
+        s.stride = (s.stride || 0) + (sp2 * dt) / 76;
+      } // they run for the skids
       let near = null,
         nd = 1e12;
       query(s.x, s.y, 60, z => {
@@ -330,7 +444,11 @@ function groups(e, r, dt) {
     for (const z of GS.enemies)
       if (z.civT === g && !z.dead) {
         const t = g.civ.find(s => s.hp > 0);
-        if (t) {
+        if (t && r.hover === g) {
+          if (z.lure === g.lure) z.lure = null;
+          z.aw = 9;
+        } // they're running for the chopper: the dead go after them, under it
+        else if (t) {
           z.lure = g.lure;
           z.aw = 0;
         } else {
@@ -338,7 +456,13 @@ function groups(e, r, dt) {
           if (z.lure === g.lure) z.lure = null;
         }
       }
-    if (ahead < -650 || !g.civ.some(s => s.hp > 0)) {
+    const waiting = g.civ.filter(s => s.hp > 0 && !s.aboard).length;
+    if (r.hover === g && (!waiting || g.hoverT > 14)) {
+      r.hover = null;
+      for (const s of g.civ) if (s.hp > 0 && !s.aboard) s.hp = 0; // too long: the chopper can't wait
+    } // everyone who could is in: up and away
+    if ((!g.pick && ahead < -650) || (g.pick && !r.hover && g.hoverT !== undefined) || !g.civ.some(s => s.hp > 0)) {
+      if (r.hover === g) r.hover = null;
       g.done = true;
       const n = g.civ.filter(s => s.hp > 0).length;
       r.saved += n;
@@ -346,7 +470,7 @@ function groups(e, r, dt) {
       floatText(
         g.x,
         g.y - 50,
-        n ? `${n} of ${g.civ.length} made it` : 'None of them made it',
+        n ? (g.pick ? `${n} of ${g.civ.length} aboard` : `${n} of ${g.civ.length} made it`) : 'None of them made it',
         n ? '#c8e6a0' : '#ff6a5a',
         18
       );
@@ -364,6 +488,7 @@ export const rideCiv = () => {
   const e = GS.evac;
   if (!e || !e.ride) return [];
   const out = [];
-  for (const g of e.ride.groups) if (g.on || g.s - e.ride.s < 1100) for (const s of g.civ) if (s.hp > 0) out.push(s);
+  for (const g of e.ride.groups)
+    if (g.on || g.s - e.ride.s < 1100) for (const s of g.civ) if (s.hp > 0 && !s.aboard) out.push(s);
   return out;
 };

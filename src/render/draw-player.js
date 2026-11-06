@@ -33,7 +33,7 @@ export function lampK(L) {
 }
 
 export const HLOOK = { ranger: 0, breacher: 1, grenadier: 2 };
-const HSTYLE = [
+export const HSTYLE = [
   { sleeve: [0.31, 0.31, 0.28], pants: [0.25, 0.25, 0.23], hand: 'h_glove', pack: 'h_pack' }, // a worn field jacket: greys and browns, so lamplight doesn't turn it lime
   { sleeve: [0.8, 0.72, 0.54], pants: [0.24, 0.31, 0.48], hand: 'h_glove2', pack: null },
   { sleeve: [0.66, 0.2, 0.16], pants: [0.16, 0.17, 0.22], hand: 'h_hand', pack: 'h_bag' },
