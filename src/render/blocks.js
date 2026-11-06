@@ -26,7 +26,7 @@ function wallStyleOf(tx, ty) {
 
   const D = GS.RUN.district || 'town',
     hz = houses.find(o => tx >= o.x && tx < o.x + o.w && ty >= o.y && ty < o.y + o.h);
-  if (D === 'cemetery') return 'stone';
+  if (D === 'cemetery') return hz && hz.style === 'store' ? 'conc' : 'stone'; // the hospital is concrete; the crypts and chapel stone
   if (D === 'highway') return ty === 28 || ty === 32 ? 'barr' : hz && hz.style === 'store' ? 'conc' : 'brick';
   return hz && hz.style === 'store' ? 'conc' : 'brick';
 }

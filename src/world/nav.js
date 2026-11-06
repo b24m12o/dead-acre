@@ -55,7 +55,11 @@ export function collide(o, r = o.cr || o.r, only = null) {
   {
     const cx = Math.floor(o.x / TILE),
       cy = Math.floor(o.y / TILE);
-    if (isWall(cx, cy) && (cx < 0 || cy < 0 || cx >= MW || cy >= MH || ttype[cy * MW + cx] === 1)) return unstick(o);
+    if (
+      isWall(cx, cy) &&
+      (cx < 0 || cy < 0 || cx >= MW || cy >= MH || ttype[cy * MW + cx] === 1 || ttype[cy * MW + cx] === 11)
+    )
+      return unstick(o);
   } // the centre is inside solid wall (or off the map): back to open ground, not on through the wall
   const tx0 = Math.floor((o.x - r) / TILE),
     tx1 = Math.floor((o.x + r) / TILE),
@@ -67,7 +71,7 @@ export function collide(o, r = o.cr || o.r, only = null) {
       const inside = tx >= 0 && ty >= 0 && tx < MW && ty < MH,
         t = inside ? ttype[ty * MW + tx] : 1;
       if (only && !only(t)) continue;
-      if (t !== 1) {
+      if (t !== 1 && t !== 11) {
         const cx = (tx + 0.5) * TILE,
           cy = (ty + 0.5) * TILE,
           dx = o.x - cx,
@@ -123,6 +127,7 @@ export function solidPt(x, y) {
   if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return true;
   const t = ttype[ty * MW + tx];
   if (t === 1) return true;
+  if (t === 11) return false; // water: you can't wade it, but shots and sight go over it
   return Math.hypot(x - (tx + 0.5) * TILE, y - (ty + 0.5) * TILE) < TRAD(t) + 1;
 }
 export function los(x0, y0, x1, y1) {

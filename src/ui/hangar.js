@@ -277,7 +277,10 @@ export function begin() {
   GS.RUN.abB = abPickB(GS.RUN.hero);
   if (!GS.RUN.practice) clearSave(); // a new run replaces whatever was saved
   GS.RUN.jobN = camp ? JOBS_J.slice() : [3, 7, 12, pick([9, 13])];
-  if (camp) GS.RUN.stop = 0; // Main Street, Dead Acre
+  if (camp) {
+    GS.RUN.stop = 0;
+    GS.RUN.layout = 'main';
+  } // Main Street, Dead Acre
   {
     const sh = a => {
       for (let i = a.length - 1; i > 0; i--) {

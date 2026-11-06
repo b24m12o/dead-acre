@@ -11,6 +11,7 @@ import { hsh, prepBlocks } from '../render/blocks.js';
 import { carHits } from '../render/cars.js';
 import { genDecor } from '../render/decor.js';
 import { buildCarMap } from './fire.js';
+import { LAYOUTS, paintLayout } from './layouts.js';
 /* =====================================================================
    Town map
    ===================================================================== */
@@ -35,6 +36,8 @@ let SUN;
 export let lamps, cars, houses, fires, roofs;
 export let ROAD;
 export let RX, RY;
+export let LAYOUT = ''; // which place's layout this map is, in the campaign (layouts.js); '' for a district's own
+export let HELIPAD = null; // the helipad, where a layout has one: the evac lands there
 let CAR_COLS;
 export function generateMap() {
   grid.fill(0);
@@ -49,6 +52,8 @@ export function generateMap() {
   fires = [];
   roofs = [];
   const D = (GS.RUN && GS.RUN.district) || 'town';
+  LAYOUT = (GS.RUN && GS.RUN.journey && GS.RUN.layout) || '';
+  HELIPAD = null;
   RX = D === 'town' ? [12, 30, 47] : [];
   RY = D === 'town' ? [13, 30, 46] : D === 'highway' ? [30] : [];
   const set = (x, y, t) => {
@@ -115,7 +120,33 @@ export function generateMap() {
       ph: rand(0, 50),
       lantern,
     });
-  if (D === 'town') {
+  if (LAYOUTS[LAYOUT])
+    LAYOUTS[LAYOUT]({
+      D,
+      set,
+      clear: (x, y) => {
+        grid[y * MW + x] = 0;
+        ttype[y * MW + x] = 0;
+      },
+      free,
+      clearOK,
+      bigRuin,
+      lampAt,
+      c0,
+      CAR_COLS,
+      houses,
+      cars,
+      trees,
+      fires,
+      crystals,
+      roads: (rx, ry) => {
+        RX = rx;
+        RY = ry;
+      },
+      helipad: p => (HELIPAD = p),
+    });
+  // a campaign stop with a layout of its own: the rest of the map (and how it's painted) is the district's
+  else if (D === 'town') {
     // street grid: 3-tile asphalt + 1-tile sidewalks
     for (const rx of RX)
       for (let y = 2; y < MH - 2; y++)
@@ -945,7 +976,9 @@ function bakeMap() {
         }
     }
   // lane markings
-  const inter = (v, list) => list.some(r => Math.abs(r - v) <= 2);
+  const inter = (v, list) => list.some(r => Math.abs(r - v) <= 2),
+    painted = LAYOUT !== 'quarry'; // the quarry's haul road is gravel: no paint on it
+  if (!painted) a.globalAlpha = 0;
   a.lineWidth = 3;
   a.setLineDash([26, 22]);
   a.strokeStyle = 'rgba(214,176,70,0.75)';
@@ -978,7 +1011,8 @@ function bakeMap() {
     }
   }
   a.setLineDash([]);
-  if (D === 'highway') {
+  a.globalAlpha = 1;
+  if (D === 'highway' && painted) {
     a.lineWidth = 3;
     a.strokeStyle = 'rgba(230,226,214,0.7)';
     a.setLineDash([30, 26]);
@@ -1091,6 +1125,7 @@ function bakeMap() {
     }
     a.lineCap = 'butt';
     a.save();
+    if (LAYOUT && LAYOUT !== 'gas') a.globalAlpha = 0; // the gas station's own forecourt
     a.translate(18.5 * TILE, 24.3 * TILE);
     a.font = '900 30px Kanit, sans-serif';
     a.textAlign = 'center';
@@ -1100,7 +1135,7 @@ function bakeMap() {
   }
   if (D === 'cemetery') {
     for (let i = 0; i < MW * MH; i++) {
-      if (ttype[i] !== 8) continue;
+      if (ttype[i] !== 8 || LAYOUT === 'hospital') continue;
       const tx = i % MW,
         ty = (i / MW) | 0,
         x = (tx + 0.5) * TILE + (hsh(tx * 5, ty) - 0.5) * 8,
@@ -1134,7 +1169,7 @@ function bakeMap() {
         a.stroke();
       }
     }
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < (LAYOUT === 'hospital' ? 0 : 26); i++) {
       const tx = randi(4, MW - 5),
         ty = randi(4, MH - 5);
       if (grid[ty * MW + tx] || ROAD[ty * MW + tx]) continue;
@@ -1155,7 +1190,8 @@ function bakeMap() {
   }
   // crosswalks
   a.fillStyle = 'rgba(220,216,204,0.7)';
-  for (const rx of RX)
+  paintLayout(a, h, LAYOUT);
+  for (const rx of painted ? RX : [])
     for (const ry of RY)
       for (const [dx, dy] of [
         [0, -1],
@@ -1337,7 +1373,7 @@ function bakeMap() {
   // the plea painted at the crossroads
   const cx = WW / 2,
     cy = WH / 2;
-  if (D === 'town') {
+  if (D === 'town' && (!LAYOUT || LAYOUT === 'main')) {
     a.save();
     a.translate(cx + 12, cy + 4);
     a.rotate(-0.05);
@@ -1560,7 +1596,7 @@ function bakeMap() {
   for (let ty = 0; ty < MH; ty++)
     for (let tx = 0; tx < MW; tx++) {
       const t = ttype[ty * MW + tx];
-      if (!t || t === 1 || t === 4) continue;
+      if (!t || t === 1 || t === 4 || t === 11) continue;
       const x = tx * TILE + TILE / 2,
         y = ty * TILE + TILE / 2,
         r = t === 3 ? 22 : t === 8 ? 18 : t === 9 ? 14 : 32;
@@ -1575,7 +1611,7 @@ function bakeMap() {
   for (let ty = 0; ty < MH; ty++)
     for (let tx = 0; tx < MW; tx++) {
       const t = ttype[ty * MW + tx];
-      if (!t || t === 1 || t === 4 || t === 6) continue;
+      if (!t || t === 1 || t === 4 || t === 6 || t === 11) continue;
       const x = tx * TILE + TILE / 2,
         y = ty * TILE + TILE / 2;
       if (t === 2) {

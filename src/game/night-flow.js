@@ -6,7 +6,7 @@ import { GS } from '../core/gs.js';
 import { pick, rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
 import { WEAPON_NIGHTS, nextGuns } from './arsenal.js';
-import { lamps } from '../world/map.js';
+import { HELIPAD, lamps } from '../world/map.js';
 import { sfx } from '../audio/sfx.js';
 import { S } from './state.js';
 import { showStreak } from '../ui/callouts.js';
@@ -214,7 +214,7 @@ function planDawn() {
     GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
     if (s) GS.later.push({ t: 3.2, fn: () => GS.nightDone && showStreak(`Night ${GS.wave + 1}`, SIG[s]) });
     if (!GS.RUN.hm && GS.wave + 1 === FINAL_NIGHT) {
-      GS.RUN.lz = freeSpot(260, 520);
+      GS.RUN.lz = HELIPAD ? HELIPAD.slice() : freeSpot(260, 520);
       const kit = { mine: 3, drum: 3, noise: 1, rig: 2 };
       giveTraps(kit);
       GS.interT = 50;
@@ -304,6 +304,7 @@ function moveOn() {
     S = STOPS[stop];
   d.RUN.stop = stop;
   d.RUN.district = S.map;
+  d.RUN.layout = S.id;
   d.RUN.moveOut = false;
   GS.RUN = { ...d.RUN, resumed: true };
   clearJourney();
@@ -350,7 +351,7 @@ export function resumeDawn() {
   GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
   if (s === 'horde') GS.interT = GS.RUN.hm ? 20 : 45; // the kit came with the save
   if (!GS.RUN.hm && GS.wave + 1 === FINAL_NIGHT) {
-    GS.RUN.lz = freeSpot(260, 520); // the map is laid out afresh on a resume: a new landing zone on it
+    GS.RUN.lz = HELIPAD ? HELIPAD.slice() : freeSpot(260, 520); // the map is laid out afresh on a resume: a new landing zone on it
     GS.interT = 50;
     GS.later.push({
       t: 4,

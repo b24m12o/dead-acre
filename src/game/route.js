@@ -81,7 +81,7 @@ export const STOPS = [
     short: 'Hospital',
     map: 'cemetery',
     to: 15,
-    desc: 'Where it began. The helipad is on the roof of the east wing.',
+    desc: 'Where it began. The helipad is on the lawn past the east wing.',
   },
 ];
 // the stop you are at on a night (the night before the first is the first stop's)

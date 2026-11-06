@@ -195,7 +195,7 @@ export const ARRIVE = {
     'That bridge is the only way over the river for thirty miles. If the convoy is alive, they will come to it. Hold it.',
   ],
   6: ['Hawk', 'Hawk. I see you on the hill. Three more nights, then I put down at the hospital.'],
-  7: ['Hawk', 'County Hospital. The helipad is on the roof of the east wing. Tonight, nine. Hold till I come down.'],
+  7: ['Hawk', 'County Hospital. The helipad is on the lawn past the east wing. Tonight, nine. Hold till I come down.'],
 };
 export function storyArrive(stop) {
   const a = ARRIVE[stop];
