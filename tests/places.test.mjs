@@ -6,7 +6,7 @@
 import { openGame, check } from './lib/harness.mjs';
 
 export const name = 'places: everything on every map can be reached';
-const SEEDS = 5;
+const SEEDS = 6;
 const PLACES = String.raw`(() => {
   const fam = { main: 'town', clinic: 'town', gas: 'highway', motel: 'highway', quarry: 'highway', bridge: 'highway', hill: 'cemetery', hospital: 'cemetery' };
   const out = [];
@@ -22,6 +22,12 @@ const PLACES = String.raw`(() => {
       const at = (what, x, y) => { if (!reach(x, y)) bad.push(what + ' unreachable at ' + Math.round(x / TILE) + ',' + Math.round(y / TILE)); if (wet(x, y)) bad.push(what + ' in the river'); };
       for (let i = 0; i < 60; i++) { const [x, y] = spawnPoint(460, false); at('spawn', x, y); }
       if (HELIPAD) at('helipad', HELIPAD[0], HELIPAD[1]);
+      for (const o of houses) {
+        if (o.open) continue;
+        let floor = 0, inn = 0;
+        for (let y = o.y + 1; y < o.y + o.h - 1; y++) for (let x = o.x + 1; x < o.x + o.w - 1; x++) if (!isWall(x, y)) { floor++; if (flow[y * MW + x] < 65535) inn++; }
+        if (floor > 2 && !inn) bad.push('sealed room at ' + o.x + ',' + o.y);
+      } // a door blocked by something dropped in it
       for (const job of ['fuel', 'meds', 'rescue', 'gen', 'box']) {
         GS.P.x = P0[0]; GS.P.y = P0[1]; GS.wave = 3; GS.queue = ['skitter']; GS.RUN.job = { t: job }; GS.RUN.nextSig = null;
         GS.obj = null; GS.wrecks.length = 0; nightSetup();

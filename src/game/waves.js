@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { reachPt } from '../world/nav.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, rand, randi } from '../core/util.js';
@@ -84,6 +85,7 @@ export function spawnPoint(minD = 480, edge = false) {
           break;
         }
     if (!ok && !edge) continue;
+    if (!reachPt(x, y) && k < 36) continue; // nothing is born in a pocket it can't walk out of: the night would never end
     if (x > cam.x - 30 && x < cam.x + viewW + 30 && y > cam.y - 30 && y < cam.y + viewH + 30 && k < 30) continue;
     return [x, y];
   }

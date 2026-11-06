@@ -127,7 +127,7 @@ function fence(k, x, y, n, hz, gaps = []) {
 }
 function rubble(k, x, y, n = randi(1, 3)) {
   for (let i = 0; i < n; i++) {
-    if (k.free(x, y) && ROAD[at(x, y)] !== 1) k.set(x, y, 2);
+    if (k.free(x, y) && ROAD[at(x, y)] !== 1 && !roofed(k, x, y, 1)) k.set(x, y, 2); // never in a doorway
     x = Math.max(3, Math.min(MW - 4, x + randi(-1, 1)));
     y = Math.max(3, Math.min(MH - 4, y + randi(-1, 1)));
   }
