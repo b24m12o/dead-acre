@@ -123,6 +123,15 @@ export function drawRadar() {
       ui.lineWidth = 1;
       ui.fillRect(x0 + W.x * k - 5, y0 + W.y * k - 3, 10, 6);
       ui.strokeRect(x0 + W.x * k - 5, y0 + W.y * k - 3, 10, 6);
+      ui.font = '700 9px "JetBrains Mono", monospace';
+      ui.textAlign = 'center';
+      ui.textBaseline = 'bottom';
+      ui.lineWidth = 3;
+      ui.strokeText(W.label === 'TRUCK' ? 'TRUCK' : 'OUT', x0 + W.x * k, y0 + W.y * k - 4);
+      ui.fillText(W.label === 'TRUCK' ? 'TRUCK' : 'OUT', x0 + W.x * k, y0 + W.y * k - 4); // named, not just a box
+      ui.textAlign = 'left';
+      ui.textBaseline = 'alphabetic';
+      ui.lineWidth = 1;
     }
   } // the way on: the truck, or the road out
   // your traps, where you set them: a mine a small amber cross, a drum an amber square, a rigged car outlined

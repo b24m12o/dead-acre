@@ -91,6 +91,7 @@ export function bark(s, kind, delay = 0) {
   s.bk[kind] = lastK[kind] = lastAt = t;
   s.bk[kind + '#'] = text;
   lastEnd = t + delay + c.dur;
+  s.say = { txt: text, t: GS.time + delay, end: GS.time + delay + c.dur + 1.1 }; // the caption shows even when the voice can't be heard
   c.p.then(b => {
     if (!b || !AC || GS.state === 'menu' || onAir()) return;
     const src = AC.createBufferSource(),
@@ -108,7 +109,6 @@ export function bark(s, kind, delay = 0) {
       const i = talking.findIndex(q => q.src === src);
       if (i >= 0) talking.splice(i, 1);
     };
-    s.say = { txt: text, t: GS.time + delay, end: GS.time + delay + c.dur + 1.1 };
   });
   return true;
 }

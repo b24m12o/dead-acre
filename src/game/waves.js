@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { pitSpot } from './setpieces.js';
 import { reachPt } from '../world/nav.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
@@ -64,6 +65,10 @@ export function buildWave(w) {
   return q;
 }
 export function spawnPoint(minD = 480, edge = false) {
+  {
+    const ps = pitSpot(minD);
+    if (ps) return ps;
+  } // at the quarry they come up out of the pit
   for (let k = 0; k < 40; k++) {
     let x, y;
     if (edge) {

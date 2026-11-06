@@ -7,7 +7,7 @@
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, pick, rand, angDiff } from '../core/util.js';
-import { MH, MW, TILE, WH, WW, grid } from '../world/map.js';
+import { LAYOUT, MH, MW, TILE, WH, WW, grid } from '../world/map.js';
 import { dijk, flow } from '../world/nav.js';
 import { MUS } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
@@ -107,6 +107,15 @@ function arrive(H) {
     H.ents.push(e2);
     H.a2 = Math.atan2(e2[1] - GS.P.y, e2[0] - GS.P.x);
   } // late hordes split: two masses from two sides, meeting on you
+  if (LAYOUT === 'bridge') {
+    const W = [3.5 * TILE, 30.5 * TILE],
+      E = [(MW - 3.5) * TILE, 30.5 * TILE];
+    H.ents = [W, E];
+    [H.x, H.y] = W;
+    H.a = Math.atan2(W[1] - GS.P.y, W[0] - GS.P.x);
+    H.a2 = Math.atan2(E[1] - GS.P.y, E[0] - GS.P.x);
+    H.bridge = true;
+  } // at Mill River they come along Route 9 from both ends, and the bridge is the only way over the water
   H.gather = H.ents.map(([ex, ey]) => {
     const L = newLure();
     aim(H, ex, ey, L);
@@ -130,8 +139,10 @@ function arrive(H) {
     return;
   } // the finale doesn't roam: it comes straight in, running
   showStreak(
-    'Horde',
-    `${H.n} of them, coming in from the ${dirName(H.a)}${H.ents.length > 1 ? ` and the ${dirName(H.a2)}` : ''} · watch the radar and pick your ground`,
+    H.bridge ? 'Both ends of the bridge' : 'Horde',
+    H.bridge
+      ? `${H.n} of them on Route 9, from the west and the east · the bridge is the only way over the river`
+      : `${H.n} of them, coming in from the ${dirName(H.a)}${H.ents.length > 1 ? ` and the ${dirName(H.a2)}` : ''} · watch the radar and pick your ground`,
     true
   );
   radio('Nine, big group breaking through on your ' + dirName(H.a) + ' side. Find a choke point.'); // a line Reyes has voiced

@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { placeStage } from './setpieces.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, d2, rand, randi } from '../core/util.js';
@@ -405,7 +406,7 @@ const ENTRANCE = {
   },
   chief() {
     // a siren winds up, the street catches fire in a ring, its radio crackles and it steps out of the flames
-    const [x, y] = stageSpot(520, 660);
+    const [x, y] = placeStage('chief') || stageSpot(520, 660); // at the Starlite, out of the burnt fire station
     sfx.siren(x, y, 2);
     cam.peek = { x, y, t: 3.4 };
     ringFires(x, y, 7, 60, 100, 18, 0.5);
@@ -425,7 +426,7 @@ const ENTRANCE = {
   },
   pz() {
     // the lights go out one by one, from the far end of town toward you, and then you hear it breathing
-    const [x, y] = stageSpot(560, 720),
+    const [x, y] = placeStage('pz') || stageSpot(560, 720), // at County Hospital, out of its front door
       n = lampsOff(lampsNear(GS.P.x, GS.P.y, 1100, 8, true, 200), 0.32, 0.8),
       tA = 1.4 + n * 0.32;
     GS.later.push({

@@ -8,7 +8,8 @@
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, damp, rand } from '../core/util.js';
-import { MH, MW, ROAD, RY, TILE, WH, WW, isWall } from '../world/map.js';
+import { MH, MW, ROAD, RY, TILE, WH, WW, grid, isWall, ttype } from '../world/map.js';
+import { breakTile } from '../world/physics.js';
 import { ZOOM, addLight, viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { noise, playS, thr, tone } from '../audio/audio.js';
@@ -232,19 +233,49 @@ function ridePath(T) {
       const tx = i % MW,
         ty = (i / MW) | 0;
       if (isWall(tx, ty)) return 1e9;
-      let near = 0;
-      for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) if (isWall(tx + k, ty + j)) near++;
-      return 1 + near * 1.6 + (ROAD && ROAD[i] ? 0 : 1.2);
+      let near = 0,
+        far = 0;
+      for (let j = -2; j <= 2; j++)
+        for (let k = -2; k <= 2; k++)
+          if (isWall(tx + k, ty + j)) {
+            if (Math.abs(j) <= 1 && Math.abs(k) <= 1) near++;
+            else far++;
+          }
+      return 1 + near * 6 + far * 0.6 + (ROAD && ROAD[i] ? 0 : 1.2); // down the middle of the road, clear of the wrecks: the truck is wider than a tile
     };
   cost[s0] = 0;
   let end = -1;
-  const heap = [s0];
+  // a binary heap on cost (stale entries are skipped when they come up)
+  const heap = [s0],
+    hpush = v => {
+      heap.push(v);
+      for (let c = heap.length - 1; c > 0; ) {
+        const pa = (c - 1) >> 1;
+        if (cost[heap[pa]] <= cost[heap[c]]) break;
+        [heap[pa], heap[c]] = [heap[c], heap[pa]];
+        c = pa;
+      }
+    },
+    hpop = () => {
+      const top = heap[0],
+        last = heap.pop();
+      if (heap.length) {
+        heap[0] = last;
+        for (let c = 0; ; ) {
+          const l = 2 * c + 1,
+            r = l + 1;
+          let m = c;
+          if (l < heap.length && cost[heap[l]] < cost[heap[m]]) m = l;
+          if (r < heap.length && cost[heap[r]] < cost[heap[m]]) m = r;
+          if (m === c) break;
+          [heap[m], heap[c]] = [heap[c], heap[m]];
+          c = m;
+        }
+      }
+      return top;
+    };
   while (heap.length) {
-    let bi = 0;
-    for (let k = 1; k < heap.length; k++) if (cost[heap[k]] < cost[heap[bi]]) bi = k;
-    const i = heap[bi];
-    heap[bi] = heap[heap.length - 1];
-    heap.pop();
+    const i = hpop();
     if (done[i]) continue;
     done[i] = 1;
     if (goal(i) && i !== s0) {
@@ -267,7 +298,7 @@ function ridePath(T) {
       if (c < cost[j]) {
         cost[j] = c;
         from[j] = i;
-        heap.push(j);
+        hpush(j);
       }
     }
   }
@@ -451,6 +482,21 @@ function tickRide(dt, onLeave) {
       hurtEnemy(z, 160 + 10 * GS.wave, false, Math.cos(T.a), Math.sin(T.a), 3.2, 'truck');
       if (thr('ram', 90)) sfx.crate(z.x, z.y); // the thump of it
     });
+  }
+  // fences, rubble and headstones it clips go down under it
+  {
+    const c = Math.cos(T.a),
+      sn = Math.sin(T.a);
+    for (const u of [TL / 2 - 4, TL / 4, 0, -TL / 4])
+      for (const w of [-TW_ / 2 + 4, TW_ / 2 - 4]) {
+        const tx = Math.floor((T.x + u * c - w * sn) / TILE),
+          ty = Math.floor((T.y + u * sn + w * c) / TILE),
+          i = ty * MW + tx;
+        if (tx > 0 && ty > 0 && tx < MW && ty < MH && grid[i] && [2, 8, 9].includes(ttype[i])) {
+          breakTile(i);
+          shake(0.12);
+        }
+      }
   }
   // you ride in the bed, behind the cab
   P.x = T.x - Math.cos(T.a) * 30;

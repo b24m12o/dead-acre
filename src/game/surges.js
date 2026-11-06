@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { placeNight } from './setpieces.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, pick, rand } from '../core/util.js';
@@ -128,6 +129,7 @@ export function startWave() {
   const qb = bossNight(GS.wave),
     last = lastNight(GS.wave);
   nightSetup();
+  placeNight(); // what this place does tonight (setpieces.js)
   GS.RUN.sg = surgePlan(GS.wave);
   const evTxt = GS.ev ? EV_NAME[GS.ev] + ' · ' : '';
   if (qb) {

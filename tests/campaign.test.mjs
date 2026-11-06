@@ -7,9 +7,10 @@ import { openGame, check, ROOT } from './lib/harness.mjs';
 
 export const name = 'campaign: the bot plays all 15 nights';
 export const long = true;
-const RUN = String.raw`(()=>{
+export const RUN = String.raw`(()=>{
   const GOD = %s, PICK = %s, seenPk = new WeakSet();
   let N = null; const nights = {}; const mk0 = makeEnemy;
+  if (GOD) { const go0 = gameOver; gameOver = function () { if (GS.P && GS.P.hp <= 0 && GS.state === 'play') { window.__saved = (window.__saved || 0) + 1; GS.P.hp = S.maxHp; return; } return go0.apply(this, arguments); }; } /* unkillable means unkillable: one blast bigger than full health doesn't end the run either */
   makeEnemy = function(t, x, y) { const e = mk0.apply(this, arguments); if (N && e) { N.spawned++; N.hpSpawned += e.maxHp; N.types[t] = (N.types[t] || 0) + 1; } return e; };
   const aa0 = addAmmoType; addAmmoType = function(t, k) { const b = GS.P.ammo[t]; const r = aa0.apply(this, arguments); if (N) N.ammoGot[t] = (N.ammoGot[t] || 0) + (GS.P.ammo[t] - b); return r; };
   const choosePick = () => { if (GS.pickSource === 'job') { const j = Math.random() * GS.picks.length | 0; if (N) { N.picks.push(GS.picks[j].id); N.job = GS.picks[j].id; } choose(j); return; } if (GS.pickSource === 'weapon') { if (N) N.picks.push(GS.picks[0].id); choose(0); return; } let i = 0;
@@ -26,6 +27,7 @@ const RUN = String.raw`(()=>{
     if (GS.wave !== curW) { if (curW >= 0) close(); curW = GS.wave; startN(); }
     __bot2(); const goal = GS.evac || (GS.truck && GS.truck.parked && !GS.truck.gone ? GS.truck : GS.roadOut && !GS.roadOut.gone ? GS.roadOut : null); if (goal) { let gx = goal.x, gy = goal.y; { /* walk the flow field backwards from the landing zone: the path to it from here */ let cx = Math.floor(goal.x / TILE), cy = Math.floor(goal.y / TILE); const path = []; for (let k = 0; k < 400; k++) { path.push([cx, cy]); let best = flow[cy * MW + cx], bx = cx, by = cy; for (const [ox, oy] of N8) { const nx = cx + ox, ny = cy + oy; if (isWall(nx, ny) || (ox && oy && (isWall(cx + ox, cy) || isWall(cx, cy + oy)))) continue; const v = flow[ny * MW + nx]; if (v < best) { best = v; bx = nx; by = ny; } } if (bx === cx && by === cy) break; cx = bx; cy = by; } if (path.length > 3) { const w = path[Math.max(0, path.length - 3)]; gx = (w[0] + 0.5) * TILE; gy = (w[1] + 0.5) * TILE; } }
       const dx = gx - GS.P.x, dy = gy - GS.P.y, dl = Math.hypot(dx, dy), de = Math.hypot(goal.x - GS.P.x, goal.y - GS.P.y); if (de > 30) { __pad.lx = dx / (dl || 1); __pad.ly = dy / (dl || 1); } else __pad.lx = __pad.ly = 0; __kmApply(); } update(1/60); tickWorld(1/60); updateCamera(1/60); T += 1/60;
+    if (window.__hook && window.__hook(N) === 'stop') break;
     for (const k of GS.pickups) if (!seenPk.has(k)) { seenPk.add(k); if (k.k === 'hp') N.hpDrops++; else N.ammoDrops++; }
     if (GS.P.owned.some(g => g !== 'pistol' && g !== 'launcher') && GS.P.gun === 'pistol') N.dry += 1/60;
     if (GS.P.hp < lastHp) N.dmg += lastHp - GS.P.hp; else if (GS.P.hp > lastHp) N.healed += GS.P.hp - lastHp;
@@ -41,14 +43,20 @@ const RUN = String.raw`(()=>{
   for (const k in nights) { const n = nights[k]; n.dmg = Math.round(n.dmg); n.hpSpawned = Math.round(n.hpSpawned); n.dry = Math.round(n.dry); n.minHp = +n.minHp.toFixed(2); n.healed = Math.round(n.healed); if (n.ammoMin !== undefined) { n.ammoMin = +n.ammoMin.toFixed(2); n.ammoAvg = +(n.ammoAvgS / Math.max(1, n.t)).toFixed(2); delete n.ammoAvgS; } delete n.t0; delete n.kills0; }
   return JSON.stringify({ district: GS.RUN.district, hero: GS.RUN.hero, abUsed: window.__abUsed || 0, aboard: (GS.RUN.aboard || []).map(b => b.nm + ":" + b.tr), left: GS.buddies.map(b => b.nm), lost: GS.RUN.lost, end: GS.state, wave: GS.wave, T: Math.round(T), kills: GS.kills, level: GS.level, maxHp: S.maxHp, LV, nights });
 })()`;
-export async function run(b) {
+// the bot's whole campaign; setup runs before begin(), hook (a function's source) is called every step with the night
+export async function campaign(b, { setup = '', hook = '' } = {}) {
   const { pg, errs, ev } = await openGame(b, { noFrames: true });
   await ev(
-    "(() => { initAudio(); GS.meta.chal = Object.assign(GS.meta.chal || {}, { night10: true, evac1: true }); GS.meta.district = 'town'; GS.meta.hero = 'ranger'; begin(false); return 1; })()"
+    `(() => { initAudio(); GS.meta.chal = Object.assign(GS.meta.chal || {}, { night10: true, evac1: true }); GS.meta.district = 'town'; GS.meta.hero = 'ranger'; ${setup}; begin(false); ${hook ? `window.__hook = ${hook};` : ''} return 1; })()`
   );
   await ev(readFileSync(join(ROOT, 'tests/bot/bot.js'), 'utf8') + ';0');
   const r = JSON.parse(await ev(RUN.replace('%s', 'true').replace('%s', '"random"')));
+  r.extra = await ev('JSON.stringify(window.__extra || null)');
   await pg.close();
+  return { r, errs };
+}
+export async function run(b) {
+  const { r, errs } = await campaign(b);
   const stuck = Object.values(r.nights)
     .filter(n => n.stuck || n.evacStuck)
     .map(n => n.w);
@@ -72,4 +80,14 @@ export async function run(b) {
   );
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   return `won on night ${r.wave} at ${r.district} in ${Math.round(r.T / 60)} game minutes, ${r.kills} kills`;
+}
+// the checks every whole run must pass
+export function wonRun(r, errs, what) {
+  const stuck = Object.values(r.nights)
+    .filter(n => n.stuck || n.evacStuck)
+    .map(n => n.w);
+  check(!stuck.length, `${what}: stalled on night(s) ${stuck.join(', ')}`);
+  check(r.end === 'won', `${what}: run ended "${r.end}" on night ${r.wave}`);
+  check(r.district === 'cemetery', `${what}: the evac was made in ${r.district}, not Hollow Hill`);
+  check(!errs.length, `${what}: page errors: ` + errs.join(' | '));
 }

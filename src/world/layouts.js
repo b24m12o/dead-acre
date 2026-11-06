@@ -663,6 +663,18 @@ export function paintLayout(a, h, L) {
       );
       a.stroke();
     } // the court's keys
+    a.beginPath();
+    a.arc(34.5 * TILE, 51.5 * TILE, 1.3 * TILE, 0, TAU);
+    a.stroke(); // the centre circle
+    a.fillStyle = 'rgba(30,30,32,0.85)';
+    for (const x of [28.6, 40.4]) {
+      a.fillRect(x * TILE - 2, 50.7 * TILE, 4, 1.6 * TILE); // the backboards
+      a.strokeStyle = 'rgba(214,96,52,0.8)';
+      a.lineWidth = 2;
+      a.beginPath();
+      a.arc(x * TILE + (x < 30 ? 9 : -9), 51.5 * TILE, 7, 0, TAU);
+      a.stroke(); // and their rims
+    }
     a.font = '900 30px Kanit, sans-serif';
     a.textAlign = 'center';
     a.font = '900 24px Kanit, sans-serif';
