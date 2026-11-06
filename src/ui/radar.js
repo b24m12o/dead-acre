@@ -114,6 +114,13 @@ export function drawRadar() {
     ui.fillRect(x0 + c.x * k - 3, y0 + c.y * k - 3, 6, 6);
     ui.strokeRect(x0 + c.x * k - 3, y0 + c.y * k - 3, 6, 6);
   }
+  if (GS.truck && GS.truck.parked && !GS.truck.gone) {
+    ui.fillStyle = '#d8e4a8';
+    ui.strokeStyle = '#14181d';
+    ui.lineWidth = 1;
+    ui.fillRect(x0 + GS.truck.x * k - 5, y0 + GS.truck.y * k - 3, 10, 6);
+    ui.strokeRect(x0 + GS.truck.x * k - 5, y0 + GS.truck.y * k - 3, 10, 6);
+  } // the truck that takes you on
   // your traps, where you set them: a mine a small amber cross, a drum an amber square, a rigged car outlined
   ui.fillStyle = '#ffc04a';
   ui.strokeStyle = '#14181d';

@@ -55,6 +55,7 @@ export function normalizeMeta() {
   GS.meta.diff = Object.prototype.hasOwnProperty.call(DIFFS, GS.meta.diff) ? GS.meta.diff : 'normal';
   const districtIds = ['town', 'highway', 'cemetery'];
   if (!districtIds.includes(GS.meta.district)) GS.meta.district = 'town';
+  if (GS.meta.mode !== 'free') GS.meta.mode = 'camp'; // the campaign, unless you chose one location
   GS.meta.infMax = clamp(Number.isFinite(Number(GS.meta.infMax)) ? Math.floor(Number(GS.meta.infMax)) : 0, 0, 10);
   GS.meta.inf = clamp(Number.isFinite(Number(GS.meta.inf)) ? Math.floor(Number(GS.meta.inf)) : 0, 0, GS.meta.infMax);
   for (const id of Object.keys(HEROES)) GS.meta.unlocked[id] = id === 'ranger' ? true : GS.meta.unlocked[id] === true;

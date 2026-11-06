@@ -14,6 +14,13 @@ const KEY = 'rr_run',
   V = 1;
 export function saveRun() {
   if (!GS.RUN || GS.RUN.practice || GS.RUN.tut || !GS.P || GS.state === 'over' || GS.state === 'won') return;
+  const d = runData();
+  try {
+    store.set(KEY, JSON.stringify(d));
+  } catch (e) {}
+}
+// the run as the save holds it: also what goes on the truck to the next place (see journey.js)
+export function runData() {
   const P = GS.P,
     RUN = { ...GS.RUN, sg: null, job: null, jobPend: false, tut: null, lvHold: 0, metrics: { ...GS.RUN.metrics } }; // lvHold is a time on this session's clock
   const d = {
@@ -32,11 +39,9 @@ export function saveRun() {
     rerolls: GS.rerolls,
     held: GS.heldPicks ? GS.heldPicks.map(u => u.id) : null, // level-up cards put off with Later come back as they were
     runSeeds: GS.runSeeds,
-    bud: GS.buddies.map(b => ({ nm: b.nm, tr: b.tr, look: b.look, tint: b.tint, hp: b.hp, max: b.max })),
+    bud: GS.buddies.map(b => ({ nm: b.nm, tr: b.tr, look: b.look, tint: b.tint, hp: b.hp, max: b.max, vo: b.vo })),
   };
-  try {
-    store.set(KEY, JSON.stringify(d));
-  } catch (e) {}
+  return d;
 }
 export function savedRun() {
   try {
@@ -86,6 +91,7 @@ export function restoreRun(d) {
     budSetup(b, { nm: s.nm, tr: s.tr });
     b.max = Math.max(b.max, s.max || 0);
     b.hp = Math.min(b.max, s.hp || b.max);
+    if (typeof s.vo === 'string') b.vo = s.vo; // the same voice they had
     GS.buddies.push(b);
   }
 }

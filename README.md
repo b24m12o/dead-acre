@@ -1,7 +1,9 @@
 # Dead Acre
 
 A night-by-night top-down survival shooter. Hold out for fifteen nights, keep your people alive,
-listen to Channel 9, and make the evac.
+listen to Channel 9, and make the evac. The campaign takes you down the road: five nights in Dead Acre,
+five on Route 9 and five at Hollow Hill, with a truck to the next place after each boss. One location
+mode keeps all fifteen nights in the place you pick.
 
 Desktop, keyboard and mouse. WebGL2.
 

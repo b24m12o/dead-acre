@@ -114,13 +114,23 @@
 <div class="overlay" id="survSetup" hidden>
   <div class="panel">
     <div class="eyebrow">Fifteen nights till the chopper</div>
-    <h2>Pick your ground</h2>
+    <h2 id="survTitle">Pick your ground</h2>
     <p class="lede small">
-      Fifteen nights in one district. The convoy airdrops heavier guns as the nights go on, a boss comes every fifth
-      night, and on the last one the Guard chopper lands for you.
+      The convoy airdrops heavier guns as the nights go on, a boss comes every fifth night, and on the last one the
+      Guard chopper lands for you.
     </p>
-    <div class="sec">District</div>
-    <div class="heroes" id="districts"></div>
+    <div class="infrow">
+      <span class="sec">Mode</span>
+      <div class="seg" id="modeSeg" role="group" aria-label="Mode">
+        <button type="button" data-m="camp">Campaign</button
+        ><button type="button" data-m="free">One location</button>
+      </div>
+    </div>
+    <p class="rec" id="modeDesc"></p>
+    <div id="distWrap">
+      <div class="sec">District</div>
+      <div class="heroes" id="districts"></div>
+    </div>
     <div class="infrow">
       <span class="sec">Infection</span>
       <div class="seg" id="infSeg"></div>
@@ -144,6 +154,20 @@
     </div>
     <p class="loadsnd" id="newRunWarn" hidden></p>
     <p class="loadsnd" id="loadSnd2" hidden></p>
+  </div>
+</div>
+<div class="overlay" id="route" hidden>
+  <div class="panel narrow">
+    <div class="eyebrow">On the road</div>
+    <h2>Route 9</h2>
+    <p class="lede small rdesc"></p>
+    <div class="road" aria-hidden="true">
+      <span class="stop" style="left: 0%"><i></i>Dead Acre</span
+      ><span class="stop" style="left: 50%"><i></i>Route 9</span
+      ><span class="stop" style="left: 100%"><i></i>Hollow Hill</span><b class="van"></b>
+    </div>
+    <p class="rec rcarry"></p>
+    <div class="btns"><button class="btn" id="routeGo" type="button" disabled>On the road…</button></div>
   </div>
 </div>
 <div class="overlay" id="levelup" hidden>

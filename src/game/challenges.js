@@ -126,7 +126,7 @@ export const CHAL = [
     ]
   ),
   // ---- survival ----
-  ...fam('Survival', 'Long night', 'maxNight', g => `Survive night ${g}`, '', [['night10', 10, 100, 'Route 9']]),
+  ...fam('Survival', 'Long night', 'maxNight', g => `Survive night ${g}`, '', [['night10', 10, 100]]),
   ...fam(
     'Survival',
     'Untouchable',
@@ -212,7 +212,7 @@ export const CHAL = [
     g => pl(g, 'Make the evac on night 15', 'Make the evac # times'),
     'Survive all 15 nights, then reach the chopper.',
     [
-      ['evac1', 1, 300, 'Hollow Hill'],
+      ['evac1', 1, 300],
       ['evac5', 5, 200],
     ]
   ),
@@ -233,10 +233,17 @@ export const CHAL = [
     'Carrier',
     'bestInf',
     g => `Make the evac on Infection ${g}`,
-    'Each evac opens the next Infection level; pick Infection 5 when you choose where to fight.',
+    'Each evac opens the next Infection level; pick Infection 5 before you set out.',
     [['inf5', 5, 150]]
   ),
-  ...fam('Evac', 'Tour guide', 'evacDistricts', () => 'Make the evac in all three districts', '', [['evac3', 3, 250]]),
+  ...fam(
+    'Evac',
+    'Tour guide',
+    'evacDistricts',
+    () => 'Make the evac from all three places',
+    'The campaign ends at Hollow Hill: play One location for Dead Acre and Route 9.',
+    [['evac3', 3, 250]]
+  ),
 ];
 const UNLOCK_KIND = {
   'Laser Sight': ['perk', 'Laser Sight'],
@@ -420,7 +427,7 @@ export function init() {
     GS.meta.stats.hmBest = GS.meta.hm.wave;
   } // Horde Mode records from before Last stand existed count for it
   chalDone = id => !!(GS.meta.chal && GS.meta.chal[id]);
-  districtOpen = d => !DISTRICTS[d].lock || chalDone(DISTRICTS[d].lock);
+  districtOpen = d => !DISTRICTS[d].lock || stat('reached') >= DISTRICTS[d].camp || chalDone(DISTRICTS[d].lock); // reached in the campaign (or opened the old way, by a challenge, before there was one)
 }
 
 // what a locked thing asks of you: the challenge's name and what it takes

@@ -71,6 +71,7 @@ import { fireBeds } from '../world/fire.js';
 import { drawPuddles } from '../world/weather.js';
 import { WXV, drawFog } from '../world/weather.js';
 import { drawObjectiveGlow, objectiveLights } from '../ui/markers.js';
+import { truckLights } from '../game/journey.js';
 // the flashlight is a light in a hand, not a fixed cone: it bobs with your stride, jolts with every shot and,
 // now and then, flickers as if the contacts were bad (not with Reduce flashes on)
 function beamA() {
@@ -978,6 +979,7 @@ export function render() {
   }
   for (const r of roofs) if (GS.ev !== 'blackout') addLight(r.x, r.y, 380, 0.9, 0.92, 0.95);
   objectiveLights();
+  truckLights();
   decorLights();
   atmosLights();
   for (const f of fires) {

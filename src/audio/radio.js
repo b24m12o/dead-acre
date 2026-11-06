@@ -137,14 +137,49 @@ export const STORY = {
   13: ['Reyes', 'Nine? Reyes. We lost two trucks at the quarry, but we are across. Hold on. Please.'],
   14: ['Reyes', 'Last night tomorrow. Whatever walks out of that hospital, Hale said it is where this began.'],
 };
+// the campaign tells the same story on the road: what changes is where you are when it happens. A third entry is a
+// second voice on the same dawn
+export const STORY_J = {
+  5: [
+    'Reyes',
+    'Nine, that was the last of the relay. There is nothing left to hold in that town. I sent a truck back for you. Get on it.',
+  ],
+  6: [
+    'Reyes',
+    'Hale took the van to a motel up the road for medicine. She has not come back. I am trying her on every channel.',
+  ],
+  10: [
+    'Reyes',
+    STORY[10][1],
+    [
+      'Hawk',
+      'Nine, this is Hawk, the pilot. I lost the convoy at the quarry. There is a fuel truck coming for you. Take it up to Hollow Hill. The hospital helipad is the only place I can land.',
+    ],
+  ],
+  11: ['Hawk', 'Nothing from the convoy. I will look for their lights on the way in. You just hold.'],
+  12: ['Hawk', 'The hospital looks dead from up here. Keep that hill clear for me, nine.'],
+};
+// the first dawn in a new place
+export const ARRIVE = {
+  1: [
+    'Reyes',
+    'Reyes. Good, you are out. We are on Route 9, a few miles south. Hold the road behind us. Whatever gets past you catches the trucks.',
+  ],
+  2: ['Hawk', 'Hawk. I see you on the hill. Five more nights, then I put down at the hospital.'],
+};
+export function storyArrive(leg) {
+  const a = ARRIVE[leg];
+  if (a && !GS.RUN.practice) GS.later.push({ t: 2.2, fn: () => radio(a[1], a[0], 2) });
+}
 const haleAlive = () => GS.RUN.haleOk && !(GS.RUN.lost || []).includes('Dr. Hale');
 const haleOut = () => haleAlive() && !GS.buddies.some(b => b.nm === 'Dr. Hale'); // aboard, or safe with the convoy; not left behind
 export function storyDawn(w) {
   if (GS.RUN.endless || GS.RUN.practice) return;
-  const S9 = STORY[w];
+  const S9 = (GS.RUN.journey && STORY_J[w]) || STORY[w];
   if (!S9) return;
   const t = typeof S9[1] === 'function' ? S9[1]() : S9[1];
   radio(t, S9[0], 2);
+  if (S9[2]) radio(S9[2][1], S9[2][0], 2);
   if (w === 10) GS.RUN.voice = 'Hawk';
   if (w === 13) GS.RUN.voice = 'Reyes';
 }

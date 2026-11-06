@@ -47,6 +47,8 @@ import { hordeLive, tickHorde } from '../game/horde.js';
 import { tickTraps } from '../game/traps.js';
 import { tickSpores } from '../actors/specials.js';
 import { SPECIAL, makeSpecial } from '../actors/specials.js';
+import { tickTruck } from '../game/journey.js';
+import { boardTruck } from '../game/night-flow.js';
 // Bodies shove each other apart, the lighter giving way. A fine grid of its own (cells as wide as two walkers) in flat
 // arrays: a horde of 400 packed round you is ~30 neighbours each to check, not ~120 through a callback
 const SEP = 40,
@@ -617,14 +619,15 @@ export function update(dt) {
       GS.interT < 4 &&
       GS.crates.some(c => c.dawn && !c.open) &&
       (GS.RUN.dawnX = (GS.RUN.dawnX || 0) + dt) < 14;
-    if (!waitDrop) GS.interT -= dt; // the countdown holds at 4 while the dawn drop sits unopened, for up to 14 s more
-    if (GS.interT <= 0) {
+    if (!waitDrop && !GS.RUN.moveOut) GS.interT -= dt; // the countdown holds at 4 while the dawn drop sits unopened, for up to 14 s more; it doesn't run at all while the truck waits to take you on
+    if (GS.interT <= 0 && !GS.RUN.moveOut) {
       GS.interT = 2.6;
       if (!GS.RUN.endless && GS.wave >= FINAL_NIGHT) startEvac();
       else startWave();
     }
   }
   updateObjective(dt);
+  tickTruck(dt, boardTruck);
   if (GS.evac) updateEvac(dt);
   if (GS.RUN.tut) tutTick(dt);
   heliVolume();

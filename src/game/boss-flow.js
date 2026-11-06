@@ -76,6 +76,8 @@ const BOSS_RADIO = {
   },
 };
 export function bossType() {
+  if (GS.RUN.journey && !GS.RUN.endless && !GS.RUN.practice)
+    return GS.wave >= FINAL_NIGHT ? 'pz' : GS.wave >= 10 ? 'roadkill' : 'abom'; // one for each place on the road
   return !GS.RUN.endless && GS.wave === FINAL_NIGHT
     ? 'pz'
     : !GS.RUN.endless && GS.wave === 10

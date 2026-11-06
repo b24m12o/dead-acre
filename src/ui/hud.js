@@ -240,25 +240,29 @@ export function updateHud() {
           : 'Get to the chopper'
         : GS.RUN.jobPend && GS.nightDone
           ? 'Convoy calling…'
-          : GS.nightDone && !left && GS.interT > 0
-            ? GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14
-              ? 'Drop waiting · Enter to skip'
-              : `Next night in ${Math.ceil(GS.interT)}${GS.RUN.nextSig ? ' · ' + SIG[GS.RUN.nextSig.s] : ''} · Enter to start`
-            : GS.horde && !GS.horde.done && !GS.horde.finale && GS.horde.startT > 1 && GS.nightLive
-              ? `Horde in ${Math.ceil(GS.horde.startT)} s · Enter to call it now`
-              : quiet
-                ? sg.i >= sg.cuts.length
-                  ? 'Quiet · last surge next'
-                  : 'Quiet · more coming'
-                : GS.RUN.tut
-                  ? 'Training'
-                  : left
-                    ? sg && GS.nightLive && !GS.nightDone
-                      ? `Surge ${Math.min(sg.i + 1, 3)} of 3 · ${left} still walking`
-                      : `Survive till dawn · ${left} still walking`
-                    : GS.obj && !GS.obj.done
-                      ? 'Finish the job'
-                      : 'Hold on'
+          : GS.RUN.moveOut && GS.nightDone
+            ? GS.truck && GS.truck.parked && !GS.truck.gone
+              ? 'Get to the truck'
+              : 'A truck is on its way'
+            : GS.nightDone && !left && GS.interT > 0
+              ? GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14
+                ? 'Drop waiting · Enter to skip'
+                : `Next night in ${Math.ceil(GS.interT)}${GS.RUN.nextSig ? ' · ' + SIG[GS.RUN.nextSig.s] : ''} · Enter to start`
+              : GS.horde && !GS.horde.done && !GS.horde.finale && GS.horde.startT > 1 && GS.nightLive
+                ? `Horde in ${Math.ceil(GS.horde.startT)} s · Enter to call it now`
+                : quiet
+                  ? sg.i >= sg.cuts.length
+                    ? 'Quiet · last surge next'
+                    : 'Quiet · more coming'
+                  : GS.RUN.tut
+                    ? 'Training'
+                    : left
+                      ? sg && GS.nightLive && !GS.nightDone
+                        ? `Surge ${Math.min(sg.i + 1, 3)} of 3 · ${left} still walking`
+                        : `Survive till dawn · ${left} still walking`
+                      : GS.obj && !GS.obj.done
+                        ? 'Finish the job'
+                        : 'Hold on'
   );
   {
     const w = GS.ev && !GS.nightDone && !GS.evac ? GS.ev : null;

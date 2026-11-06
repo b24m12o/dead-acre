@@ -16,14 +16,31 @@ import { HUMAN } from '../render/effects.js';
 import { PK, cleanRun, pvLabel } from './hangar.js';
 import { rope } from '../core/later.js';
 import { DISTRICTS, INFECTION, TWISTS } from '../game/districts.js';
-import { CHAL, LOADOUTS, chalDone, districtOpen, loadoutOpen, lockLine } from '../game/challenges.js';
+import { LOADOUTS, chalDone, districtOpen, loadoutOpen, lockLine } from '../game/challenges.js';
 export function renderDistricts() {
   if (!GS.meta.district || !districtOpen(GS.meta.district)) GS.meta.district = 'town';
+  {
+    const camp = GS.meta.mode !== 'free';
+    for (const b of $('modeSeg').children) {
+      b.classList.toggle('on', (b.dataset.m === 'camp') === camp);
+      b.onclick = () => {
+        GS.meta.mode = b.dataset.m;
+        saveMeta();
+        renderDistricts();
+        menuInit();
+      };
+    }
+    $('distWrap').hidden = camp;
+    $('survTitle').textContent = camp ? 'The road out' : 'Pick your ground';
+    $('modeDesc').innerHTML = camp
+      ? '<b>Dead Acre</b>, then <b>Route 9</b>, then <b>Hollow Hill</b>: five nights in each, and after each boss a truck to the next. Your gear, guns and people go with you.'
+      : 'All fifteen nights in one place you pick. A place opens here once you reach it in the campaign.';
+  } // the campaign takes you down the road; one location keeps you in the one you pick
   $('districts').innerHTML = Object.entries(DISTRICTS)
     .map(([id, d]) => {
       const open = districtOpen(id),
         won = GS.meta.evacDist && GS.meta.evacDist[id];
-      return `<button type="button" class="hero${GS.meta.district === id ? ' on' : ''}${open ? '' : ' locked'}" data-d="${id}">${won ? '<i class="won" title="Evac made from here" aria-label="Evac made from here"><svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M2.2 6.4l2.4 2.3 5.2-5.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></i>' : ''}<span class="nm">${d.name}</span><span class="ds">${d.desc}</span>${open ? `<span class="wp">Boss: ${d.boss}</span>` : `<span class="lk">Locked · ${CHAL.find(c => c.id === d.lock).desc}</span>`}</button>`;
+      return `<button type="button" class="hero${GS.meta.district === id ? ' on' : ''}${open ? '' : ' locked'}" data-d="${id}">${won ? '<i class="won" title="Evac made from here" aria-label="Evac made from here"><svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M2.2 6.4l2.4 2.3 5.2-5.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></i>' : ''}<span class="nm">${d.name}</span><span class="ds">${d.desc}</span>${open ? `<span class="wp">Boss: ${d.boss}</span>` : '<span class="lk">Locked · reach it in the campaign</span>'}</button>`;
     })
     .join('');
   for (const b of $('districts').children)
@@ -151,7 +168,7 @@ export function menuInit() {
   GS.state = 'menu';
   GS.RUN = {
     hero: GS.meta.unlocked[GS.meta.hero] ? GS.meta.hero : 'ranger',
-    district: districtOpen(GS.meta.district || 'town') ? GS.meta.district || 'town' : 'town',
+    district: GS.meta.mode === 'free' && districtOpen(GS.meta.district || 'town') ? GS.meta.district || 'town' : 'town',
     inf: 0,
     endless: false,
   };

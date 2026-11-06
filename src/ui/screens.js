@@ -172,7 +172,9 @@ export function showMenuRec() {
     cb.hidden = !d;
     $('survBtn').classList.toggle('ghost', !!d);
     if (d) {
-      cb.textContent = d.RUN.hm ? `Continue · horde ${d.wave + 1}` : `Continue · night ${d.wave + 1} of ${FINAL_NIGHT}`;
+      cb.textContent = d.RUN.hm
+        ? `Continue · horde ${d.wave + 1}`
+        : `Continue · night ${d.wave + 1} of ${FINAL_NIGHT}${d.RUN.journey && DISTRICTS[d.RUN.district] ? ' · ' + DISTRICTS[d.RUN.district].name : ''}`;
       cb.title = `${(HEROES[d.RUN.hero] || HEROES.ranger).name} · ${(DISTRICTS[d.RUN.district] || DISTRICTS.town).name} · saved at dawn`;
     }
   } // a run saved at its last dawn: pick it up where it stopped

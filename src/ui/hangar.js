@@ -254,11 +254,13 @@ export function begin() {
   snapChal();
   initAudio();
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  const camp = !GS.PRACTICE && !GS.HM && GS.meta.mode !== 'free'; // the campaign: Dead Acre, Route 9, Hollow Hill
   GS.RUN = {
     hero: GS.meta.unlocked[GS.meta.hero] ? GS.meta.hero : 'ranger',
+    journey: camp,
     district: GS.PRACTICE
       ? GS.PRACTICE.d
-      : districtOpen(GS.meta.district || 'town')
+      : !camp && districtOpen(GS.meta.district || 'town')
         ? GS.meta.district || 'town'
         : 'town',
     inf: GS.PRACTICE ? 0 : Math.min(GS.meta.inf || 0, GS.meta.infMax || 0),
