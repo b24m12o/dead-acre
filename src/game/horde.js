@@ -95,7 +95,7 @@ function arrive(H) {
   H.arriveT = GS.time;
   {
     const up = GS.buddies.filter(b => !(b.down > 0));
-    if (up.length) bark(pick(up), 'horde', 1.2);
+    if (up.length) bark(pick(up), 'hear', 1.2); // far off yet: they hear it before anyone sees it
   }
   const [x, y] = entry();
   H.x = x;

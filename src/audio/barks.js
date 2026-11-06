@@ -8,7 +8,8 @@ import { AC, BUD_F, spat } from './audio.js';
 import { BARK_LINES, BARK_VOICES } from './bark-lines.js';
 
 // per line kind: [seconds before the same survivor says it again, seconds before anyone does, chance it is said,
-// priority]. Priority 2 talks over a recent line; nothing talks over a radio call except a priority 2 line
+// priority]. Priority 2 talks over a recent line. Nobody talks while Channel 9 is on the air: a line due then is
+// dropped, and one already being said is cut short when a call comes in
 const RULE = {
   contact: [14, 9, 0.7, 1],
   big: [10, 7, 0.8, 1],
@@ -22,7 +23,10 @@ const RULE = {
   clear: [0, 0, 1, 1],
   idle: [0, 0, 1, 0],
   car: [6, 6, 1, 2],
-  horde: [20, 20, 1, 1],
+  hear: [20, 20, 1, 1],
+  horde: [30, 30, 1, 2],
+  panic: [8, 5, 0.7, 1],
+  boom: [10, 10, 0.8, 2],
   boss: [30, 30, 1, 1],
   join: [0, 0, 1, 1],
   found: [8, 8, 0.8, 0],
@@ -30,7 +34,19 @@ const RULE = {
 };
 const buf = {},
   lastK = {},
-  have = {};
+  have = {},
+  talking = [];
+const onAir = () => GS.radioT > 0 || (GS.radioQ && GS.radioQ.length > 0);
+// Channel 9 is coming on: whoever is talking stops (a quick fade, not a click)
+export function hushBarks() {
+  if (!AC) return;
+  for (const { src, g } of talking.splice(0))
+    try {
+      g.gain.setTargetAtTime(0, AC.currentTime, 0.04);
+      src.stop(AC.currentTime + 0.2);
+    } catch (e) {}
+  lastEnd = Math.min(lastEnd, GS.time);
+}
 let lastAt = -99,
   lastEnd = -99;
 function voiceOf(s) {
@@ -66,7 +82,8 @@ export function bark(s, kind, delay = 0) {
     [own, any, ch, pri] = R;
   s.bk = s.bk || {};
   if (t - (s.bk[kind] ?? -99) < own || t - (lastK[kind] ?? -99) < any || Math.random() > ch) return true;
-  if (pri < 2 && (t < lastEnd + 0.4 || t - lastAt < 1.5 || GS.radioT > 0)) return true;
+  if (onAir()) return true;
+  if (pri < 2 && (t < lastEnd + 0.4 || t - lastAt < 1.5)) return true;
   const last = s.bk[kind + '#'],
     text = pick(L.length > 1 ? L.filter(x => x !== last) : L),
     c = clip(code, text);
@@ -75,7 +92,7 @@ export function bark(s, kind, delay = 0) {
   s.bk[kind + '#'] = text;
   lastEnd = t + delay + c.dur;
   c.p.then(b => {
-    if (!b || !AC || GS.state === 'menu') return;
+    if (!b || !AC || GS.state === 'menu' || onAir()) return;
     const src = AC.createBufferSource(),
       g = AC.createGain(),
       out = spat(s.x, s.y);
@@ -86,6 +103,11 @@ export function bark(s, kind, delay = 0) {
     src.connect(g);
     g.connect(out);
     src.start(AC.currentTime + delay);
+    talking.push({ src, g });
+    src.onended = () => {
+      const i = talking.findIndex(q => q.src === src);
+      if (i >= 0) talking.splice(i, 1);
+    };
     s.say = { txt: text, t: GS.time + delay, end: GS.time + delay + c.dur + 1.1 };
   });
   return true;

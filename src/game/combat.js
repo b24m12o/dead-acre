@@ -53,6 +53,7 @@ import { bossDown, bossName } from './boss-flow.js';
 import { hordeBlast, hordeKilled } from './horde.js';
 import { TRAP, giveTraps } from './traps.js';
 import { dropCarried, sporeBurst } from '../actors/specials.js';
+import { bark, nearestUp } from '../audio/barks.js';
 GS.HITB = null; // the player's bullet being resolved right now (gun family for boss armour)
 const CHOKE_W = { hunter: 4, lever: 3, pistol: 1.6 }; // so every gun can choke Patient Zero in a 1.3 s inhale
 const BOSS_DEF = {
@@ -1048,6 +1049,18 @@ export function impact(x, y, b) {
   }
 }
 export function explode(x, y, R0, dmg, hurtsPlayer = true) {
+  {
+    const k0 = GS.kills;
+    GS.later.push({
+      t: 0.9,
+      fn: () => {
+        if (GS.kills - k0 >= 3) {
+          const b = nearestUp(x, y, 650);
+          if (b) bark(b, 'boom');
+        }
+      },
+    });
+  } // a blast that takes a bunch of them gets a cheer
   makeNoise(x, y, 1300);
   scorchWalls(x, y, R0);
   blastWorld(x, y, R0, dmg);

@@ -5,6 +5,7 @@ import { rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
 import { AC, musDuck, noiseBuf, radBus, sfxBus, sfxDuck, thr } from './audio.js';
 import { TRAIT } from '../actors/enemies.js';
+import { hushBarks } from './barks.js';
 export const EV_NAME = { blood: 'Blood moon', fog: 'Fog', blackout: 'Blackout', storm: 'Storm' };
 const atSign = () =>
   ((GS.RUN && GS.RUN.district) || 'town') === 'town'; /* the painted HELP is only at the town crossroads */
@@ -407,6 +408,7 @@ export function radioTick(dt) {
   el.innerHTML = `<b>CH 9${who ? ' · ' + who.toUpperCase() : ''}</b>“${l}”`;
   el.classList.add('show');
   GS.radioT = Math.max(3.4 + l.length * 0.035, voxDur(voxFor(l, who)) + 1.2);
+  hushBarks(); // your people stop talking when the radio comes on
   radioVoice(l, who);
 }
 

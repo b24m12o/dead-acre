@@ -154,6 +154,10 @@ export function buddyShoot(s, dt, slow) {
       Math.abs(angDiff(P.aimA, Math.atan2(tgt.y - P.y, tgt.x - P.x))) > 2.2
     )
       bark(s, 'behind'); // one closing on you from behind, where you are not looking
+    if (tgt.horde && GS.horde && !GS.horde.seen) {
+      GS.horde.seen = true;
+      bark(s, 'horde'); // the first look at the whole lot of them
+    }
     if (GS.time - (s.seenT ?? -99) > 4) bark(s, tgt.elite || tgt.maxHp > 150 ? 'big' : 'contact');
     s.seenT = GS.time;
     s.tgt = tgt;
@@ -297,12 +301,14 @@ export function buddyHurt(s, p, dt) {
   s.inv = Math.max(0, (s.inv || 0) - dt);
   s.hurt = Math.max(0, (s.hurt || 0) - dt);
   if (!(s.down > 0)) {
-    let near = false;
+    let near = false,
+      crowd = 0;
     if (s.inv <= 0)
       query(s.x, s.y, 120, e => {
         if (e.dead || e.emerge < 1 || !(e.dmg > 0) || (e.z || 0) > 12) return;
         const dd = d2(e.x, e.y, s.x, s.y);
         if (dd < 300 * 300) near = true;
+        if (dd < 80 * 80) crowd++;
         if (s.inv <= 0 && dd < (e.r + s.r) ** 2) {
           s.hp -= e.dmg * (e.type === 'queen' ? 0.8 : 0.35);
           s.inv = 0.6;
@@ -311,6 +317,7 @@ export function buddyHurt(s, p, dt) {
           if (s.hp > 0) bark(s, 'hurt');
         }
       });
+    if (crowd >= 3) bark(s, 'panic'); // three of them on top of you is no time to be calm
     if (!near && s.hp < s.max && thr('bq' + (s.id || (s.id = GS.nid++)), 250)) {
       let q = true;
       query(s.x, s.y, 300, e => {

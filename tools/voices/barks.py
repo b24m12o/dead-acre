@@ -12,6 +12,8 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
 AS = os.path.join(ROOT, 'assets')
 KOK = os.environ.get('KOKORO', '/tmp/claude-0/tts')
 SR_OUT = 22050
+# lines a TTS voice says too briefly: drawn out (tempo) and pitched up a little (rate) after recording
+STRETCH = {'Aaaaaaaaaaaaaaah!': (0.55, 1.1)}
 
 src = subprocess.check_output(
     ['node', '--input-type=module', '-e',
@@ -48,7 +50,11 @@ def make(text, voice):
     with tempfile.TemporaryDirectory() as d:
         wav, mp3 = os.path.join(d, 'a.wav'), os.path.join(d, 'a.mp3')
         sf.write(wav, a, sr)
-        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', wav, '-af', 'highpass=f=120,lowpass=f=7500',
+        fx = 'highpass=f=120,lowpass=f=7500'
+        if text in STRETCH:
+            tp, pr = STRETCH[text]
+            fx = f'asetrate={int(sr * pr)},aresample={sr},atempo={tp / pr:.3f},' + fx
+        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', wav, '-af', fx,
                         '-ac', '1', '-ar', str(SR_OUT), '-c:a', 'libmp3lame', '-b:a', '32k', mp3], check=True)
         b = open(mp3, 'rb').read()
         dur = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of',
