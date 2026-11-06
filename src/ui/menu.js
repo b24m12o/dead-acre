@@ -114,7 +114,9 @@ export function renderChallenges() {
     .map(([id, o]) => {
       const open = loadoutOpen(id),
         on = (GS.meta.loadout || 'std') === id,
-        ds = o.desc || `Start with the ${GUNS[o.gun].name} and its ammo. It takes the place of your first weapon case, which brings a supply crate and scrap instead.`;
+        ds =
+          o.desc ||
+          `Start with the ${GUNS[o.gun].name} and its ammo. It takes the place of your first weapon case, which brings a supply crate and scrap instead.`;
       return `<div class="perk"><span class="nm">${o.name}</span><button type="button" class="buy" data-load="${id}" ${!open || on ? 'disabled' : ''}>${on ? 'Taking' : open ? 'Take' : 'Locked'}</button><span class="ds">${ds}${open ? '' : ' ' + lockLine(o.req)}</span></div>`;
     })
     .join('');

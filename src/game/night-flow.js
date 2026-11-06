@@ -39,7 +39,12 @@ function dawnDrops() {
       t: 1.6,
       fn: () => {
         if (GS.state !== 'play') return;
-        const c = dropCrate(null, null, null, 'In place of the weapon case your loadout gun took · ammo, gear and scrap');
+        const c = dropCrate(
+          null,
+          null,
+          null,
+          'In place of the weapon case your loadout gun took · ammo, gear and scrap'
+        );
         if (c) {
           c.dawn = true;
           c.spare = true;
