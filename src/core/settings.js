@@ -47,7 +47,7 @@ export function mergeSavedMeta(raw) {
     'seeds',
     'diff',
     'district',
-    'mode',
+    'hmPlace',
     'inf',
     'infMax',
     'hero',

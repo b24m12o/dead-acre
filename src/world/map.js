@@ -52,7 +52,7 @@ export function generateMap() {
   fires = [];
   roofs = [];
   const D = (GS.RUN && GS.RUN.district) || 'town';
-  LAYOUT = (GS.RUN && GS.RUN.journey && GS.RUN.layout) || '';
+  LAYOUT = (GS.RUN && (GS.RUN.journey || GS.RUN.hm) && GS.RUN.layout) || ''; // a campaign stop, or the place Horde Mode is fought on
   HELIPAD = null;
   RX = D === 'town' ? [12, 30, 47] : [];
   RY = D === 'town' ? [13, 30, 46] : D === 'highway' ? [30] : [];

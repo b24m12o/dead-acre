@@ -18,7 +18,7 @@ import { chalRunSummary, checkChal, openChal, statMax } from '../game/challenges
 import { practiceReport } from '../game/practice.js';
 import { bossLogHtml } from '../game/boss-flow.js';
 import { stopHeli } from '../game/evac.js';
-import { affordNow, menuInit, renderDistricts } from './menu.js';
+import { SETUP, affordNow, menuInit, renderDistricts, setSetup } from './menu.js';
 import { STOPS, stopAt } from '../game/route.js';
 GS.glDead = false;
 export function setPause(p) {
@@ -183,28 +183,23 @@ export function showMenuRec() {
 
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
-  $('startBtn').addEventListener('click', () => begin(false));
+  $('startBtn').addEventListener('click', () => {
+    GS.HM = SETUP === 'hm' ? true : null;
+    if (begin(false) === false) GS.HM = null;
+  });
   $('contBtn').addEventListener('click', continueRun);
   $('hmBtn').addEventListener('click', () => {
     initAudio();
     const b = $('hmBtn');
     if (b.disabled) return;
-    if (savedRun() && !b.dataset.sure) {
-      b.dataset.sure = b.textContent;
-      b.textContent = 'Replace saved run?';
-      setTimeout(() => {
-        if (b.dataset.sure) b.textContent = b.dataset.sure;
-        delete b.dataset.sure;
-      }, 4000);
-      return;
-    } // Horde Mode starts a new run, and a new run takes the place of the one saved at dawn
-    if (b.dataset.sure) b.textContent = b.dataset.sure;
-    delete b.dataset.sure;
-    GS.HM = true;
-    if (begin() === false) GS.HM = null;
-  });
+    openSetup('hm');
+  }); // Horde Mode: the same setup, with the ground to pick
   $('survBtn').addEventListener('click', () => {
     initAudio();
+    openSetup('camp');
+  });
+  function openSetup(m) {
+    setSetup(m);
     {
       const d = savedRun();
       $('newRunWarn').hidden = !d;
@@ -215,7 +210,7 @@ export function init() {
     syncOpts();
     $('survSetup').hidden = false;
     $('startBtn').focus({ preventScroll: true });
-  });
+  }
   $('survBack').addEventListener('click', () => {
     $('survSetup').hidden = true;
     $('menu').hidden = false;

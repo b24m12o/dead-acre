@@ -28,7 +28,7 @@ import {
   chalDone,
   chalFrom,
   checkChal,
-  districtOpen,
+  stopOpen,
   lockLine,
   openChal,
   snapChal,
@@ -36,7 +36,7 @@ import {
 import { startPractice } from '../game/practice.js';
 import { menuInit, renderChallenges, renderDistricts } from './menu.js';
 import { keysIn } from '../core/binds.js';
-import { JOBS_J } from '../game/route.js';
+import { JOBS_J, STOPS } from '../game/route.js';
 const AB_COST = 300; // a second ability, per character
 export function renderHeroes() {
   $('heroes').innerHTML = Object.entries(HEROES)
@@ -255,15 +255,13 @@ export function begin() {
   snapChal();
   initAudio();
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  const camp = !GS.PRACTICE && !GS.HM && GS.meta.mode !== 'free'; // the campaign: Dead Acre, Route 9, Hollow Hill
+  const camp = !GS.PRACTICE && !GS.HM, // the campaign: the road from Dead Acre to the County Hospital
+    hmAt = GS.HM && !GS.PRACTICE ? STOPS.find((s, i) => s.id === GS.meta.hmPlace && stopOpen(i)) || STOPS[0] : null; // Horde Mode's ground
   GS.RUN = {
     hero: GS.meta.unlocked[GS.meta.hero] ? GS.meta.hero : 'ranger',
     journey: camp,
-    district: GS.PRACTICE
-      ? GS.PRACTICE.d
-      : !camp && districtOpen(GS.meta.district || 'town')
-        ? GS.meta.district || 'town'
-        : 'town',
+    district: GS.PRACTICE ? GS.PRACTICE.d : hmAt ? hmAt.map : 'town',
+    layout: hmAt ? hmAt.id : camp ? 'main' : undefined,
     inf: GS.PRACTICE ? 0 : Math.min(GS.meta.inf || 0, GS.meta.infMax || 0),
     endless: false,
     clean: cleanRun(),
@@ -277,10 +275,7 @@ export function begin() {
   GS.RUN.abB = abPickB(GS.RUN.hero);
   if (!GS.RUN.practice) clearSave(); // a new run replaces whatever was saved
   GS.RUN.jobN = camp ? JOBS_J.slice() : [3, 7, 12, pick([9, 13])];
-  if (camp) {
-    GS.RUN.stop = 0;
-    GS.RUN.layout = 'main';
-  } // Main Street, Dead Acre
+  if (camp) GS.RUN.stop = 0; // Main Street, Dead Acre
   {
     const sh = a => {
       for (let i = a.length - 1; i > 0; i--) {

@@ -15,42 +15,33 @@ import { makeEnemy } from '../actors/enemies.js';
 import { HUMAN } from '../render/effects.js';
 import { PK, cleanRun, pvLabel } from './hangar.js';
 import { rope } from '../core/later.js';
-import { DISTRICTS, INFECTION, TWISTS } from '../game/districts.js';
-import { LOADOUTS, chalDone, districtOpen, loadoutOpen, lockLine } from '../game/challenges.js';
+import { INFECTION, TWISTS } from '../game/districts.js';
+import { LOADOUTS, chalDone, loadoutOpen, lockLine, stopOpen } from '../game/challenges.js';
+import { STOPS } from '../game/route.js';
+// the setup screen is for the campaign, or for Horde Mode, which is fought on any place the campaign has taken
+// you to: pick the ground
+export let SETUP = 'camp';
+export const setSetup = m => (SETUP = m);
 export function renderDistricts() {
-  if (!GS.meta.district || !districtOpen(GS.meta.district)) GS.meta.district = 'town';
-  {
-    const camp = GS.meta.mode !== 'free';
-    for (const b of $('modeSeg').children) {
-      b.classList.toggle('on', (b.dataset.m === 'camp') === camp);
-      b.onclick = () => {
-        GS.meta.mode = b.dataset.m;
-        saveMeta();
-        renderDistricts();
-        menuInit();
-      };
-    }
-    $('distWrap').hidden = camp;
-    $('survTitle').textContent = camp ? 'The road out' : 'Pick your ground';
-    $('modeDesc').innerHTML = camp
-      ? 'Eight stops on the road from <b>Dead Acre</b> to the <b>County Hospital</b>: walk on to some, ride a convoy truck to others. Five bosses on the way. Your gear, guns and people go with you.'
-      : 'All fifteen nights in one place you pick. A place opens here once you reach it in the campaign.';
-  } // the campaign takes you down the road; one location keeps you in the one you pick
-  $('districts').innerHTML = Object.entries(DISTRICTS)
-    .map(([id, d]) => {
-      const open = districtOpen(id),
-        won = GS.meta.evacDist && GS.meta.evacDist[id];
-      return `<button type="button" class="hero${GS.meta.district === id ? ' on' : ''}${open ? '' : ' locked'}" data-d="${id}">${won ? '<i class="won" title="Evac made from here" aria-label="Evac made from here"><svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M2.2 6.4l2.4 2.3 5.2-5.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></i>' : ''}<span class="nm">${d.name}</span><span class="ds">${d.desc}</span>${open ? `<span class="wp">Boss: ${d.boss}</span>` : '<span class="lk">Locked · reach it in the campaign</span>'}</button>`;
-    })
-    .join('');
+  const hm = SETUP === 'hm';
+  if (!STOPS.some((s, i) => s.id === GS.meta.hmPlace && stopOpen(i))) GS.meta.hmPlace = 'main';
+  $('distWrap').hidden = !hm;
+  $('survEye').textContent = hm ? 'Horde Mode' : 'Fifteen nights till the chopper';
+  $('survTitle').textContent = hm ? 'Pick your ground' : 'The road out';
+  $('survLede').innerHTML = hm
+    ? 'Wave after wave of hordes, each bigger than the last, with a trap kit and a weapon case between them. No evac: hold as long as you can.'
+    : 'Eight stops on the road from <b>Dead Acre</b> to the <b>County Hospital</b>, on foot or in the back of a convoy truck, and five bosses on the way. Heavier guns come down as the nights go on, and on the last one the Guard chopper lands for you.';
+  $('startBtn').textContent = hm ? 'Bring them on' : 'Hold the line';
+  $('districts').innerHTML = STOPS.map((s, i) => {
+    const open = stopOpen(i);
+    return `<button type="button" class="hero${GS.meta.hmPlace === s.id ? ' on' : ''}${open ? '' : ' locked'}" data-p="${s.id}" data-i="${i}"><span class="nm">${s.name}</span><span class="ds">${s.desc}</span>${open ? `<span class="wp">${s.area}</span>` : '<span class="lk">Locked · reach it in the campaign</span>'}</button>`;
+  }).join('');
   for (const b of $('districts').children)
     b.addEventListener('click', () => {
-      const id = b.dataset.d;
-      if (!districtOpen(id) || GS.meta.district === id) return;
-      GS.meta.district = id;
+      if (!stopOpen(+b.dataset.i) || GS.meta.hmPlace === b.dataset.p) return;
+      GS.meta.hmPlace = b.dataset.p;
       saveMeta();
       renderDistricts();
-      menuInit();
     });
   const mx = GS.meta.infMax || 0;
   GS.meta.inf = Math.min(GS.meta.inf || 0, mx);
@@ -168,7 +159,7 @@ export function menuInit() {
   GS.state = 'menu';
   GS.RUN = {
     hero: GS.meta.unlocked[GS.meta.hero] ? GS.meta.hero : 'ranger',
-    district: GS.meta.mode === 'free' && districtOpen(GS.meta.district || 'town') ? GS.meta.district || 'town' : 'town',
+    district: 'town',
     inf: 0,
     endless: false,
   };

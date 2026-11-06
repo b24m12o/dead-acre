@@ -312,6 +312,7 @@ function moveOn() {
   restoreRun(d);
   placeArrival();
   statMax('reached', DISTRICTS[S.map].camp);
+  statMax('reachedStop', stop); // it opens for Horde Mode
   saveMeta();
 }
 function arrive() {

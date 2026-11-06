@@ -437,3 +437,4 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #fade.on{opacity:1}
 #distWrap{display:grid;gap:12px}
 #survSetup>.panel{width:min(660px,calc(100vw - 32px))}
+#districts{grid-template-columns:repeat(4,minmax(0,1fr))}#districts .hero .ds{font-size:11.5px}

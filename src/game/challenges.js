@@ -238,11 +238,11 @@ export const CHAL = [
   ),
   ...fam(
     'Evac',
-    'Tour guide',
-    'evacDistricts',
-    () => 'Make the evac from all three places',
-    'The campaign ends at Hollow Hill: play One location for Dead Acre and Route 9.',
-    [['evac3', 3, 250]]
+    'No one left',
+    'evacAll',
+    () => 'Make the evac with at least two of your people, none of them lost on the way',
+    'Everyone who joins you on the road has to be with you, alive, when the chopper lands.',
+    [['evacAll', 1, 250]]
   ),
 ];
 const UNLOCK_KIND = {
@@ -386,7 +386,7 @@ export function statMax(k, v) {
   GS.meta.stats[k] = Math.max(GS.meta.stats[k] || 0, v);
 }
 function chalValue(c) {
-  return c.stat === 'evacDistricts' ? Object.keys(GS.meta.evacDist || {}).length : stat(c.stat);
+  return stat(c.stat);
 }
 export let chalDone;
 export function checkChal(quiet) {
@@ -410,6 +410,13 @@ export function checkChal(quiet) {
   if (any) saveMeta();
 }
 export let districtOpen;
+// a place on the road is open for Horde Mode once the campaign has taken you there (anyone who has made the evac
+// has seen them all). Older profiles count by the three districts they reached
+export function stopOpen(i) {
+  if (i <= 0 || stat('evacs') >= 1) return true;
+  const old = stat('reached') || 0;
+  return Math.max(stat('reachedStop') || 0, old >= 2 ? 6 : old >= 1 ? 2 : 0) >= i;
+}
 
 /* ---------- per-night state ---------- */
 
