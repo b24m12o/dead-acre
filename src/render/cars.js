@@ -89,6 +89,10 @@ function drawCar0(c) {
     for (const h of c.holes)
       quad(R.bhole, c.x + h.u * ca - h.v * sa, c.y + h.u * sa + h.v * ca, h.r, 0.8, 0.8, 0.5, 0.5, 0.5, 1, 0, 0, 0, 0);
   }
+  if (c.amb && !c.burnt) {
+    setH(26);
+    quad(R.lightbar2, c.x + Math.cos(c.a) * 34, c.y + Math.sin(c.a) * 34, c.a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0); // its dead lightbar, over the cab
+  }
   if (c.police && !c.burnt) {
     const on = Math.sin(GS.time * 14) > 0;
     setH(16);

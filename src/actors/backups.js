@@ -6,7 +6,7 @@ import { ui } from '../render/gl.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { MH, MW, TILE, WH, WW, isWall } from '../world/map.js';
-import { N8, collide, flow, los, query, solidPt } from '../world/nav.js';
+import { N8, collide, flow, los, query, blockPt } from '../world/nav.js';
 import { budKey, playR, playS, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { LV, S, ammoFill, ammoTypes, cam, gd } from '../game/state.js';
@@ -403,11 +403,11 @@ export function buddySlot(p, s, i, taken) {
         x = p.x + Math.cos(a) * R,
         y = p.y + Math.sin(a) * R;
       if (
-        solidPt(x, y) ||
-        solidPt(x + 13, y) ||
-        solidPt(x - 13, y) ||
-        solidPt(x, y + 13) ||
-        solidPt(x, y - 13) ||
+        blockPt(x, y) ||
+        blockPt(x + 13, y) ||
+        blockPt(x - 13, y) ||
+        blockPt(x, y + 13) ||
+        blockPt(x, y - 13) ||
         !los(p.x, p.y, x, y)
       )
         continue;
@@ -506,7 +506,7 @@ export function budBoard(s, dt) {
 export function regroupSpot(p, i) {
   const back = p.formA + Math.PI,
     open = (x, y) => {
-      if (solidPt(x, y) || solidPt(x + 16, y) || solidPt(x - 16, y) || solidPt(x, y + 16) || solidPt(x, y - 16))
+      if (blockPt(x, y) || blockPt(x + 16, y) || blockPt(x - 16, y) || blockPt(x, y + 16) || blockPt(x, y - 16))
         return false;
       let hot = false;
       query(x, y, 70, e => {

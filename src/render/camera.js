@@ -21,6 +21,10 @@ export function updateCamera(dt) {
       tly = Math.sin(GS.P.aimA) * 45;
     }
   }
+  if (GS.state === 'play' && GS.P.ride === 'truck' && GS.truck) {
+    tlx += Math.cos(GS.truck.a) * 130;
+    tly += Math.sin(GS.truck.a) * 100;
+  } // on the truck the eye runs ahead, to what's coming
   if (cam.peek && GS.state === 'play') {
     cam.peek.t -= dt;
     if (cam.peek.t <= 0) cam.peek = null;

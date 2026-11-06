@@ -467,3 +467,10 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 /* readable small text: the character cards' labels and the controls line */
 .hero .wp,.hero .lk{font-size:12px;letter-spacing:.06em}
 .rec.keysline{text-transform:none;letter-spacing:0;font-family:var(--font-body);font-size:14px;line-height:1.5;color:#a6aeb2}
+#gauge.riding #abRow,#gauge.riding #gunChips,#gauge.riding #gunRow,#gauge.riding .rollrow{opacity:.35}
+/* small labels: never under 11px before the fit-to-screen zoom */
+.eyebrow,.sec{font-size:12px}
+.keys dt,.card .k,.card .need,.cnode .ck{font-size:11.5px}
+.runreport span{font-size:11px}
+#route .stop{font-size:11.5px}
+.place.locked{opacity:.68}.place.locked span{color:#9aa3a8}

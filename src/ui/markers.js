@@ -17,7 +17,7 @@ import { rigTarget } from '../game/traps.js';
 import { siegePrompt } from '../game/siege.js';
 import { kn } from '../core/binds.js';
 import { mouse } from '../core/input.js';
-import { wayOut } from '../game/journey.js';
+import { riding, wayOut } from '../game/journey.js';
 export function drawObjectiveGlow() {
   if (GS.evac && !GS.evac.ride) {
     const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1); // once it is down, the ring fades so the chopper itself reads
@@ -317,8 +317,9 @@ export function drawMarkersUI(toS) {
       ui.fillText(lb, x, y - R0 - 15 * k);
     }
   } // the car rig picked and a car in reach: which car it goes on, and the key
-  if (GS.evac && GS.evac.ride && GS.state === 'play') {
-    const r = GS.evac.ride,
+  const gunR = GS.evac && GS.evac.ride ? GS.evac.ride : riding() ? GS.truck.ride : null;
+  if (gunR && GS.state === 'play') {
+    const r = gunR,
       k = TS(),
       x = mouse.x,
       y = mouse.y + 26 * k,
@@ -328,7 +329,7 @@ export function drawMarkersUI(toS) {
     ui.fillStyle =
       r.over > 0 ? (Math.sin(GS.time * 20) > 0 ? '#ff5a3a' : '#ffb07a') : r.heat > 0.7 ? '#ff8a4a' : '#e8c46a';
     ui.fillRect(x - w / 2, y, w * clamp(r.over > 0 ? 1 : r.heat, 0, 1), 4 * k);
-  } // the door gun's heat, under the sights
+  } // the door gun's (or the truck gun's) heat, under the sights
   if (GS.obj && GS.obj.type === 'siege' && !GS.obj.done) {
     const k = TS();
     for (const b of GS.obj.bars) {
@@ -516,10 +517,12 @@ export function drawMarkersUI(toS) {
         ui.lineWidth = 3;
         ui.strokeStyle = 'rgba(20,24,29,0.85)';
         const t = s.say.txt,
-          y = qy - 40 * ZOOM;
-        ui.strokeText(t, qx, y);
+          y = qy - 40 * ZOOM,
+          hw = ui.measureText(t).width / 2 + 8,
+          x = clamp(qx, hw, VW - hw); // never cut off at the screen's edge
+        ui.strokeText(t, x, y);
         ui.fillStyle = '#e8eef0';
-        ui.fillText(t, qx, y);
+        ui.fillText(t, x, y);
         ui.globalAlpha = 1;
       }
     } // what they just said, over their head for a moment

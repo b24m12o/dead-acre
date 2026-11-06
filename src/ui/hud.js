@@ -160,6 +160,21 @@ function gunPanel() {
     if (HUDF.gun !== null) HUDF.swapT = now + 0.5;
     HUDF.gun = GS.P.gun;
   }
+  {
+    const T = GS.P.ride === 'truck' && GS.truck && GS.truck.ride,
+      g2 = $('gauge');
+    g2.classList.toggle('riding', !!T);
+    if (T) {
+      setT('gunName', T.over > 0 ? 'Truck gun · overheated' : 'Truck gun');
+      $('gunName').classList.toggle('rl', T.over > 0);
+      if (hc.gunAmmo !== 'ride') {
+        hc.gunAmmo = 'ride';
+        $('gunAmmo').className = 'ga';
+        $('gunAmmo').innerHTML = '<b>belt</b> · hold to fire';
+      }
+      return;
+    } // on the truck's gun: your own gun and your ability wait until you're down off it
+  }
   const G = GUNS[GS.P.gun],
     mag = GS.P.mag[GS.P.gun],
     res = G.ammo ? GS.P.ammo[G.ammo] : null,

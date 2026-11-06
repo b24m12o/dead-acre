@@ -7,9 +7,18 @@
 // last place and the way on to the next line up, and leaves room for the open ruin a siege is fought in.
 // k: the map builder's own tools (set, free, the arrays, bigRuin, lampAt), passed in by generateMap.
 import { TAU, pick, rand, randi } from '../core/util.js';
-import { MH, MW, ROAD, TILE, grid, ttype } from './map.js';
+import { MH, MW, ROAD, TILE, grid } from './map.js';
 
 const at = (x, y) => y * MW + x;
+// Mill River's banks, in tiles: two gentle curves, a little different each time
+const RIVER = { ph: 0 };
+export function riverAt(y) {
+  const p = RIVER.ph;
+  return [
+    25 + Math.sin(y * 0.21 + p) * 1.4 + Math.sin(y * 0.53 + p * 2) * 0.45,
+    34.5 + Math.sin(y * 0.17 + p + 2) * 1.3 + Math.sin(y * 0.61 + p * 3) * 0.4,
+  ];
+}
 function paint(x0, y0, x1, y1, code) {
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) if (x > 1 && y > 1 && x < MW - 2 && y < MH - 2) ROAD[at(x, y)] = code;
@@ -64,6 +73,7 @@ function car(k, tx, ty, o = {}) {
     truck: !!o.truck,
     tanker: !!o.tanker,
     police: !!o.police,
+    amb: !!o.amb,
   });
   return true;
 }
@@ -150,15 +160,20 @@ function houses(k, n, x0, y0, x1, y1, p = 0.8) {
     500
   );
 }
+// under a roof (or within m tiles of one, so nothing blocks a door), or on ground kept clear (a helipad)
+const roofed = (k, x, y, m) =>
+  k.houses.some(o => !o.open && x >= o.x - m && x <= o.x + o.w - 1 + m && y >= o.y - m && y <= o.y + o.h - 1 + m);
 // the things every place has a few of: rubble, fire barrels, electrical boxes on the sidewalks, dead trees
 function dressing(k, o = {}) {
+  const kept = (x, y, m) =>
+    roofed(k, x, y, m) || (o.keep || []).some(([x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1);
   scatter(
     o.rubble ?? 10,
     4,
     4,
     MW - 5,
     MH - 5,
-    (x, y) => k.clearOK(x, y, 7) && !ROAD[at(x, y)] && k.free(x, y) && (rubble(k, x, y), true)
+    (x, y) => k.clearOK(x, y, 7) && !ROAD[at(x, y)] && k.free(x, y) && !kept(x, y, 1) && (rubble(k, x, y), true)
   );
   scatter(
     o.fires ?? 5,
@@ -169,6 +184,7 @@ function dressing(k, o = {}) {
     (x, y) =>
       ROAD[at(x, y)] !== 1 &&
       k.clearOK(x, y, 5) &&
+      !kept(x, y, 1) &&
       !k.fires.some(f => Math.hypot(f.tx - x, f.ty - y) < 9) &&
       fire(k, x, y)
   );
@@ -181,6 +197,7 @@ function dressing(k, o = {}) {
     (x, y) =>
       ROAD[at(x, y)] === 2 &&
       k.clearOK(x, y, 6) &&
+      !kept(x, y, 1) &&
       !k.crystals.some(c => Math.hypot(c.tx - x, c.ty - y) < 6) &&
       box(k, x, y, Math.random() < 0.5 ? 0 : 1)
   );
@@ -190,7 +207,8 @@ function dressing(k, o = {}) {
     4,
     MW - 5,
     MH - 5,
-    (x, y) => k.clearOK(x, y, 6) && !k.trees.some(t => Math.hypot(t.tx - x, t.ty - y) < 4) && tree(k, x, y)
+    (x, y) =>
+      k.clearOK(x, y, 6) && !kept(x, y, 1) && !k.trees.some(t => Math.hypot(t.tx - x, t.ty - y) < 4) && tree(k, x, y)
   );
 }
 // lamps along the streets, alternating sides, as in town
@@ -293,7 +311,7 @@ export const LAYOUTS = {
     for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) k.set(36 + j * 3, 11 + i * 4, 2); // beds and cabinets knocked about the ward
     for (const x of [24, 27, 30, 37, 40])
       if (Math.random() < 0.65) car(k, x, 23, { vert: true, flip: Math.random() < 0.5 });
-    car(k, 43, 23, { vert: true, col: '#e6e4dc', burnt: false }); // the ambulance, still where it was left
+    car(k, 43, 23, { vert: true, truck: true, amb: true, col: '#e6e4dc', burnt: false }); // the ambulance, still where it was left
     for (const x of [22, 28, 34]) {
       const doors = [[2, 2, 2]];
       if (x === 28) doors.push([0, 3, 2]); // the front door, off the walk
@@ -323,15 +341,16 @@ export const LAYOUTS = {
     roadWrecks(k, RX, RY, 9);
     dressing(k, { trees: 14 });
     streetLamps(k, RX, RY);
-    k.lampAt(30 * TILE, 24.5 * TILE, 30 * TILE, 24.5 * TILE + 40);
-    k.lampAt(46 * TILE, 47.5 * TILE, 46 * TILE, 47.5 * TILE + 40);
+    k.lampAt(34 * TILE, 24.5 * TILE, 34 * TILE, 24.5 * TILE + 40); // between the bays
+    k.lampAt(48.5 * TILE, 47.5 * TILE, 48.5 * TILE, 47.5 * TILE + 40); // beside the school gate, not in it
   },
   // the Starlite Motel: a row of rooms with the office at the end and their car park, on Route 9; across the
   // highway the fire station, burnt out, its engines still inside
   motel(k) {
     k.roads([], [30]);
     highway();
-    paint(7, 15, 47, 24, 3);
+    paint(7, 15, 39, 24, 3);
+    paint(40, 17, 47, 24, 3); // the car park, up to the rooms' doors and round the office
     for (let i = 0; i < 8; i++) room(k, 8 + i * 4, 9, 5, 6, { doors: [[2, 2, 1]] });
     room(k, 40, 9, 7, 8, {
       style: 'store',
@@ -343,7 +362,7 @@ export const LAYOUTS = {
     for (let i = 0; i < 8; i++) if (Math.random() < 0.65) car(k, 9 + i * 4, 16, { vert: true, flip: true });
     for (let i = 0; i < 6; i++) if (Math.random() < 0.45) car(k, 10 + i * 6, 21, { vert: true });
     paint(29, 35, 43, 36, 3); // the fire station apron
-    room(k, 30, 37, 13, 9, { style: 'store', p: 0.82, doors: [[0, 3, 7]] });
+    room(k, 30, 37, 13, 9, { style: 'store', p: 0.82, open: true, doors: [[0, 3, 7]] }); // burnt out: its roof fell in on the engines
     car(k, 33, 39, { vert: true, truck: true, col: '#9a2a22', burnt: true });
     car(k, 38, 39, { vert: true, truck: true, col: '#a8322a', burnt: false });
     fire(k, 35, 43);
@@ -431,12 +450,12 @@ export const LAYOUTS = {
   bridge(k) {
     k.roads([], [30]);
     highway();
+    RIVER.ph = rand(0, TAU);
     for (let y = 2; y < MH - 2; y++) {
       if (y >= 26 && y <= 34) continue;
-      const w = Math.round(Math.sin(y * 0.31) * 1.2),
-        e = Math.round(Math.sin(y * 0.23 + 2) * 1.2);
-      for (let x = 25 + w; x <= 34 + e; x++) k.set(x, y, 11); // water (11: 10 is a dumpster)
-    }
+      const [l, r] = riverAt(y + 0.5);
+      for (let x = 2; x < MW - 2; x++) if (x + 0.5 > l && x + 0.5 < r) k.set(x, y, 11); // water (11: 10 is a dumpster)
+    } // a tile is water where its middle is in the river: the banks are drawn on the same curves
     car(k, 28, 29, { truck: true, col: '#c8c8c0', jit: 0.42, burnt: false }); // jack-knifed across the bridge
     car(k, 32, 32, { flip: true, burnt: true });
     room(k, 41, 18, 7, 6, { style: 'store', doors: [[2, 2, 2]] }); // the bait shop
@@ -444,10 +463,12 @@ export const LAYOUTS = {
     houses(k, 3, 3, 37, 22, 56);
     houses(k, 3, 38, 37, 56, 56);
     k.bigRuin();
-    for (let y = 4; y < MH - 4; y++)
-      for (const x of [23, 36])
-        if (y < 25 || y > 35)
-          if (Math.random() < 0.18) Math.random() < 0.6 ? tree(k, x + randi(-1, 1), y, 1.1) : rubble(k, x, y, 1); // reeds and rocks along the banks
+    for (let y = 4; y < MH - 4; y++) {
+      if (y >= 25 && y <= 35) continue;
+      const [l, r] = riverAt(y + 0.5);
+      for (const x of [Math.floor(l) - 1, Math.ceil(r)])
+        if (!ROAD[at(x, y)] && Math.random() < 0.18) Math.random() < 0.6 ? tree(k, x, y, 1.1) : rubble(k, x, y, 1);
+    } // trees and rocks along the banks
     highwayWrecks(k, 14, x => x >= 24 && x <= 36);
     dressing(k, { boxes: 3, trees: 10 });
     highwayLamps(k);
@@ -485,13 +506,13 @@ export const LAYOUTS = {
       ],
     }); // east wing
     for (let y = 9; y <= 20; y++) if (y < 14 || y > 15) k.set(40, y, 5);
-    paint(48, 9, 56, 17, 3); // the helipad
-    paint(47, 18, 48, 27, 3); // the path to it from the car park
+    paint(48, 9, 56, 17, 2); // the helipad: a concrete pad
+    paint(47, 18, 48, 27, 2); // the path to it from the car park
     k.helipad([52.5 * TILE, 13.5 * TILE]);
     for (const x of [13, 16, 19, 36, 39, 42])
       if (Math.random() < 0.6) car(k, x, 23, { vert: true, flip: Math.random() < 0.5 });
-    car(k, 27, 23, { vert: true, col: '#e6e4dc', burnt: false });
-    car(k, 31, 23, { vert: true, col: '#e6e4dc', burnt: Math.random() < 0.5 }); // the ambulance bay
+    car(k, 27, 23, { vert: true, truck: true, amb: true, col: '#e6e4dc', burnt: false });
+    car(k, 31, 23, { vert: true, truck: true, amb: true, col: '#e6e4dc', burnt: Math.random() < 0.5 }); // the ambulance bay
     room(k, 34, 37, 12, 8, { style: 'store', doors: [[0, 4, 2]] }); // the annex
     paint(10, 36, 30, 37, 4);
     paint(19, 38, 20, 52, 4); // the garden paths
@@ -499,7 +520,7 @@ export const LAYOUTS = {
     k.bigRuin();
     houses(k, 2, 3, 40, 30, 56, 0.85);
     roadWrecks(k, RX, RY, 6);
-    dressing(k, { rubble: 6, trees: 18 });
+    dressing(k, { rubble: 6, trees: 18, keep: [[46, 8, 57, 28]] });
     streetLamps(k, RX, RY);
     for (const [x, y] of [
       [49, 9],
@@ -516,41 +537,95 @@ export function paintLayout(a, h, L) {
   if (!L) return;
   a.save();
   if (L === 'bridge') {
-    for (let y = 0; y < MH; y++)
-      for (let x = 0; x < MW; x++) {
-        if (ttype[at(x, y)] !== 11) continue;
-        const px = x * TILE,
-          py = y * TILE;
-        a.fillStyle = (x + y) % 2 ? '#1c2a2c' : '#1a282a';
-        a.fillRect(px, py, TILE, TILE);
-        for (let i = 0; i < 3; i++) {
-          a.strokeStyle = `rgba(150,180,180,${rand(0.05, 0.13)})`;
-          a.lineWidth = 1.2;
-          const yy = py + rand(4, TILE - 4),
-            xx = px + rand(0, TILE / 2);
-          a.beginPath();
-          a.moveTo(xx, yy);
-          a.quadraticCurveTo(xx + 8, yy - 2, xx + rand(12, 22), yy);
-          a.stroke();
-        } // the current, dragging south
-        for (const [ox, oy] of [
-          [-1, 0],
-          [1, 0],
-        ]) {
-          const nx = x + ox;
-          if (nx < 0 || nx >= MW || ttype[at(nx, y + oy)] === 11) continue;
-          a.fillStyle = 'rgba(70,58,40,0.75)';
-          a.fillRect(ox < 0 ? px : px + TILE - 7, py, 7, TILE);
-          a.fillStyle = 'rgba(120,140,130,0.25)';
-          a.fillRect(ox < 0 ? px + 7 : px + TILE - 9, py, 2, TILE);
-        } // a muddy bank, and the scum line on the water along it
+    // the river is painted along the same two curves its water tiles were cut from (riverAt), above and below the
+    // bridge, so the banks are smooth and the edge you can't walk past is where it looks to be
+    const stretch = (ya, yb) => {
+      const L0 = [],
+        R0 = [];
+      for (let y = ya; y <= yb + 1e-6; y += 0.25) {
+        const [l, r] = riverAt(y);
+        L0.push([l * TILE, y * TILE]);
+        R0.push([r * TILE, y * TILE]);
       }
-    for (const yy of [26, 35]) {
-      a.fillStyle = 'rgba(20,22,24,0.85)';
-      a.fillRect(24 * TILE, yy * TILE - 5, 12 * TILE, 6);
-      a.fillStyle = 'rgba(150,150,140,0.6)';
-      for (let x = 24 * TILE; x < 36 * TILE; x += 18) a.fillRect(x, yy * TILE - 7, 3, 9);
-    } // the bridge's railings
+      const line = pts => {
+          a.moveTo(pts[0][0], pts[0][1]);
+          for (const [x, y] of pts) a.lineTo(x, y);
+        },
+        shape = () => {
+          a.beginPath();
+          line(L0);
+          for (let k = R0.length - 1; k >= 0; k--) a.lineTo(R0[k][0], R0[k][1]);
+          a.closePath();
+        },
+        banks = () => {
+          a.beginPath();
+          line(L0);
+          line(R0);
+        };
+      a.lineCap = a.lineJoin = 'round';
+      a.strokeStyle = 'rgba(46,40,30,0.5)';
+      a.lineWidth = 36;
+      banks();
+      a.stroke();
+      a.strokeStyle = 'rgba(64,54,38,0.9)';
+      a.lineWidth = 20;
+      banks();
+      a.stroke(); // a muddy bank either side
+      shape();
+      const mid = riverAt((ya + yb) / 2),
+        g = a.createLinearGradient((mid[0] - 1) * TILE, 0, (mid[1] + 1) * TILE, 0);
+      g.addColorStop(0, '#202d2d');
+      g.addColorStop(0.5, '#152122');
+      g.addColorStop(1, '#202d2d');
+      a.fillStyle = g;
+      a.fill(); // deeper in the middle
+      a.save();
+      shape();
+      a.clip();
+      for (let i = 0; i < (yb - ya) * 9; i++) {
+        const y = rand(ya, yb),
+          [l, r] = riverAt(y),
+          xx = rand(l + 0.4, r - 0.8) * TILE,
+          yy = y * TILE;
+        a.strokeStyle = `rgba(150,180,180,${rand(0.04, 0.12)})`;
+        a.lineWidth = rand(0.8, 1.6);
+        a.beginPath();
+        a.moveTo(xx, yy);
+        a.quadraticCurveTo(xx + 3, yy + 6, xx + rand(-2, 2), yy + rand(10, 22));
+        a.stroke();
+      } // the current, running down the river
+      a.strokeStyle = 'rgba(140,160,150,0.22)';
+      a.lineWidth = 3;
+      banks();
+      a.stroke(); // the scum line along the water's edge
+      a.restore();
+    };
+    stretch(0, 26);
+    stretch(35, MH);
+    for (const [yy, sg] of [
+      [26, -1],
+      [35, 1],
+    ]) {
+      const [l, r] = riverAt(yy),
+        x0 = (Math.floor(l) - 1) * TILE,
+        x1 = (Math.ceil(r) + 1) * TILE,
+        y = yy * TILE;
+      const g = a.createLinearGradient(0, y, 0, y + sg * 26);
+      g.addColorStop(0, 'rgba(0,0,0,0.6)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      a.fillStyle = g;
+      a.fillRect(x0 + TILE, sg < 0 ? y - 26 : y, x1 - x0 - 2 * TILE, 26); // the deck's shadow on the water
+      a.fillStyle = 'rgba(118,116,108,0.95)';
+      a.fillRect(x0, y - 7, x1 - x0, 14); // the concrete parapet
+      a.fillStyle = 'rgba(165,162,150,0.7)';
+      a.fillRect(x0, y - 7, x1 - x0, 3);
+      a.fillStyle = 'rgba(30,30,30,0.55)';
+      a.fillRect(x0, y + 5, x1 - x0, 2);
+      a.fillStyle = 'rgba(80,78,72,1)';
+      for (const xa of [x0, x1 - 16]) a.fillRect(xa, y - 11, 16, 22); // the abutments at each bank
+      a.fillStyle = 'rgba(60,58,54,0.6)';
+      for (let x = x0 + 30; x < x1 - 24; x += 34) a.fillRect(x, y - 7, 2, 14); // the joints
+    } // the bridge's parapets, bank to bank
   }
   if (L === 'hospital') {
     const cx = 52.5 * TILE,
@@ -590,14 +665,18 @@ export function paintLayout(a, h, L) {
     } // the court's keys
     a.font = '900 30px Kanit, sans-serif';
     a.textAlign = 'center';
-    a.fillStyle = 'rgba(232,228,214,0.45)';
-    a.fillText('AMBULANCE ONLY', 43.5 * TILE, 27.3 * TILE);
+    a.font = '900 24px Kanit, sans-serif';
+    a.fillStyle = 'rgba(232,228,214,0.18)';
+    a.fillText('AMBULANCE ONLY', 43.5 * TILE, 26.6 * TILE); // worn into the asphalt
   }
   if (L === 'clinic' || L === 'motel' || L === 'hospital') {
     const lots = { clinic: [21, 22, 46, 22], motel: [7, 15, 47, 15], hospital: [10, 22, 46, 22] }[L];
     a.strokeStyle = 'rgba(232,228,214,0.4)';
     a.lineWidth = 2;
     for (let x = lots[0] + 1; x <= lots[2]; x += 1.5) {
+      const tx = Math.floor(x),
+        ty = Math.floor(lots[1] + 1);
+      if (ROAD[at(tx, ty)] !== 3 || grid[at(tx, ty)] || ROAD[at(tx - 1, ty)] !== 3) continue; // only on the lot itself
       a.beginPath();
       a.moveTo(x * TILE, (lots[1] + 0.1) * TILE);
       a.lineTo(x * TILE, (lots[1] + 2.4) * TILE);

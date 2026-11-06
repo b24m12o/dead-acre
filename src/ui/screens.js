@@ -214,6 +214,7 @@ export function init() {
   $('survBack').addEventListener('click', () => {
     $('survSetup').hidden = true;
     $('menu').hidden = false;
+    $(SETUP === 'hm' ? 'hmBtn' : 'survBtn').focus({ preventScroll: true }); // back to the button that opened it
   });
   const wonToMenu = () => {
     $('won').hidden = true;

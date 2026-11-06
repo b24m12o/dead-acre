@@ -238,16 +238,17 @@ export function tickWorld(dt) {
     MUS.heat = (MUS.heat || 0) + (ht - (MUS.heat || 0)) * Math.min(1, dt * (ht > (MUS.heat || 0) ? 1.6 : 0.22));
     const play = GS.state === 'play' && GS.P;
     MUS.low = play ? clamp((0.3 - GS.P.hp / S.maxHp) / 0.22, 0, 1) : 0; // badly hurt: the music muffles and a heart beats
-    const H = GS.horde,
+    const live0 = GS.enemies.some(e => !e.dead && !(e.rout > 0)),
+      H = GS.horde,
       hWait = H && !H.done && H.startT > 0 && !GS.enemies.some(e => !e.dead);
     MUS.preT =
       !play || GS.evac || !GS.wave
         ? 99
         : hWait
           ? H.startT // a horde on its way: the build lands on its arrival, not on the start of the night
-          : !GS.nightLive && !GS.enemies.length && !GS.queue.length
+          : (GS.nightDone || !GS.nightLive) && !GS.RUN.moveOut && !GS.queue.length && !live0
             ? GS.interT + (GS.RUN.hm ? 4 : 0) // in Horde Mode the night opens on the horde's own short walk in
-            : 99; // the seconds until the fighting starts
+            : 99; // the seconds until the fighting starts (never while you are leaving: no night is coming here)
     if (AC && musLP) {
       let f = MUS.level === 'fight' ? 1800 + Math.pow(MUS.heat, 1.5) * 16000 : 18000;
       if (MUS.low > 0) f = Math.min(f, 18000 * Math.pow(0.04, MUS.low)); // down to 700 Hz: heard through the blood in your ears
@@ -258,8 +259,11 @@ export function tickWorld(dt) {
       }
     }
   }
-  const live =
-    GS.queue.length > 0 || GS.enemies.some(e => !e.dead && !(e.rout > 0) && e.type !== 'flower' && e.type !== 'egg');
+  let liveN = 0;
+  for (const e of GS.enemies) if (!e.dead && !(e.rout > 0) && e.type !== 'flower' && e.type !== 'egg') liveN++;
+  // at dawn a straggler or two is not a fight: the band only comes in for a real one, and once in it holds a while
+  const dawn = GS.nightDone && !GS.evac,
+    live = GS.queue.length > 0 || (dawn ? liveN >= 4 || (liveN > 0 && MUS.heat > 0.35) : liveN > 0);
   MUS.quietT = live ? 0 : (MUS.quietT || 0) + dt;
   {
     const on = GS.state !== 'menu';
@@ -281,7 +285,9 @@ export function tickWorld(dt) {
               ? 'fight'
               : GS.time < (MUS.cutT || 0) || !GS.wave
                 ? 'none'
-                : live || (MUS.level === 'fight' && MUS.quietT < 3 && !GS.nightDone)
-                  ? 'fight'
-                  : 'calm';
+                : GS.state === 'travel'
+                  ? 'calm' // on the road card the fight is over: the ride's ending rings out and the quiet takes over
+                  : live || (MUS.level === 'fight' && MUS.quietT < (dawn ? 5 : 3))
+                    ? 'fight'
+                    : 'calm';
 }

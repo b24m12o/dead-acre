@@ -39,15 +39,16 @@ export function newRun(forMenu = false) {
   }
   resetStats();
   {
-    const D0 = (GS.RUN && GS.RUN.district) || 'town';
-    if (!forMenu && mapCache.fresh && mapCache.d === D0) {
+    const D0 = (GS.RUN && GS.RUN.district) || 'town',
+      L0 = (GS.RUN && (GS.RUN.journey || GS.RUN.hm) && GS.RUN.layout) || ''; // as map.js reads it
+    if (!forMenu && mapCache.fresh && mapCache.d === D0 && mapCache.l === L0) {
       mapCache.fresh = false;
       resetWear();
       for (const c of cars) c.alarm = 0;
     } // the menu's backdrop becomes the run's map, so Play doesn't bake a second one
     else {
       generateMap();
-      mapCache = { fresh: forMenu, d: D0 };
+      mapCache = { fresh: forMenu, d: D0, l: L0 };
     }
   }
   GS.streakT = 0;

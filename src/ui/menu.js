@@ -21,6 +21,15 @@ import { STOPS } from '../game/route.js';
 // the setup screen is for the campaign, or for Horde Mode, which is fought on any place the campaign has taken
 // you to: pick the ground
 export let SETUP = 'camp';
+// after a list is drawn afresh, focus goes back to the control that was used, if the keyboard had it
+function refocus(box, sel) {
+  const el = $(box) && $(box).querySelector(sel);
+  if (
+    el &&
+    (document.activeElement === document.body || !document.activeElement || !document.activeElement.isConnected)
+  )
+    el.focus();
+}
 export const setSetup = m => (SETUP = m);
 export function renderDistricts() {
   const hm = SETUP === 'hm';
@@ -41,26 +50,43 @@ export function renderDistricts() {
   $('districts').innerHTML = STOPS.map((s, i) => {
     const open = stopOpen(i),
       on = GS.meta.hmPlace === s.id;
-    return `<button type="button" role="radio" aria-checked="${on}" class="place${on ? ' on' : ''}${open ? '' : ' locked'}" data-p="${s.id}" data-i="${i}"${open ? '' : ' aria-disabled="true" title="Reach it in the campaign to fight here"'}><b>${s.name}</b><span>${open ? s.area : 'Locked'}</span></button>`;
+    return `<button type="button" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" class="place${on ? ' on' : ''}${open ? '' : ' locked'}" data-p="${s.id}" data-i="${i}" aria-describedby="placeDesc"${open ? '' : ' aria-disabled="true" title="Reach it in the campaign to fight here"'}><b>${s.name}</b><span>${open ? s.area : 'Locked · reach it first'}</span></button>`;
   }).join('');
   {
     const S = STOPS.find(s => s.id === GS.meta.hmPlace) || STOPS[0];
     $('placeDesc').innerHTML =
       `<b>${S.name}</b> · ${S.desc}${STOPS.some((s, i) => !stopOpen(i)) ? ' The locked places open as the campaign takes you there.' : ''}`;
   } // one description, for the place picked
-  for (const b of $('districts').children)
-    b.addEventListener('click', () => {
-      if (!stopOpen(+b.dataset.i) || GS.meta.hmPlace === b.dataset.p) return;
-      GS.meta.hmPlace = b.dataset.p;
+  const pickPlace = id => {
+    if (GS.meta.hmPlace !== id) {
+      GS.meta.hmPlace = id;
       saveMeta();
       renderDistricts();
+    }
+    refocus('districts', `[data-p="${id}"]`);
+  }; // the list is drawn afresh: the keyboard stays where it was
+  for (const b of $('districts').children) {
+    b.addEventListener('click', () => {
+      if (stopOpen(+b.dataset.i)) pickPlace(b.dataset.p);
     });
+    b.addEventListener('keydown', ev => {
+      const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[ev.key],
+        ends = ev.key === 'Home' ? 0 : ev.key === 'End' ? STOPS.length - 1 : -1;
+      if (!d && ends < 0) return;
+      ev.preventDefault();
+      const opens = STOPS.map((q, i) => i).filter(stopOpen);
+      if (!opens.length) return;
+      let k = opens.indexOf(+b.dataset.i);
+      k = ends === 0 ? 0 : ends > 0 ? opens.length - 1 : (k + d + opens.length) % opens.length;
+      pickPlace(STOPS[opens[k]].id);
+    }); // a radio group: the arrows move along the places you can pick, skipping the locked ones
+  }
   const mx = GS.meta.infMax || 0;
   GS.meta.inf = Math.min(GS.meta.inf || 0, mx);
   $('infSeg').innerHTML = Array.from(
     { length: 11 },
     (_, i) =>
-      `<button type="button" data-i="${i}" class="${(GS.meta.inf || 0) === i ? 'on' : ''}" ${i > mx ? 'disabled' : ''}>${i}</button>`
+      `<button type="button" data-i="${i}" class="${(GS.meta.inf || 0) === i ? 'on' : ''}" aria-pressed="${(GS.meta.inf || 0) === i}" aria-label="Infection ${i}" ${i > mx ? 'disabled' : ''}>${i}</button>`
   ).join('');
   for (const b of $('infSeg').children)
     b.addEventListener('click', () => {
@@ -68,6 +94,7 @@ export function renderDistricts() {
       GS.meta.inf = +b.dataset.i;
       saveMeta();
       renderDistricts();
+      refocus('infSeg', `[data-i="${b.dataset.i}"]`);
     });
   renderTwists();
   const n = GS.meta.inf || 0;
@@ -113,7 +140,7 @@ function renderTwists() {
       `<button type="button" class="chip${GS.meta.twists[t.id] ? ' on' : ''}" data-t="${t.id}" aria-pressed="${GS.meta.twists[t.id] ? 'true' : 'false'}" aria-describedby="twHint"><b>${t.name}</b><em>+${Math.round(t.scrap * 100)}%</em></button>`
   ).join('');
   const hint = $('twHint'),
-    idle = 'Optional rules for the run. Each one pays more scrap. Point at one to read it.';
+    idle = 'Optional rules for the run. Each one pays more scrap. Point at one, or tab to it, to read it.';
   hint.textContent = idle;
   for (const b of box.children) {
     const t = TWISTS.find(q => q.id === b.dataset.t),
@@ -131,6 +158,7 @@ function renderTwists() {
       if (!GS.meta.twists[id]) delete GS.meta.twists[id];
       saveMeta();
       renderTwists();
+      refocus('twists', `[data-t="${id}"]`);
     });
   const on = TWISTS.filter(t => GS.meta.twists[t.id]),
     k = on.reduce((a, t) => a + t.scrap, 0);

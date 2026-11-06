@@ -151,7 +151,7 @@ export const STORY_J = {
   ],
   6: [
     'Reyes',
-    'Hale took the van to a motel up the road for medicine. She has not come back. I am trying her on every channel.',
+    'Hale took the van out for medicine. Her last call came from round your pumps. She has not come back. I am trying her on every channel.',
   ],
   7: [
     'Reyes',
@@ -159,6 +159,7 @@ export const STORY_J = {
     ['Reyes', 'The Starlite Motel is up the road. The trucks stopped there for water. Walk it, nine.'],
   ],
   8: ['Reyes', STORY[8][1], ['Reyes', 'We are down in the quarry, waiting on fuel. Follow the haul road east.']],
+  9: ['Reyes', 'Fuel is low. If these trucks sit in this pit much longer, they sit here for good. Keep them off us.'],
   10: [
     'Reyes',
     STORY[10][1],

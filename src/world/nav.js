@@ -130,6 +130,13 @@ export function solidPt(x, y) {
   if (t === 11) return false; // water: you can't wade it, but shots and sight go over it
   return Math.hypot(x - (tx + 0.5) * TILE, y - (ty + 0.5) * TILE) < TRAD(t) + 1;
 }
+// solid, or the river: nowhere to set anything down or stand anyone
+export function blockPt(x, y) {
+  if (solidPt(x, y)) return true;
+  const tx = Math.floor(x / TILE),
+    ty = Math.floor(y / TILE);
+  return isWall(tx, ty) && ttype[ty * MW + tx] === 11;
+}
 export function los(x0, y0, x1, y1) {
   const dx = x1 - x0,
     dy = y1 - y0,

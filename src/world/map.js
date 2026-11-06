@@ -12,6 +12,7 @@ import { carHits } from '../render/cars.js';
 import { genDecor } from '../render/decor.js';
 import { buildCarMap } from './fire.js';
 import { LAYOUTS, paintLayout } from './layouts.js';
+import { placeHatches } from './sewers.js';
 /* =====================================================================
    Town map
    ===================================================================== */
@@ -56,6 +57,8 @@ export function generateMap() {
   HELIPAD = null;
   RX = D === 'town' ? [12, 30, 47] : [];
   RY = D === 'town' ? [13, 30, 46] : D === 'highway' ? [30] : [];
+  const underRoof = (x, y) =>
+    houses.some(o => !o.open && x >= o.x - 1 && x <= o.x + o.w && y >= o.y - 1 && y <= o.y + o.h); // in a house, or at its door
   const set = (x, y, t) => {
     if (x < 0 || y < 0 || x >= MW || y >= MH) return;
     grid[y * MW + x] = 1;
@@ -279,7 +282,7 @@ export function generateMap() {
     for (let i = 0, tries = 0; i < 16 && tries < 300; tries++) {
       const x = randi(4, MW - 5),
         y = randi(4, MH - 5);
-      if (!clearOK(x, y, 6) || grid[y * MW + x] || ROAD[y * MW + x]) continue;
+      if (!clearOK(x, y, 6) || grid[y * MW + x] || ROAD[y * MW + x] || underRoof(x, y)) continue;
       if (trees.some(t => Math.hypot(t.tx - x, t.ty - y) < 5)) continue;
       set(x, y, 3);
       trees.push({
@@ -299,7 +302,7 @@ export function generateMap() {
     for (let i = 0, tries = 0; i < 7 && tries < 300; tries++) {
       const x = randi(4, MW - 5),
         y = randi(4, MH - 5);
-      if (!clearOK(x, y, 5) || !free(x, y) || ROAD[y * MW + x] === 1) continue;
+      if (!clearOK(x, y, 5) || !free(x, y) || ROAD[y * MW + x] === 1 || underRoof(x, y)) continue;
       if (fires.some(f => Math.hypot(f.tx - x, f.ty - y) < 9)) continue;
       set(x, y, 7);
       fires.push({ tx: x, ty: y, x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, ph: rand(0, 10) });
@@ -1190,7 +1193,6 @@ function bakeMap() {
   }
   // crosswalks
   a.fillStyle = 'rgba(220,216,204,0.7)';
-  paintLayout(a, h, LAYOUT);
   for (const rx of painted ? RX : [])
     for (const ry of RY)
       for (const [dx, dy] of [
@@ -1600,6 +1602,25 @@ function bakeMap() {
       const x = tx * TILE + TILE / 2,
         y = ty * TILE + TILE / 2,
         r = t === 3 ? 22 : t === 8 ? 18 : t === 9 ? 14 : 32;
+      if (t === 9) {
+        const T9 = (i, j) => ttype[(ty + j) * MW + tx + i] === 9,
+          hz = T9(-1, 0) || T9(1, 0),
+          vt = T9(0, -1) || T9(0, 1);
+        if (hz !== vt) {
+          a.save();
+          a.translate(x + SUN[0] * 1.4, y + SUN[1] * 1.4);
+          a.scale(hz ? (TILE * 0.75) / r : 1, vt ? (TILE * 0.75) / r : 1);
+          a.fillStyle = rgrad(a, 0, 0, r, [
+            [0, 'rgba(14,16,22,0.32)'],
+            [0.6, 'rgba(14,16,22,0.2)'],
+            [1, 'rgba(14,16,22,0)'],
+          ]);
+          circ(a, 0, 0, r);
+          a.fill();
+          a.restore();
+          continue;
+        } // a run of fence: one soft band along it, not a row of dots
+      }
       a.fillStyle = rgrad(a, x + SUN[0] * 1.4, y + SUN[1] * 1.4, r, [
         [0, 'rgba(14,16,22,0.5)'],
         [0.6, 'rgba(14,16,22,0.3)'],
@@ -2079,6 +2100,8 @@ function bakeMap() {
         bend: 0,
       });
     }
+  placeHatches(); // the manhole lids, in the asphalt (sewers.js)
+  paintLayout(a, h, LAYOUT); // the place's own features, last: nothing painted over the river or the helipad
   // map normals from height field + painted detail
   const hd = h.getImageData(0, 0, NM, NM).data,
     tmp = document.createElement('canvas');

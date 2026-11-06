@@ -4,7 +4,7 @@ import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, pick, rand } from '../core/util.js';
 import { quad, setH, viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
-import { solidPt } from '../world/nav.js';
+import { blockPt } from '../world/nav.js';
 import { spat, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { ammoTypes, cam } from './state.js';
@@ -190,9 +190,9 @@ function makeBox() {
       px = x + Math.cos(pa) * pd,
       py = y + Math.sin(pa) * pd;
     if (
-      solidPt(px, py) ||
-      solidPt(px + 14, py) ||
-      solidPt(px - 14, py) ||
+      blockPt(px, py) ||
+      blockPt(px + 14, py) ||
+      blockPt(px - 14, py) ||
       GS.obj.piles.some(q => Math.hypot(q.x - px, q.y - py) < 70)
     )
       continue;

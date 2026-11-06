@@ -138,7 +138,7 @@
     <div class="scol">
     <div class="infrow">
       <span class="sec">Infection</span>
-      <div class="seg" id="infSeg"></div>
+      <div class="seg" id="infSeg" role="group" aria-label="Infection level"></div>
     </div>
     <p class="note" id="infDesc"></p>
     <div class="infrow">
@@ -164,10 +164,10 @@
   </div>
 </div>
 <div id="fade" aria-hidden="true"></div>
-<div class="overlay" id="route" hidden>
+<div class="overlay" id="route" role="dialog" aria-labelledby="routeH" hidden>
   <div class="panel narrow">
     <div class="eyebrow">On the road</div>
-    <h2>Route 9</h2>
+    <h2 id="routeH">Route 9</h2>
     <p class="lede small rdesc"></p>
     <div class="road" aria-hidden="true"></div>
     <p class="rec rcarry"></p>

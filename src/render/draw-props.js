@@ -11,6 +11,7 @@ import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
 import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk, propShadow } from './decor.js';
 import { drawPile } from '../game/objectives.js';
+import { HATCHES } from '../world/sewers.js';
 const DQ = [];
 const MOON_CAP = 90; // past this many zombies on screen, the furthest throw a simple shadow
 const FL_CAP = 48; // zombies whose shadows the flashlight throws, nearest first: each costs three smeared copies of the body
@@ -287,6 +288,7 @@ export function drawCasters() {
   for (const c of crystals) if (c.alive && vis(c.x, c.y)) push(c.y + 16, drawCrystal, c);
   for (const f of fires) if (vis(f.x, f.y)) push(f.y + 12, drawBurnBarrel, f);
   for (const b of GS.barrels) if (!b.dead && vis(b.x, b.y)) push(b.y + 10, drawBarrel, b);
+  if (!GS.SHMODE) for (const h of HATCHES) if (vis(h.x, h.y)) push(h.y - 60, drawHatch, h); // flat in the road, under whoever crosses it
   for (const e of GS.corpses) if (vis(e.x, e.y)) push(e.y - 18, drawEnemy, e);
   {
     let L = GS.enemies.filter(e => !e.fly && vis(e.x, e.y));
@@ -513,3 +515,26 @@ export function heliRotor(e) {
 export const PREG = () => [null, null, null, R.chip, R.rockchip, R.leafbit, R.petalbit, R.shell, R.drop, R.g_meat0];
 GS.PARTREG = null;
 GS.WETV = 0.42;
+// a manhole: its lid, or once shoved off, the black hole and the lid lying beside it
+function drawHatch(h) {
+  setH(0);
+  if (h.open > 0) quad(R.hatchhole, h.x, h.y, h.a, 1.1, 1.1, 1, 1, 1, h.open, 0, 0, 0, 0);
+  const d = h.open * 30;
+  setH(1 + Math.sin(h.open * Math.PI) * 6); // lifted as it goes
+  quad(
+    R.hatch,
+    h.x + Math.cos(h.side) * d,
+    h.y + Math.sin(h.side) * d,
+    h.a + h.open * 0.7,
+    1.1,
+    1.1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0
+  );
+}

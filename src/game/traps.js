@@ -14,7 +14,7 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, rand } from '../core/util.js';
 import { cars } from '../world/map.js';
-import { query, solidPt } from '../world/nav.js';
+import { query, blockPt } from '../world/nav.js';
 import { sfx } from '../audio/sfx.js';
 import { noise } from '../audio/audio.js';
 import { floatText, sparks } from '../render/effects.js';
@@ -104,7 +104,7 @@ function throwTo(kind, maxD) {
     d = clamp(Math.hypot(cx - P.x, cy - P.y), 40, maxD);
   let tx = P.x + Math.cos(a) * d,
     ty = P.y + Math.sin(a) * d;
-  for (let k = 0; k < 8 && solidPt(tx, ty); k++) {
+  for (let k = 0; k < 8 && blockPt(tx, ty); k++) {
     tx -= Math.cos(a) * 24;
     ty -= Math.sin(a) * 24;
   } // short of a wall, never inside it
@@ -156,7 +156,7 @@ function useTrap() {
     const a = P.aimA,
       x = P.x + Math.cos(a) * 34,
       y = P.y + Math.sin(a) * 34;
-    if (solidPt(x, y)) return floatText(P.x, P.y - 44, 'No room for the drum there', '#cfd6d9', 13);
+    if (blockPt(x, y)) return floatText(P.x, P.y - 44, 'No room for the drum there', '#cfd6d9', 13);
     GS.barrels.push({ x, y, r: 14, hp: 20, dead: false, gas: true });
     noise(0.18, 0.06, 500, 160, 'lowpass'); // the clunk of a full drum set down
     floatText(P.x, P.y - 44, 'Gas drum down · shoot it when they come', '#e8c46a', 13);

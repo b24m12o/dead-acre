@@ -44,14 +44,18 @@ function dawnDrops() {
   // dawn has a job now: the convoy drops what the next night needs while it is quiet, and the night waits a little while it sits unopened
   const nx = GS.wave + 1;
   const wcase = GS.RUN.hm ? nx % 2 === 0 : WEAPON_NIGHTS[nx]; // Horde Mode: a case every other wave
-  const owed = wcase && GS.RUN.lcase && nextGuns().length;
+  const again = wcase && GS.RUN.lcaseW === nx, // this dawn was already the loadout's: a Continue mid-dawn drops the same
+    owed = again || (wcase && GS.RUN.lcase && nextGuns().length);
   if (owed) {
     // a gun loadout took the place of the first weapon case. That case would have left one gun on the truck, so
     // this one does too (the second of the pair: your character's own gun stays in the pool). You end the run with as
     // many guns as anyone else, and the dawn still drops something: a supply crate with a little scrap on top
-    GS.RUN.lcase = false;
-    const gs = nextGuns();
-    if (gs.length > 1) GS.RUN.declined = (GS.RUN.declined || []).concat(gs[1]);
+    if (!again) {
+      GS.RUN.lcase = false;
+      GS.RUN.lcaseW = nx;
+      const gs = nextGuns();
+      if (gs.length > 1) GS.RUN.declined = (GS.RUN.declined || []).concat(gs[1]);
+    }
     GS.later.push({
       t: 1.6,
       fn: () => {
@@ -116,7 +120,7 @@ function dawnDrops() {
     });
 }
 export function nightCleared() {
-  MUS.clear = true; // the soundtrack marks it
+  if (!GS.nightDone) MUS.clear = true; // the soundtrack marks it, once: not again for every straggler shot at dawn
   if (GS.RUN.practice) {
     if (!GS.nightDone) {
       GS.nightDone = true;
@@ -274,6 +278,7 @@ function legDawn(how) {
 let travelHow = null;
 export function leaveStop(how) {
   GS.state = 'travel';
+  if (MUS.level === 'fight') MUS.clear = true; // the ride's fight ends on the band's own ending, not a cut
   $('hud').hidden = true;
   for (const b of GS.buddies) b.say = null;
   travelHow = how;
@@ -288,6 +293,8 @@ export function travelStep() {
     moveOn();
   } catch (e) {
     console.warn('Dead Acre: moving on failed', e);
+    location.reload(); // never play on in a half-built place: the dawn save brings you back to where you left
+    return;
   }
   if (how === 'foot') {
     fade(false);
@@ -348,9 +355,19 @@ export function resumeDawn() {
     legDawn(GS.RUN.moveOut);
     return;
   } // saved while you were on your way: the truck comes again, or the road out is marked again
-  const s = planSig(GS.wave + 1);
+  const kept = GS.RUN.nextSig && GS.RUN.nextSig.w === GS.wave + 1 ? GS.RUN.nextSig.s : null,
+    s = kept || planSig(GS.wave + 1); // tomorrow was already announced: it stays what it was
   GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
   if (s === 'horde') GS.interT = GS.RUN.hm ? 20 : 45; // the kit came with the save
+  if (GS.RUN.journey && BOSS_HORDE_J[GS.wave + 1]) {
+    GS.interT = 45;
+    GS.later.push({
+      t: 3.2,
+      fn: () =>
+        GS.nightDone &&
+        showStreak(`Night ${GS.wave + 1}`, 'A boss tonight, and the dead it raises with it · set the traps', true),
+    });
+  } // the long dawn before the boss and its horde (the kit came with the save)
   if (!GS.RUN.hm && GS.wave + 1 === FINAL_NIGHT) {
     GS.RUN.lz = HELIPAD ? HELIPAD.slice() : freeSpot(260, 520); // the map is laid out afresh on a resume: a new landing zone on it
     GS.interT = 50;

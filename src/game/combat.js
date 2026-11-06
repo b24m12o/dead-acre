@@ -7,7 +7,7 @@ import { GUNS } from './arsenal.js';
 import { DIFF } from '../core/profile.js';
 import { R } from '../render/atlas.js';
 import { MH, MW, TILE, WH, WW, cars, crystals, grid, isWall, ttype } from '../world/map.js';
-import { query, solidPt } from '../world/nav.js';
+import { query, blockPt } from '../world/nav.js';
 import { MUS, noise, playS, spat, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, ammoNeed, dropAmmo, giveGun } from './state.js';
@@ -838,7 +838,8 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     (INF(7) && !big ? 0.65 : 1) *
     (S.scav ? 1.3 : 1);
   const ac2 = big ? ac : ac * 1.25 * ammoNeed() * (GS.wave <= 4 ? 1.25 : GS.wave >= 10 ? 0.8 : 1); // a little more early, before the drops can keep up with a new gun; a little less late, when every calibre is stocked
-  for (let i = 0; i < Math.floor(ac2) + (Math.random() < ac2 % 1 ? 1 : 0); i++) dropAmmo(e.x, e.y, 1, 90); // fewer drops while you are well stocked
+  const lost = e.cvy && GS.P.ride; // shot from the back of a moving truck: whatever it drops stays on the road behind
+  for (let i = 0; i < (lost ? 0 : Math.floor(ac2) + (Math.random() < ac2 % 1 ? 1 : 0)); i++) dropAmmo(e.x, e.y, 1, 90); // fewer drops while you are well stocked
   const hc =
     (big
       ? 1
@@ -846,7 +847,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
         clamp(0.35 + 1.1 * (1 - GS.P.hp / S.maxHp), 0.35, 1.2)) *
     (INF(4) && !big ? 0.5 : 1) *
     (e.horde ? (GS.RUN.hm ? 0.3 : 0.5) : 1); // a horde is hundreds of kills: it can't be hundreds of medkits too // like ammo: fewer medkits while you are healthy, more when you are hurt
-  if (!TW('nomeds') && Math.random() < hc)
+  if (!TW('nomeds') && !lost && Math.random() < hc)
     GS.pickups.push({ k: 'hp', v: 25, x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
   if (e.type === 'beetle' || big) {
     shake(big ? 0.8 : 0.3);
@@ -1187,7 +1188,7 @@ export function dropCrate(gun, alt, kits, note) {
       d = gun ? rand(170, 320) : rand(240, 480),
       x = clamp(GS.P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
       y = clamp(GS.P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
-    if (solidPt(x, y) || solidPt(x + 20, y) || solidPt(x - 20, y) || solidPt(x, y + 20) || solidPt(x, y - 20)) continue;
+    if (blockPt(x, y) || blockPt(x + 20, y) || blockPt(x - 20, y) || blockPt(x, y + 20) || blockPt(x, y - 20)) continue;
     const cr = { x, y, z: 640, landed: false, t: 0, gun, alt, kit: kits };
     GS.crates.push(cr);
     const live = () => GS.crates.includes(cr) && !cr.open;
@@ -1247,13 +1248,13 @@ export function updateCrates(dt) {
       c.sx = Math.sin(c.thx) * 34 * dep;
       c.sy = Math.sin(c.thy) * 14 * dep;
       const nx = c.x + WINDX * 0.55 * dep * dt;
-      if (nx < WW - 4 * TILE && !solidPt(nx + 24, c.y) && !solidPt(nx + 24, c.y + 18) && !solidPt(nx + 24, c.y - 18))
+      if (nx < WW - 4 * TILE && !blockPt(nx + 24, c.y) && !blockPt(nx + 24, c.y + 18) && !blockPt(nx + 24, c.y - 18))
         c.x = nx; // the wind carries it a little
       if (c.z <= 0) {
         const g = chuteGeom(c),
           lx = c.x + c.sx,
           ly = c.y + c.sy * 0.5;
-        if (!solidPt(lx, ly) && !solidPt(lx + 18, ly) && !solidPt(lx - 18, ly)) {
+        if (!blockPt(lx, ly) && !blockPt(lx + 18, ly) && !blockPt(lx - 18, ly)) {
           c.x = lx;
           c.y = ly;
         }
@@ -1330,7 +1331,7 @@ export function updateCrates(dt) {
         oy = c.y;
       c.x += (c.vx || 0) * dt;
       c.y += (c.vy || 0) * dt;
-      if (solidPt(c.x + Math.sign(c.vx || 0) * 18, c.y) || solidPt(c.x, c.y + Math.sign(c.vy || 0) * 16)) {
+      if (blockPt(c.x + Math.sign(c.vx || 0) * 18, c.y) || blockPt(c.x, c.y + Math.sign(c.vy || 0) * 16)) {
         c.x = ox;
         c.y = oy;
         c.vx = (c.vx || 0) * -0.2;

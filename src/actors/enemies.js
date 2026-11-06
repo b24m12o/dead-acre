@@ -11,9 +11,9 @@ import { sfx } from '../audio/sfx.js';
 import { bossNight } from '../game/waves.js';
 import { bleed, distort, ring } from '../render/effects.js';
 import { BILE, ZSKIN } from '../render/draw-enemies.js';
-import { FINAL_NIGHT, INF } from '../game/districts.js';
+import { INF } from '../game/districts.js';
 import { tip } from '../audio/radio.js';
-import { bossName } from '../game/boss-flow.js';
+import { bossName, bossType } from '../game/boss-flow.js';
 import { bark } from '../audio/barks.js';
 export const ET = {
   skitter: { hp: 20, r: 14, sp: 84, dmg: 9, xp: 1, score: 10, col: [0.62, 0.04, 0.03] },
@@ -186,16 +186,7 @@ export function makeEnemy(type, x, y) {
       const bb = $('bossBox').firstElementChild;
       if (bb) bb.textContent = bossName();
     }
-    e.btype =
-      !GS.RUN.endless && GS.wave === FINAL_NIGHT
-        ? 'pz'
-        : !GS.RUN.endless && GS.wave === 10
-          ? 'chief'
-          : GS.RUN.district === 'highway'
-            ? 'roadkill'
-            : GS.RUN.district === 'cemetery'
-              ? 'grave'
-              : 'abom';
+    e.btype = bossType(); // the one the night was announced for (on the road, route.js says who waits where)
     if (e.btype === 'chief') {
       e.hp *= 1.2;
       e.maxHp = e.hp;

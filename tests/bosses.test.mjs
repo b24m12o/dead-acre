@@ -4,20 +4,28 @@
 import { openGame, check } from './lib/harness.mjs';
 
 export const name = 'bosses: arrive, change phase, die';
+// the campaign's bosses, each on its night and on its stretch of the road (route.js BOSS_J)
 const CASES = [
   ['town', 5, 'abom'],
-  ['highway', 5, 'roadkill'],
-  ['cemetery', 5, 'grave'],
-  ['town', 10, 'chief'],
-  ['town', 15, 'pz'],
+  ['highway', 8, 'chief'],
+  ['highway', 10, 'roadkill'],
+  ['cemetery', 13, 'grave'],
+  ['cemetery', 15, 'pz'],
 ];
+const NAMES = {
+  abom: 'Abomination',
+  chief: 'Fire Chief',
+  roadkill: 'Roadkill',
+  grave: 'Gravekeeper',
+  pz: 'Patient Zero',
+};
 const FIGHT = (district, night) => `(() => {
   begin(); GS.RUN.district = '${district}'; newRun(); GS.state = 'play'; __god();
   const step = n => { for (let i = 0; i < n; i++) { if (GS.state === 'levelup') { GS.luOpenT = 0; choose(0); } update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60); } };
   GS.wave = ${night} - 1; GS.queue = []; for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.interT = 99; startWave();
   for (let i = 0; i < 600 && !GS.boss; i++) step(1);
   if (!GS.boss) return { spawned: false };
-  const q = GS.boss, out = { spawned: true, bt: q.btype, ph0: q.ph };
+  const q = GS.boss, out = { spawned: true, bt: q.btype, ph0: q.ph, name: bossName(), want: bossType() };
   q.hp = q.maxHp * 0.6; step(240); out.ph1 = q.ph;
   q.hp = q.maxHp * 0.3; step(240); out.ph2 = q.ph;
   q.hp = 0; killEnemy(q, 999, 'bolt'); step(300);
@@ -33,6 +41,8 @@ export async function run(b) {
     await pg.close();
     check(r.spawned, `${bt}: never arrived on night ${night}`);
     check(r.bt === bt, `${bt}: got ${r.bt} instead`);
+    check(r.want === bt, `${bt}: the night was announced for ${r.want}`);
+    check(r.name === NAMES[bt], `${bt}: the boss bar says ${r.name}`);
     check(r.ph2 > r.ph0, `${bt}: stayed in phase ${r.ph0} down to 30% health`);
     check(r.dead, `${bt}: did not die`);
     check(['play', 'levelup', 'won'].includes(r.state), `${bt}: game in state ${r.state} after the kill`);

@@ -6,6 +6,83 @@ import { TAU, pick, rand } from '../../core/util.js';
 export function paintStreet() {
   /* ----- street props as 3D pictures, seen at the game's angle (shapes/props.js); the sliced versions below are the fallback ----- */
   for (const [n, [w, h]] of Object.entries(O_SIZES)) region(n, w, h, () => {}, 0.3, 0.4, 0.8);
+  region(
+    'hatch',
+    30,
+    30,
+    a => {
+      // a cast-iron manhole lid: a rim, the cross-hatched grip pattern, two pick holes, rust
+      circ(a, 0, 0, 13.5);
+      a.fillStyle = rgrad(
+        a,
+        0,
+        0,
+        14,
+        [
+          [0, '#4c4a45'],
+          [0.85, '#3a3834'],
+          [1, '#1c1b19'],
+        ],
+        -3,
+        -3
+      );
+      a.fill();
+      a.strokeStyle = 'rgba(18,18,16,0.85)';
+      a.lineWidth = 1.2;
+      circ(a, 0, 0, 11);
+      a.stroke();
+      a.save();
+      circ(a, 0, 0, 10.4);
+      a.clip();
+      a.strokeStyle = 'rgba(98,95,88,0.7)';
+      a.lineWidth = 1.3;
+      for (let k = -14; k <= 14; k += 3.4) {
+        a.beginPath();
+        a.moveTo(k - 11, -11);
+        a.lineTo(k + 11, 11);
+        a.moveTo(k + 11, -11);
+        a.lineTo(k - 11, 11);
+        a.stroke();
+      }
+      a.restore();
+      a.fillStyle = 'rgba(122,72,40,0.3)';
+      for (let i = 0; i < 7; i++) {
+        circ(a, rand(-9, 9), rand(-9, 9), rand(1, 2.8));
+        a.fill();
+      }
+      a.fillStyle = '#121210';
+      for (const s of [-1, 1]) {
+        circ(a, s * 6.5, 0, 1.2);
+        a.fill();
+      }
+    },
+    0.5,
+    0.6,
+    0.8
+  );
+  region(
+    'hatchhole',
+    30,
+    30,
+    a => {
+      // the open shaft: a concrete collar round the dark, the top rungs of its ladder
+      circ(a, 0, 0, 13.8);
+      a.fillStyle = '#54524c';
+      a.fill();
+      circ(a, 0, 0, 11.6);
+      a.fillStyle = rgrad(a, 0, 0, 12, [
+        [0, '#020203'],
+        [0.75, '#07080a'],
+        [1, '#1b1b1a'],
+      ]);
+      a.fill();
+      a.fillStyle = 'rgba(112,96,78,0.6)';
+      for (let k = 0; k < 3; k++) a.fillRect(-4, -9 + k * 3.2, 8, 1.1);
+    },
+    0.2,
+    0.6,
+    0.8
+  );
   /* ----- street props (top view slices, stacked when drawn) ----- */
   region(
     'p_hydrant',

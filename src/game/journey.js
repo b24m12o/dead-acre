@@ -14,7 +14,7 @@ import { R } from '../render/atlas.js';
 import { noise, playS, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
-import { dust, floatText } from '../render/effects.js';
+import { floatText } from '../render/effects.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { freeSpot } from '../actors/backups.js';
 import { mouse } from '../core/input.js';
@@ -291,6 +291,37 @@ function along(Rp, s) {
     f = (s - Rp.L[k - 1]) / Math.max(1e-6, Rp.L[k] - Rp.L[k - 1]);
   return [ax + (bx - ax) * f, ay + (by - ay) * f, Math.atan2(by - ay, bx - ax)];
 }
+// out of the truck's box, by the shorter way: nothing stands inside it
+function outOfBox(T, o, pad) {
+  const c = Math.cos(T.a),
+    s = Math.sin(T.a),
+    rx = o.x - T.x,
+    ry = o.y - T.y,
+    u = rx * c + ry * s,
+    v = -rx * s + ry * c,
+    hu = TL / 2 + pad,
+    hv = TW_ / 2 + pad;
+  if (Math.abs(u) >= hu || Math.abs(v) >= hv) return false;
+  let nu = u,
+    nv = v;
+  if (hu - Math.abs(u) < hv - Math.abs(v)) nu = Math.sign(u || 1) * hu;
+  else nv = Math.sign(v || 1) * hv;
+  o.x = T.x + nu * c - nv * s;
+  o.y = T.y + nu * s + nv * c;
+  return true;
+}
+const offView = (x, y, m = 70) => x < cam.x - m || x > cam.x + viewW + m || y < cam.y - m || y > cam.y + viewH + m;
+// a spot to the side of the road some way ahead, out of sight: a yard, an alley, a gap between houses
+function sideSpot(r, a0, a1, o0, o1) {
+  for (let k = 0; k < 40; k++) {
+    const [ax, ay, aa] = along(r.path, r.s + rand(a0, a1)),
+      off = rand(o0, o1) * (Math.random() < 0.5 ? 1 : -1),
+      x = ax - Math.sin(aa) * off,
+      y = ay + Math.cos(aa) * off;
+    if (roomy(x, y, 12) && offView(x, y)) return [x, y];
+  }
+  return null;
+}
 function startRide(T) {
   const P = GS.P;
   T.ride = { t: 0, s: 0, path: ridePath(T), heat: 0, over: 0, cd: 0, spawnT: 1.5, kills0: GS.kills };
@@ -301,7 +332,24 @@ function startRide(T) {
   P.inv = 1e9;
   P.vx = P.vy = 0;
   honk(0.6);
-  showStreak('On the gun', 'Hold click to fire where you aim · let it cool when it glows', true);
+  GS.streakQ.length = 0;
+  GS.streakT = 0; // "the truck is here" is done with
+  showStreak('On the gun', 'Hold click to fire where you aim · the bar under your sights is its heat', true);
+  // the dead already shambling about on the road ahead, out of sight: there when the truck comes round the corner
+  const r = T.ride;
+  for (let s0 = 520; s0 < r.path.len - 320; s0 += rand(380, 560)) {
+    const [ax, ay] = along(r.path, s0);
+    if (!offView(ax, ay, 120)) continue;
+    const n = 3 + ((Math.random() * 4) | 0);
+    for (let i = 0; i < n; i++) {
+      const x = ax + rand(-70, 70),
+        y = ay + rand(-70, 70);
+      if (!roomy(x, y, 10)) continue;
+      const z = makeEnemy('skitter', x, y);
+      z.emerge = 1;
+      z.cvy = true; // one of the dead that came at the convoy
+    }
+  }
 }
 export const riding = () => !!(GS.truck && GS.truck.ride && !GS.truck.gone);
 function tickRide(dt, onLeave) {
@@ -338,34 +386,35 @@ function tickRide(dt, onLeave) {
   P.aimA = Math.atan2(cam.y + mouse.y / ZOOM - P.y, cam.x + mouse.x / ZOOM - P.x);
   P.bodyA += angDiff(P.bodyA, P.aimA) * damp(10, dt);
   mountedGun(r, P, dt);
-  // the dead come out of the side streets ahead of the truck, running
+  // the dead come out of the side streets ahead of the truck, running at the engine: they start out of sight
+  // and you see them come in from the edges, never out of thin air
   r.spawnT -= dt;
   if (r.spawnT <= 0 && GS.enemies.length < 120 && r.s < r.path.len - 300) {
-    r.spawnT = 0.42;
-    const [ax, ay] = along(r.path, r.s + 380);
-    for (let k = 0; k < 30; k++) {
-      const aa = rand(0, TAU),
-        rr = rand(140, 380),
-        sx = ax + Math.cos(aa) * rr,
-        sy = ay + Math.sin(aa) * rr;
-      if (!roomy(sx, sy, 12)) continue;
+    r.spawnT = 0.5;
+    const sp = sideSpot(r, 340, 700, 150, 440);
+    if (sp) {
       const n = 2 + ((Math.random() * 2) | 0);
       for (let i = 0; i < n; i++) {
-        const z = makeEnemy(Math.random() < 0.1 ? 'hound' : 'skitter', sx + rand(-14, 14), sy + rand(-14, 14));
-        z.emerge = 0.6;
+        const z = makeEnemy(Math.random() < 0.1 ? 'hound' : 'skitter', sp[0] + rand(-14, 14), sp[1] + rand(-14, 14));
+        z.emerge = 1;
         z.aw = 9;
+        z.cvy = true; // one of the dead that came at the convoy
         if (Math.random() < 0.55) {
           z.run = true;
           z.sp *= 1.8;
         }
       }
-      dust(sx, sy, 4, 50, 1, 1);
-      break;
     }
   }
+  // they can climb at it, not into it
+  query(T.x, T.y, TL / 2 + 40, z => {
+    if (!z.dead && z.type !== 'queen' && !z.fly) outOfBox(T, z, z.r * 0.7);
+  });
   if (r.s >= r.path.len - 1) {
     T.gone = true;
     P.ride = false;
+    P.inv = 1;
+    P.vx = P.vy = 0;
     GS.buddies = T.bud || [];
     const k = GS.kills - r.kills0;
     if (k) floatText(P.x, P.y - 50, `${k} from the back of the truck`, '#ffd08a', 15);
@@ -523,6 +572,7 @@ export function showRoute(onGo) {
     ready = true;
     btn.disabled = false;
     btn.textContent = 'Climb out · Enter';
+    btn.focus({ preventScroll: true });
   }; // the caller says when the new place is laid out
 }
 // a quick fade to black and back, for the walk from one place into the next

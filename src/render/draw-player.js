@@ -238,7 +238,11 @@ export function drawRanger(p) {
     );
   }
   // weapon pose: swap lowers the gun, reload tilts it
-  const gid = pv ? (HEROES[HPV.hero || GS.meta.hero] || HEROES.ranger).spec : p.gun || 'rifle',
+  const gid = pv
+      ? (HEROES[HPV.hero || GS.meta.hero] || HEROES.ranger).spec
+      : p.ride === 'truck'
+        ? 'lmg' // in the truck bed you're on its machine gun, not your own
+        : p.gun || 'rifle',
     pose = GPOSE[gid],
     swap = p.swap > 0 ? Math.sin(Math.min(1, p.swap / 0.3) * Math.PI) : 0,
     rk = p.rk || 0,

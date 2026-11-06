@@ -5,7 +5,7 @@ import { TAU, d2, rand, randi } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
 import { R } from '../render/atlas.js';
 import { MW, TILE, WH, WW, cars, houses, lamps } from '../world/map.js';
-import { flow, solidPt } from '../world/nav.js';
+import { flow, blockPt } from '../world/nav.js';
 import { MUS, noise, spat } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { cam, dropAmmo } from './state.js';
@@ -99,11 +99,11 @@ export function freeAround(x, y, r = 22) {
     y > 4 * TILE &&
     x < WW - 4 * TILE &&
     y < WH - 4 * TILE &&
-    !solidPt(x, y) &&
-    !solidPt(x + r, y) &&
-    !solidPt(x - r, y) &&
-    !solidPt(x, y + r) &&
-    !solidPt(x, y - r)
+    !blockPt(x, y) &&
+    !blockPt(x + r, y) &&
+    !blockPt(x - r, y) &&
+    !blockPt(x, y + r) &&
+    !blockPt(x, y - r)
   );
 }
 function stageSpot(d0, d1) {
@@ -526,14 +526,12 @@ export function bossDown(e, alone) {
     tr = recordBoss(bt, Math.round(secs)),
     nm = bossName();
   bossDeathSfx(e);
-  if (alone)
+  if (alone && (GS.RUN.practice || (lastNight(GS.wave) && !GS.RUN.endless)))
     MUS.cutT =
       GS.time +
       (GS.RUN.practice
         ? 99
-        : lastNight(GS.wave) && !GS.RUN.endless
-          ? 4.8
-          : 1.6) /* on the last night the silence holds until the evac fight starts */; // the band stops dead with it
+        : 4.8) /* any other night the win ending rings straight into the quiet; on the last night the silence holds until the evac fight starts */; // the band stops dead with it
   if (!GS.RUN.practice) {
     const sc = GS.wave <= 5 ? 40 : GS.wave <= 10 ? 80 : 150;
     GS.runSeeds += sc;
@@ -584,7 +582,7 @@ export function bossDown(e, alone) {
   {
     const rw = TW('pistol')
       ? null
-      : GS.wave >= 10 && !GS.P.owned.includes('launcher')
+      : (bt === 'chief' || GS.wave >= 10) && !GS.P.owned.includes('launcher')
         ? 'launcher'
         : !GS.P.owned.includes('auto')
           ? 'auto'
@@ -609,10 +607,15 @@ export function bossDown(e, alone) {
     }); // the last one down: the bird comes now, not after the stragglers
 }
 export function bossName() {
-  return lastNight(GS.wave)
+  const t = GS.boss && GS.boss.btype ? GS.boss.btype : bossType();
+  return t === 'pz'
     ? 'Patient Zero'
-    : !GS.RUN.endless && GS.wave === 10
+    : t === 'chief'
       ? 'Fire Chief'
-      : DISTRICTS[GS.RUN.district || 'town'].boss;
+      : t === 'roadkill'
+        ? DISTRICTS.highway.boss
+        : t === 'grave'
+          ? DISTRICTS.cemetery.boss
+          : DISTRICTS.town.boss;
 }
 /* ---------- first-run training: night 1 opens with a short drill, one control at a time ---------- */

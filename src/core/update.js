@@ -49,6 +49,7 @@ import { tickSpores } from '../actors/specials.js';
 import { SPECIAL, makeSpecial } from '../actors/specials.js';
 import { tickJourney } from '../game/journey.js';
 import { leaveStop } from '../game/night-flow.js';
+import { hatchFor, openHatch, tickHatches } from '../world/sewers.js';
 // Bodies shove each other apart, the lighter giving way. A fine grid of its own (cells as wide as two walkers) in flat
 // arrays: a horde of 400 packed round you is ~30 neighbours each to check, not ~120 through a callback
 const SEP = 40,
@@ -331,6 +332,7 @@ export function update(dt) {
   tickGadgets(dt);
   tickHorde(dt);
   tickTraps(dt);
+  tickHatches(dt);
   tickSpores(dt);
   // formation trails the way you walk, not the way you aim, and holds still while you stand
   const pspd = Math.hypot(p.vx, p.vy);
@@ -556,6 +558,7 @@ export function update(dt) {
     surgeLull(SG, dt); // between surges: finish off what is out, then a breath before the next lot
   else if (GS.queue.length) {
     GS.spawnT -= dt;
+    if (GS.spawnT <= 0 && sewerPack(SG)) GS.spawnT = 1.4;
     if (GS.spawnT <= 0) {
       GS.spawnT =
         Math.max(0.22, 1.0 - GS.wave * 0.05) *
@@ -886,4 +889,38 @@ export function update(dt) {
     if (near && !killing) GS.lvCalm = GS.time;
     if (!killing && GS.time - GS.lvCalm > 1.5 && !GS.lvSnooze && lvCan() && GS.time > (GS.RUN.lvHold || 0)) openLevel();
   } else GS.lvReady = 0;
+}
+// now and then a pack of walkers comes up out of a sewer hatch near you instead of out of the dark: the lid scrapes
+// aside in plain sight and they drag themselves out, one after another (sewers.js)
+function sewerPack(SG) {
+  if (GS.queue[0] !== 'skitter' || (SG && SG.horde) || GS.RUN.tut || GS.wave < 2 || GS.evac || Math.random() > 0.16)
+    return false;
+  const h = hatchFor(GS.P.x, GS.P.y);
+  if (!h) return false;
+  GS.queue.shift();
+  if (SG) SG.n++;
+  openHatch(h, randi(2, 3 + Math.min(2, GS.wave >> 2)), sewerCrawler, hatchSound);
+  return true;
+}
+function hatchSound(h) {
+  sfx.creak(h.x, h.y);
+  GS.later.push({ t: 0.45, fn: () => sfx.signClang(h.x, h.y) }); // the iron lid shoved off, and dropped on the road
+  dust(h.x, h.y, 5, 40, 1, 1);
+}
+function sewerCrawler(h) {
+  const a = rand(0, TAU),
+    z = makeEnemy('skitter', h.x + Math.cos(a) * 4, h.y + Math.sin(a) * 4);
+  z.emerge = 0; // up over the rim
+  z.aw = 6;
+  z.a = Math.atan2(GS.P.y - z.y, GS.P.x - z.x);
+  z.crawl = true; // the sewer took its legs: it comes on its hands
+  z.sup = false;
+  z.down = 0;
+  z.fallA = z.a;
+  z.lyG = 0;
+  z.cfall = 0;
+  z.sp *= 1.45; // a crawler, but a quick one
+  z.hp = z.maxHp = z.maxHp * 0.75;
+  if (Math.random() < 0.5) sfx.groan(z.x, z.y);
+  decal(R.splat0, h.x, h.y, 0.3, [0.16, 0.18, 0.12, 0.6], [0, 0, 0], 40); // sewer muck on the asphalt
 }
