@@ -474,3 +474,12 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 .runreport span{font-size:11px}
 #route .stop{font-size:11.5px}
 .place.locked{opacity:.68}.place.locked span{color:#9aa3a8}
+/* HUD: a size up, so it reads at a glance mid-fight */
+.hud{font-size:12px}
+.gauge{width:min(252px,100%)}.gauge.open{width:min(270px,100%)}
+.hprow b,.gcur .gn,.gcur .ga{font-size:12px}
+.gcur .ga b{font-size:16px}
+.gchips span{font-size:11px;min-width:19px;height:17px;line-height:17px}
+.sq{font-size:11px;letter-spacing:.08em;height:14px}
+.wx{font-size:10.5px;letter-spacing:.12em}
+.radio span{font-size:11px}

@@ -330,6 +330,8 @@ function arrive() {
   GS.nightDone = true;
   GS.interT = 30; // time to get the lie of the new place
   GS.RUN.dawnX = 0;
+  GS.RUN.arrW = GS.wave; // this dawn is an arrival: a Continue from it keeps the long look round
+  GS.RUN.lvHold = GS.time + 5; // the place's name and the radio first, then any cards banked on the way
   const S = STOPS[stopNow()];
   banner(S.name, `${S.area} · night ${GS.wave + 1} tonight · ${FINAL_NIGHT - GS.wave} to go`);
   storyArrive(stopNow());
@@ -340,7 +342,7 @@ function arrive() {
 export function resumeDawn() {
   GS.nightLive = false;
   GS.nightDone = true;
-  GS.interT = 11;
+  GS.interT = GS.RUN.journey && GS.RUN.arrW === GS.wave ? 30 : 11;
   GS.RUN.dawnX = 0;
   banner(
     GS.RUN.hm ? 'Wave cleared' : 'Dawn',

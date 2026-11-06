@@ -7,7 +7,7 @@ import { GUNS } from './arsenal.js';
 import { DIFF } from '../core/profile.js';
 import { R } from '../render/atlas.js';
 import { MH, MW, TILE, WH, WW, cars, crystals, grid, isWall, ttype } from '../world/map.js';
-import { query, blockPt } from '../world/nav.js';
+import { query, blockPt, reachPt } from '../world/nav.js';
 import { MUS, noise, playS, spat, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, ammoNeed, dropAmmo, giveGun } from './state.js';
@@ -832,7 +832,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       m.kx = s * 160;
     }
   }
-  GS.xp += e.xp;
+  GS.xp += e.cvy && GS.P.ride ? e.xp * 0.5 : e.xp; // a ride's worth of kills is a level or two, not five
   const ac =
     (big ? 3 : e.type === 'beetle' ? 0.4 : e.type === 'hopper' || e.type === 'wasp' ? 0.14 : 0.08) *
     (INF(7) && !big ? 0.65 : 1) *
@@ -1189,6 +1189,7 @@ export function dropCrate(gun, alt, kits, note) {
       x = clamp(GS.P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
       y = clamp(GS.P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
     if (blockPt(x, y) || blockPt(x + 20, y) || blockPt(x - 20, y) || blockPt(x, y + 20) || blockPt(x, y - 20)) continue;
+    if (!reachPt(x, y) && k < 36) continue; // never in a yard you can't get into
     const cr = { x, y, z: 640, landed: false, t: 0, gun, alt, kit: kits };
     GS.crates.push(cr);
     const live = () => GS.crates.includes(cr) && !cr.open;

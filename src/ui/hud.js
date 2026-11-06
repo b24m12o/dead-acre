@@ -165,7 +165,7 @@ function gunPanel() {
       g2 = $('gauge');
     g2.classList.toggle('riding', !!T);
     if (T) {
-      setT('gunName', T.over > 0 ? 'Truck gun · overheated' : 'Truck gun');
+      setT('gunName', T.over > 0 ? 'Overheated' : 'Truck gun');
       $('gunName').classList.toggle('rl', T.over > 0);
       if (hc.gunAmmo !== 'ride') {
         hc.gunAmmo = 'ride';

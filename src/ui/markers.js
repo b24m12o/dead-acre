@@ -317,6 +317,24 @@ export function drawMarkersUI(toS) {
       ui.fillText(lb, x, y - R0 - 15 * k);
     }
   } // the car rig picked and a car in reach: which car it goes on, and the key
+  {
+    const W = wayOut();
+    if (W && W.board > 0 && GS.state === 'play') {
+      const k = TS(),
+        x = (W.x - cam.x) * ZOOM,
+        y = (W.y - cam.y) * ZOOM,
+        R0 = 74 * ZOOM;
+      ui.lineWidth = 5 * k;
+      ui.strokeStyle = 'rgba(20,24,29,0.7)';
+      ui.beginPath();
+      ui.arc(x, y, R0, 0, TAU);
+      ui.stroke();
+      ui.strokeStyle = '#d8e4a8';
+      ui.beginPath();
+      ui.arc(x, y, R0, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(W.board, 0, 1));
+      ui.stroke();
+    }
+  } // climbing aboard: how far along
   const gunR = GS.evac && GS.evac.ride ? GS.evac.ride : riding() ? GS.truck.ride : null;
   if (gunR && GS.state === 'play') {
     const r = gunR,

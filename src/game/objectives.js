@@ -4,7 +4,7 @@ import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, pick, rand } from '../core/util.js';
 import { quad, setH, viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
-import { blockPt } from '../world/nav.js';
+import { blockPt, reachPt } from '../world/nav.js';
 import { spat, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { ammoTypes, cam } from './state.js';
@@ -193,6 +193,7 @@ function makeBox() {
       blockPt(px, py) ||
       blockPt(px + 14, py) ||
       blockPt(px - 14, py) ||
+      !reachPt(px, py) ||
       GS.obj.piles.some(q => Math.hypot(q.x - px, q.y - py) < 70)
     )
       continue;

@@ -14,12 +14,13 @@ import { R } from '../render/atlas.js';
 import { noise, playS, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
-import { floatText } from '../render/effects.js';
+import { chips, floatText, shake, sparks } from '../render/effects.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { freeSpot } from '../actors/backups.js';
 import { mouse } from '../core/input.js';
+import { opt } from '../core/settings.js';
 import { cam } from './state.js';
-import { hurtEnemy } from './combat.js';
+import { hurtEnemy, hurtPlayer } from './combat.js';
 import { query } from '../world/nav.js';
 import { STOPS, stopAt } from './route.js';
 
@@ -64,7 +65,20 @@ function stragglers(J, dt) {
   if (J.strT > 0 || J.str >= 10) return;
   J.strT = Math.max(1.6, 4.2 - J.str * 0.25);
   J.str++;
-  const [x, y] = freeSpot(560, 900, true),
+  // they come from behind you, where the night's fight was, not from the road ahead: of a few spots, the one furthest
+  // from the way out
+  const W = wayOut();
+  let best = null,
+    bd = -1;
+  for (let k = 0; k < (W ? 5 : 1); k++) {
+    const sp = freeSpot(560, 900, true),
+      d = W ? d2(sp[0], sp[1], W.x, W.y) : 0;
+    if (d > bd) {
+      bd = d;
+      best = sp;
+    }
+  }
+  const [x, y] = best,
     e = makeEnemy(Math.random() < 0.8 ? 'skitter' : 'hound', x, y);
   e.emerge = 1;
   e.aw = 6;
@@ -337,6 +351,27 @@ function startRide(T) {
   showStreak('On the gun', 'Hold click to fire where you aim · the bar under your sights is its heat', true);
   // the dead already shambling about on the road ahead, out of sight: there when the truck comes round the corner
   const r = T.ride;
+  if (r.path.len > 1100) {
+    const bs = clamp(r.path.len * 0.52, 560, r.path.len - 420),
+      [bx, by, ba] = along(r.path, bs),
+      px = -Math.sin(ba),
+      py = Math.cos(ba);
+    r.block = {
+      s: bs,
+      hp: 4,
+      t: 0,
+      on: false,
+      push: 0,
+      cars: [-1, 1].map(k => ({
+        x: bx + px * k * 34,
+        y: by + py * k * 34,
+        a: ba + Math.PI / 2 + rand(-0.35, 0.35),
+        k,
+        px,
+        py,
+      })),
+    };
+  } // halfway, a roadblock: two burnt-out wrecks across the road, and the driver has to ram his way through
   for (let s0 = 520; s0 < r.path.len - 320; s0 += rand(380, 560)) {
     const [ax, ay] = along(r.path, s0);
     if (!offView(ax, ay, 120)) continue;
@@ -357,9 +392,50 @@ function tickRide(dt, onLeave) {
     r = T.ride,
     P = GS.P;
   r.t += dt;
-  const v = RIDE_V * clamp(r.t / 2.5, 0, 1) * (r.s > r.path.len - 160 ? 0.7 : 1);
-  r.s += v * dt;
-  const [x, y, a] = along(r.path, r.s);
+  const B = r.block && r.block.hp > 0 ? r.block : null,
+    stopAt = B ? B.s - TL / 2 - 34 : 1e9;
+  let v = RIDE_V * clamp(r.t / 2.5, 0, 1) * (r.s > r.path.len - 160 ? 0.7 : 1);
+  if (B && r.s > stopAt - 160) v = Math.min(v, 30 + (stopAt - r.s) * 0.45); // he brakes for it
+  r.s = Math.min(r.s + Math.max(0, v) * dt, stopAt);
+  let back = 0;
+  if (B && r.s >= stopAt - 0.5) {
+    v = 0;
+    if (!B.on) {
+      B.on = true;
+      honk(1);
+      showStreak('Roadblock', 'Hold them off while he rams through', true);
+      r.rush = 16 + 2 * Math.min(6, GS.wave >> 1); // they heard the horn
+    }
+    B.t += dt;
+    const ph = B.t % 1.7;
+    back = ph < 0.9 ? 26 * Math.sin((ph / 0.9) * (Math.PI / 2)) : 26 * (1 - (ph - 0.9) / 0.22);
+    back = Math.max(0, back); // reverses a little, then floors it
+    if (B.t > 0.6 && ph >= 1.12 && !B.hit) {
+      B.hit = true;
+      B.hp--;
+      shake(0.55);
+      sfx.crunch(B.cars[0].x, B.cars[0].y);
+      sfx.crate(B.cars[1].x, B.cars[1].y);
+      for (const c of B.cars) {
+        chips(c.x, c.y, 10, null, 4, 220);
+        sparks(c.x, c.y, [1, 0.7, 0.35], 8, 260);
+        c.a += rand(-0.18, 0.18);
+      }
+      B.push += B.hp ? 6 : 0;
+      const [fx, fy] = along(r.path, r.s + TL / 2);
+      query(fx, fy, 70, z => {
+        if (!z.dead && z.dying === undefined && z.type !== 'queen')
+          hurtEnemy(z, 400, false, Math.cos(T.a), Math.sin(T.a), 3, 'truck');
+      }); // whatever stood between the bumper and the wrecks
+      if (!B.hp) {
+        floatText(B.cars[0].x, B.cars[0].y - 40, 'Through', '#ffd08a', 18);
+        honk(0.8);
+      }
+    }
+    if (ph < 1.12) B.hit = false;
+  }
+  if (r.block && r.block.hp <= 0) r.block.push = Math.min(70, r.block.push + dt * 160); // shoved aside as he goes through
+  const [x, y, a] = along(r.path, r.s - back);
   T.x = x;
   T.y = y;
   T.a += angDiff(T.a, a) * damp(2.4, dt);
@@ -386,12 +462,18 @@ function tickRide(dt, onLeave) {
   P.aimA = Math.atan2(cam.y + mouse.y / ZOOM - P.y, cam.x + mouse.x / ZOOM - P.x);
   P.bodyA += angDiff(P.bodyA, P.aimA) * damp(10, dt);
   mountedGun(r, P, dt);
+  if (GS.xp >= GS.xpNeed && !r.lvTold) {
+    r.lvTold = true;
+    floatText(P.x, P.y - 70, 'Level up · pick when you climb down', '#8ef0b8', 15);
+  } // the cards wait for solid ground
   // the dead come out of the side streets ahead of the truck, running at the engine: they start out of sight
   // and you see them come in from the edges, never out of thin air
   r.spawnT -= dt;
   if (r.spawnT <= 0 && GS.enemies.length < 120 && r.s < r.path.len - 300) {
-    r.spawnT = 0.5;
-    const sp = sideSpot(r, 340, 700, 150, 440);
+    const rush = r.rush > 0;
+    r.spawnT = rush ? 0.3 : 0.5;
+    if (rush) r.rush -= 2;
+    const sp = rush ? sideSpot(r, -380, 380, 300, 520) : sideSpot(r, 340, 700, 150, 440);
     if (sp) {
       const n = 2 + ((Math.random() * 2) | 0);
       for (let i = 0; i < n; i++) {
@@ -406,11 +488,56 @@ function tickRide(dt, onLeave) {
       }
     }
   }
-  // they can climb at it, not into it
+  // they can climb at it, not into it: the ones that reach it grab on and claw at you until you shoot them off,
+  // or the truck picks up speed and shakes them loose
+  let cl = 0;
+  for (const z of GS.enemies) if (z.cling && !z.dead) cl++;
   query(T.x, T.y, TL / 2 + 40, z => {
-    if (!z.dead && z.type !== 'queen' && !z.fly) outOfBox(T, z, z.r * 0.7);
+    if (z.dead || z.type === 'queen' || z.fly || z.cling) return;
+    if (outOfBox(T, z, z.r * 0.7) && !z.crawl && cl < 4 && Math.random() < (v < 60 ? 0.05 : 0.012)) {
+      const c = Math.cos(T.a),
+        sn = Math.sin(T.a),
+        rx = z.x - T.x,
+        ry = z.y - T.y;
+      z.cling = { u: clamp(rx * c + ry * sn, -TL / 2, TL / 2), w: -rx * sn + ry * c, t: 0, hitT: 0.9 };
+      cl++;
+    }
   });
+  for (const z of GS.enemies) {
+    const g = z.cling;
+    if (!g) continue;
+    if (z.dead || z.dying !== undefined) {
+      z.cling = null;
+      continue;
+    }
+    g.t += dt;
+    const c = Math.cos(T.a),
+      sn = Math.sin(T.a),
+      u = g.u - back;
+    z.x = T.x + u * c - g.w * sn + rand(-1.5, 1.5);
+    z.y = T.y + u * sn + g.w * c + rand(-1.5, 1.5);
+    z.vx = P.vx;
+    z.vy = P.vy;
+    z.a = Math.atan2(P.y - z.y, P.x - z.x);
+    if ((g.hitT -= dt) <= 0) {
+      g.hitT = rand(0.9, 1.3);
+      const dmg = 5 + GS.wave * 0.6;
+      if (P.hp - dmg * 1.6 > 1) {
+        P.inv = 0;
+        hurtPlayer(dmg, z.x, z.y, 'a climber');
+        P.inv = 1e9;
+      } else {
+        shake(0.3);
+        floatText(P.x, P.y - 40, 'Hold on', '#ff8a5a', 14);
+      } // it can bleed you, but a ride never ends you: you get there on whatever you have left
+    }
+    if (v > 70 && g.t > 2.2 && Math.random() < dt * 0.9) {
+      z.cling = null;
+      hurtEnemy(z, 30, false, -Math.sin(T.a) * Math.sign(g.w || 1), Math.cos(T.a) * Math.sign(g.w || 1), 2.5, 'truck');
+    } // shaken loose at speed
+  }
   if (r.s >= r.path.len - 1) {
+    for (const z of GS.enemies) z.cling = null;
     T.gone = true;
     P.ride = false;
     P.inv = 1;
@@ -437,8 +564,8 @@ function mountedGun(r, P, dt) {
     sp = 0.03 + r.heat * 0.09,
     a = P.aimA + rand(-sp, sp);
   GS.pbullets.push({
-    x: P.x + c * 30,
-    y: P.y + s * 30,
+    x: P.x + c * 12,
+    y: P.y + s * 12,
     vx: Math.cos(a) * 1500,
     vy: Math.sin(a) * 1500,
     life: 0.6,
@@ -484,12 +611,12 @@ export function journeyLights() {
     addLight(fx, fy, 520, 1.0, 0.95, 0.8, T.a, 0.55); // headlights down the road
     const bx = T.x - c * (TL / 2 + 2),
       by = T.y - s * (TL / 2 + 2),
-      k = T.parked ? 0.55 + 0.45 * (Math.sin(GS.time * 5) > 0 ? 1 : 0) : 0.8;
+      k = T.parked ? (opt.flash ? 0.8 : 0.55 + 0.45 * (Math.sin(GS.time * 5) > 0 ? 1 : 0)) : 0.8;
     addLight(bx, by, 150, 1.1 * k, 0.55 * k, 0.12 * k); // the hazards blinking at the back, where you climb in
   }
   if (roadOutLive()) {
     const O = GS.roadOut,
-      f = 0.8 + Math.sin(GS.time * 13) * 0.1 + Math.sin(GS.time * 5.1) * 0.1;
+      f = opt.flash ? 0.85 : 0.8 + Math.sin(GS.time * 13) * 0.1 + Math.sin(GS.time * 5.1) * 0.1; // steady with flashes reduced
     addLight(O.x, O.y, 240 * f, 1.3 * f, 0.35 * f, 0.18 * f); // a road flare where the road leaves
   }
 }
