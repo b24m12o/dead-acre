@@ -518,7 +518,7 @@ export function heliCrew(e) {
       y = lerp(k.y0, k.y, q * q),
       sc = (0.7 - q * 0.25) * S;
     setH(lerp(e.z + 60, 4, q));
-    quad(R.shell, x, y, k.rot + k.t * 22, sc, sc, 1, 0.85, 0.5, 1, 0.5, 0.4, 0.15, 0);
+    quad(R.shell, x, y, k.rot + k.t * 22, sc, sc, 1, 0.85, 0.5, 1, 0.12, 0.1, 0.04, 0);
   } // the brass, out of the door and down to the street
 }
 export function heliRotor(e) {

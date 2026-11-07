@@ -457,12 +457,12 @@ function scheduleMusic() {
         end =
           MS &&
           ((from === 'boss' && MUS.win) ||
-            (from === 'fight' && to === 'calm' && MUS.clear) ||
+            (from === 'fight' && to === 'calm') || // the street cleared (or a lull): an ending, never a bare cut to calm
             (live && to === 'menu' && MUS.win)); // a boss down, the street cleared, or the chopper out: the big ending
       let wait = 0;
       if (MS) {
         if (end) {
-          mStinger(from === 'boss' || to === 'menu', MUS.nextT, MUS.sec ? MUS.sec.key : 0);
+          mStinger(from === 'boss' || to === 'menu' || MUS.clear, MUS.nextT, MUS.sec ? MUS.sec.key : 0); // the big one with the gong only when it's over
           wait = 2.45; // the next music starts once the ending's last chord has rung, from its own first beat
         } else if (live && to === 'menu' && GS.state === 'over') mBoom(MUS.nextT, 0.5, true); // you're down: one low hit, and the band stops
         MUS.braam = !MUS.sting && ((to === 'fight' && (from === 'calm' || from === 'none')) || to === 'boss'); // the first downbeat lands with a braam (a sting brings its own)
@@ -526,6 +526,7 @@ function scheduleMusic() {
     MUS.want === 'calm' &&
     (MUS.preT ?? 99) < 3.5 &&
     !MUS.riseEnd &&
+    MUS.nextT < AC.currentTime + 0.3 && // not while an ending is still ringing out
     AC.currentTime > (MUS.riseLast || 0) + 5
   ) {
     MUS.riseLast = AC.currentTime + MUS.preT;

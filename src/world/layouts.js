@@ -642,7 +642,7 @@ export function paintLayout(a, h, L) {
     a.fillText('H', cx, cy + 6);
     a.font = '900 34px Kanit, sans-serif';
     a.fillStyle = 'rgba(214,72,58,0.75)';
-    a.fillText('EMERGENCY', 29.5 * TILE, 26 * TILE);
+    a.fillText('EMERGENCY', 29.5 * TILE, 27.3 * TILE); // in front of the bay, not under the ambulances
   }
   if (L === 'clinic') {
     a.strokeStyle = 'rgba(232,228,214,0.55)';

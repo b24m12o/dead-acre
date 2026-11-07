@@ -15,7 +15,7 @@ const RIDE = String.raw`(() => {
   GS.P.x = T.x - Math.cos(T.a) * 90; GS.P.y = T.y - Math.sin(T.a) * 90; GS.enemies.length = 0;
   for (let i = 0; i < 120 && !GS.P.ride; i++) fr();
   if (GS.P.ride !== 'truck') return { err: 'never climbed aboard' };
-  GS.P.hp = 30; GS.xp = GS.xpNeed * 3; mouse.down = false;
+  GS.P.hp = 70; GS.xp = GS.xpNeed * 3; mouse.down = false;
   const o = { minHp: GS.P.hp, maxCl: 0, cards: false, over: false, block: !!T.ride.block, t: 0 };
   for (let i = 0; i < 60 * 90 && GS.state === 'play'; i++) {
     fr(); o.t++;
@@ -37,8 +37,11 @@ export async function run(b) {
   await pg.close();
   check(!o.err, o.err);
   check(o.stateEnd === 'travel', `the ride ended in state ${o.stateEnd}`);
-  check(!o.over && o.minHp >= 1, `died on the truck (hp ${o.minHp})`);
-  check(o.minHp < 30, 'nothing on the truck ever hurt you');
+  check(
+    !o.over && o.minHp >= 30,
+    `bled too far on the truck (hp ${o.minHp}): it should never take you under about a third`
+  );
+  check(o.minHp < 70, 'nothing on the truck ever hurt you');
   check(o.maxCl > 0, 'nothing ever climbed onto the truck');
   check(!o.block || o.blockLeft === 0, 'the roadblock never gave way');
   check(o.arrived === 'play' && !o.ride && o.inv < 5 && !o.cling, `climbed down wrong: ${JSON.stringify(o)}`);

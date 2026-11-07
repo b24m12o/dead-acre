@@ -90,7 +90,7 @@ export function restoreRun(d) {
     });
     budSetup(b, { nm: s.nm, tr: s.tr });
     b.max = Math.max(b.max, s.max || 0);
-    b.hp = Math.min(b.max, s.hp || b.max);
+    b.hp = Math.min(b.max, s.hp > 0 ? s.hp : b.max * 0.5); // one carried aboard down comes round on the road, not fresh
     if (typeof s.vo === 'string') b.vo = s.vo; // the same voice they had
     GS.buddies.push(b);
   }

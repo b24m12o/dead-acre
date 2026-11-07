@@ -870,7 +870,7 @@ export function bossGrave(dist, dt, e, lead, ph) {
         const d = Math.hypot(GS.P.x - e.x, GS.P.y - e.y),
           da = Math.abs(angDiff(base, Math.atan2(GS.P.y - e.y, GS.P.x - e.x)));
         if (GS.state === 'play' && d < R0 && da < half + 0.12) {
-          hurtPlayer(11 * (1 + 0.04 * GS.wave), e.x, e.y);
+          hurtPlayer(7.7 * (1 + 0.04 * GS.wave), e.x, e.y);
           GS.P.daze = Math.max(GS.P.daze || 0, 0.7);
         }
       },

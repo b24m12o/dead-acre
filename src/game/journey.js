@@ -8,7 +8,7 @@
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, damp, rand } from '../core/util.js';
-import { MH, MW, ROAD, RY, TILE, WH, WW, grid, isWall, ttype } from '../world/map.js';
+import { MH, MW, ROAD, RY, TILE, WH, WW, fires, grid, isWall, ttype } from '../world/map.js';
 import { breakTile } from '../world/physics.js';
 import { GUN_HEAT } from './evac-ride.js';
 import { ZOOM, addLight, viewH, viewW } from '../render/sprites.js';
@@ -21,7 +21,7 @@ import { makeEnemy } from '../actors/enemies.js';
 import { freeSpot } from '../actors/backups.js';
 import { mouse } from '../core/input.js';
 import { opt } from '../core/settings.js';
-import { cam } from './state.js';
+import { S, cam } from './state.js';
 import { hurtEnemy, hurtPlayer } from './combat.js';
 import { query } from '../world/nav.js';
 import { STOPS, stopAt } from './route.js';
@@ -219,6 +219,7 @@ function tickTruck(dt) {
 }
 
 // ---- the ride: the truck drives on across the map and out, and you're on the gun in the back ----
+const SMASH = new Set([2, 8, 9]); // rubble, headstones, fences: what the truck goes through
 const RIDE_V = 175; // a working truck's pace through wrecked streets: quicker than you can run, slow enough to be caught on the corners
 // the way out over open ground, keeping to the road where there is one: cheapest path from the truck to the far
 // edge, then rounded off so the truck takes the corners in curves
@@ -233,10 +234,15 @@ function ridePath(T) {
     shut = new Uint8Array(N), // the road just driven, behind the truck: no turning round on it
     s0 = Math.floor(T.y / TILE) * MW + Math.floor(T.x / TILE),
     edge = i => (side > 0 ? i % MW >= MW - 6 : i % MW <= 5),
-    step = i => {
-      const tx = i % MW,
-        ty = (i / MW) | 0;
-      if (isWall(tx, ty) || shut[i]) return 1e9;
+    base = new Float32Array(N);
+  // each tile's own cost, once: down the middle of the road, clear of the wrecks (the truck is wider than a tile)
+  for (let ty = 0; ty < MH; ty++)
+    for (let tx = 0; tx < MW; tx++) {
+      const i = ty * MW + tx;
+      if (isWall(tx, ty)) {
+        base[i] = 1e9;
+        continue;
+      }
       let near = 0,
         far = 0;
       for (let j = -2; j <= 2; j++)
@@ -245,12 +251,16 @@ function ridePath(T) {
             if (Math.abs(j) <= 1 && Math.abs(k) <= 1) near++;
             else far++;
           }
-      return 1 + near * 6 + far * 0.6 + (ROAD && ROAD[i] ? 0 : 1.2) + used[i] * 8; // down the middle of the road, clear of the wrecks: the truck is wider than a tile
-    };
+      base[i] = 1 + near * 6 + far * 0.6 + (ROAD && ROAD[i] ? 0 : 1.2);
+    }
+  const step = i => (shut[i] ? 1e9 : base[i] + used[i] * 8),
+    cost = new Float32Array(N),
+    from = new Int32Array(N),
+    done = new Uint8Array(N);
   const leg = (from0, goal) => {
-    const cost = new Float32Array(N).fill(1e9),
-      from = new Int32Array(N).fill(-1),
-      done = new Uint8Array(N);
+    cost.fill(1e9);
+    from.fill(-1);
+    done.fill(0);
     cost[from0] = 0;
     let end = -1;
     // a binary heap on cost (stale entries are skipped when they come up)
@@ -380,7 +390,7 @@ function ridePath(T) {
     for (const w of wps) {
       if (w < 0) continue;
       behind();
-      const near = i => Math.abs((i % MW) - (w % MW)) + Math.abs(((i / MW) | 0) - ((w / MW) | 0)) <= 1;
+      const near = i => i === w; // the waypoint itself (a through-road tile, open), not a tile beside it: no jog
       let L1 = leg(at, near);
       if (!L1 && idx.length < 3) {
         shut.fill(0);
@@ -492,13 +502,26 @@ function startRide(T) {
   // the dead already shambling about on the road ahead, out of sight: there when the truck comes round the corner
   const r = T.ride;
   if (r.path.len > 1100) {
-    const bs = clamp(r.path.len * 0.52, 560, r.path.len - 420),
+    // halfway or so, where both wrecks stand on open road (not on a burning barrel or a wall)
+    const clearAt = s0 => {
+        const [x, y, a] = along(r.path, s0);
+        return [-1, 1].every(k => {
+          const cx = x - Math.sin(a) * k * 34,
+            cy = y + Math.cos(a) * k * 34;
+          return (
+            !isWall(Math.floor(cx / TILE), Math.floor(cy / TILE)) && !fires.some(f => d2(f.x, f.y, cx, cy) < 70 * 70)
+          );
+        });
+      },
+      bs =
+        [0.52, 0.46, 0.58, 0.4, 0.64].map(f => clamp(r.path.len * f, 560, r.path.len - 420)).find(clearAt) ??
+        clamp(r.path.len * 0.52, 560, r.path.len - 420),
       [bx, by, ba] = along(r.path, bs),
       px = -Math.sin(ba),
       py = Math.cos(ba);
     r.block = {
       s: bs,
-      hp: 4,
+      hp: 5,
       t: 0,
       on: false,
       push: 0,
@@ -533,7 +556,7 @@ function tickRide(dt, onLeave) {
     P = GS.P;
   r.t += dt;
   const B = r.block && r.block.hp > 0 ? r.block : null,
-    stopAt = B ? B.s - TL / 2 - 34 : 1e9;
+    blockAt = B ? B.s - TL / 2 - 34 : 1e9;
   // it brakes for the corners and the end of the road, and picks up speed again after
   const [, , ca] = along(r.path, r.s + 30),
     [, , cb] = along(r.path, r.s + 150),
@@ -542,10 +565,10 @@ function tickRide(dt, onLeave) {
   r.v = r.v ?? 0;
   r.v += (vw - r.v) * damp(vw < r.v ? 3 : 0.9, dt);
   let v = r.v;
-  if (B && r.s > stopAt - 220) v = r.v = Math.min(v, 30 + (stopAt - r.s) * 0.6); // he brakes for it
-  r.s = Math.min(r.s + Math.max(0, v) * dt, stopAt);
+  if (B && r.s > blockAt - 220) v = r.v = Math.min(v, 30 + (blockAt - r.s) * 0.6); // he brakes for it
+  r.s = Math.min(r.s + Math.max(0, v) * dt, blockAt);
   let back = 0;
-  if (B && r.s >= stopAt - 0.5) {
+  if (B && r.s >= blockAt - 0.5) {
     v = r.v = 0;
     if (!B.on) {
       B.on = true;
@@ -562,7 +585,9 @@ function tickRide(dt, onLeave) {
       B.hp--;
       shake(0.55);
       sfx.crunch(B.cars[0].x, B.cars[0].y);
-      sfx.crate(B.cars[1].x, B.cars[1].y);
+      sfx.signClang(B.cars[1].x, B.cars[1].y);
+      sfx.thump(B.cars[0].x, B.cars[0].y);
+      sfx.tink(B.cars[1].x, B.cars[1].y); // steel on steel, and the glass going
       for (const c of B.cars) {
         chips(c.x, c.y, 10, null, 4, 220);
         sparks(c.x, c.y, [1, 0.7, 0.35], 8, 260);
@@ -608,7 +633,7 @@ function tickRide(dt, onLeave) {
         const tx = Math.floor((T.x + u * c - w * sn) / TILE),
           ty = Math.floor((T.y + u * sn + w * c) / TILE),
           i = ty * MW + tx;
-        if (tx > 0 && ty > 0 && tx < MW && ty < MH && grid[i] && [2, 8, 9].includes(ttype[i])) {
+        if (tx > 0 && ty > 0 && tx < MW && ty < MH && grid[i] && SMASH.has(ttype[i])) {
           breakTile(i);
           shake(0.12);
         }
@@ -662,6 +687,7 @@ function tickRide(dt, onLeave) {
         rx = z.x - T.x,
         ry = z.y - T.y;
       z.cling = { u: clamp(rx * c + ry * sn, -TL / 2, TL / 2), w: -rx * sn + ry * c, t: 0, hitT: 0.9 };
+      sfx.growl(z.x, z.y); // one has a hold of the side
       cl++;
     }
   });
@@ -676,20 +702,22 @@ function tickRide(dt, onLeave) {
     const c = Math.cos(T.a),
       sn = Math.sin(T.a),
       u = g.u - back;
-    z.x = T.x + u * c - g.w * sn + rand(-1.5, 1.5);
-    z.y = T.y + u * sn + g.w * c + rand(-1.5, 1.5);
+    const wob = Math.sin(GS.time * 9 + z.id) * 1.6; // hauling at the side, not buzzing
+    z.x = T.x + u * c - g.w * sn + wob * c;
+    z.y = T.y + u * sn + g.w * c + wob * sn;
     z.vx = P.vx;
     z.vy = P.vy;
     z.a = Math.atan2(P.y - z.y, P.x - z.x);
     if ((g.hitT -= dt) <= 0) {
       g.hitT = rand(0.9, 1.3);
       const dmg = 5 + GS.wave * 0.6;
-      if (P.hp - dmg * 1.6 > 1) {
+      if (P.hp - dmg * 1.6 > S.maxHp * 0.35) {
         P.inv = 0;
         hurtPlayer(dmg, z.x, z.y, 'a climber');
         P.inv = 1e9;
       } else {
         shake(0.3);
+        sfx.wet(z.x, z.y);
         floatText(P.x, P.y - 40, 'Hold on', '#ff8a5a', 14);
       } // it can bleed you, but a ride never ends you: you get there on whatever you have left
     }
@@ -716,7 +744,10 @@ function mountedGun(r, P, dt) {
   if (r.over > 0) {
     r.over -= dt;
     r.heat = Math.max(GUN_HEAT.after, r.heat - dt * 0.4);
-    if (r.over <= 0) r.heat = GUN_HEAT.after;
+    if (r.over <= 0) {
+      r.heat = GUN_HEAT.after;
+      sfx.pump(); // cooled enough: the gunner racks it, ready again
+    }
   } else if (!mouse.down) r.heat = Math.max(0, r.heat - dt * GUN_HEAT.cool);
   if (!mouse.down || r.over > 0 || r.cd > 0 || r.t < 1.2) return;
   r.cd = 0.08;
@@ -752,7 +783,7 @@ export function rideHeat() {
 
 // one frame of whatever the journey has going: the truck coming, the ride, or the road out
 export function tickJourney(dt, onLeave) {
-  if (!GS.P) return;
+  if (!GS.P || !GS.RUN || !GS.RUN.journey) return;
   if (riding()) tickRide(dt, onLeave);
   else if (truckLive()) tickTruck(dt);
   else if (roadOutLive()) tickRoadOut(dt, onLeave);

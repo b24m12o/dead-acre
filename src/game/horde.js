@@ -108,13 +108,17 @@ function arrive(H) {
     H.a2 = Math.atan2(e2[1] - GS.P.y, e2[0] - GS.P.x);
   } // late hordes split: two masses from two sides, meeting on you
   if (LAYOUT === 'bridge') {
-    const W = [3.5 * TILE, 30.5 * TILE],
-      E = [(MW - 3.5) * TILE, 30.5 * TILE];
-    H.ents = [W, E];
+    const ends = [
+        [3.5 * TILE, 30.5 * TILE],
+        [(MW - 3.5) * TILE, 30.5 * TILE],
+      ].filter(P => Math.hypot(P[0] - GS.P.x, P[1] - GS.P.y) > 700), // never on top of you: an end you're holding is out
+      W = ends[0] || [GS.P.x < WW / 2 ? (MW - 3.5) * TILE : 3.5 * TILE, 30.5 * TILE],
+      E = ends[1] || W;
+    H.ents = ends.length > 1 ? [W, E] : [W]; // holding one end: they all come from the other
     [H.x, H.y] = W;
     H.a = Math.atan2(W[1] - GS.P.y, W[0] - GS.P.x);
     H.a2 = Math.atan2(E[1] - GS.P.y, E[0] - GS.P.x);
-    H.bridge = true;
+    H.bridge = ends.length > 1;
   } // at Mill River they come along Route 9 from both ends, and the bridge is the only way over the water
   H.gather = H.ents.map(([ex, ey]) => {
     const L = newLure();
@@ -408,8 +412,8 @@ function hordeBox(on) {
   const el = $('hordeBox');
   if (!el) return;
   const H = GS.horde;
-  if (!on || !H || H.startT > 0) {
-    el.hidden = true;
+  if (!on || !H || H.startT > 0 || (GS.evac && GS.evac.ride)) {
+    el.hidden = true; // (on the ride out the count means nothing: you're leaving them)
     return;
   }
   el.hidden = false;

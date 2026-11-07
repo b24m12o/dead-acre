@@ -598,7 +598,7 @@ export function bossDown(e, alone) {
   } // the auto shotgun for your first boss, the grenade launcher for the Fire Chief
   if (lastNight(GS.wave) && !GS.RUN.endless)
     GS.later.push({
-      t: 3,
+      t: 5, // after the boss's ending has rung out
       fn: () => {
         if (GS.state === 'play' && !GS.evac) {
           nightCleared();

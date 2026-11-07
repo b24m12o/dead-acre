@@ -173,7 +173,11 @@ export function gunHD() {
       .catch(() => {});
   }
 }
+// sounds that fire fast enough to stack up (a belt-fed gun): only the last few of each ring on, the oldest fades
+const VCAP = { lmg: 4, hit: 6 },
+  VOICES = {};
 export function playS(k, vol, rate = 1, delay = 0, rev = 0.25) {
+  const k0 = k;
   if (!SBV[k] && /_m$/.test(k)) {
     k = k.slice(0, -2);
     vol *= 0.8;
@@ -197,6 +201,19 @@ export function playS(k, vol, rate = 1, delay = 0, rev = 0.25) {
     r.connect(sfxRev);
   }
   src.start(t);
+  if (VCAP[k0]) {
+    const L = (VOICES[k0] = VOICES[k0] || []);
+    L.push([src, g]);
+    while (L.length > VCAP[k0]) {
+      const [os, og] = L.shift();
+      try {
+        og.gain.setTargetAtTime(0, AC.currentTime, 0.012);
+        os.stop(AC.currentTime + 0.06);
+      } catch {
+        /* already ended */
+      }
+    } // the oldest of them fades out in a few ms: a heavy gun, not a wall of noise
+  }
   return true;
 }
 export function duck() {

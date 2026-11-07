@@ -57,8 +57,13 @@ export function openHatch(h, n, spawn, sound) {
     h.side = Math.atan2(GS.P.y - h.y, GS.P.x - h.x) + rand(1.2, 1.9) * (Math.random() < 0.5 ? 1 : -1); // slid off to one side
   }
   sound(h, 0);
-  for (let i = 0; i < n; i++)
-    GS.later.push({ t: 0.75 + i * rand(0.5, 0.8), fn: () => GS.state === 'play' && spawn(h) });
+  GS.sewerPend = (GS.sewerPend || 0) + n; // still to come up: the night isn't over while any are
+  const up = () => {
+    if (GS.state === 'levelup' || GS.state === 'pause') return GS.later.push({ t: 0.3, fn: up }); // after the cards
+    GS.sewerPend = Math.max(0, GS.sewerPend - 1);
+    if (GS.state === 'play' && GS.nightLive && !GS.nightDone) spawn(h);
+  };
+  for (let i = 0; i < n; i++) GS.later.push({ t: 0.75 + i * rand(0.5, 0.8), fn: up });
 }
 export function tickHatches(dt) {
   for (const h of HATCHES) {

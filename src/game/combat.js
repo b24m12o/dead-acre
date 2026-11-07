@@ -832,7 +832,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       m.kx = s * 160;
     }
   }
-  GS.xp += e.cvy && GS.P.ride ? e.xp * 0.5 : e.xp; // a ride's worth of kills is a level or two, not five
+  GS.xp += src === 'truck' ? 0 : e.cvy && GS.P.ride ? e.xp * 0.5 : e.xp; // the bumper's kills are the driver's; your gun's pay half on a ride
   const ac =
     (big ? 3 : e.type === 'beetle' ? 0.4 : e.type === 'hopper' || e.type === 'wasp' ? 0.14 : 0.08) *
     (INF(7) && !big ? 0.65 : 1) *

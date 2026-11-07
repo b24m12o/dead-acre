@@ -14,7 +14,7 @@ import { MUS, noise, playR, playS } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { cam } from './state.js';
 import { mouse } from '../core/input.js';
-import { ZOOM } from '../render/sprites.js';
+import { ZOOM, viewH, viewW } from '../render/sprites.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { makeSurvivor } from '../actors/backups.js';
 import { dust, floatText, part, shake, sparks } from '../render/effects.js';
@@ -144,7 +144,7 @@ export function rideTick(e, dt) {
   } else {
     // a pickup ahead: it slows, comes down and hangs over them until they're in (or there's no one left to wait for)
     const pg = r.groups.find(g => g.pick && !g.done && g.on),
-      over = pg && pg.s - r.s < 40;
+      over = pg && pg.s - r.s < 220; // it starts across to them a little before it reaches them
     if (over && !r.hover) {
       r.hover = pg;
       pg.hoverT = 0;
@@ -164,7 +164,11 @@ export function rideTick(e, dt) {
     r.off[1] += (oy - r.off[1]) * damp(1.4, dt);
     e.hx = x + r.off[0];
     e.hy = y + r.off[1];
-    e.ha += angDiff(e.ha, a) * damp(2, dt);
+    {
+      const want = Math.atan2(cam.y + mouse.y / ZOOM - e.hy, cam.x + mouse.x / ZOOM - e.hx),
+        crab = mouse.down ? clamp(angDiff(a + Math.PI / 2, want), -0.6, 0.6) : 0;
+      e.ha += angDiff(e.ha, a + crab) * damp(1.6, dt);
+    } // the pilot crabs a little to swing your door toward what you're firing at, as door-gun crews fly
     e.z =
       lerp(RIDE_Z + Math.min(140, Math.max(0, r.s - r.R.L * 0.7) * 0.25), 70, r.low) +
       Math.sin(r.t * 0.8) * (6 - 4 * r.low);
@@ -232,7 +236,7 @@ export function gunPose(e) {
     [mx, my] = heliPt(e, 36, 20),
     want = Math.atan2(cam.y + mouse.y / ZOOM - my, cam.x + mouse.x / ZOOM - mx),
     side = ha + Math.PI / 2,
-    a = side + clamp(angDiff(side, want), -1.9, 1.9);
+    a = side + clamp(angDiff(side, want), -1.25, 1.25); // the mount's arc: it can't fire across its own cabin
   return { mx, my, a, S, fx: mx + Math.cos(a) * 5 * S, fy: my + Math.sin(a) * 5 * S };
 }
 // your people in the cabin: each fires out of the left-hand door at what's on that side, with what they carry
@@ -280,15 +284,19 @@ function crewGuns(e, r, dt) {
   for (const b of crew) b.hflash = Math.max(0, (b.hflash || 0) - dt);
 }
 // the gun in the side door: where you aim, while you hold it, until it overheats
-// the gun's heat: about seven seconds of fire from cold before it locks up for 2.4 s; let go and it cools in about
-// two and a half, so bursts with short breaks between can go on all the way out
-export const GUN_HEAT = { cool: 0.4, lock: 2.4, after: 0.5 };
+// the gun's heat: about seven seconds of fire from cold before it locks up for 1.8 s; let go and it cools slowly
+// (about four and a half seconds from hot), so you can fire about three fifths of the time without it locking: burst
+// with real breaks between
+export const GUN_HEAT = { cool: 0.22, lock: 1.8, after: 0.35 };
 function doorGun(e, r, dt) {
   r.cd -= dt;
   if (r.over > 0) {
     r.over -= dt;
     r.heat = Math.max(GUN_HEAT.after, r.heat - dt * 0.4);
-    if (r.over <= 0) r.heat = GUN_HEAT.after;
+    if (r.over <= 0) {
+      r.heat = GUN_HEAT.after;
+      sfx.pump(); // cooled enough: racked, ready again
+    }
   } else if (!mouse.down) r.heat = Math.max(0, r.heat - dt * GUN_HEAT.cool);
   r.flashT = Math.max(0, r.flashT - dt);
   for (const c of r.cases) {
@@ -322,8 +330,9 @@ function doorGun(e, r, dt) {
     gx = G.fx,
     gy = G.fy,
     sp = 10 + r.heat * 26,
-    tx = cam.x + mouse.x / ZOOM + rand(-sp, sp),
-    ty = cam.y + mouse.y / ZOOM + rand(-sp, sp);
+    aimD = Math.hypot(cam.x + mouse.x / ZOOM - gx, cam.y + mouse.y / ZOOM - gy),
+    tx = gx + Math.cos(G.a) * aimD + rand(-sp, sp),
+    ty = gy + Math.sin(G.a) * aimD + rand(-sp, sp); // down the gun, as far as you aim: past the mount's arc it stops at its edge
   e.tr.push({ x0: gx, y0: gy, x1: tx, y1: ty, t: 0.07, big: r.n % 4 === 0 }); // every fourth round a tracer, as belts are loaded
   r.flashT = 0.05;
   shake(0.03);
@@ -374,21 +383,28 @@ function pourOut(e, r, dt) {
   if (r.t < LIFT) return;
   r.spawnT -= dt;
   if (r.spawnT > 0 || GS.enemies.length > 150) return;
-  r.spawnT = 0.28;
-  const [ax, ay] = along(r.R, r.s + 380),
-    sp = spotNear(ax, ay, 120, 420);
+  r.spawnT = r.hover ? 0.6 : 0.28;
+  // ahead, out of sight (they come in from the edges, not out of thin air), and never on top of survivors who are
+  // waiting for the chopper: those already have their share coming at them
+  const pg = r.groups.find(g => g.pick && g.on && !g.done),
+    inView = (x, y) => x > cam.x - 40 && x < cam.x + viewW + 40 && y > cam.y - 40 && y < cam.y + viewH + 40;
+  let sp = null;
+  for (let k = 0; k < 6 && !sp; k++) {
+    const [ax, ay] = along(r.R, r.s + rand(380, 620)),
+      q = spotNear(ax, ay, 120, 460);
+    if (q && !inView(q[0], q[1]) && !(pg && d2(q[0], q[1], pg.x, pg.y) < 450 * 450)) sp = q;
+  }
   if (!sp) return;
   const n = 2 + ((Math.random() * 3) | 0);
   for (let i = 0; i < n; i++) {
     const z = makeEnemy(Math.random() < 0.08 ? 'beetle' : 'skitter', sp[0] + rand(-16, 16), sp[1] + rand(-16, 16));
-    z.emerge = 0.6;
+    z.emerge = 1;
     z.aw = 9;
     if (Math.random() < 0.6) {
       z.run = true;
       z.sp *= 2;
     }
   }
-  dust(sp[0], sp[1], 4, 50, 1, 1);
 }
 // survivors in the open: the dead close in as you come; cover them until you are past
 function groups(e, r, dt) {
@@ -438,7 +454,8 @@ function groups(e, r, dt) {
           s.aboard = true;
           r.picked++;
           floatText(s.x, s.y - 40, 'Aboard', '#8ef0b8', 15);
-          sfx.ammo();
+          sfx.grunt(s.x, s.y);
+          sfx.thump(s.x, s.y); // hauled up over the skid onto the deck
           continue;
         } // up and in
         const ox = s.x,

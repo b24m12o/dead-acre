@@ -6,6 +6,7 @@ import { ui } from '../render/gl.js';
 import { ZOOM } from '../render/sprites.js';
 import { S, magSize } from '../game/state.js';
 import { mouse } from '../core/input.js';
+import { gunPose } from '../game/evac-ride.js';
 export const CH_COLS = {
   white: '#f2efe6',
   amber: '#ffc04a',
@@ -24,8 +25,9 @@ export function drawCrosshair() {
     my = mouse.y;
   // aim line from the muzzle to the cursor
   if (ch.line) {
-    const px = (GS.P.x + Math.cos(GS.P.aimA) * S.muzzle - GS.camX) * ZOOM,
-      py = (GS.P.y + Math.sin(GS.P.aimA) * S.muzzle - GS.camY) * ZOOM,
+    const G = GS.evac && GS.evac.ride ? gunPose(GS.evac) : null, // on the chopper: from its door gun
+      px = ((G ? G.fx : GS.P.x + Math.cos(GS.P.aimA) * S.muzzle) - GS.camX) * ZOOM,
+      py = ((G ? G.fy : GS.P.y + Math.sin(GS.P.aimA) * S.muzzle) - GS.camY) * ZOOM,
       L = Math.hypot(mx - px, my - py);
     if (L > 40) {
       ui.save();
@@ -97,7 +99,7 @@ export function paintCH(ui, mx, my, k, c2, sp, chHot, game) {
   ui.arc(mx, my, 2.4 * k, 0, TAU);
   ui.fill();
   ui.restore();
-  if (!game) return;
+  if (!game || GS.P.ride || (GS.evac && GS.evac.ride)) return; // on a mounted gun: no reload ring, no ammo count
   if (GS.P.reload > 0) {
     const f = 1 - GS.P.reload / GS.P.reloadMax,
       R1 = 24 * k;

@@ -567,16 +567,6 @@ export function render() {
     lineQ(L.bx, L.by - lh, L.hx, L.hy - lh, L.lantern ? 3 : 4, 0.18, 0.18, 0.2, 1, 0, 0, 0, 0, R.pixel);
     quad(L.lantern ? R.lantern : R.lamp, L.hx, L.hy - lh, L.a, 1, 1, 1, 1, 1, 1, 2.4 * k, 2.2 * k, 1.8 * k, 0);
   }
-  if (GS.evac && GS.evac.z >= 20) {
-    const e = GS.evac;
-    setH(e.z + 60);
-    {
-      const hk = e.t >= e.land ? 0.8 : 1.4;
-      quad(R.heli, e.hx, e.hy - e.z * 0.35, e.ha ?? 2.4, 1 + e.z / 900, 1 + e.z / 900, 1, 1, 1, 1, hk, hk, hk, 0);
-    }
-    heliCrew(e);
-    heliRotor(e);
-  } // airborne: above the roofs and the tree crowns
   drawAsh();
   drawFog(0.3);
   for (const r of roofs) {
@@ -587,6 +577,16 @@ export function render() {
     r.fade += ((under ? 0.3 : 1) - r.fade) * 0.12;
     quad(R[r.reg], r.x, r.y - 56, 0, r.s, r.s, 1, 1, 1, r.fade, 1.6 * r.fade, 1.6 * r.fade, 1.6 * r.fade, 0);
   }
+  if (GS.evac && GS.evac.z >= 20) {
+    const e = GS.evac;
+    setH(e.z + 60);
+    {
+      const hk = e.t >= e.land ? 0.8 : 1.4;
+      quad(R.heli, e.hx, e.hy - e.z * 0.35, e.ha ?? 2.4, 1 + e.z / 900, 1 + e.z / 900, 1, 1, 1, 1, hk, hk, hk, 0);
+    }
+    heliCrew(e);
+    heliRotor(e);
+  } // airborne: above the roofs (canopies too) and the tree crowns
   drawChutes(); // canopies are the highest thing in the sky: above lamps and roofs
   flush();
   // additive glow pass

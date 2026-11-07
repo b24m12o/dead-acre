@@ -375,10 +375,10 @@ export function drawMarkersUI(toS) {
       k = TS(),
       x = mouse.x,
       y = mouse.y,
-      R0 = 19 * k,
+      R0 = 27 * k,
       h = clamp(r.over > 0 ? 1 : r.heat, 0, 1);
-    ui.lineWidth = 4 * k;
-    ui.strokeStyle = 'rgba(20,24,29,0.6)';
+    ui.lineWidth = 3 * k;
+    ui.strokeStyle = 'rgba(20,24,29,0.5)';
     ui.beginPath();
     ui.arc(x, y, R0, 0, TAU);
     ui.stroke();
@@ -388,10 +388,10 @@ export function drawMarkersUI(toS) {
           ? '#ff5a3a'
           : '#ffb07a'
         : h > 0.75
-          ? '#ff7a3a'
+          ? '#ff6a2a'
           : h > 0.45
-            ? '#ffb05a'
-            : '#e8d08a';
+            ? '#ff9a3a'
+            : '#f0b44a';
     ui.lineWidth = 3 * k;
     ui.beginPath();
     ui.arc(x, y, R0, -Math.PI / 2, -Math.PI / 2 + TAU * h);

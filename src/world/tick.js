@@ -20,6 +20,7 @@ import { updateJets } from '../render/decor.js';
 import { updateFire } from './fire.js';
 import { NOISE } from '../game/noise.js';
 import { updateEvac } from '../game/evac.js';
+import { bossNight } from '../game/waves.js';
 import { updateWeather } from './weather.js';
 export function tickWorld(dt) {
   sightTick(dt);
@@ -247,7 +248,9 @@ export function tickWorld(dt) {
         : hWait
           ? H.startT // a horde on its way: the build lands on its arrival, not on the start of the night
           : (GS.nightDone || !GS.nightLive) && !GS.RUN.moveOut && !GS.queue.length && !live0
-            ? GS.interT + (GS.RUN.hm ? 4 : 0) // in Horde Mode the night opens on the horde's own short walk in
+            ? bossNight(GS.wave + 1) && !GS.RUN.hm
+              ? 99 // a boss night opens on the boss's own entrance (its roar and the braam), not on a build into nothing
+              : GS.interT + (GS.RUN.hm ? 4 : 0) // in Horde Mode the night opens on the horde's own short walk in
             : 99; // the seconds until the fighting starts (never while you are leaving: no night is coming here)
     if (AC && musLP) {
       let f = MUS.level === 'fight' ? 1800 + Math.pow(MUS.heat, 1.5) * 16000 : 18000;
@@ -273,7 +276,7 @@ export function tickWorld(dt) {
       (dawn ? liveN >= 6 || (liveN > 0 && MUS.heat > 0.5) : liveN >= 3 || (liveN > 0 && MUS.heat > 0.3)),
     live = threat || (fightOn && liveN > 0);
   MUS.quietT = live ? 0 : (MUS.quietT || 0) + dt;
-  const hold = fightOn && MUS.quietT < (night ? 14 : dawn ? 5 : 4);
+  const hold = fightOn && MUS.quietT < (night ? 14 : dawn ? (liveN ? 5 : 0) : 4); // at dawn with the street empty the ending comes on the next bar: the calm gets its time
   {
     const on = GS.state !== 'menu';
     if (ambG && on !== GS.ambOn) {

@@ -293,8 +293,22 @@ export function travelStep() {
     moveOn();
   } catch (e) {
     console.warn('Dead Acre: moving on failed', e);
-    location.reload(); // never play on in a half-built place: the dawn save brings you back to where you left
-    return;
+    let again = false;
+    try {
+      again = sessionStorage.getItem('da_moveFail') === '1';
+      sessionStorage.setItem('da_moveFail', '1');
+    } catch {
+      again = true;
+    }
+    if (!again) {
+      location.reload(); // never play on in a half-built place: the dawn save brings you back to where you left
+      return;
+    } // a second failure in a row: don't loop reloading, play on in the place as it is
+  }
+  try {
+    sessionStorage.removeItem('da_moveFail');
+  } catch {
+    /* no storage: nothing to clear */
   }
   if (how === 'foot') {
     fade(false);

@@ -338,7 +338,7 @@ export function updateHud() {
   } // your people, by name
   setT('lv', `Level ${GS.level}`);
   {
-    const bank = GS.xp >= GS.xpNeed && GS.state !== 'levelup' ? lvBank() : 0,
+    const bank = GS.xp >= GS.xpNeed && GS.state !== 'levelup' && !(GS.evac && GS.evac.ride) ? lvBank() : 0,
       lr = $('lvReady');
     setB('xpFill', bank ? lvRest() : GS.xp / GS.xpNeed); // past a banked level the bar keeps filling toward the next
     if (lr.hidden !== !bank) {

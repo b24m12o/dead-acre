@@ -615,7 +615,15 @@ export function update(dt) {
         decal(R.hole, sx, sy, t === 'queen' ? 3 : t === 'beetle' ? 1.5 : 1, [1, 1, 1, 0.9], [0, 0, 0], 14);
       }
     }
-  } else if (!GS.enemies.length && !GS.evac && !GS.bossDue && !GS.RUN.tut && !hordeLive() && !objHold(dt)) {
+  } else if (
+    !GS.enemies.length &&
+    !(GS.sewerPend > 0) &&
+    !GS.evac &&
+    !GS.bossDue &&
+    !GS.RUN.tut &&
+    !hordeLive() &&
+    !objHold(dt)
+  ) {
     if (GS.wave > 0 && GS.nightLive) nightCleared();
     const waitDrop =
       GS.nightDone &&
@@ -893,7 +901,15 @@ export function update(dt) {
 // now and then a pack of walkers comes up out of a sewer hatch near you instead of out of the dark: the lid scrapes
 // aside in plain sight and they drag themselves out, one after another (sewers.js)
 function sewerPack(SG) {
-  if (GS.queue[0] !== 'skitter' || (SG && SG.horde) || GS.RUN.tut || GS.wave < 2 || GS.evac || Math.random() > 0.16)
+  if (
+    GS.queue.length < 2 || // never the night's last: the night would clear before they came up
+    GS.queue[0] !== 'skitter' ||
+    (SG && SG.horde) ||
+    GS.RUN.tut ||
+    GS.wave < 2 ||
+    GS.evac ||
+    Math.random() > 0.16
+  )
     return false;
   const h = hatchFor(GS.P.x, GS.P.y);
   if (!h) return false;
@@ -919,7 +935,7 @@ function sewerCrawler(h) {
   z.fallA = z.a;
   z.lyG = 0;
   z.cfall = 0;
-  z.sp *= 1.45; // a crawler, but a quick one
+  z.sp *= 1.9; // a crawler, but a quick one: they drag themselves at you near a walker's pace
   z.hp = z.maxHp = z.maxHp * 0.75;
   if (Math.random() < 0.5) sfx.groan(z.x, z.y);
   decal(R.splat0, h.x, h.y, 0.3, [0.16, 0.18, 0.12, 0.6], [0, 0, 0], 40); // sewer muck on the asphalt

@@ -198,6 +198,7 @@ export function makeEnemy(type, x, y) {
       e.rushT = 2.5;
       e.tailT = 1.5;
       e.sp *= 1.3;
+      e.dmg *= 0.7; // it hits hard enough as it is: its bite was the campaign's worst spike
     }
     if (e.btype === 'pz') {
       e.hp *= 2.2;
