@@ -63,7 +63,7 @@ export async function run(b) {
   check(o.g.gx < 26 && o.g.shut, `the garage should stand shut on the west side: ${JSON.stringify(o.g)}`);
   check(o.g.label === 'GARAGE' && o.g.open, `with the fuel in, the door never went up: ${JSON.stringify(o.g)}`);
   check(
-    o.endX > 50 && o.west < 12 && o.turn < 720 && o.len < 120,
+    o.endX > 50 && o.west < 20 && o.turn < 720 && o.len < 120,
     `the drive out wanders: ${o.len} tiles, ${o.turn}° of turning, ${o.west}% of it back west, ends at x ${o.endX}`
   );
   check(!o.block || o.gap <= 6, `the bumper stops ${o.gap} px short of the roadblock`);

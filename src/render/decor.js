@@ -161,6 +161,13 @@ export function genDecor() {
     dumpOK = (tx, ty, i) =>
       nearHouse(tx, ty, i) &&
       !inHouse(tx, ty) &&
+      !(
+        GARAGE &&
+        tx >= GARAGE.x - 1 &&
+        tx <= GARAGE.x + GARAGE.w &&
+        ty >= GARAGE.y + GARAGE.h - 1 &&
+        ty <= GARAGE.y + GARAGE.h + 3
+      ) && // not across the garage door
       ![
         [1, 0],
         [-1, 0],
