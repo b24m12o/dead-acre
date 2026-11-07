@@ -12,7 +12,7 @@ export async function run(b) {
     const u = UP.find(u => u.id === 'buddy'); u.apply(); u.apply();
     GS.state = 'play'; GS.queue = []; GS.enemies.length = 0; GS.wave = 15; GS.nightLive = true; GS.nightDone = false; for (let i = 0; i < 60; i++) { ${fr} }
     startEvac(); const e = GS.evac; e.land = 1;
-    for (let i = 0; i < 60 * 60 && !e.ride; i++) { GS.P.x = e.x; GS.P.y = e.y; GS.enemies.length = 0; GS.queue = []; ${fr} }
+    for (let i = 0; i < 60 * 60 && !e.ride; i++) { GS.P.x = e.x; GS.P.y = e.y; if (i < 30) for (const q of GS.buddies) { q.x = e.x + 40; q.y = e.y + 30; } GS.enemies.length = 0; GS.queue = []; ${fr} } // your people start at the landing zone with you: it's the cabin under test, not their run to it
     if (!e.ride) return { err: 'never took off' };
     const r = e.ride, o = { aboard: GS.RUN.aboard.length, hovered: false, lowest: 999 };
     for (const g of r.groups) if (g.pick) for (const s of g.civ) s.hp = s.max = 5000; // tough enough to live to the pickup: it's the pickup under test
