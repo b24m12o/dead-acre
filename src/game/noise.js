@@ -115,10 +115,10 @@ export function startAlarm(c) {
     e.swell = 0;
     e.charging = 0;
   }
-  if (!GS.alarmSaid) {
+  if (!GS.alarmSaid && !(GS.P && GS.P.ride) && !(GS.evac && GS.evac.ride)) {
     GS.alarmSaid = true;
     radio(RADIO.alarm);
-  }
+  } // "use it" is advice for someone on foot: not on the truck or in the chopper, going past at speed
 }
 export function alarmNote(f0, f1, dur, type, vol, bus, delay = 0) {
   // a held note: alarms sustain, they don't chirp

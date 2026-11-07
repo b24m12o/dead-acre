@@ -10,7 +10,7 @@
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, damp, rand } from '../core/util.js';
-import { GARAGE, MH, MW, ROAD, RY, TILE, WH, WW, cars, fires, grid, isWall, ttype } from '../world/map.js';
+import { GARAGE, MH, MW, ROAD, RY, TILE, WH, WW, cars, fires, grid, isWall, lamps, ttype } from '../world/map.js';
 import { breakTile } from '../world/physics.js';
 import { GUN_HEAT } from './evac-ride.js';
 import { ZOOM, addLight, viewH, viewW } from '../render/sprites.js';
@@ -18,7 +18,7 @@ import { R } from '../render/atlas.js';
 import { noise, playS, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
-import { chips, floatText, shake, sparks } from '../render/effects.js';
+import { chips, flashLight, floatText, shake, sparks } from '../render/effects.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { freeSpot } from '../actors/backups.js';
 import { mouse } from '../core/input.js';
@@ -368,7 +368,12 @@ function ridePath(T) {
     shut = new Uint8Array(N), // the road just driven, behind the truck: no turning round on it
     s0 = Math.floor(T.y / TILE) * MW + Math.floor(T.x / TILE),
     edge = i => (side > 0 ? i % MW >= MW - 6 : i % MW <= 5),
-    base = new Float32Array(N);
+    base = new Float32Array(N),
+    poles = new Uint8Array(N); // lamp posts, traffic lights, stop signs: it steers round them where it can
+  for (const L of lamps) if (!L.down && !L.lantern) poles[Math.floor(L.by / TILE) * MW + Math.floor(L.bx / TILE)] = 1;
+  for (const d of GS.decor)
+    if ((d.kind === 'tlight' || d.kind === 'stop') && !d.down)
+      poles[Math.floor(d.y / TILE) * MW + Math.floor(d.x / TILE)] = 1;
   // each tile's own cost, once: down the middle of the road, clear of the wrecks (the truck is wider than a tile)
   for (let ty = 0; ty < MH; ty++)
     for (let tx = 0; tx < MW; tx++) {
@@ -385,7 +390,10 @@ function ridePath(T) {
             if (Math.abs(j) <= 1 && Math.abs(k) <= 1) near++;
             else far++;
           }
-      base[i] = 1 + near * 6 + far * 0.6 + (ROAD && ROAD[i] === 1 ? 0 : ROAD && ROAD[i] ? 0.9 : 2.6);
+      let pole = 0;
+      for (let j = -1; j <= 1; j++)
+        for (let k = -1; k <= 1; k++) if (poles[(ty + j) * MW + tx + k]) pole += j || k ? 1.5 : 5;
+      base[i] = 1 + near * 6 + far * 0.6 + pole + (ROAD && ROAD[i] === 1 ? 0 : ROAD && ROAD[i] ? 0.9 : 2.6);
     }
   const step = i => (shut[i] ? 1e9 : base[i]),
     cost = new Float32Array(N),
@@ -701,6 +709,33 @@ function tickRide(dt, onLeave) {
           breakTile(i);
           shake(0.12);
         }
+      }
+  }
+  // a pole it can't miss goes down: lamp posts and traffic lights fold over the bumper, the light going out
+  if (v > 20) {
+    const hitPole = (x, y) => {
+      const c = Math.cos(T.a),
+        sn = Math.sin(T.a),
+        u = (x - T.x) * c + (y - T.y) * sn,
+        w = -(x - T.x) * sn + (y - T.y) * c;
+      return Math.abs(u) < TL / 2 + 4 && Math.abs(w) < TW_ / 2 + 3;
+    };
+    const fold = (x, y) => {
+      sparks(x, y - 20, [1, 0.88, 0.55], 10, 260);
+      sfx.crunch(x, y);
+      shake(0.18);
+      return T.a + rand(-0.5, 0.5); // it falls the way the truck was going
+    };
+    for (const L of lamps)
+      if (!L.down && !L.lantern && hitPole(L.bx, L.by)) {
+        L.down = true;
+        L.fa = fold(L.bx, L.by);
+        flashLight(L.hx, L.hy, 160, [1.3, 1.15, 0.8], 0.12);
+      }
+    for (const d of GS.decor)
+      if ((d.kind === 'tlight' || d.kind === 'stop') && !d.down && hitPole(d.x, d.y)) {
+        d.down = true;
+        d.fa = fold(d.x, d.y);
       }
   }
   // you ride in the bed, behind the cab

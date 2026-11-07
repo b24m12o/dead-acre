@@ -212,6 +212,8 @@ export function damageCar(c, dmg) {
   }
   if (c.hp <= 0) blowCar(c);
 }
+// how far a car's blast reaches: a truck further than a car, a rigged one half again, the fuel tanker twice
+export const carBlastR = c => (c.truck ? 150 : 125) * (c.tanker ? 2 : c.rig ? 1.45 : 1);
 function blowCar(c) {
   c.dead = true;
   c.fire = 0;
@@ -221,7 +223,17 @@ function blowCar(c) {
   const k = c.tanker ? 2 : c.rig ? 1.45 : 1; // a rigged car goes up half again as wide; the fuel tanker twice
   if (c.rig) bump('rigs');
   GS.trapBlast = !!c.rig;
-  explode(c.x, c.y, (c.truck ? 150 : 125) * k, (90 + GS.wave * 12) * (c.tanker ? 2.2 : c.rig ? 1.6 : 1), true);
+  explode(c.x, c.y, carBlastR(c), (90 + GS.wave * 12) * (c.tanker ? 2.2 : c.rig ? 1.6 : 1), true, 0.5);
+  if (c.tanker)
+    for (const [t, u, s] of [
+      [0.04, -1, 0.75],
+      [0.07, 1, 0.75],
+      [0.12, 0, 1.15],
+    ])
+      GS.later.push({
+        t,
+        fn: () => fireball(c.x + Math.cos(c.a) * 44 * u, c.y + Math.sin(c.a) * 44 * u, carBlastR(c) * s),
+      }); // the tank going up end to end, then the fuel in it: a fireball as wide as the blast's deadly core
   GS.trapBlast = false;
   firePool(c.x, c.y, (c.truck ? 95 : 75) * k, c.tanker ? 14 : 7);
   if (c.tanker)

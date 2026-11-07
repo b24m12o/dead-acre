@@ -18,6 +18,7 @@ import { siegePrompt } from '../game/siege.js';
 import { kn } from '../core/binds.js';
 import { mouse } from '../core/input.js';
 import { riding, truckCans, wayOut } from '../game/journey.js';
+import { carBlastR } from '../world/fire.js';
 export function drawObjectiveGlow() {
   if (GS.evac && !GS.evac.ride) {
     const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1); // once it is down, the ring fades so the chopper itself reads
@@ -329,6 +330,26 @@ function boxPill(toS) {
   return { lb, x: bx - w / 2, y: by + 24 * ZOOM + 6 * k, w, h: 20 * k };
 } /* the prompt's box, shared so the pile icons can step out of its way */
 export function drawMarkersUI(toS) {
+  if (GS.state === 'play')
+    for (const c of cars) {
+      if (!c.fire || c.dead) continue;
+      const R0 = carBlastR(c) * ZOOM,
+        x = (c.x - cam.x) * ZOOM,
+        y = (c.y - cam.y) * ZOOM;
+      if (x < -R0 || y < -R0 || x > VW + R0 || y > VH + R0) continue;
+      const left = clamp(c.hp / (c.max * 0.3), 0, 1), // 1 as it catches, 0 as it goes up
+        p = 0.5 + 0.5 * Math.sin(GS.time * (5 + 9 * (1 - left))),
+        k = TS();
+      ui.lineWidth = 2 * k;
+      ui.strokeStyle = `rgba(255,120,70,${0.32 + 0.4 * p * (1.2 - left)})`;
+      ui.setLineDash([10 * k, 8 * k]);
+      ui.lineDashOffset = -GS.time * 18 * k;
+      ui.beginPath();
+      ui.arc(x, y, R0, 0, TAU);
+      ui.stroke();
+      ui.setLineDash([]);
+      ui.lineDashOffset = 0;
+    } // a burning car: how far its blast will reach, faint at first, pulsing quicker as it gets close to going up
   {
     const c = rigTarget();
     if (c) {

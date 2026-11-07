@@ -12,6 +12,7 @@ const ALL = [
   'ride',
   'evac',
   'trigger',
+  'blast',
   'setpieces',
   'campaign',
   'variants',
