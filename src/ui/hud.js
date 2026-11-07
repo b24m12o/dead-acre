@@ -161,11 +161,12 @@ function gunPanel() {
     HUDF.gun = GS.P.gun;
   }
   {
-    const T = GS.P.ride === 'truck' && GS.truck && GS.truck.ride,
+    const heli = GS.evac && GS.evac.ride,
+      T = heli || (GS.P.ride === 'truck' && GS.truck && GS.truck.ride),
       g2 = $('gauge');
     g2.classList.toggle('riding', !!T);
     if (T) {
-      setT('gunName', T.over > 0 ? 'Overheated' : 'Truck gun');
+      setT('gunName', T.over > 0 ? 'Overheated' : heli ? 'Door gun' : 'Truck gun');
       $('gunName').classList.toggle('rl', T.over > 0);
       if (hc.gunAmmo !== 'ride') {
         hc.gunAmmo = 'ride';

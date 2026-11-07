@@ -1,6 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { gunPose, heliPt, rideCiv } from '../game/evac-ride.js';
-import { GUNS } from '../game/arsenal.js';
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, setH, viewH, viewW } from './sprites.js';
@@ -503,23 +502,33 @@ export function heliCrew(e) {
     lineQ(x0, y0, x1, y1, 11 * S, 0.06, 0.07, 0.06, 0.92, 0, 0, 0, 0, R.pixel);
   } // the doors, slid open: the dark of the cabin floor
   GS.RUN.aboard.slice(0, 3).forEach((b, i) => {
-    const [bx, by] = heliPt(e, 26 + i * 18, -14),
+    const [bx, by] = heliPt(e, 26 + i * 18, -12),
       a = b.haim ?? ha - Math.PI / 2,
       look = b.look ?? 0,
-      st = HSTYLE[look] || HSTYLE[0],
-      t = b.tint || [1, 1, 1],
-      c = Math.cos(a),
-      sn = Math.sin(a),
-      gun = GUNS[b.gun] || GUNS.pistol;
+      t = b.tint || [1, 1, 1];
     setH(e.z + 64);
-    quad(R['hb' + look], bx, by, a, 0.9 * S, 0.9 * S, t[0], t[1], t[2], 1, fb, fb, fb, 0);
-    setH(e.z + 65);
-    quad(R[st.hand], bx + c * 14 * S, by + sn * 14 * S, a, 0.8 * S, 0.8 * S, 1, 1, 1, 1, fb, fb, fb, 0);
-    quad(R[gun.reg], bx + c * 18 * S, by + sn * 18 * S, a, 0.8 * S, 0.8 * S, 1, 1, 1, 1, fb, fb, fb, 0);
-    if (b.hflash > 0)
-      quad(R.muzzle, bx + c * 34 * S, by + sn * 34 * S, a, 0.6 * S, 0.6 * S, 1, 0.85, 0.5, 1, 3, 2.2, 1.2, 0);
+    quad(R['hb' + look], bx, by, a, 0.85 * S, 0.85 * S, t[0], t[1], t[2], 1, fb, fb, fb, 0);
     setH(e.z + 66);
-    quad(R['hh' + look], bx + c * 2, by + sn * 2, a, 0.85 * S, 0.85 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+    quad(R['hh' + look], bx, by, a, 0.85 * S, 0.85 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+    if (b.hflash > 0) {
+      const [fx, fy] = heliPt(e, 26 + i * 18, -21);
+      quad(
+        R.muzzle,
+        fx + Math.cos(a) * 5 * S,
+        fy + Math.sin(a) * 5 * S,
+        a,
+        0.4 * S,
+        0.4 * S,
+        1,
+        0.85,
+        0.5,
+        1,
+        3,
+        2.2,
+        1.2,
+        0
+      );
+    } // only their flashes show at the door's edge: their guns stay inside, out of the picture
   });
   // you, on the gun
   const G = gunPose(e),
@@ -547,7 +556,7 @@ export function heliCrew(e) {
     0,
     R.pixel
   ); // the pintle mount
-  quad(R.h_lmg, G.mx + c * 13 * S, G.my + sn * 13 * S, G.a, 0.95 * S, 0.95 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+  quad(R.h_lmg, G.mx + c * 10 * S, G.my + sn * 10 * S, G.a, 0.78 * S, 0.78 * S, 1, 1, 1, 1, fb, fb, fb, 0);
   {
     const h = r.over > 0 ? 1 : Math.max(0, (r.heat - 0.35) / 0.65);
     if (h > 0.02)
@@ -569,16 +578,16 @@ export function heliCrew(e) {
       ); // the barrel, glowing with the heat
   }
   quad(R[st.hand], G.mx + c * 2 * S, G.my + sn * 2 * S, G.a, 0.9 * S, 0.9 * S, 1, 1, 1, 1, fb, fb, fb, 0);
-  quad(R[st.hand], G.mx + c * 16 * S, G.my + sn * 16 * S, G.a, 0.9 * S, 0.9 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+  quad(R[st.hand], G.mx + c * 12 * S, G.my + sn * 12 * S, G.a, 0.8 * S, 0.8 * S, 1, 1, 1, 1, fb, fb, fb, 0);
   setH(e.z + 66);
   quad(R['hh' + look], px + c * 2, py + sn * 2, G.a, 0.9 * S, 0.9 * S, 1, 1, 1, 1, fb, fb, fb, 0);
   if (r.flashT > 0)
-    quad(R.muzzle, G.fx + c * 8 * S, G.fy + sn * 8 * S, G.a, 0.9 * S, 0.9 * S, 1, 0.85, 0.5, 1, 3.2, 2.4, 1.2, 0);
+    quad(R.muzzle, G.fx + c * 6 * S, G.fy + sn * 6 * S, G.a, 0.7 * S, 0.7 * S, 1, 0.85, 0.5, 1, 3.2, 2.4, 1.2, 0);
   const sd = ha + Math.PI / 2;
   for (const k of r.cases) {
     const q = k.t / 0.7,
       out = (6 + 40 * q * k.sd) * S,
-      sc = 1.3 * S * (1 - q * 0.4);
+      sc = 0.85 * S * (1 - q * 0.4);
     quad(
       R.shell,
       G.mx + Math.cos(sd) * out,

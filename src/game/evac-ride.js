@@ -219,11 +219,11 @@ export function heliPt(e, u, w) {
 export function gunPose(e) {
   const S = 1 + e.z / 900,
     ha = e.ha ?? 2.4,
-    [mx, my] = heliPt(e, 34, 21),
+    [mx, my] = heliPt(e, 34, 19),
     want = Math.atan2(cam.y + mouse.y / ZOOM - my, cam.x + mouse.x / ZOOM - mx),
     side = ha + Math.PI / 2,
     a = side + clamp(angDiff(side, want), -1.9, 1.9);
-  return { mx, my, a, S, fx: mx + Math.cos(a) * 34 * S, fy: my + Math.sin(a) * 34 * S };
+  return { mx, my, a, S, fx: mx + Math.cos(a) * 27 * S, fy: my + Math.sin(a) * 27 * S };
 }
 // your people in the cabin: each fires out of the left-hand door at what's on that side, with what they carry
 const CREW_GUN = {
@@ -259,8 +259,9 @@ function crewGuns(e, r, dt) {
     if (!tg) return;
     b.haim = Math.atan2(tg.y - by, tg.x - bx);
     b.hflash = 0.05;
-    const mx = bx + Math.cos(b.haim) * 26,
-      my = by + Math.sin(b.haim) * 26;
+    const [dx, dy] = heliPt(e, 26 + i * 18, -21),
+      mx = dx + Math.cos(b.haim) * 5,
+      my = dy + Math.sin(b.haim) * 5; // from the door's edge
     e.tr.push({ x0: mx, y0: my, x1: tg.x + rand(-6, 6), y1: tg.y + rand(-6, 6), t: 0.06 });
     playR(snd, 0.2, e.hx, e.hy, 1);
     hurtEnemy(tg, (14 + 1.4 * GS.wave) * dm, false, tg.x - bx, tg.y - by, 0.8, 'buddy');
