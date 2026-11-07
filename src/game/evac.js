@@ -24,6 +24,7 @@ import { bossLogHtml } from './boss-flow.js';
 import { planHorde } from './horde.js';
 import { flow, solidPt } from '../world/nav.js';
 import { rideKills, rideTick, startRide } from './evac-ride.js';
+import { lvBank } from './upgrades.js';
 export function startEvac() {
   const lz = GS.RUN.lz,
     lzOk = lz && !solidPt(lz[0], lz[1]) && flow[Math.floor(lz[1] / TILE) * MW + Math.floor(lz[0] / TILE)] < 65535,
@@ -208,8 +209,9 @@ export function updateEvac(dt) {
     }
     dust(sx, sy, 5, 50, 1, 1);
   }
-  // the door gunner: short bursts from the open side door while the bird circles
-  if (e.t > EVAC_IN && e.t < e.land - 1.5) {
+  // the door gunner: short bursts from the open side door while the bird circles, a breath off while it touches down,
+  // then again from the ground, covering you across the last few yards until you're aboard
+  if (e.t > EVAC_IN && (e.t < e.land - 1.5 || e.t > e.land + 0.6)) {
     e.gunT -= dt;
     if (e.gunT <= 0 && !e.burst) {
       const tg = evacTarget(e);
@@ -327,6 +329,8 @@ function winRun() {
     rs = GS.evac && GS.evac.ride ? GS.evac.ride.saved : 0,
     rl = GS.evac && GS.evac.ride ? GS.evac.ride.lost : 0;
   GS.runSeeds += 25 * rs; // the ones you covered from the door: the convoy picks them up
+  const unspent = lvBank();
+  GS.runSeeds += 15 * unspent; // levels you never got to spend: there's no next night for them, so they pay in scrap
   if (rs && !rl) bump('rideAll');
   if (out.length >= 2 && !left.length && !(GS.RUN.lost || []).length) bump('evacAll'); // everyone who came along the road, out with you
   for (let i = 0; i < out.length; i++) bump('saved'); // every one you bring out pays
@@ -346,6 +350,8 @@ function winRun() {
       (GS.evac.ride.crewKills ? ` · your people in the cabin got <b>${GS.evac.ride.crewKills}</b>` : '') +
       (rs + rl ? ` · <b>${rs} of ${rs + rl}</b> survivors saved${rs ? ` · +${25 * rs} scrap` : ''}` : '') +
       '.';
+  if (unspent)
+    $('wCrew').innerHTML += ` Unspent level${unspent > 1 ? 's' : ''}: <b>${unspent}</b> · +${15 * unspent} scrap.`;
   $('wCrew').hidden = !$('wCrew').innerHTML;
   {
     const [who, t] = storyEnd();
