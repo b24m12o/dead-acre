@@ -9,7 +9,7 @@ import { GS } from '../core/gs.js';
 import { bump } from './challenges.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, rand } from '../core/util.js';
 import { MH, MW, TILE, WH, WW, grid } from '../world/map.js';
-import { collide, dijk, query } from '../world/nav.js';
+import { collide, dijk, query, solidPt } from '../world/nav.js';
 import { MUS, noise, playR, playS } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { cam } from './state.js';
@@ -122,7 +122,11 @@ export function startRide(e) {
   GS.P.inv = 1e9;
   GS.P.reload = 0;
   GS.P.vx = GS.P.vy = 0;
-  banner('Wheels up', 'You are on the door gun · hold click to fire, let it cool when it glows', false);
+  banner(
+    'Wheels up',
+    'You are on the door gun · hold click to fire · the ring round your sights is its heat: fire in bursts',
+    false
+  );
   shake(0.12);
 }
 export const rideKills = e => (e && e.ride ? e.ride.kills : 0);
@@ -229,7 +233,7 @@ export function gunPose(e) {
     want = Math.atan2(cam.y + mouse.y / ZOOM - my, cam.x + mouse.x / ZOOM - mx),
     side = ha + Math.PI / 2,
     a = side + clamp(angDiff(side, want), -1.9, 1.9);
-  return { mx, my, a, S, fx: mx + Math.cos(a) * 18 * S, fy: my + Math.sin(a) * 18 * S };
+  return { mx, my, a, S, fx: mx + Math.cos(a) * 5 * S, fy: my + Math.sin(a) * 5 * S };
 }
 // your people in the cabin: each fires out of the left-hand door at what's on that side, with what they carry
 const CREW_GUN = {
@@ -276,29 +280,66 @@ function crewGuns(e, r, dt) {
   for (const b of crew) b.hflash = Math.max(0, (b.hflash || 0) - dt);
 }
 // the gun in the side door: where you aim, while you hold it, until it overheats
+// the gun's heat: about seven seconds of fire from cold before it locks up for 2.4 s; let go and it cools in about
+// two and a half, so bursts with short breaks between can go on all the way out
+export const GUN_HEAT = { cool: 0.4, lock: 2.4, after: 0.5 };
 function doorGun(e, r, dt) {
   r.cd -= dt;
   if (r.over > 0) {
     r.over -= dt;
-    r.heat = Math.max(0, r.heat - dt * 0.7);
-    if (r.over <= 0) r.heat = 0.35;
-  } else if (!mouse.down) r.heat = Math.max(0, r.heat - dt * 0.55);
+    r.heat = Math.max(GUN_HEAT.after, r.heat - dt * 0.4);
+    if (r.over <= 0) r.heat = GUN_HEAT.after;
+  } else if (!mouse.down) r.heat = Math.max(0, r.heat - dt * GUN_HEAT.cool);
   r.flashT = Math.max(0, r.flashT - dt);
-  for (const c of r.cases) c.t += dt;
+  for (const c of r.cases) {
+    c.t += dt;
+    if (c.t >= 0.7 && !c.down) {
+      c.down = true;
+      part({
+        k: 7,
+        x: c.x,
+        y: c.y,
+        z: 3,
+        vz: rand(30, 70),
+        vx: rand(-60, 60),
+        vy: rand(-60, 60),
+        life: 2.4,
+        max: 2.4,
+        size: 1.2,
+        rot: rand(0, TAU),
+        vr: rand(-20, 20),
+        drag: 3,
+        c: [1, 1, 1],
+      });
+    } // and it lands on the street, and skitters
+  }
   r.cases = r.cases.filter(c => c.t < 0.7);
   if (!mouse.down || r.over > 0 || r.cd > 0 || r.t < LIFT * 0.6) return;
   r.cd = 0.072;
-  r.heat += 0.028;
+  r.heat += 0.0105;
+  r.n = (r.n || 0) + 1;
   const G = gunPose(e),
     gx = G.fx,
     gy = G.fy,
     sp = 10 + r.heat * 26,
     tx = cam.x + mouse.x / ZOOM + rand(-sp, sp),
     ty = cam.y + mouse.y / ZOOM + rand(-sp, sp);
-  e.tr.push({ x0: gx, y0: gy, x1: tx, y1: ty, t: 0.07 });
+  e.tr.push({ x0: gx, y0: gy, x1: tx, y1: ty, t: 0.07, big: r.n % 4 === 0 }); // every fourth round a tracer, as belts are loaded
   r.flashT = 0.05;
-  if (r.cases.length < 24) r.cases.push({ t: 0, a: G.a, rot: rand(0, TAU), sd: rand(0.8, 1.2) }); // the brass goes out of the door and down
-  if (!playS('lmg', 0.4, 0.88, 0, 0.45)) noise(0.06, 0.12, 2200, 500, 'bandpass');
+  shake(0.03);
+  if (r.cases.length < 30) {
+    const sd = (e.ha ?? 2.4) + Math.PI / 2,
+      out = rand(30, 55) * G.S;
+    r.cases.push({
+      t: 0,
+      rot: rand(0, TAU),
+      x0: G.mx,
+      y0: G.my,
+      x: G.mx + Math.cos(sd) * out + rand(-6, 6),
+      y: G.my + Math.sin(sd) * out + e.z * 0.35 + rand(-6, 6),
+    });
+  } // the brass goes out of the door and falls to the street below
+  if (!playS('lmg', 0.42, 0.8, 0, 0.45)) noise(0.06, 0.12, 2200, 500, 'bandpass');
   let best = null,
     bd = 30 * 30;
   query(tx, ty, 40, z => {
@@ -310,18 +351,20 @@ function doorGun(e, r, dt) {
     }
   });
   if (best) {
-    hurtEnemy(best, 46 + 2 * GS.wave, false, tx - gx, ty - gy, 1.3, 'gunner');
+    dust(best.x, best.y, 1, 40, 0.5, 0.4);
+    hurtEnemy(best, 46 + 2 * GS.wave, false, tx - gx, ty - gy, 1.6, 'gunner');
     if (best.dead || best.hp <= 0 || best.dying !== undefined) {
       r.kills++;
       bump('gunner');
     }
   } // only what the door gun drops counts as its kills
   else {
-    dust(tx, ty, 2, 50, 0.6, 0.5);
-    sparks(tx, ty, [1, 0.8, 0.5], 2, 140);
-  }
+    const hard = solidPt(tx, ty);
+    dust(tx, ty, hard ? 2 : 4, 60, 0.7, 0.55);
+    sparks(tx, ty, [1, 0.8, 0.5], hard ? 6 : 2, hard ? 220 : 140);
+  } // dust off the street, sparks off a car or a wall
   if (r.heat >= 1) {
-    r.over = 1.5;
+    r.over = GUN_HEAT.lock;
     noise(0.6, 0.08, 6000, 3000, 'highpass');
     floatText(GS.P.x, GS.P.y - 60, 'Overheated', '#ff8a5a', 15);
   } // the barrel glows and the gun locks up a moment

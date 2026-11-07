@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { gunPose, heliPt, rideCiv } from '../game/evac-ride.js';
+import { gunPose, rideCiv } from '../game/evac-ride.js';
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, setH, viewH, viewW } from './sprites.js';
@@ -487,70 +487,39 @@ export function drawCasters() {
     heliRotor(e);
   } // in the air it is drawn later, over roofs and trees
 }
-// on the ride out: the open doors and the door gun on its mount in the right-hand one, swung toward where you aim,
-// with its flash, its barrel glowing with the heat and the brass going out of the door. No figures: at this scale
-// people would dwarf the airframe (your people's fire shows as their tracers from the other door).
+// on the ride out the gun shows by what it does, not by a drawing of it: the flash at the right-hand door and the
+// brass falling from it to the street (the tracers, hits and heat ring are drawn with the other effects)
 export function heliCrew(e) {
   const r = e.ride;
   if (!r || GS.SHMODE || e.z < 20) return;
   const S = 1 + e.z / 900,
-    ha = e.ha ?? 2.4,
-    fb = 0.9; // lit by the cabin's own lights: it reads against the dark
-  setH(e.z + 63);
-  for (const sd of [1, -1]) {
-    const [x0, y0] = heliPt(e, 22, sd * 15),
-      [x1, y1] = heliPt(e, 56, sd * 15);
-    lineQ(x0, y0, x1, y1, 8 * S, 0.06, 0.07, 0.06, 0.9, 0, 0, 0, 0, R.pixel);
-  } // the doors, slid open: the dark of the cabin floor
+    G = gunPose(e);
   setH(e.z + 65);
-  const G = gunPose(e),
-    c = Math.cos(G.a),
-    sn = Math.sin(G.a);
-  quad(R.h_lmg, G.mx + c * 7 * S, G.my + sn * 7 * S, G.a, 0.46 * S, 0.46 * S, 1, 1, 1, 1, fb, fb, fb, 0);
-  {
-    const h = r.over > 0 ? 1 : Math.max(0, (r.heat - 0.35) / 0.65);
-    if (h > 0.02)
-      lineQ(
-        G.mx + c * 6 * S,
-        G.my + sn * 6 * S,
-        G.fx,
-        G.fy,
-        1.2 * S,
-        1,
-        0.45,
-        0.15,
-        0.25 + 0.6 * h,
-        2.6 * h,
-        0.9 * h,
-        0.25 * h,
-        0,
-        R.pixel
-      ); // the barrel, glowing with the heat
-  }
   if (r.flashT > 0)
-    quad(R.muzzle, G.fx + c * 4 * S, G.fy + sn * 4 * S, G.a, 0.5 * S, 0.5 * S, 1, 0.85, 0.5, 1, 3.2, 2.4, 1.2, 0);
-  const sd = ha + Math.PI / 2;
-  for (const k of r.cases) {
-    const q = k.t / 0.7,
-      out = (4 + 34 * q * k.sd) * S,
-      sc = 0.5 * S * (1 - q * 0.4);
     quad(
-      R.shell,
-      G.mx + Math.cos(sd) * out,
-      G.my + Math.sin(sd) * out + q * q * e.z * 0.35,
-      k.rot + k.t * 20,
-      sc,
-      sc,
+      R.muzzle,
+      G.fx + Math.cos(G.a) * 6 * S,
+      G.fy + Math.sin(G.a) * 6 * S,
+      G.a,
+      0.75 * S,
+      0.75 * S,
       1,
       0.85,
       0.5,
-      1 - q,
-      0.6,
-      0.5,
-      0.2,
+      1,
+      3.4,
+      2.5,
+      1.2,
       0
     );
-  } // the brass, out of the door and falling away to the street
+  for (const k of r.cases) {
+    const q = k.t / 0.7,
+      x = lerp(k.x0, k.x, q),
+      y = lerp(k.y0, k.y, q * q),
+      sc = (0.7 - q * 0.25) * S;
+    setH(lerp(e.z + 60, 4, q));
+    quad(R.shell, x, y, k.rot + k.t * 22, sc, sc, 1, 0.85, 0.5, 1, 0.5, 0.4, 0.15, 0);
+  } // the brass, out of the door and down to the street
 }
 export function heliRotor(e) {
   // four main blades smeared by their own speed into a soft disc, the hub on the mast ahead of centre

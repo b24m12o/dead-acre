@@ -53,9 +53,43 @@ export function drawObjectiveGlow() {
         f0 = Math.max(0, f - 0.45),
         dx = t.x1 - t.x0,
         dy = t.y1 - t.y0;
-      lineQ(t.x0 + dx * f0, t.y0 + dy * f0, t.x0 + dx * f, t.y0 + dy * f, 2.2, 0, 0, 0, 0.9, 2.6, 1.7, 0.7, 0, R.pixel);
-      if (f > 0.9) quad(R.glow, t.x1, t.y1, 0, 0.18, 0.18, 0, 0, 0, 1, 1.4, 0.9, 0.4, 0);
-    } // door-gun tracers
+      if (t.big) {
+        lineQ(t.x0 + dx * f0, t.y0 + dy * f0, t.x0 + dx * f, t.y0 + dy * f, 3.4, 0, 0, 0, 1, 3.4, 2.1, 0.8, 0, R.pixel);
+        lineQ(
+          t.x0 + dx * f0,
+          t.y0 + dy * f0,
+          t.x0 + dx * f,
+          t.y0 + dy * f,
+          12,
+          0,
+          0,
+          0,
+          0.5,
+          0.9,
+          0.5,
+          0.15,
+          0,
+          R.glow
+        );
+      } else
+        lineQ(
+          t.x0 + dx * f0,
+          t.y0 + dy * f0,
+          t.x0 + dx * f,
+          t.y0 + dy * f,
+          1.4,
+          0,
+          0,
+          0,
+          0.6,
+          1.8,
+          1.2,
+          0.5,
+          0,
+          R.pixel
+        );
+      if (f > 0.9) quad(R.glow, t.x1, t.y1, 0, t.big ? 0.28 : 0.16, t.big ? 0.28 : 0.16, 0, 0, 0, 1, 1.4, 0.9, 0.4, 0);
+    } // door-gun tracers: every fourth round a bright one
   if (GS.fxTr && GS.fxTr.length) {
     for (const t of GS.fxTr) {
       if (t.t <= 0) continue;
@@ -340,14 +374,29 @@ export function drawMarkersUI(toS) {
     const r = gunR,
       k = TS(),
       x = mouse.x,
-      y = mouse.y + 26 * k,
-      w = 54 * k;
-    ui.fillStyle = 'rgba(20,24,29,0.75)';
-    ui.fillRect(x - w / 2 - 2 * k, y - 2 * k, w + 4 * k, 8 * k);
-    ui.fillStyle =
-      r.over > 0 ? (Math.sin(GS.time * 20) > 0 ? '#ff5a3a' : '#ffb07a') : r.heat > 0.7 ? '#ff8a4a' : '#e8c46a';
-    ui.fillRect(x - w / 2, y, w * clamp(r.over > 0 ? 1 : r.heat, 0, 1), 4 * k);
-  } // the door gun's (or the truck gun's) heat, under the sights
+      y = mouse.y,
+      R0 = 19 * k,
+      h = clamp(r.over > 0 ? 1 : r.heat, 0, 1);
+    ui.lineWidth = 4 * k;
+    ui.strokeStyle = 'rgba(20,24,29,0.6)';
+    ui.beginPath();
+    ui.arc(x, y, R0, 0, TAU);
+    ui.stroke();
+    ui.strokeStyle =
+      r.over > 0
+        ? Math.sin(GS.time * 20) > 0
+          ? '#ff5a3a'
+          : '#ffb07a'
+        : h > 0.75
+          ? '#ff7a3a'
+          : h > 0.45
+            ? '#ffb05a'
+            : '#e8d08a';
+    ui.lineWidth = 3 * k;
+    ui.beginPath();
+    ui.arc(x, y, R0, -Math.PI / 2, -Math.PI / 2 + TAU * h);
+    ui.stroke();
+  } // the gun's heat, as a ring round the sights: it fills as the barrel heats, and flashes when it locks up
   if (GS.obj && GS.obj.type === 'siege' && !GS.obj.done) {
     const k = TS();
     for (const b of GS.obj.bars) {

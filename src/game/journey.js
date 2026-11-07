@@ -10,6 +10,7 @@ import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, damp, rand } from '../core/util.js';
 import { MH, MW, ROAD, RY, TILE, WH, WW, grid, isWall, ttype } from '../world/map.js';
 import { breakTile } from '../world/physics.js';
+import { GUN_HEAT } from './evac-ride.js';
 import { ZOOM, addLight, viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { noise, playS, thr, tone } from '../audio/audio.js';
@@ -483,7 +484,11 @@ function startRide(T) {
   honk(0.6);
   GS.streakQ.length = 0;
   GS.streakT = 0; // "the truck is here" is done with
-  showStreak('On the gun', 'Hold click to fire where you aim · the bar under your sights is its heat', true);
+  showStreak(
+    'On the gun',
+    'Hold click to fire where you aim · the ring round your sights is its heat: fire in bursts',
+    true
+  );
   // the dead already shambling about on the road ahead, out of sight: there when the truck comes round the corner
   const r = T.ride;
   if (r.path.len > 1100) {
@@ -710,12 +715,13 @@ function mountedGun(r, P, dt) {
   r.cd -= dt;
   if (r.over > 0) {
     r.over -= dt;
-    r.heat = Math.max(0, r.heat - dt * 0.7);
-    if (r.over <= 0) r.heat = 0.35;
-  } else if (!mouse.down) r.heat = Math.max(0, r.heat - dt * 0.55);
+    r.heat = Math.max(GUN_HEAT.after, r.heat - dt * 0.4);
+    if (r.over <= 0) r.heat = GUN_HEAT.after;
+  } else if (!mouse.down) r.heat = Math.max(0, r.heat - dt * GUN_HEAT.cool);
   if (!mouse.down || r.over > 0 || r.cd > 0 || r.t < 1.2) return;
   r.cd = 0.08;
-  r.heat += 0.026;
+  r.heat += 0.0115; // the same budget as the door gun: about seven seconds from cold (evac-ride.js GUN_HEAT)
+  shake(0.025);
   const c = Math.cos(P.aimA),
     s = Math.sin(P.aimA),
     sp = 0.03 + r.heat * 0.09,
@@ -735,7 +741,7 @@ function mountedGun(r, P, dt) {
   P.recoil = 4;
   if (!playS('lmg', 0.36, 0.92, 0, 0.4)) noise(0.06, 0.12, 2200, 500, 'bandpass');
   if (r.heat >= 1) {
-    r.over = 1.5;
+    r.over = GUN_HEAT.lock;
     noise(0.6, 0.08, 6000, 3000, 'highpass');
     floatText(P.x, P.y - 60, 'Overheated', '#ff8a5a', 15);
   } // the barrel glows and the gun locks up a moment
