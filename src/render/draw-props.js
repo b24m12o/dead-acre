@@ -5,7 +5,7 @@ import { TAU, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, setH, viewH, viewW } from './sprites.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
-import { HLOOK, HSTYLE, drawRanger, lampHot } from './draw-player.js';
+import { drawRanger, lampHot } from './draw-player.js';
 import { drawEnemy } from './draw-enemies.js';
 import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
@@ -487,85 +487,35 @@ export function drawCasters() {
     heliRotor(e);
   } // in the air it is drawn later, over roofs and trees
 }
-// on the ride out: the open doors, your people in the left-hand one with their guns, you on the door gun in the
-// right-hand one, its flash, its barrel glowing with the heat, and the brass going out of the door
+// on the ride out: the open doors and the door gun on its mount in the right-hand one, swung toward where you aim,
+// with its flash, its barrel glowing with the heat and the brass going out of the door. No figures: at this scale
+// people would dwarf the airframe (your people's fire shows as their tracers from the other door).
 export function heliCrew(e) {
   const r = e.ride;
   if (!r || GS.SHMODE || e.z < 20) return;
   const S = 1 + e.z / 900,
     ha = e.ha ?? 2.4,
-    fb = 0.9; // lit by the cabin's own lights: the crew reads against the dark
+    fb = 0.9; // lit by the cabin's own lights: it reads against the dark
   setH(e.z + 63);
   for (const sd of [1, -1]) {
-    const [x0, y0] = heliPt(e, 18, sd * 14),
-      [x1, y1] = heliPt(e, 62, sd * 14);
-    lineQ(x0, y0, x1, y1, 11 * S, 0.06, 0.07, 0.06, 0.92, 0, 0, 0, 0, R.pixel);
+    const [x0, y0] = heliPt(e, 22, sd * 15),
+      [x1, y1] = heliPt(e, 56, sd * 15);
+    lineQ(x0, y0, x1, y1, 8 * S, 0.06, 0.07, 0.06, 0.9, 0, 0, 0, 0, R.pixel);
   } // the doors, slid open: the dark of the cabin floor
-  GS.RUN.aboard.slice(0, 3).forEach((b, i) => {
-    const [bx, by] = heliPt(e, 26 + i * 18, -12),
-      a = b.haim ?? ha - Math.PI / 2,
-      look = b.look ?? 0,
-      t = b.tint || [1, 1, 1];
-    setH(e.z + 64);
-    quad(R['hb' + look], bx, by, a, 0.85 * S, 0.85 * S, t[0], t[1], t[2], 1, fb, fb, fb, 0);
-    setH(e.z + 66);
-    quad(R['hh' + look], bx, by, a, 0.85 * S, 0.85 * S, 1, 1, 1, 1, fb, fb, fb, 0);
-    if (b.hflash > 0) {
-      const [fx, fy] = heliPt(e, 26 + i * 18, -21);
-      quad(
-        R.muzzle,
-        fx + Math.cos(a) * 5 * S,
-        fy + Math.sin(a) * 5 * S,
-        a,
-        0.4 * S,
-        0.4 * S,
-        1,
-        0.85,
-        0.5,
-        1,
-        3,
-        2.2,
-        1.2,
-        0
-      );
-    } // only their flashes show at the door's edge: their guns stay inside, out of the picture
-  });
-  // you, on the gun
+  setH(e.z + 65);
   const G = gunPose(e),
-    look = HLOOK[GS.RUN.hero] || 0,
-    st = HSTYLE[look] || HSTYLE[0],
-    [px, py] = heliPt(e, 34, 10),
     c = Math.cos(G.a),
     sn = Math.sin(G.a);
-  setH(e.z + 64);
-  quad(R['hb' + look], px, py, G.a, 0.95 * S, 0.95 * S, 1, 1, 1, 1, fb, fb, fb, 0);
-  setH(e.z + 65);
-  lineQ(
-    G.mx - c * 4 * S,
-    G.my - sn * 4 * S,
-    G.mx + c * 4 * S,
-    G.my + sn * 4 * S,
-    6 * S,
-    0.1,
-    0.1,
-    0.09,
-    1,
-    0,
-    0,
-    0,
-    0,
-    R.pixel
-  ); // the pintle mount
-  quad(R.h_lmg, G.mx + c * 10 * S, G.my + sn * 10 * S, G.a, 0.78 * S, 0.78 * S, 1, 1, 1, 1, fb, fb, fb, 0);
+  quad(R.h_lmg, G.mx + c * 7 * S, G.my + sn * 7 * S, G.a, 0.46 * S, 0.46 * S, 1, 1, 1, 1, fb, fb, fb, 0);
   {
     const h = r.over > 0 ? 1 : Math.max(0, (r.heat - 0.35) / 0.65);
     if (h > 0.02)
       lineQ(
-        G.mx + c * 22 * S,
-        G.my + sn * 22 * S,
+        G.mx + c * 6 * S,
+        G.my + sn * 6 * S,
         G.fx,
         G.fy,
-        2.6 * S,
+        1.2 * S,
         1,
         0.45,
         0.15,
@@ -577,17 +527,13 @@ export function heliCrew(e) {
         R.pixel
       ); // the barrel, glowing with the heat
   }
-  quad(R[st.hand], G.mx + c * 2 * S, G.my + sn * 2 * S, G.a, 0.9 * S, 0.9 * S, 1, 1, 1, 1, fb, fb, fb, 0);
-  quad(R[st.hand], G.mx + c * 12 * S, G.my + sn * 12 * S, G.a, 0.8 * S, 0.8 * S, 1, 1, 1, 1, fb, fb, fb, 0);
-  setH(e.z + 66);
-  quad(R['hh' + look], px + c * 2, py + sn * 2, G.a, 0.9 * S, 0.9 * S, 1, 1, 1, 1, fb, fb, fb, 0);
   if (r.flashT > 0)
-    quad(R.muzzle, G.fx + c * 6 * S, G.fy + sn * 6 * S, G.a, 0.7 * S, 0.7 * S, 1, 0.85, 0.5, 1, 3.2, 2.4, 1.2, 0);
+    quad(R.muzzle, G.fx + c * 4 * S, G.fy + sn * 4 * S, G.a, 0.5 * S, 0.5 * S, 1, 0.85, 0.5, 1, 3.2, 2.4, 1.2, 0);
   const sd = ha + Math.PI / 2;
   for (const k of r.cases) {
     const q = k.t / 0.7,
-      out = (6 + 40 * q * k.sd) * S,
-      sc = 0.85 * S * (1 - q * 0.4);
+      out = (4 + 34 * q * k.sd) * S,
+      sc = 0.5 * S * (1 - q * 0.4);
     quad(
       R.shell,
       G.mx + Math.cos(sd) * out,
