@@ -317,10 +317,7 @@ export function travelStep() {
     /* no storage: nothing to clear */
   }
   const ways = GS.RUN.journey && !GS.RUN.hm ? offerVia() : null, // which way to the next place: on foot or in the truck alike
-    ready = showRoute(id => {
-      if (id) applyVia(id);
-      arrive();
-    }, ways);
+    ready = showRoute(id => arrive(id ? applyVia(id) : ''), ways);
   fade(false);
   ready();
 }
@@ -341,7 +338,7 @@ function moveOn() {
   statMax('reachedStop', stop); // it opens for Horde Mode
   saveMeta();
 }
-function arrive() {
+function arrive(note = '') {
   ['pause', 'levelup'].forEach(id => ($(id).hidden = true));
   $('hud').hidden = false;
   GS.state = 'play';
@@ -352,7 +349,10 @@ function arrive() {
   GS.RUN.arrW = GS.wave; // this dawn is an arrival: a Continue from it keeps the long look round
   GS.RUN.lvHold = GS.time + 5; // the place's name and the radio first, then any cards banked on the way
   const S = STOPS[stopNow()];
-  banner(S.name, `${S.area} · night ${GS.wave + 1} tonight · ${FINAL_NIGHT - GS.wave} to go`);
+  banner(
+    S.name,
+    `${S.area} · night ${GS.wave + 1} tonight${note ? ' · ' + note : ` · ${FINAL_NIGHT - GS.wave} to go`}`
+  );
   storyArrive(stopNow());
   planDawn();
   saveRun(); // the new place is the checkpoint now

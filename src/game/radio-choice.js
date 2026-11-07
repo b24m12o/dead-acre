@@ -4,15 +4,16 @@
 // stops the clock (it's a dawn: nothing is coming yet), and is answered with a click or 1 / 2.
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
-import { LV, S, ammoMax } from './state.js';
+import { S, ammoMax } from './state.js';
+import { rollBud } from '../actors/backups.js';
 import { AMMO_MAX } from './arsenal.js';
-import { UP, renderMods } from './upgrades.js';
 import { giveTraps } from './traps.js';
 import { lamps } from '../world/map.js';
 import { radio } from '../audio/radio.js';
 import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
 import { saveRun } from './save.js';
+import { bossNight } from './waves.js';
 
 // each one: what Reyes says (voiced, word for word), and the two answers: what each gives, what each costs
 export const RCH = {
@@ -25,7 +26,7 @@ export const RCH = {
     line: 'Nine, there is a family on the laundromat roof, a few streets east. Go now and you will still be out there when it gets dark.',
     a: {
       label: 'Go and get them',
-      gain: 'One of them joins you · with a full team, they pay 40 scrap',
+      gain: 'Tonight: reach them and bring them back alive · one of them joins you',
       cost: 'Night comes sooner, and more of the dead with it',
     },
     b: { label: 'Stay put', gain: 'The whole dawn to get ready', cost: 'They are on their own' },
@@ -60,7 +61,15 @@ export function radioDawn() {
   if (!q) return;
   const ask = () => {
     if (!GS.nightDone || q.done) return;
-    if (GS.state !== 'play') return GS.later.push({ t: 0.5, fn: ask }); // behind any cards on screen
+    if (GS.state !== 'play' || GS.RUN.jobPend) return GS.later.push({ t: 0.5, fn: ask }); // behind any cards on screen
+    if (q.id === 'family' && (GS.RUN.job || bossNight(GS.wave + 1))) {
+      const used = GS.RUN.rDawns.map(d => d.id),
+        alt = Object.keys(RCH).find(k => k !== 'family' && !used.includes(k)),
+        later = GS.RUN.rDawns.find(d => d.w > GS.wave && !d.done);
+      if (later && later.id !== 'family' && !bossNight(later.w + 1)) [later.id, q.id] = ['family', later.id];
+      else if (alt) q.id = alt;
+      else return;
+    } // tonight already has a job, or a boss: the family waits for another morning, another question takes its place
     openAsk(q);
   };
   GS.later.push({ t: 6, fn: ask });
@@ -106,7 +115,7 @@ function openAsk(q) {
 }
 const gainText = (id, k) =>
   id === 'family' && k === 'a' && GS.buddies.length >= 3
-    ? 'Your team is full: they pay 40 scrap and head for the convoy'
+    ? 'Tonight: reach them and bring them back alive · your team is full: they head for the convoy'
     : RCH[id][k].gain;
 const night = (k, extra) => (GS.RUN.choiceN = Object.assign({ w: GS.wave + 1, k }, extra || {}));
 function answer(id, k) {
@@ -128,16 +137,11 @@ function answer(id, k) {
     }
   } else if (id === 'family') {
     if (k === 'a') {
-      if (GS.buddies.length < 3) {
-        if ((LV.buddy || 0) < 3) LV.buddy = (LV.buddy || 0) + 1;
-        UP.find(u => u.id === 'buddy').apply();
-        renderMods();
-      } else {
-        GS.runSeeds += 40;
-        say = 'The family is safe · they pay 40 scrap and head for the convoy';
-      }
-      GS.interT = Math.min(GS.interT, 4);
+      GS.RUN.job = { t: 'rescue', rw: rollBud(), fam: true }; // tonight's job: the ordinary rescue, marked when the night starts
+      GS.RUN.lastJob = 'rescue';
+      GS.interT = Math.min(GS.interT, 6);
       night(1.15);
+      say = 'They are marked when it gets dark · bring them back before dawn';
     } else say = 'Copy. We will try for them later';
   } else if (id === 'power') {
     if (k === 'a') night(1.15, { lights: 'on' });
@@ -151,7 +155,7 @@ function answer(id, k) {
     } else say = 'Keeping the flares';
   }
   sfx.ammo();
-  if (say) showStreak('Channel 9', say);
+  if (say) showStreak('Channel 9', say, true); // straight away: it's the answer you just gave
 }
 // the night the answer was for: how many of the dead come, and what the streetlights do
 export const choiceNight = w => (GS.RUN && GS.RUN.choiceN && GS.RUN.choiceN.w === w ? GS.RUN.choiceN : null);

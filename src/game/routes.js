@@ -8,8 +8,7 @@ import { pick } from '../core/util.js';
 import { LV, S, ammoMax } from './state.js';
 import { AMMO_MAX } from './arsenal.js';
 import { UP, offerUpgrades, renderMods } from './upgrades.js';
-import { showStreak } from '../ui/callouts.js';
-import { floatText } from '../render/effects.js';
+import { TRAITS } from '../actors/backups.js';
 import { sfx } from '../audio/sfx.js';
 
 // k: the first night's dead at the new place, times this; brutes: more of the big ones among them
@@ -79,45 +78,53 @@ function topUpAmmo() {
   for (const t of Object.keys(AMMO_MAX)) GS.P.ammo[t] = Math.max(GS.P.ammo[t] || 0, ammoMax(t));
 }
 // you've arrived the way you chose: what it gave you, now; what it costs, on the first night here
+// returns the line the arrival banner carries, so what the way gave you shows as you walk in, not seconds later
 export function applyVia(id) {
   const V = VIA[id];
-  if (!V) return;
+  if (!V) return '';
   GS.RUN.via = id;
   GS.RUN.viaN = { w: GS.wave + 1, k: V.k, brutes: !!V.brutes };
   GS.RUN.viaTaken = (GS.RUN.viaTaken || []).concat(id);
   const P = GS.P;
-  let msg = V.gain;
-  if (id === 'pharmacy') {
+  let note = '';
+  if (id === 'road') note = 'the main road: you are ahead of them tonight';
+  else if (id === 'pharmacy') {
     P.hp = S.maxHp;
     for (const b of GS.buddies) {
       b.down = 0;
       b.hp = b.max;
     }
-  } else if (id === 'gunshop') topUpAmmo();
-  else if (id === 'hideout') {
+    note = 'patched up at the pharmacy';
+  } else if (id === 'gunshop') {
+    topUpAmmo();
+    note = 'every gun topped up at the gun shop';
+  } else if (id === 'hideout') {
     if (GS.buddies.length < 3) {
       if ((LV.buddy || 0) < 3) LV.buddy = (LV.buddy || 0) + 1;
       UP.find(u => u.id === 'buddy').apply();
       renderMods();
-      msg = '';
+      const b = GS.buddies[GS.buddies.length - 1];
+      GS.streakQ = GS.streakQ.filter(q => !/joins you$/.test(q[0])); // the banner says it
+      note = `${b.nm} came with you from the farmhouse · ${TRAITS[b.tr].name.toLowerCase()}`;
     } else {
       topUpAmmo();
       P.hp = Math.min(S.maxHp, P.hp + 40);
       GS.runSeeds += 30;
-      msg = 'Your team is full: they share their ammo, a medkit and 30 scrap';
+      note = 'the farmhouse shared their ammo, a medkit and 30 scrap';
     }
   } else if (id === 'checkpoint') {
     const go = () => {
       if (GS.state === 'play') offerUpgrades('route');
       else GS.later.push({ t: 0.3, fn: go });
     };
-    GS.later.push({ t: 2.5, fn: go }); // after the place's name is up
+    GS.later.push({ t: 1.2, fn: go });
+    note = 'kit from the army checkpoint';
   } else if (id === 'wrecks') {
     GS.runSeeds += 50;
-    floatText(P.x, P.y - 40, '+50 scrap', '#ffd08a', 15);
+    note = '+50 scrap from the pile-up';
   }
-  if (msg) GS.later.push({ t: 3.2, fn: () => showStreak(V.name, msg) });
   if (id !== 'road') sfx.ammo();
+  return note;
 }
 // the first night at the new place: how many of the dead, and how many brutes among them
 export const viaNight = w => (GS.RUN && GS.RUN.viaN && GS.RUN.viaN.w === w ? GS.RUN.viaN : null);
