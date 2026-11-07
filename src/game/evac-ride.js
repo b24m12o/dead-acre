@@ -4,12 +4,12 @@
 // and you can't lose here; it's the last stretch, earned. Hold click to fire where you aim; the gun heats as it fires
 // and locks up for a moment if you hold it too long. The dead pour out of the streets under you, and twice on the
 // way there are survivors in the open with the dead closing on them: whoever is still standing when you have flown
-// past made it, and the convoy picks them up. The end screen counts what you did from the door.
+// past made it, and the convoy behind picks them up. The end screen counts what you did from the door.
 import { GS } from '../core/gs.js';
 import { bump } from './challenges.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, rand } from '../core/util.js';
 import { MH, MW, TILE, WH, WW, grid } from '../world/map.js';
-import { collide, dijk, query, solidPt } from '../world/nav.js';
+import { dijk, query, solidPt } from '../world/nav.js';
 import { MUS, noise, playR, playS } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { cam } from './state.js';
@@ -96,11 +96,8 @@ export function startRide(e) {
     spawnT: 0,
     groups: [],
     done: 0,
-    vk: 0, // the chopper's pace, 0..1 of SPEED: it slows to hover for a pickup
-    low: 0, // 0..1: how far down it has come for one
     flashT: 0,
     cases: [],
-    picked: 0,
     crewKills: 0,
   };
   for (const b of GS.RUN.aboard) b.hcd = rand(0.4, 1.2); // your people, in the cabin's other door
@@ -116,7 +113,7 @@ export function startRide(e) {
       s.gun = 'pistol';
       civ.push(s);
     }
-    e.ride.groups.push({ x: sp[0], y: sp[1], s: R.Lmap * f, civ, on: false, done: false, spawned: 0, pick: f > 0.5 });
+    e.ride.groups.push({ x: sp[0], y: sp[1], s: R.Lmap * f, civ, on: false, done: false, spawned: 0 });
   }
   GS.P.ride = true;
   GS.P.inv = 1e9;
@@ -142,36 +139,16 @@ export function rideTick(e, dt) {
     const [, , a] = along(r.R, 1);
     e.ha += angDiff(e.ha, a) * damp(1.5, dt);
   } else {
-    // a pickup ahead: it slows, comes down and hangs over them until they're in (or there's no one left to wait for)
-    const pg = r.groups.find(g => g.pick && !g.done && g.on),
-      over = pg && pg.s - r.s < 220; // it starts across to them a little before it reaches them
-    if (over && !r.hover) {
-      r.hover = pg;
-      pg.hoverT = 0;
-      showStreak('Going down for them', 'Keep the dead off them while they climb aboard', true);
-      sfx.ammo();
-    }
-    const want = r.hover ? 0 : pg && pg.s - r.s < 260 ? 0.35 : 1;
-    r.vk += (want - r.vk) * damp(want < r.vk ? 2.2 : 0.8, dt);
-    r.low += ((r.hover ? 1 : 0) - r.low) * damp(r.hover ? 0.9 : 0.6, dt);
-    r.s += SPEED * dt * Math.min(1, (r.t - LIFT) / 1.5) * r.vk;
+    r.s += SPEED * dt * Math.min(1, (r.t - LIFT) / 1.5);
     const [x, y, a] = along(r.R, r.s);
-    // over a pickup it sidles across to hang right over them, so they don't have to find a way round a building to it
-    r.off = r.off || [0, 0];
-    const ox = r.hover ? r.hover.x - x : 0,
-      oy = r.hover ? r.hover.y - y : 0;
-    r.off[0] += (ox - r.off[0]) * damp(1.4, dt);
-    r.off[1] += (oy - r.off[1]) * damp(1.4, dt);
-    e.hx = x + r.off[0];
-    e.hy = y + r.off[1];
+    e.hx = x;
+    e.hy = y;
     {
       const want = Math.atan2(cam.y + mouse.y / ZOOM - e.hy, cam.x + mouse.x / ZOOM - e.hx),
         crab = mouse.down ? clamp(angDiff(a + Math.PI / 2, want), -0.6, 0.6) : 0;
       e.ha += angDiff(e.ha, a + crab) * damp(1.6, dt);
     } // the pilot crabs a little to swing your door toward what you're firing at, as door-gun crews fly
-    e.z =
-      lerp(RIDE_Z + Math.min(140, Math.max(0, r.s - r.R.L * 0.7) * 0.25), 70, r.low) +
-      Math.sin(r.t * 0.8) * (6 - 4 * r.low);
+    e.z = RIDE_Z + Math.min(140, Math.max(0, r.s - r.R.L * 0.7) * 0.25) + Math.sin(r.t * 0.8) * 6;
   }
   // you go with it: in the door, above the street it is flying over
   const P = GS.P;
@@ -383,16 +360,14 @@ function pourOut(e, r, dt) {
   if (r.t < LIFT) return;
   r.spawnT -= dt;
   if (r.spawnT > 0 || GS.enemies.length > 150) return;
-  r.spawnT = r.hover ? 0.6 : 0.28;
-  // ahead, out of sight (they come in from the edges, not out of thin air), and never on top of survivors who are
-  // waiting for the chopper: those already have their share coming at them
-  const pg = r.groups.find(g => g.pick && g.on && !g.done),
-    inView = (x, y) => x > cam.x - 40 && x < cam.x + viewW + 40 && y > cam.y - 40 && y < cam.y + viewH + 40;
+  r.spawnT = 0.28;
+  // ahead, and out of sight: they come in from the edges, not out of thin air
+  const inView = (x, y) => x > cam.x - 40 && x < cam.x + viewW + 40 && y > cam.y - 40 && y < cam.y + viewH + 40;
   let sp = null;
   for (let k = 0; k < 6 && !sp; k++) {
     const [ax, ay] = along(r.R, r.s + rand(380, 620)),
       q = spotNear(ax, ay, 120, 460);
-    if (q && !inView(q[0], q[1]) && !(pg && d2(q[0], q[1], pg.x, pg.y) < 450 * 450)) sp = q;
+    if (q && !inView(q[0], q[1])) sp = q;
   }
   if (!sp) return;
   const n = 2 + ((Math.random() * 3) | 0);
@@ -411,7 +386,7 @@ function groups(e, r, dt) {
   for (const g of r.groups) {
     if (g.done) continue;
     const ahead = g.s - r.s;
-    if (!g.on && ahead < (g.pick ? 640 : 950)) {
+    if (!g.on && ahead < 950) {
       g.on = true;
       {
         const tx = Math.floor(g.x / TILE),
@@ -420,14 +395,8 @@ function groups(e, r, dt) {
         dijk(fl, [ty * MW + tx], false);
         g.lure = { x: g.x, y: g.y, alarm: 1e9, flare: true, flow: fl };
       } // one lure for the group, with its own way through the streets
-      showStreak(
-        'Survivors below',
-        g.pick
-          ? 'Keep the dead off them · the bird is going down for them'
-          : 'Cover them as you go over · keep the dead off them',
-        true
-      );
-      for (let i = 0; i < (g.pick ? 8 : 12); i++) {
+      showStreak('Survivors below', 'Cover them as you go over · keep the dead off them', true);
+      for (let i = 0; i < 12; i++) {
         const sp = spotNear(g.x, g.y, 300, 460);
         if (!sp) continue;
         const z = makeEnemy('skitter', sp[0], sp[1]);
@@ -441,34 +410,9 @@ function groups(e, r, dt) {
       }
     }
     if (!g.on) continue;
-    const pick = r.hover === g && r.low > 0.55;
-    if (r.hover === g) g.hoverT += dt;
     for (const s of g.civ) {
       s.hurt = Math.max(0, (s.hurt || 0) - dt); // the flash of a hit fades
-      if (s.hp <= 0 || s.aboard) continue;
-      if (pick) {
-        const dx = e.hx - s.x,
-          dy = e.hy - s.y,
-          dd = Math.hypot(dx, dy);
-        if (dd < 24) {
-          s.aboard = true;
-          r.picked++;
-          floatText(s.x, s.y - 40, 'Aboard', '#8ef0b8', 15);
-          sfx.grunt(s.x, s.y);
-          sfx.thump(s.x, s.y); // hauled up over the skid onto the deck
-          continue;
-        } // up and in
-        const ox = s.x,
-          oy = s.y,
-          v = Math.min(175, dd * 5);
-        s.x += (dx / dd) * v * dt;
-        s.y += (dy / dd) * v * dt;
-        collide(s);
-        const sp2 = Math.hypot(s.x - ox, s.y - oy) / Math.max(dt, 1e-4);
-        s.moveA = Math.atan2(s.y - oy, s.x - ox);
-        s.strideAmp = lerp(s.strideAmp || 0, Math.min(1, sp2 / 250), damp(10, dt));
-        s.stride = (s.stride || 0) + (sp2 * dt) / 76;
-      } // they run for the skids
+      if (s.hp <= 0) continue;
       let near = null,
         nd = 1e12;
       query(s.x, s.y, 60, z => {
@@ -517,11 +461,7 @@ function groups(e, r, dt) {
     for (const z of GS.enemies)
       if (z.civT === g && !z.dead) {
         const t = g.civ.find(s => s.hp > 0);
-        if (t && r.hover === g) {
-          if (z.lure === g.lure) z.lure = null;
-          z.aw = 9;
-        } // they're running for the chopper: the dead go after them, under it
-        else if (t) {
+        if (t) {
           z.lure = g.lure;
           z.aw = 0;
         } else {
@@ -529,13 +469,7 @@ function groups(e, r, dt) {
           if (z.lure === g.lure) z.lure = null;
         }
       }
-    const waiting = g.civ.filter(s => s.hp > 0 && !s.aboard).length;
-    if (r.hover === g && (!waiting || g.hoverT > 14)) {
-      r.hover = null;
-      for (const s of g.civ) if (s.hp > 0 && !s.aboard) s.hp = 0; // too long: the chopper can't wait
-    } // everyone who could is in: up and away
-    if ((!g.pick && ahead < -650) || (g.pick && !r.hover && g.hoverT !== undefined) || !g.civ.some(s => s.hp > 0)) {
-      if (r.hover === g) r.hover = null;
+    if (ahead < -650 || !g.civ.some(s => s.hp > 0)) {
       g.done = true;
       const n = g.civ.filter(s => s.hp > 0).length;
       r.saved += n;
@@ -543,7 +477,7 @@ function groups(e, r, dt) {
       floatText(
         g.x,
         g.y - 50,
-        n ? (g.pick ? `${n} of ${g.civ.length} aboard` : `${n} of ${g.civ.length} made it`) : 'None of them made it',
+        n ? `${n} of ${g.civ.length} made it` : 'None of them made it',
         n ? '#c8e6a0' : '#ff6a5a',
         18
       );
@@ -561,7 +495,6 @@ export const rideCiv = () => {
   const e = GS.evac;
   if (!e || !e.ride) return [];
   const out = [];
-  for (const g of e.ride.groups)
-    if (g.on || g.s - e.ride.s < 1100) for (const s of g.civ) if (s.hp > 0 && !s.aboard) out.push(s);
+  for (const g of e.ride.groups) if (g.on || g.s - e.ride.s < 1100) for (const s of g.civ) if (s.hp > 0) out.push(s);
   return out;
 };

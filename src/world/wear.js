@@ -355,6 +355,7 @@ export function setupAtmos() {
   const cand = houses.filter(
     o =>
       o.roof &&
+      !o.garage &&
       o.w >= 3 &&
       o.h >= 3 &&
       Math.hypot((o.x + o.w / 2) * TILE - WW / 2, (o.y + o.h / 2) * TILE - WH / 2) > 500

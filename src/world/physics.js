@@ -301,7 +301,7 @@ function damageTile(i, amt) {
   }
   if (GS.TDMG[i] >= lim) breakTile(i);
 }
-export function breakTile(i) {
+export function breakTile(i, quiet = false) {
   const t = ttype[i],
     tx = i % MW,
     ty = (i / MW) | 0,
@@ -315,6 +315,7 @@ export function breakTile(i) {
   GS.flowTile = -1;
   repaintGround(tx, ty, t);
   radarTile(i);
+  if (quiet) return; // opened, not smashed: a door going up
   if (t === 9) {
     for (let k = 0; k < 2; k++) {
       const dd = decal(

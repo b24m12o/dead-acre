@@ -1,7 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // Every stop on the road, laid out a few times over: from where you walk in, everything a night can ask you to
 // reach must be reachable on foot (the jobs' cans, cases, the survivor, the generator, the black box's piles, the
-// siege house's people), and so must every spot the dead can be spawned at, the road out and the landing zone.
+// siege house's people), and so must every spot the dead can be spawned at, the road out and the landing zone, and
+// where you leave by truck, the garage door and every fuel can for it.
 // Nothing must sit in the river. A pocket you can't get into is where a night would never end.
 import { openGame, check } from './lib/harness.mjs';
 
@@ -23,11 +24,21 @@ const PLACES = String.raw`(() => {
       for (let i = 0; i < 60; i++) { const [x, y] = spawnPoint(460, false); at('spawn', x, y); }
       if (HELIPAD) at('helipad', HELIPAD[0], HELIPAD[1]);
       for (const o of houses) {
-        if (o.open) continue;
+        if (o.open || o.garage) continue; // the garage is shut on purpose, till the dawn you bring its truck fuel
         let floor = 0, inn = 0;
         for (let y = o.y + 1; y < o.y + o.h - 1; y++) for (let x = o.x + 1; x < o.x + o.w - 1; x++) if (!isWall(x, y)) { floor++; if (flow[y * MW + x] < 65535) inn++; }
         if (floor > 2 && !inn) bad.push('sealed room at ' + o.x + ',' + o.y);
       } // a door blocked by something dropped in it
+      if (STOPS[GS.RUN.stop].leave === 'truck') {
+        if (!GARAGE) bad.push('no garage for the truck');
+        else {
+          at('garage door', (GARAGE.x + GARAGE.w / 2) * TILE, (GARAGE.y + GARAGE.h) * TILE + 30);
+          if (Math.hypot(GS.P.x - GARAGE.tx, GS.P.y - GARAGE.ty) < 300) bad.push('the garage stands on the way in');
+          GS.truck = null; callTruck();
+          for (const c of GS.truck.cans) at('truck fuel', c.x, c.y);
+          GS.truck = null;
+        }
+      } // the truck's garage: its door can be walked to, and so can every can of fuel for it
       for (const job of ['fuel', 'meds', 'rescue', 'gen', 'box']) {
         GS.P.x = P0[0]; GS.P.y = P0[1]; GS.wave = 3; GS.queue = ['skitter']; GS.RUN.job = { t: job }; GS.RUN.nextSig = null;
         GS.obj = null; GS.wrecks.length = 0; nightSetup();

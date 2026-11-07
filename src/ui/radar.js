@@ -127,8 +127,8 @@ export function drawRadar() {
       ui.textAlign = 'center';
       ui.textBaseline = 'bottom';
       ui.lineWidth = 3;
-      ui.strokeText(W.label === 'TRUCK' ? 'TRUCK' : 'OUT', x0 + W.x * k, y0 + W.y * k - 4);
-      ui.fillText(W.label === 'TRUCK' ? 'TRUCK' : 'OUT', x0 + W.x * k, y0 + W.y * k - 4); // named, not just a box
+      ui.strokeText(W.short || (W.label === 'TRUCK' ? 'TRUCK' : 'OUT'), x0 + W.x * k, y0 + W.y * k - 4);
+      ui.fillText(W.short || (W.label === 'TRUCK' ? 'TRUCK' : 'OUT'), x0 + W.x * k, y0 + W.y * k - 4); // named, not just a box
       ui.textAlign = 'left';
       ui.textBaseline = 'alphabetic';
       ui.lineWidth = 1;

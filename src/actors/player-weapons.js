@@ -52,8 +52,7 @@ export function firePlayer(cwx, cwy, p, target) {
     camKick(p.aimA, g);
     if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.triggers++;
     const rate = G.rate * S.rate * hb.rate * (g === 'lmg' && (braced || S.evo.walkfire) ? 1.15 : 1);
-    p.fireCd += 1 / rate;
-    if (p.fireCd < -0.05) p.fireCd = 1 / rate;
+    p.fireCd = Math.max(p.fireCd, -1 / 60) + 1 / rate; // carry at most a frame of overshoot: idle time must not bank a second shot
     const c = Math.cos(p.aimA),
       s = Math.sin(p.aimA),
       mxp = p.x + c * G.muzzle,

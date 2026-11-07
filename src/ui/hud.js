@@ -265,7 +265,13 @@ export function updateHud() {
                   : 'Time to move on'
                 : GS.truck && GS.truck.parked && !GS.truck.gone
                   ? 'Get to the truck'
-                  : 'A truck is on its way'
+                  : GS.truck && GS.truck.dry && !GS.truck.gone
+                    ? GS.truck.fuel < GS.truck.cans.length
+                      ? `Find fuel for the truck · ${GS.truck.fuel} / ${GS.truck.cans.length}`
+                      : 'Take the fuel to the garage'
+                    : GS.truck && GS.truck.garage && !GS.truck.gone
+                      ? 'The truck is starting'
+                      : 'A truck is on its way'
               : GS.nightDone && !left && GS.interT > 0
                 ? GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14
                   ? 'Drop waiting · Enter to skip'

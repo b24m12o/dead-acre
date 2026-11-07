@@ -3,7 +3,19 @@
 // node tests/run.mjs startup bosses
 import { browser } from './lib/harness.mjs';
 
-const ALL = ['startup', 'names', 'radio', 'bosses', 'places', 'ride', 'evac', 'setpieces', 'campaign', 'variants'];
+const ALL = [
+  'startup',
+  'names',
+  'radio',
+  'bosses',
+  'places',
+  'ride',
+  'evac',
+  'trigger',
+  'setpieces',
+  'campaign',
+  'variants',
+];
 const args = process.argv.slice(2),
   mods = [];
 for (const n of ALL) mods.push({ id: n, ...(await import(`./${n}.test.mjs`)) });

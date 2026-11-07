@@ -2,7 +2,7 @@
 import { GS } from '../core/gs.js';
 import { lineQ, quad, setH } from './sprites.js';
 import { R } from './atlas.js';
-import { MH, MW, TILE, cars, houses, ttype } from '../world/map.js';
+import { GARAGE, MH, MW, TILE, cars, houses, ttype } from '../world/map.js';
 import { WBURN, WHOLES } from '../world/wear.js';
 import { WB_SIZES } from './bake.js';
 /* =====================================================================
@@ -67,6 +67,7 @@ export function prepBlocks() {
       if (st === 'bord') WVAR[i] = r < 0.25 ? 1 : r < 0.33 ? 2 : 0;
       if (st === 'int' && faceShown) WVAR[i] = r < 0.1 ? 1 : r < 0.17 ? 2 : r < 0.23 ? 3 : r < 0.3 ? 4 : 0;
     }
+  if (GARAGE) for (const i of GARAGE.door) WVAR[i] = 0; // no window in a roller door
   for (const o of houses)
     (o.roof = !o.open && (o.style === 'crypt' || o.style === 'store' || (o.style !== 'chapel' && hsh(o.x, o.y) < 0.5))),
       (o.fade = 1);
@@ -143,6 +144,7 @@ export function drawBlock(i) {
     );
   }
   if (!wb) quad(R['wt_' + st], x, y - H, 0, 1, 1, bu, bu, bu, 1, 0, 0, 0, 0);
+  if (faceShown && GARAGE && !GARAGE.open && GARAGE.door.includes(i)) shutter(x, y, H, i, bu);
   const hl = WHOLES.get(i);
   if (hl)
     for (const h of hl)
@@ -151,6 +153,24 @@ export function drawBlock(i) {
   GS.gA = 1;
 }
 
+// the garage's roller door, down: a slatted steel shutter over the wall's face, its slats catching the light, rust and
+// grime toward the foot, the frame's dark edge at each end of the opening
+function shutter(x, y, H, i, bu) {
+  const top = y + 20 - H + 3,
+    hgt = H - 3,
+    G = GARAGE,
+    first = G.door[0] === i,
+    last = G.door[G.door.length - 1] === i,
+    k = 0.62 * bu;
+  quad(R.pixel, x, top + hgt / 2, 0, 10, hgt / 4, k, k * 1.02, k * 1.04, 1, 0, 0, 0, 0);
+  for (let yy = top + 2; yy < top + hgt - 1; yy += 3.2) {
+    lineQ(x - 20, yy, x + 20, yy, 0.9, 0.3 * bu, 0.31 * bu, 0.32 * bu, 1, 0, 0, 0, 0, R.pixel);
+    lineQ(x - 20, yy + 1.1, x + 20, yy + 1.1, 0.6, 0.82 * bu, 0.84 * bu, 0.86 * bu, 0.8, 0, 0, 0, 0, R.pixel);
+  }
+  quad(R.pixel, x, top + hgt - 3, 0, 10, 1.2, 0.4 * bu, 0.3 * bu, 0.22 * bu, 0.55, 0, 0, 0, 0); // rust at the foot
+  if (first) quad(R.pixel, x - 19, top + hgt / 2, 0, 0.6, hgt / 4, 0.12, 0.12, 0.12, 1, 0, 0, 0, 0);
+  if (last) quad(R.pixel, x + 19, top + hgt / 2, 0, 0.6, hgt / 4, 0.12, 0.12, 0.12, 1, 0, 0, 0, 0);
+}
 // the 3D picture for a brick or concrete wall tile: its height to the nearest one baked, its face's variant (a window,
 // lit or dark or boarded, a poster, a crack) as the painted version chose it. Null when the pictures aren't in
 function wallBlock(st, i, H, tx, ty) {

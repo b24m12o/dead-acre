@@ -17,7 +17,7 @@ import { rigTarget } from '../game/traps.js';
 import { siegePrompt } from '../game/siege.js';
 import { kn } from '../core/binds.js';
 import { mouse } from '../core/input.js';
-import { riding, wayOut } from '../game/journey.js';
+import { riding, truckCans, wayOut } from '../game/journey.js';
 export function drawObjectiveGlow() {
   if (GS.evac && !GS.evac.ride) {
     const pu = (0.6 + Math.sin(GS.time * 6) * 0.3) * (GS.evac.t >= GS.evac.land ? 0.16 : 1); // once it is down, the ring fades so the chopper itself reads
@@ -42,6 +42,7 @@ export function drawObjectiveGlow() {
   }
   if (GS.obj && GS.obj.type === 'fuel')
     for (const c of GS.obj.cans) if (!c.got) quad(R.glow, c.x, c.y, 0, 0.6, 0.6, 0, 0, 0, 1, 0.6, 0.4, 0.1, 0);
+  for (const c of truckCans()) quad(R.glow, c.x, c.y, 0, 0.6, 0.6, 0, 0, 0, 1, 0.6, 0.4, 0.1, 0);
   if (GS.obj && GS.obj.type === 'box' && !GS.obj.done && GS.obj.batt > 0) {
     const bx = GS.obj.piles.find(q => q.box);
     if (bx && d2(bx.x, bx.y, GS.P.x, GS.P.y) < 200 * 200 && (GS.time * 1.6) % 1 < 0.12)
@@ -144,8 +145,9 @@ export function markerList() {
     m.push({ x: GS.RUN.sg.horde.x, y: GS.RUN.sg.horde.y, col: '#ff8a6a', label: 'HORDE' });
   {
     const W = wayOut();
-    if (W) m.push({ x: W.x, y: W.y, col: '#d8e4a8', label: W.label });
-  } // the way on to the next place: the truck, or the road out
+    if (W && W.can) for (const c of truckCans()) m.push({ x: c.x, y: c.y, col: '#ffb070', label: 'FUEL' });
+    else if (W) m.push({ x: W.x, y: W.y, col: '#d8e4a8', label: W.label });
+  } // the way on to the next place: the fuel for the truck, the garage, the truck, or the road out
   if (GS.RUN.lz && !GS.evac && !GS.RUN.hm && GS.wave >= FINAL_NIGHT - 1)
     m.push({ x: GS.RUN.lz[0], y: GS.RUN.lz[1], col: '#8ef0a0', label: 'LANDING ZONE' }); // named at the last dawn
   if (GS.horde && !GS.horde.done)

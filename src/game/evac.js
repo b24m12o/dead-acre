@@ -343,7 +343,6 @@ function winRun() {
   if (GS.evac && GS.evac.ride)
     $('wCrew').innerHTML +=
       ` From the door gun: <b>${rk} kills</b>` +
-      (GS.evac.ride.picked ? ` · <b>${GS.evac.ride.picked}</b> pulled aboard` : '') +
       (GS.evac.ride.crewKills ? ` · your people in the cabin got <b>${GS.evac.ride.crewKills}</b>` : '') +
       (rs + rl ? ` · <b>${rs} of ${rs + rl}</b> survivors saved${rs ? ` · +${25 * rs} scrap` : ''}` : '') +
       '.';

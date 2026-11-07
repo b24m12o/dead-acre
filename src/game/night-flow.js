@@ -26,6 +26,7 @@ import { freeSpot } from '../actors/backups.js';
 import { bark } from '../audio/barks.js';
 import {
   callTruck,
+  truckPlan,
   clearJourney,
   fade,
   leaveAfter,
@@ -201,7 +202,7 @@ export function nightCleared() {
       GS.RUN.hm
         ? `Horde ${GS.wave} is down · set the traps for the next`
         : leaveAfter(GS.wave)
-          ? `Night ${GS.wave} survived · ${leaveAfter(GS.wave) === 'truck' ? 'a truck is coming to take you' : 'time to move on'} to ${nextStop().name}`
+          ? `Night ${GS.wave} survived · ${leaveAfter(GS.wave) === 'truck' ? (truckPlan() === 'garage' ? 'a truck in a garage here can take you' : 'a truck is coming to take you') : 'time to move on'} to ${nextStop().name}`
           : `Night ${GS.wave} survived · ${FINAL_NIGHT - GS.wave} to go`
     );
     GS.RUN.dawnX = 0;

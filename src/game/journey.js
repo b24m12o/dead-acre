@@ -1,14 +1,16 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // The campaign: fifteen nights on the road from Dead Acre to the County Hospital, a night or a few at each stop
 // (route.js). When it's time to move on, the dawn doesn't run out. Either the road out is marked at the edge of
-// the map and you walk it, coming in on the same road at the next place; or a convoy truck pulls up, you climb
-// into the back, and you ride the mounted gun across the map while the dead come at it. The dead that heard the
+// the map and you walk it, coming in on the same road at the next place; or you leave by truck: there is one shut
+// in a garage on the west side, with a dry tank (that's why nobody drove off in it). You find fuel cans round the
+// place, bring them to the garage, the door goes up and it pulls out, and you climb into the back and ride the
+// mounted gun east across the map while the dead come at it. The dead that heard the
 // night's fight drift in while you make your way out. The whole run goes with you: gear, guns, ammo, traps, your
 // people and your level.
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, damp, rand } from '../core/util.js';
-import { MH, MW, ROAD, RY, TILE, WH, WW, fires, grid, isWall, ttype } from '../world/map.js';
+import { GARAGE, MH, MW, ROAD, RY, TILE, WH, WW, cars, fires, grid, isWall, ttype } from '../world/map.js';
 import { breakTile } from '../world/physics.js';
 import { GUN_HEAT } from './evac-ride.js';
 import { ZOOM, addLight, viewH, viewW } from '../render/sprites.js';
@@ -23,7 +25,7 @@ import { mouse } from '../core/input.js';
 import { opt } from '../core/settings.js';
 import { S, cam } from './state.js';
 import { hurtEnemy, hurtPlayer } from './combat.js';
-import { query } from '../world/nav.js';
+import { flow, query } from '../world/nav.js';
 import { STOPS, stopAt } from './route.js';
 
 export const journeyOn = () => !!(GS.RUN && GS.RUN.journey && !GS.RUN.hm && !GS.RUN.practice);
@@ -114,6 +116,7 @@ export function truckLive() {
 // where it can pull up: along the main road from whichever end leaves it a clear run to a spot a fair walk from
 // you, or, on ground with no road through it, parked out of sight in the open
 export function callTruck(now = false) {
+  if (GARAGE && !GARAGE.open && !now) return garageTruck();
   const P = GS.P,
     row = RY && RY.includes(30) ? 30 : null;
   let t = null;
@@ -154,6 +157,107 @@ export function callTruck(now = false) {
   if (now) GS.truck.parked = true;
   if (!t.drive) GS.truck.honked = false; // no road to come up: it is simply there, out of sight, and sounds its horn
 }
+// ---- the truck in the garage: shut in, tank dry, until you bring it fuel ----
+const FUEL_N = 3,
+  FILL = 1.6; // cans to find; seconds at the door pouring them in
+export const truckPlan = () => (GARAGE ? 'garage' : 'convoy');
+function garageTruck() {
+  const G = GARAGE;
+  GS.truck = {
+    x: G.tx,
+    y: G.ty,
+    a: Math.PI / 2, // nose to the door
+    v: 0,
+    drive: false,
+    parked: false,
+    truck: true,
+    hp: 1,
+    max: 1,
+    lights: false,
+    tint: [0.72, 0.78, 0.66],
+    col: '#7a8466',
+    t: 0,
+    board: 0,
+    honked: true,
+    garage: G,
+    dry: true,
+    fuel: 0,
+    fill: 0,
+    cans: fuelCans(G),
+  };
+  showStreak(
+    'A truck, and no fuel',
+    `Someone is holed up in the garage with a box truck and a dry tank · find ${FUEL_N} cans of fuel and bring them to him`,
+    true
+  );
+}
+// where the cans are: by the wrecks first (the one in a trunk, what's left in a tank), spread round the place, well
+// away from the garage and from each other, somewhere you can walk to
+function fuelCans(G) {
+  const out = [],
+    walk = (x, y) => {
+      const tx = Math.floor(x / TILE),
+        ty = Math.floor(y / TILE);
+      return roomy(x, y, 12) && flow && flow[ty * MW + tx] < 65535;
+    },
+    far = (x, y, k = 1) => d2(x, y, G.tx, G.ty) > (380 * k) ** 2 && out.every(c => d2(c.x, c.y, x, y) > (440 * k) ** 2),
+    add = (x, y) => out.push({ x, y, got: false, t: rand(0, 5) });
+  const wrecks = cars.filter(c => !c.dead).sort(() => Math.random() - 0.5);
+  for (const c of wrecks) {
+    if (out.length >= FUEL_N - 1) break; // one by a wreck or two; the last one anywhere
+    for (const sd of [1, -1]) {
+      const x = c.x - Math.sin(c.a) * sd * 42,
+        y = c.y + Math.cos(c.a) * sd * 42;
+      if (walk(x, y) && far(x, y)) {
+        add(x, y);
+        break;
+      }
+    }
+  }
+  for (const k of [1, 0.7, 0.4, 0])
+    for (let n = 0; n < 60 && out.length < FUEL_N; n++) {
+      const [x, y] = freeSpot(300, 1300);
+      if (walk(x, y) && far(x, y, k)) add(x, y);
+    }
+  while (out.length < FUEL_N) {
+    const [x, y] = freeSpot(200, 1600);
+    add(x, y);
+  } // a cramped place: anywhere it can be reached
+  return out;
+}
+const doorSpot = G => [(G.x + G.w / 2) * TILE, (G.y + G.h) * TILE + 30];
+// the roller door goes up: its tiles open, quietly (no rubble), and the way in is walkable
+function openGarage(G) {
+  G.open = true;
+  for (const i of G.door) breakTile(i, true);
+  for (let k = 0; k < 7; k++) noise(0.11, 0.035, 2600 - k * 120, 1500, 'bandpass', k * 0.13); // the shutter rattling up its runners
+  noise(0.25, 0.05, 400, 120, 'lowpass', 0.95); // and banging home at the top
+}
+function fuelRun(T, P, dt) {
+  for (const c of T.cans) {
+    c.t += dt;
+    if (!c.got && P.hp > 0 && d2(c.x, c.y, P.x, P.y) < 38 * 38) {
+      c.got = true;
+      T.fuel++;
+      sfx.ammo();
+      floatText(c.x, c.y - 30, `Fuel ${T.fuel} / ${FUEL_N}`, '#ffd08a', 16);
+      if (T.fuel >= FUEL_N) showStreak('That should do it', 'Take the fuel to the garage', true);
+    }
+  }
+  if (T.fuel < FUEL_N) return;
+  const [dx, dy] = doorSpot(T.garage),
+    near = d2(P.x, P.y, dx, dy) < 64 * 64 && P.hp > 0 && !(P.dashT > 0);
+  T.fill = near ? T.fill + dt : Math.max(0, T.fill - dt * 2);
+  if (T.fill >= FILL) {
+    T.dry = false;
+    T.fill = 0;
+    openGarage(T.garage);
+    floatText(dx, dy - 40, 'Fuelled', '#8ef0b8', 16);
+    T.crank = 1.5;
+    T.lights = true;
+    for (let k = 0; k < 3; k++) tone(52, 0.22, 'sawtooth', 0.05, 1.25, 0.25 + k * 0.3, 380); // the starter, turning it over
+  }
+}
 function honk(k = 1) {
   tone(196, 0.42, 'sawtooth', 0.045 * k, 1, 0, 900);
   tone(247, 0.42, 'sawtooth', 0.035 * k, 1, 0, 900);
@@ -169,7 +273,29 @@ function tickTruck(dt) {
   const T = GS.truck,
     P = GS.P;
   T.t += dt;
-  if (T.drive) {
+  if (T.dry) fuelRun(T, P, dt);
+  else if (T.crank > 0) {
+    T.crank -= dt;
+    if (T.crank <= 0) {
+      noise(0.5, 0.06, 220, 70, 'lowpass');
+      shake(0.12);
+      T.drive = true;
+      T.pull = (T.garage.y + T.garage.h) * TILE + 53 - T.y; // out until its tail is at the door
+    } // it catches
+  }
+  if (T.drive && T.garage) {
+    const st = Math.min(T.pull, (T.v = Math.min(80, Math.sqrt(2 * 160 * Math.max(0, T.pull)) + 10)) * dt);
+    T.pull -= st;
+    T.x += Math.cos(T.a) * st;
+    T.y += Math.sin(T.a) * st;
+    if (T.pull <= 0.5) {
+      T.drive = false;
+      T.parked = true;
+      T.honked = false;
+      T.v = 0;
+    }
+    diesel(T, P, dt);
+  } else if (T.drive) {
     const left = (T.stopX - T.x) * Math.cos(T.a);
     T.v = Math.min(260, Math.sqrt(2 * 320 * Math.max(0, left)) + 6); // a steady run in, then brakes
     T.x += Math.cos(T.a) * T.v * dt;
@@ -184,7 +310,8 @@ function tickTruck(dt) {
   if (T.parked && !T.honked) {
     T.honked = true;
     honk();
-    showStreak('The truck is here', `${nextStop().name} is next · walk to it to climb aboard`, true);
+    if (T.garage) showStreak('The truck is running', `${nextStop().name} is next · climb in the back`, true);
+    else showStreak('The truck is here', `${nextStop().name} is next · walk to it to climb aboard`, true);
   }
   // you can't walk through it
   {
@@ -214,23 +341,30 @@ function tickTruck(dt) {
       startRide(T);
       return;
     }
-    stragglers(T, dt);
   }
+  if (T.parked || T.dry || T.crank > 0 || T.drive) stragglers(T, dt);
 }
 
 // ---- the ride: the truck drives on across the map and out, and you're on the gun in the back ----
+const N8 = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
+]; // across open ground it can go on the slant, not in steps
 const SMASH = new Set([2, 8, 9]); // rubble, headstones, fences: what the truck goes through
+const BUMP = 16; // from a wreck's middle to its flank, side-on across the road, less the bumper's overhang
 const RIDE_V = 175; // a working truck's pace through wrecked streets: quicker than you can run, slow enough to be caught on the corners
-// the way out over open ground, keeping to the road where there is one: cheapest path from the truck to the far
-// edge, then rounded off so the truck takes the corners in curves
-// the drive out: not straight for the nearest edge but the long way round, through the streets, by a couple of
-// waypoints out on through-roads (the truck has to go round what's blocking the short way), then off the far side.
-// Each leg is a cheapest-path search over the tiles; roads it has already driven cost more, so it loops round blocks
-// instead of doubling back.
+// the drive out: the cheapest way from where the truck stands to the far edge, down the middle of the streets where
+// there are any (the truck is wider than a tile, so it keeps off the wrecks and the walls), then rounded off so it
+// takes the corners in curves. No detours: it heads straight out
 function ridePath(T) {
   const side = T.x > WW / 2 ? -1 : 1,
     N = MW * MH,
-    used = new Uint8Array(N),
     shut = new Uint8Array(N), // the road just driven, behind the truck: no turning round on it
     s0 = Math.floor(T.y / TILE) * MW + Math.floor(T.x / TILE),
     edge = i => (side > 0 ? i % MW >= MW - 6 : i % MW <= 5),
@@ -251,9 +385,9 @@ function ridePath(T) {
             if (Math.abs(j) <= 1 && Math.abs(k) <= 1) near++;
             else far++;
           }
-      base[i] = 1 + near * 6 + far * 0.6 + (ROAD && ROAD[i] ? 0 : 1.2);
+      base[i] = 1 + near * 6 + far * 0.6 + (ROAD && ROAD[i] === 1 ? 0 : ROAD && ROAD[i] ? 0.9 : 2.6);
     }
-  const step = i => (shut[i] ? 1e9 : base[i] + used[i] * 8),
+  const step = i => (shut[i] ? 1e9 : base[i]),
     cost = new Float32Array(N),
     from = new Int32Array(N),
     done = new Uint8Array(N);
@@ -302,17 +436,13 @@ function ridePath(T) {
       }
       const tx = i % MW,
         ty = (i / MW) | 0;
-      for (const [ox, oy] of [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-      ]) {
+      for (const [ox, oy] of N8) {
         const nx = tx + ox,
           ny = ty + oy;
         if (nx < 2 || ny < 2 || nx >= MW - 2 || ny >= MH - 2) continue;
+        if (ox && oy && (step(ty * MW + nx) >= 1e9 || step(ny * MW + tx) >= 1e9)) continue; // no cutting a wall's corner
         const j = ny * MW + nx,
-          c = cost[i] + step(j);
+          c = cost[i] + step(j) * (ox && oy ? 1.414 : 1);
         if (c < cost[j]) {
           cost[j] = c;
           from[j] = i;
@@ -324,102 +454,26 @@ function ridePath(T) {
     for (let i = end; i >= 0 && i !== from0; i = from[i]) out.push(i);
     return end >= 0 ? out.reverse() : null;
   };
-  // the waypoints: through-road tiles (road on both sides along it), well apart
-  let loose = false; // when the map has too few streets for that: any paved ground will do
-  const through = i => {
-      const tx = i % MW,
-        ty = (i / MW) | 0,
-        rd = (x, y) => ROAD && (loose ? ROAD[y * MW + x] : ROAD[y * MW + x] === 1) && !isWall(x, y);
-      return (
-        tx > 6 &&
-        ty > 6 &&
-        tx < MW - 7 &&
-        ty < MH - 7 &&
-        rd(tx, ty) &&
-        ((rd(tx - 1, ty) && rd(tx + 1, ty)) || (rd(tx, ty - 1) && rd(tx, ty + 1)))
-      );
-    },
-    tpos = i => [((i % MW) + 0.5) * TILE, (((i / MW) | 0) + 0.5) * TILE],
-    pickWp = (fromI, minD, goalSide) => {
-      const [fx, fy] = tpos(fromI);
-      for (let k = 0; k < 300; k++) {
-        const i = ((Math.random() * N) | 0) % N;
-        if (!through(i)) continue;
-        const [x, y] = tpos(i);
-        if (Math.hypot(x - fx, y - fy) < minD) continue;
-        if (goalSide && (x - WW / 2) * side < WW * 0.05) continue;
-        if (!goalSide && (x - WW / 2) * side > WW * 0.15) continue;
-        return i;
+  // the road just behind it is shut (it drives on, not back the way it came), then the cheapest way off the far side
+  shut.fill(0);
+  {
+    const ax = s0 % MW,
+      ay = (s0 / MW) | 0,
+      dx = Math.cos(T.a),
+      dy = Math.sin(T.a);
+    for (let j = -3; j <= 3; j++)
+      for (let q = -3; q <= 3; q++) {
+        const tx = ax + q,
+          ty = ay + j;
+        if (tx >= 0 && ty >= 0 && tx < MW && ty < MH && q * dx + j * dy < -0.5) shut[ty * MW + tx] = 1;
       }
-      return -1;
-    };
-  let w1 = pickWp(s0, 700, false),
-    w2 = w1 >= 0 ? pickWp(w1, 700, true) : -1;
-  if (w1 < 0 || w2 < 0) {
-    loose = true;
-    if (w1 < 0) w1 = pickWp(s0, 700, false);
-    if (w1 >= 0) w2 = pickWp(w1, 700, true);
   }
-  // the whole drive through the given waypoints and off the far edge
-  let idx, at, badRun;
-  const drive = wps => {
-    badRun = false;
-    idx = [s0];
-    at = s0;
-    used.fill(0);
-    const behind = () => {
-      shut.fill(0);
-      const ax = at % MW,
-        ay = (at / MW) | 0,
-        b0 = idx[Math.max(0, idx.length - 5)];
-      let dx = ax - (b0 % MW),
-        dy = ay - ((b0 / MW) | 0);
-      if (idx.length < 3) {
-        dx = Math.cos(T.a);
-        dy = Math.sin(T.a);
-      } // at the start, behind is where the truck's tailgate points
-      for (let k = Math.max(0, idx.length - 9); k < idx.length; k++)
-        for (let j = -3; j <= 3; j++)
-          for (let q = -3; q <= 3; q++) {
-            const tx = (idx[k] % MW) + q,
-              ty = ((idx[k] / MW) | 0) + j;
-            if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) continue;
-            if ((tx - ax) * dx + (ty - ay) * dy < 0) shut[ty * MW + tx] = 1;
-          }
-    }; // the road behind it, its whole width, is shut for the next leg: it drives on, round the block, not back
-    for (const w of wps) {
-      if (w < 0) continue;
-      behind();
-      const near = i => i === w; // the waypoint itself (a through-road tile, open), not a tile beside it: no jog
-      let L1 = leg(at, near);
-      if (!L1 && idx.length < 3) {
-        shut.fill(0);
-        L1 = leg(at, near);
-      } // parked facing a dead end: it turns round first
-      if (!L1) continue;
-      for (const i of L1) used[i] = 1;
-      idx = idx.concat(L1);
-      at = idx[idx.length - 1];
-    }
-    behind();
-    let L2 = leg(at, edge);
-    if (!L2) {
-      shut.fill(0);
-      L2 = leg(at, edge);
-      badRun = true;
-    } // a dead end after all: turning round is better than stopping
-    if (L2) idx = idx.concat(L2);
-    else if (idx.length < 4) idx = [];
-    return idx;
-  };
-  const tries = [];
-  for (const wps of [[w1, w2], [w1], []]) {
-    const r = drive(wps);
-    tries.push({ idx: r.slice(), bad: badRun });
-  }
-  const fit = t => (t.bad ? 1e6 : 0) + Math.abs(t.idx.length - 95);
-  tries.sort((p, q) => fit(p) - fit(q));
-  idx = tries[0].idx; // of the ways round, the one nearest half a minute's drive (about 95 tiles) that never doubles back
+  let L2 = leg(s0, edge);
+  if (!L2) {
+    shut.fill(0);
+    L2 = leg(s0, edge);
+  } // nose to a dead end: it turns round
+  const idx = L2 ? [s0].concat(L2) : [];
   let pts = idx.map(i => [(i % MW) * TILE + TILE / 2, ((i / MW) | 0) * TILE + TILE / 2]);
   if (pts.length < 4)
     pts = [
@@ -505,6 +559,7 @@ function startRide(T) {
     // halfway or so, where both wrecks stand on open road (not on a burning barrel or a wall)
     const clearAt = s0 => {
         const [x, y, a] = along(r.path, s0);
+        for (let q = s0 - 210; q <= s0 + 60; q += 15) if (Math.abs(angDiff(along(r.path, q)[2], a)) > 0.1) return false; // on a straight: he comes at it square, bumper to the wrecks
         return [-1, 1].every(k => {
           const cx = x - Math.sin(a) * k * 34,
             cy = y + Math.cos(a) * k * 34;
@@ -513,27 +568,33 @@ function startRide(T) {
           );
         });
       },
-      bs =
-        [0.52, 0.46, 0.58, 0.4, 0.64].map(f => clamp(r.path.len * f, 560, r.path.len - 420)).find(clearAt) ??
-        clamp(r.path.len * 0.52, 560, r.path.len - 420),
-      [bx, by, ba] = along(r.path, bs),
-      px = -Math.sin(ba),
-      py = Math.cos(ba);
-    r.block = {
-      s: bs,
-      hp: 5,
-      t: 0,
-      on: false,
-      push: 0,
-      cars: [-1, 1].map(k => ({
-        x: bx + px * k * 34,
-        y: by + py * k * 34,
-        a: ba + Math.PI / 2 + rand(-0.35, 0.35),
-        k,
-        px,
-        py,
-      })),
-    };
+      spots = [];
+    for (let s0 = 560; s0 <= r.path.len - 420; s0 += 30) spots.push(s0);
+    spots.sort((p, q) => Math.abs(p - r.path.len * 0.52) - Math.abs(q - r.path.len * 0.52));
+    const bs = spots.find(clearAt); // the straight nearest halfway; with none, no roadblock
+    if (bs !== undefined) {
+      const [bx, by, ba] = along(r.path, bs),
+        px = -Math.sin(ba),
+        py = Math.cos(ba);
+      r.block = {
+        s: bs,
+        hp: 5,
+        t: 0,
+        on: false,
+        push: 0,
+        fwd: 0, // how far the rams have shoved the wrecks on down the road
+        dx: Math.cos(ba),
+        dy: Math.sin(ba),
+        cars: [-1, 1].map(k => ({
+          x: bx + px * k * 34,
+          y: by + py * k * 34,
+          a: ba + Math.PI / 2 + rand(-0.35, 0.35),
+          k,
+          px,
+          py,
+        })),
+      };
+    }
   } // halfway, a roadblock: two burnt-out wrecks across the road, and the driver has to ram his way through
   for (let s0 = 520; s0 < r.path.len - 320; s0 += rand(380, 560)) {
     const [ax, ay] = along(r.path, s0);
@@ -556,7 +617,7 @@ function tickRide(dt, onLeave) {
     P = GS.P;
   r.t += dt;
   const B = r.block && r.block.hp > 0 ? r.block : null,
-    blockAt = B ? B.s - TL / 2 - 34 : 1e9;
+    blockAt = B ? B.s + B.fwd - TL / 2 - BUMP : 1e9; // the bumper right up against the wrecks' flank
   // it brakes for the corners and the end of the road, and picks up speed again after
   const [, , ca] = along(r.path, r.s + 30),
     [, , cb] = along(r.path, r.s + 150),
@@ -578,8 +639,8 @@ function tickRide(dt, onLeave) {
     }
     B.t += dt;
     const ph = B.t % 1.7;
-    back = ph < 0.9 ? 26 * Math.sin((ph / 0.9) * (Math.PI / 2)) : 26 * (1 - (ph - 0.9) / 0.22);
-    back = Math.max(0, back); // reverses a little, then floors it
+    back = ph < 0.9 ? 22 * Math.sin((ph / 0.9) * (Math.PI / 2)) : 22 * (1 - (ph - 0.9) / 0.22);
+    back = Math.max(0, back); // reverses a little, then floors it: back into them, bumper to steel
     if (B.t > 0.6 && ph >= 1.12 && !B.hit) {
       B.hit = true;
       B.hp--;
@@ -589,11 +650,14 @@ function tickRide(dt, onLeave) {
       sfx.thump(B.cars[0].x, B.cars[0].y);
       sfx.tink(B.cars[1].x, B.cars[1].y); // steel on steel, and the glass going
       for (const c of B.cars) {
-        chips(c.x, c.y, 10, null, 4, 220);
-        sparks(c.x, c.y, [1, 0.7, 0.35], 8, 260);
+        const hx = c.x + B.dx * (B.fwd - BUMP) - c.px * c.k * 18,
+          hy = c.y + B.dy * (B.fwd - BUMP) - c.py * c.k * 18; // where steel meets steel: the wreck's flank, by the bumper
+        chips(hx, hy, 10, null, 4, 220);
+        sparks(hx, hy, [1, 0.7, 0.35], 8, 260);
         c.a += rand(-0.18, 0.18);
       }
       B.push += B.hp ? 6 : 0;
+      B.fwd += B.hp ? 7 : 0; // each ram shoves them on a little; he follows them up
       const [fx, fy] = along(r.path, r.s + TL / 2);
       query(fx, fy, 70, z => {
         if (!z.dead && z.dying === undefined && z.type !== 'queen')
@@ -792,12 +856,29 @@ export function tickJourney(dt, onLeave) {
 export function wayOut() {
   const T = GS.truck;
   if (T && !T.gone && !T.ride && T.parked) return { x: T.x, y: T.y, label: 'TRUCK', board: T.board / 1.1 };
+  if (T && !T.gone && T.dry) {
+    if (T.fuel >= FUEL_N) {
+      const [x, y] = doorSpot(T.garage);
+      return { x, y, label: 'GARAGE', short: 'GAR', board: T.fill / FILL };
+    }
+    let best = null,
+      bd = 1e18;
+    for (const c of T.cans)
+      if (!c.got && d2(c.x, c.y, GS.P.x, GS.P.y) < bd) {
+        bd = d2(c.x, c.y, GS.P.x, GS.P.y);
+        best = c;
+      }
+    if (best) return { x: best.x, y: best.y, label: 'FUEL', short: 'FUEL', board: 0, can: true };
+  } // the nearest can, then the garage door to pour them in at
   if (roadOutLive()) return { x: GS.roadOut.x, y: GS.roadOut.y, label: 'ROAD OUT', board: 0 };
   return null;
 }
+// every can still out there, for the markers and the drawing
+export const truckCans = () => (GS.truck && !GS.truck.gone && GS.truck.dry ? GS.truck.cans.filter(c => !c.got) : []);
+export const truckGarage = () => (GS.truck && !GS.truck.gone && GS.truck.dry ? GS.truck.garage : null);
 export function journeyLights() {
   const T = GS.truck;
-  if (T && !T.gone) {
+  if (T && !T.gone && T.lights !== false) {
     const c = Math.cos(T.a),
       s = Math.sin(T.a),
       fx = T.x + c * (TL / 2 + 8),

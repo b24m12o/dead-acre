@@ -3,7 +3,7 @@ import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, pick, rand, randi } from '../core/util.js';
 import { SUNV, addLight, lineQ, quad, setH, viewH, viewW } from './sprites.js';
 import { R } from './atlas.js';
-import { MH, MW, ROAD, RX, RY, TILE, cars, grid, houses, ttype } from '../world/map.js';
+import { GARAGE, MH, MW, ROAD, RX, RY, TILE, cars, grid, houses, ttype } from '../world/map.js';
 import { query } from '../world/nav.js';
 import { noise, playS } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
@@ -520,7 +520,12 @@ export function drawHouseRoofs() {
       p3 = pk && R[pk + '_0'] && R[pk + '_0'].bk && (rx ? o.h <= 6 : o.w <= 5), // a 3D pitched roof, when the pictures are in
       D = rx ? o.h * TILE + 16 : o.w * TILE + 12,
       rise = p3 ? D * 0.12 : 0,
-      inside = GS.P && GS.P.x > x0 - 6 && GS.P.x < x1 + 6 && GS.P.y > y0 - RH - rise - 10 && GS.P.y < y1 + 4;
+      inside =
+        GS.P &&
+        GS.P.x > x0 - 6 &&
+        GS.P.x < x1 + 6 &&
+        GS.P.y > y0 - RH - rise - 10 &&
+        GS.P.y < y1 + (o.garage && GARAGE && GARAGE.open ? 190 : 4); // the garage with its door up: you see in from the apron
     o.fade += ((inside ? 0.12 : 1) - o.fade) * 0.15;
     GS.gA = o.fade;
     const tint = [

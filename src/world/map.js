@@ -13,6 +13,7 @@ import { genDecor } from '../render/decor.js';
 import { buildCarMap } from './fire.js';
 import { LAYOUTS, paintLayout } from './layouts.js';
 import { placeHatches } from './sewers.js';
+import { STOPS } from '../game/route.js';
 /* =====================================================================
    Town map
    ===================================================================== */
@@ -39,7 +40,111 @@ export let ROAD;
 export let RX, RY;
 export let LAYOUT = ''; // which place's layout this map is, in the campaign (layouts.js); '' for a district's own
 export let HELIPAD = null; // the helipad, where a layout has one: the evac lands there
+// at a place you leave by truck, the garage it waits in: shut, its roller door on the street side, until the dawn
+// you have the fuel for it. { x, y, w, h } in tiles, door: the door's tile indices, tx/ty: where the truck stands
+export let GARAGE = null;
 let CAR_COLS;
+// the garage the truck waits in: 5 × 6 tiles of concrete, on the west side of the place (the drive out is east, across
+// all of it), its roller door facing a street, nothing in front of the door. Shut: you can't get in until the dawn
+// you leave. Off any street (a map with none near the west), any open ground in front of the door will do
+function placeGarage(set, seen, RES, clearOK) {
+  const w = 5,
+    h = 6,
+    soft = i =>
+      ttype[i] === 2 || ttype[i] === 3 || ttype[i] === 4 || ttype[i] === 7 || ttype[i] === 8 || ttype[i] === 9; // rubble, trees, crates, burn barrels, headstones, fences: cleared for it
+  const cand = [];
+  for (let y = 3; y <= MH - h - 6; y++)
+    for (let x = 3; x <= MW - w - 4; x++) {
+      if (x < 17 && y + h + 3 > 25 && y - 1 < 36) continue; // never on the way in: you arrive at the west edge, mid-height
+      let ok = clearOK(x + w / 2, y + h / 2, 9);
+      for (let j = -1; j <= h && ok; j++)
+        for (let k = -1; k <= w && ok; k++) {
+          const i = (y + j) * MW + x + k;
+          if ((grid[i] && !soft(i)) || RES[i]) ok = false;
+          else if (j >= 0 && j < h && k >= 0 && k < w && (ROAD[i] === 1 || ROAD[i] === 2)) ok = false;
+        }
+      if (!ok) continue;
+      if (houses.some(o => x < o.x + o.w + 1 && x + w + 1 > o.x && y < o.y + o.h + 1 && y + h + 1 > o.y)) continue;
+      if (
+        lamps.some(
+          L =>
+            L.bx > (x - 0.5) * TILE &&
+            L.bx < (x + w + 0.5) * TILE &&
+            L.by > (y - 0.5) * TILE &&
+            L.by < (y + h + 0.5) * TILE
+        )
+      )
+        continue;
+      let road = 0,
+        reach = 0;
+      for (let j = h; j < h + 3 && ok; j++)
+        for (let k = 1; k <= 3; k++) {
+          const i = (y + j) * MW + x + k;
+          if (grid[i] && !soft(i)) ok = false;
+          else {
+            if (seen[i] && !grid[i]) reach++;
+            if (ROAD[i] === 1) road++;
+          }
+        } // the apron in front of the door: open (or only clutter), reachable, a street if there is one
+      if (!ok || reach < 3) continue;
+      cand.push([x * 1.4 + (road >= 3 ? 0 : 14) + Math.random() * 6, x, y]);
+    }
+  cand.sort((p, q) => p[0] - q[0]);
+  // its walls mustn't cut the apron off: from the middle of the map, with the garage standing and its plot's
+  // clutter gone, the tile in front of the door has to be reachable
+  const ok2 = (x, y) => {
+    const blocked = i => {
+        const tx = i % MW,
+          ty = (i / MW) | 0;
+        if (tx >= x && tx < x + w && ty >= y && ty < y + h) return true;
+        if (tx >= x - 1 && tx <= x + w && ty >= y - 1 && ty <= y + h + 2) return !!grid[i] && !soft(i);
+        return !!grid[i];
+      },
+      goal = (y + h) * MW + x + 2,
+      vis = new Uint8Array(MW * MH),
+      q = [(MH >> 1) * MW + (MW >> 1)];
+    vis[q[0]] = 1;
+    while (q.length) {
+      const c = q.pop();
+      if (c === goal) return true;
+      for (const n of [c + 1, c - 1, c + MW, c - MW])
+        if (n >= 0 && n < MW * MH && !vis[n] && !blocked(n)) {
+          vis[n] = 1;
+          q.push(n);
+        }
+    }
+    return false;
+  };
+  const best = cand.slice(0, 40).find(c => ok2(c[1], c[2]));
+  if (!best) return;
+  const [, x, y] = best,
+    door = [];
+  for (let j = -1; j <= h + 2; j++)
+    for (let k = -1; k <= w; k++) {
+      const i = (y + j) * MW + x + k;
+      if (grid[i] && soft(i)) {
+        const tx = x + k,
+          ty = y + j,
+          here = o => o.tx !== tx || o.ty !== ty;
+        if (ttype[i] === 3) trees = trees.filter(here);
+        if (ttype[i] === 4) crystals = crystals.filter(here);
+        if (ttype[i] === 7) fires = fires.filter(here);
+        grid[i] = 0;
+        ttype[i] = 0;
+      }
+    } // the clutter on its plot and in front of the door goes
+  for (let j = 0; j < h; j++)
+    for (let k = 0; k < w; k++) {
+      RES[(y + j) * MW + x + k] = 1;
+      if (j === 0 || k === 0 || k === w - 1 || j === h - 1) {
+        set(x + k, y + j, 5);
+        if (j === h - 1 && k >= 1 && k <= 3) door.push((y + j) * MW + x + k);
+      }
+    }
+  for (let j = h; j < h + 3; j++) for (let k = 1; k <= 3; k++) RES[(y + j) * MW + x + k] = 1; // nothing set down on the apron
+  houses.push({ x, y, w, h, style: 'store', garage: true });
+  GARAGE = { x, y, w, h, door, tx: (x + w / 2) * TILE, ty: (y + 1) * TILE + 160 - 64, open: false };
+}
 export function generateMap() {
   grid.fill(0);
   ttype.fill(0);
@@ -55,6 +160,7 @@ export function generateMap() {
   const D = (GS.RUN && GS.RUN.district) || 'town';
   LAYOUT = (GS.RUN && (GS.RUN.journey || GS.RUN.hm) && GS.RUN.layout) || ''; // a campaign stop, or the place Horde Mode is fought on
   HELIPAD = null;
+  GARAGE = null;
   RX = D === 'town' ? [12, 30, 47] : [];
   RY = D === 'town' ? [13, 30, 46] : D === 'highway' ? [30] : [];
   const underRoof = (x, y) =>
@@ -662,6 +768,14 @@ export function generateMap() {
       grid[i] = 1;
       ttype[i] = 2;
     }
+  if (
+    GS.RUN &&
+    GS.RUN.journey &&
+    Number.isInteger(GS.RUN.stop) &&
+    STOPS[GS.RUN.stop] &&
+    STOPS[GS.RUN.stop].leave === 'truck'
+  )
+    placeGarage(set, seen, RES, clearOK);
   for (let i = 0, tries = 0; i < 9 && tries < 300; tries++) {
     const x = randi(4, MW - 5),
       y = randi(4, MH - 5);

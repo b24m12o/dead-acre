@@ -12,6 +12,7 @@ import { carKey, drawCar, drawWreck } from './cars.js';
 import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk, propShadow } from './decor.js';
 import { drawPile } from '../game/objectives.js';
 import { HATCHES } from '../world/sewers.js';
+import { truckCans } from '../game/journey.js';
 const DQ = [];
 const MOON_CAP = 90; // past this many zombies on screen, the furthest throw a simple shadow
 const FL_CAP = 48; // zombies whose shadows the flashlight throws, nearest first: each costs three smeared copies of the body
@@ -324,6 +325,7 @@ export function drawCasters() {
   }
   if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && !GS.obj.joined) push(GS.obj.s.y, drawRanger, GS.obj.s);
   if (GS.obj && GS.obj.type === 'fuel') for (const c of GS.obj.cans) if (!c.got) push(c.y, drawCan, c);
+  for (const c of truckCans()) push(c.y, drawCan, c); // fuel for the truck in the garage
   if (GS.obj && GS.obj.type === 'box') for (const q of GS.obj.piles) if (vis(q.x, q.y)) push(q.y - 30, drawPile, q);
   DQ.sort((a, b) => a.y - b.y);
   for (const q of DQ) q.f(q.a);
@@ -578,7 +580,23 @@ function drawHatch(h) {
   );
 }
 function drawRoadblock([c, B]) {
-  const d = B.push * c.k;
+  const d = B.push * c.k,
+    f = B.fwd || 0;
   setH(14);
-  quad(R.carburn, c.x + c.px * d, c.y + c.py * d, c.a + d * 0.012, 1, 1, 0.8, 0.78, 0.74, 1, 0, 0, 0, 0);
+  quad(
+    R.carburn,
+    c.x + c.px * d + (B.dx || 0) * f,
+    c.y + c.py * d + (B.dy || 0) * f,
+    c.a + d * 0.012,
+    1,
+    1,
+    0.8,
+    0.78,
+    0.74,
+    1,
+    0,
+    0,
+    0,
+    0
+  );
 }
