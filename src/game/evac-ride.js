@@ -152,8 +152,14 @@ export function rideTick(e, dt) {
     r.low += ((r.hover ? 1 : 0) - r.low) * damp(r.hover ? 0.9 : 0.6, dt);
     r.s += SPEED * dt * Math.min(1, (r.t - LIFT) / 1.5) * r.vk;
     const [x, y, a] = along(r.R, r.s);
-    e.hx = x;
-    e.hy = y;
+    // over a pickup it sidles across to hang right over them, so they don't have to find a way round a building to it
+    r.off = r.off || [0, 0];
+    const ox = r.hover ? r.hover.x - x : 0,
+      oy = r.hover ? r.hover.y - y : 0;
+    r.off[0] += (ox - r.off[0]) * damp(1.4, dt);
+    r.off[1] += (oy - r.off[1]) * damp(1.4, dt);
+    e.hx = x + r.off[0];
+    e.hy = y + r.off[1];
     e.ha += angDiff(e.ha, a) * damp(2, dt);
     e.z =
       lerp(RIDE_Z + Math.min(140, Math.max(0, r.s - r.R.L * 0.7) * 0.25), 70, r.low) +
