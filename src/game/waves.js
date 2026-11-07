@@ -9,6 +9,8 @@ import { TILE, WH, WW, isWall } from '../world/map.js';
 import { cam } from './state.js';
 import { FINAL_NIGHT, INF, TW } from './districts.js';
 import { BOSS_J } from './route.js';
+import { viaNight } from './routes.js';
+import { choiceNight } from './radio-choice.js';
 export const bossNight = w =>
   !(GS.RUN && GS.RUN.hm) && (GS.RUN && GS.RUN.journey && !GS.RUN.practice ? !!BOSS_J[w] : w % 5 === 0); // Horde Mode has no bosses: the hordes are the bosses; the campaign has one at most of its stops (route.js)
 // nights since the last boss (0 the night after one, up to 4): the dead come faster as the next one nears
@@ -30,6 +32,11 @@ export function buildWave(w) {
   if (w >= 4) T.push(['beetle', 0.45 + 0.07 * w]);
   if (Dn === 'highway' && w >= 2) T.push(['hound', 0.5]);
   if (TW('horde')) n = Math.round(n * 1.4);
+  const via = viaNight(w);
+  if (via) n = Math.round(n * via.k);
+  const ch = choiceNight(w);
+  if (ch) n = Math.round(n * ch.k); // what you answered on the radio this morning // the way you came: what followed you in, or how far ahead of them you got
+  if (via && via.brutes && w >= 2) T.push(['beetle', 1.4]);
   if (bossNight(w)) n = Math.floor(n * (w >= 10 ? 0.3 : 0.38)); // the boss is staged by bossEntrance, not spawned from the queue
   if (w >= 3 && !bossNight(w))
     for (let i = 0; i < (1 + Math.floor(w / 5) + (INF(8) ? 1 : 0) + (Dn === 'cemetery' ? 1 : 0)) * 1; i++)
@@ -46,6 +53,7 @@ export function buildWave(w) {
     sp('climb', 3, 3);
     sp('spore', 5, 4);
     sp('drag', 6, 4);
+    sp('scream', 5, 4);
   } // the special infected: climbers from night 3, spores from 5, draggers from 6, a few more as the nights go
   const tw = T.reduce((s, t) => s + t[1], 0);
   for (let i = 0; i < n; i++) {

@@ -405,8 +405,11 @@ export function drawEnemy(e) {
           [11 + Math.sin(ph) * 3 * mv, -21],
           [11 - Math.sin(ph) * 3 * mv, 21],
         ]; // arms out round the swollen gut
-      if (!dead && e.trait === 'screamer' && (e.scrPose || 0) > GS.time) {
-        const k3 = Math.sin(clamp((e.scrPose - GS.time) / 0.9, 0, 1) * Math.PI);
+      if (!dead && e.trait === 'screamer' && ((e.scrPose || 0) > GS.time || e.scrIn > 0)) {
+        const k3 =
+          e.scrIn > 0
+            ? 0.55 * clamp((GS.time - e.scrInT) / 0.95, 0, 1) // the breath in: the arms draw slowly back
+            : Math.sin(clamp((e.scrPose - GS.time) / 0.9, 0, 1) * Math.PI);
         hands = hands.map(h => [lerp(h[0], -8, k3), lerp(h[1], (h[1] < 0 ? -1 : 1) * 27, k3)]);
       } // the scream: arms flung back and out, chest up
       if (e.shield && !dead)

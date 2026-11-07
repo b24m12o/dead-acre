@@ -15,6 +15,7 @@ import { INF } from '../game/districts.js';
 import { tip } from '../audio/radio.js';
 import { bossName, bossType } from '../game/boss-flow.js';
 import { bark } from '../audio/barks.js';
+import { makeNoise } from '../game/noise.js';
 export const ET = {
   skitter: { hp: 20, r: 14, sp: 84, dmg: 9, xp: 1, score: 10, col: [0.62, 0.04, 0.03] },
   hopper: { hp: 70, r: 24, sp: 46, dmg: 0, xp: 3, score: 30, col: [0.42, 0.62, 0.1] },
@@ -275,6 +276,15 @@ export const TRAIT = {
     tip: 'That one has body armour on. Rounds stop in it and it shrugs off a shove. Use blasts or fire.',
   },
 };
+// the screamer, as one of the night's specials from night 5 (and still a trait on late elites): an ordinary body,
+// a little tougher than most, that stops when it sees you, draws a long breath and shrieks the street awake
+export function makeScreamer(e) {
+  e.hp *= 1.8;
+  setTrait(e, 'screamer');
+  e.scrT = rand(0.6, 1.4);
+  e.screamSp = true;
+  return e;
+}
 function setTrait(e, t) {
   e.trait = t;
   if (GS.state === 'play' && thr('budLook', 18000)) {
@@ -315,25 +325,46 @@ function setTrait(e, t) {
   e.hp *= 0.8;
   e.maxHp = e.hp; // the trait is the threat now, not the extra health
 }
+// the shriek: everything within earshot wakes and comes for you, faster for a while, and the noise carries
+function scream(e) {
+  e.scrT = 9;
+  e.wakeT = 0.6;
+  e.scrPose = GS.time + 0.9;
+  sfx.scream(e.x, e.y);
+  e.squash = 0.2;
+  distort(e.x, e.y, 0.016, 0.7, 0.5);
+  for (let i = 0; i < 3; i++)
+    GS.later.push({ t: i * 0.1, fn: () => ring(e.x, e.y - 30, 10, 180 + i * 70, 0.55, [1, 0.9, 0.8], 0.45) });
+  const R = e.screamSp ? 620 : 380;
+  query(e.x, e.y, R, o => {
+    if (o !== e && !o.dead && o.type !== 'queen' && d2(o.x, o.y, e.x, e.y) < R * R) {
+      o.aw = Math.max(o.aw || 0, 8);
+      o.frenzy = Math.max(o.frenzy || 0, 3);
+      if (o.lure && !o.lure.horde) o.lure = null; // a car alarm or a noise trap won't hold them now: they want you
+    }
+  });
+  makeNoise(e.x, e.y, R + 300, false, false); // the dormant and the far-off hear it too
+  if (GS.state === 'play') tip('el_screamer');
+}
 export function traitTick(e, dt, pd2) {
   // what the trait does while it walks
   if (e.trait === 'screamer') {
-    e.scrT -= dt;
-    if (e.scrT <= 0 && e.los && pd2 < 520 * 520 && !(e.down > 0) && !(e.stag > 0)) {
-      e.scrT = 10;
-      e.wakeT = 0.7;
-      e.scrPose = GS.time + 0.9;
-      sfx.scream(e.x, e.y);
-      e.squash = 0.2;
-      distort(e.x, e.y, 0.012, 0.6, 0.5);
-      ring(e.x, e.y - 30, 10, 140, 0.5, [1, 0.9, 0.8], 0.5);
-      query(e.x, e.y, 340, o => {
-        if (o !== e && !o.dead && o.type !== 'queen' && d2(o.x, o.y, e.x, e.y) < 340 * 340) {
-          o.aw = Math.max(o.aw || 0, 8);
-          o.frenzy = Math.max(o.frenzy || 0, 3);
-        }
-      });
-      if (GS.state === 'play') tip('el_screamer');
+    if (e.scrIn > 0) {
+      // the breath in: it stands still, head back, arms drawing out, for most of a second. Knock it down or stagger
+      // it and the scream dies in its throat
+      e.scrIn -= dt;
+      e.wakeT = Math.max(e.wakeT || 0, 0.12);
+      if (e.down > 0 || e.stag > 0) {
+        e.scrIn = 0;
+        e.scrT = 2.5;
+      } else if (e.scrIn <= 0) scream(e);
+    } else {
+      e.scrT -= dt;
+      if (e.scrT <= 0 && e.los && pd2 < 560 * 560 && !(e.down > 0) && !(e.stag > 0)) {
+        e.scrIn = 0.95;
+        e.scrInT = GS.time;
+        sfx.inhale(e.x, e.y);
+      }
     }
   }
   if (e.trait === 'bloater' && Math.random() < dt * 3) bleed(e.x, e.y, 8, rand(-1, 1), rand(-1, 1), 1, BILE, 40);

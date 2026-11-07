@@ -22,7 +22,8 @@ export const RUN = String.raw`(()=>{
   startN();
   while (T < cap && GS.state !== 'over' && GS.state !== 'won' && GS.wave <= FINAL_NIGHT) {
     if (GS.state === 'levelup') { GS.luOpenT = 0; choosePick(); continue; }
-    if (GS.state === 'travel') { travelStep(); $('routeGo').click(); continue; } /* on the truck to the next place: straight off at the other end */
+    if (GS.state === 'radio') { const ws = document.querySelectorAll('#radioAsk .way'); if (ws.length) { window.__rAsk = (window.__rAsk || 0) + 1; const t = performance.now(); while (performance.now() - t < 650); ws[Math.floor(Math.random() * ws.length)].click(); } continue; } /* the radio's question: a random answer */
+    if (GS.state === 'travel') { travelStep(); const ws = document.querySelectorAll('#route .way'); if (ws.length) ws[PICK === 'first' ? 0 : Math.floor(Math.random() * ws.length)].click(); else $('routeGo').click(); continue; } /* on the truck to the next place: straight off at the other end */
     if (GS.state !== 'play') break;
     if (GS.wave !== curW) { if (curW >= 0) close(); curW = GS.wave; startN(); }
     __bot2(); const goal = GS.evac || wayOut(); /* the landing zone, or the way on: a fuel can, the garage door, the truck, the road out */ if (goal) { let gx = goal.x, gy = goal.y; { /* walk the flow field backwards from the landing zone: the path to it from here */ let cx = Math.floor(goal.x / TILE), cy = Math.floor(goal.y / TILE); const path = []; for (let k = 0; k < 400; k++) { path.push([cx, cy]); let best = flow[cy * MW + cx], bx = cx, by = cy; for (const [ox, oy] of N8) { const nx = cx + ox, ny = cy + oy; if (isWall(nx, ny) || (ox && oy && (isWall(cx + ox, cy) || isWall(cx, cy + oy)))) continue; const v = flow[ny * MW + nx]; if (v < best) { best = v; bx = nx; by = ny; } } if (bx === cx && by === cy) break; cx = bx; cy = by; } if (path.length > 3) { const w = path[Math.max(0, path.length - 3)]; gx = (w[0] + 0.5) * TILE; gy = (w[1] + 0.5) * TILE; } }
@@ -41,7 +42,7 @@ export const RUN = String.raw`(()=>{
   }
   close(); N.partial = true;
   for (const k in nights) { const n = nights[k]; n.dmg = Math.round(n.dmg); n.hpSpawned = Math.round(n.hpSpawned); n.dry = Math.round(n.dry); n.minHp = +n.minHp.toFixed(2); n.healed = Math.round(n.healed); if (n.ammoMin !== undefined) { n.ammoMin = +n.ammoMin.toFixed(2); n.ammoAvg = +(n.ammoAvgS / Math.max(1, n.t)).toFixed(2); delete n.ammoAvgS; } delete n.t0; delete n.kills0; }
-  return JSON.stringify({ district: GS.RUN.district, hero: GS.RUN.hero, abUsed: window.__abUsed || 0, aboard: (GS.RUN.aboard || []).map(b => b.nm + ":" + b.tr), left: GS.buddies.map(b => b.nm), lost: GS.RUN.lost, end: GS.state, wave: GS.wave, T: Math.round(T), kills: GS.kills, level: GS.level, maxHp: S.maxHp, LV, nights });
+  return JSON.stringify({ district: GS.RUN.district, hero: GS.RUN.hero, abUsed: window.__abUsed || 0, asked: window.__rAsk || 0, via: GS.RUN.viaTaken || [], aboard: (GS.RUN.aboard || []).map(b => b.nm + ":" + b.tr), left: GS.buddies.map(b => b.nm), lost: GS.RUN.lost, end: GS.state, wave: GS.wave, T: Math.round(T), kills: GS.kills, level: GS.level, maxHp: S.maxHp, LV, nights });
 })()`;
 // the bot's whole campaign; setup runs before begin(), hook (a function's source) is called every step with the night
 export async function campaign(b, { setup = '', hook = '' } = {}) {

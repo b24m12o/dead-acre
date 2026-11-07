@@ -21,6 +21,7 @@ import { EV_NAME, RADIO, radio, tip } from '../audio/radio.js';
 import { OBJ_TIP } from './objective-flow.js';
 import { BOSS_PRE, bossEntrance, bossName, bossType } from './boss-flow.js';
 import { tutStart, tutWanted } from './tutorial.js';
+import { choiceLights } from './radio-choice.js';
 function surgePlan(w) {
   if (bossNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice || GS.horde) return null; // a horde night has no surges: the horde is the night
   const n = GS.queue.length;
@@ -130,6 +131,7 @@ export function startWave() {
     last = lastNight(GS.wave);
   nightSetup();
   placeNight(); // what this place does tonight (setpieces.js)
+  choiceLights(); // the streetlights, if you had a say in them this morning
   GS.RUN.sg = surgePlan(GS.wave);
   const evTxt = GS.ev ? EV_NAME[GS.ev] + ' · ' : '';
   if (qb) {

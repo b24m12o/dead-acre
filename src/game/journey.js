@@ -27,6 +27,7 @@ import { S, cam } from './state.js';
 import { hurtEnemy, hurtPlayer } from './combat.js';
 import { flow, query } from '../world/nav.js';
 import { STOPS, stopAt } from './route.js';
+import { VIA, viaGain } from './routes.js';
 
 export const journeyOn = () => !!(GS.RUN && GS.RUN.journey && !GS.RUN.hm && !GS.RUN.practice);
 export const stopNow = () => (GS.RUN && Number.isInteger(GS.RUN.stop) ? GS.RUN.stop : stopAt(GS.wave + 1));
@@ -958,12 +959,13 @@ export function placeArrival() {
   cam.vx = cam.vy = 0;
 }
 
-// the travel card: the road so far, the stop ahead, what comes with you
-export function showRoute(onGo) {
+// the travel card: the road so far, the stop ahead, what comes with you, and which way to go: two ways to the
+// next place (routes.js), picked with a click or 1 / 2 once the place is laid out behind the card
+export function showRoute(onGo, ways) {
   const el = $('route'),
     to = stopNow(),
     S = STOPS[to];
-  if (!el) return () => onGo();
+  if (!el) return () => onGo(ways && ways[0]);
   el.querySelector('.eyebrow').textContent = `Night ${GS.wave} survived · on the road`;
   el.querySelector('h2').textContent = S.name;
   el.querySelector('.rdesc').textContent = S.desc;
@@ -978,6 +980,16 @@ export function showRoute(onGo) {
     GS.buddies.length ? `${GS.buddies.length} with you` : 'on your own',
     `level ${GS.level}`,
   ].join(' · '); // what comes with you
+  const box = $('routeWays');
+  box.innerHTML =
+    `<p class="wq">Which way to ${S.short}?</p>` +
+    (ways || [])
+      .map(
+        (id, i) =>
+          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span></button>`
+      )
+      .join('');
+  box.hidden = !(ways && ways.length);
   el.style.setProperty('--from', (to - 1) / (STOPS.length - 1));
   el.style.setProperty('--to', to / (STOPS.length - 1));
   el.classList.remove('go');
@@ -986,17 +998,28 @@ export function showRoute(onGo) {
   el.hidden = false;
   const btn = $('routeGo');
   btn.disabled = true;
+  btn.hidden = false;
   btn.textContent = 'On the road…';
   let ready = false,
     done = false;
-  const go = () => {
+  const go = i => {
     if (!ready || done) return;
+    if (ways && ways.length && !(i >= 0)) return; // there's a choice to make first
     done = true;
     window.removeEventListener('keydown', key, true);
     el.hidden = true;
-    onGo();
+    onGo(ways && ways.length ? ways[i] : undefined);
   };
   const key = e => {
+    if (ways && ways.length) {
+      const i = e.key === '1' ? 0 : e.key === '2' ? 1 : -1;
+      if (i >= 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        go(i);
+      }
+      return;
+    }
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       e.stopPropagation();
@@ -1004,12 +1027,20 @@ export function showRoute(onGo) {
     }
   };
   window.addEventListener('keydown', key, true);
-  btn.onclick = go;
+  btn.onclick = () => go();
+  for (const w of box.querySelectorAll('.way')) w.onclick = () => go(+w.dataset.i);
   return () => {
     ready = true;
-    btn.disabled = false;
-    btn.textContent = 'Climb out · Enter';
-    btn.focus({ preventScroll: true });
+    if (ways && ways.length) {
+      btn.hidden = true;
+      for (const w of box.querySelectorAll('.way')) w.disabled = false;
+      const f = box.querySelector('.way');
+      if (f) f.focus({ preventScroll: true });
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Climb out · Enter';
+      btn.focus({ preventScroll: true });
+    }
   }; // the caller says when the new place is laid out
 }
 // a quick fade to black and back, for the walk from one place into the next

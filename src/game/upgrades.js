@@ -676,10 +676,13 @@ export function offerUpgrades(source = 'level') {
   $('luEye').textContent =
     source === 'crate'
       ? 'Supply crate · free gear'
-      : source === 'start'
-        ? 'Go bag'
-        : `Level ${GS.level + 1}${bank > 1 ? ` · ${bank - 1} more after this` : ''}`;
-  $('luTitle').textContent = source === 'crate' ? 'Crate unpacked' : 'Pick your gear';
+      : source === 'route'
+        ? 'Army checkpoint · free gear'
+        : source === 'start'
+          ? 'Go bag'
+          : `Level ${GS.level + 1}${bank > 1 ? ` · ${bank - 1} more after this` : ''}`;
+  $('luTitle').textContent =
+    source === 'crate' ? 'Crate unpacked' : source === 'route' ? 'Their kit, your pick' : 'Pick your gear';
   hideCallouts();
   GS.state = 'levelup';
   $('levelup').hidden = false;

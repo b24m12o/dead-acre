@@ -12,6 +12,7 @@ walk(TIPS, t=>{ if (typeof t==='string') both(t); }); walk(BOSS_RADIO, both);
 for (const [w,[who,v]] of Object.entries(STORY)) { const ts = typeof v==='function' ? [v()] : [v]; ts.forEach(t=>T(t,who)); }
 for (const [w,[who,v,x]] of Object.entries(STORY_J)) { T(typeof v==='function' ? v() : v, who); if (x) T(x[1], x[0]); }
 for (const [l,[who,t]] of Object.entries(ARRIVE)) T(t, who);
+for (const c of Object.values(RCH)) both(c.line);
 for (const d of ['east','south-east','south','south-west','west','north-west','north','north-east']) both('Nine, big group breaking through on your ' + d + ' side. Find a choke point.');
 ['Hawk here. Relay is strong, I am coming straight in on your signal.','Hawk here. No relay, I am flying blind. Give me time, nine.'].forEach(t=>T(t,'Hawk'));
 ['We heard. Nothing you could do, nine. Keep moving.','Lost one of yours? Copy. Keep the rest close.','They did not make it. Eyes up, nine.','Hale made it to the trucks. I could kiss you, nine.','Copy, nine. You know the drill. Hold till dawn.','That is the drill, nine. The rest of them heard the shooting. Hold till dawn.'].forEach(both);

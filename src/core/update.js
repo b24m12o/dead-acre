@@ -12,7 +12,7 @@ import { SBV, noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, WHEEL, addAmmo, addAmmoType, ammoRoomFor, ammoRoomK, cam, gd, magSize, reloadTime } from '../game/state.js';
 import { lvCan, openLevel } from '../game/upgrades.js';
-import { makeElite, makeEnemy } from '../actors/enemies.js';
+import { makeElite, makeEnemy, makeScreamer } from '../actors/enemies.js';
 import { bossNight, sinceBoss, spawnPoint } from '../game/waves.js';
 import { chips, decal, dust, floatText, glowBurst, part, pool, ring } from '../render/effects.js';
 import { bossOf, explode, hurtPlayer, makeLurker, makeShield, updateCrates } from '../game/combat.js';
@@ -591,12 +591,15 @@ export function update(dt) {
               })()
             : t === 'shield'
               ? makeShield(makeEnemy('skitter', sx, sy))
-              : makeEnemy(t, sx + (i ? rand(-16, 16) : 0), sy + (i ? rand(-16, 16) : 0));
+              : t === 'scream'
+                ? makeScreamer(makeEnemy('skitter', sx, sy))
+                : makeEnemy(t, sx + (i ? rand(-16, 16) : 0), sy + (i ? rand(-16, 16) : 0));
         if (
           GS.wave >= 3 &&
           t !== 'queen' &&
           t !== 'flower' &&
           !ne.kind &&
+          !ne.screamSp &&
           Math.random() < (0.03 + GS.wave * 0.005 + 0.012 * sinceBoss(GS.wave)) * (INF(3) ? 2 : 1)
         )
           makeElite(ne);

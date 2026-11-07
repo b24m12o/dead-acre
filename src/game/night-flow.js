@@ -38,6 +38,8 @@ import {
   stopNow,
   truckLive,
 } from './journey.js';
+import { applyVia, offerVia } from './routes.js';
+import { radioDawn } from './radio-choice.js';
 import { BOSS_HORDE_J, STOPS } from './route.js';
 import { newRun } from './run.js';
 import { $ } from '../core/errors.js';
@@ -207,7 +209,10 @@ export function nightCleared() {
     );
     GS.RUN.dawnX = 0;
     if (leaveAfter(GS.wave)) legDawn(leaveAfter(GS.wave));
-    else planDawn();
+    else {
+      planDawn();
+      radioDawn(); // now and then the radio has a question only you can answer
+    }
     saveRun(); // a dawn is a checkpoint: a closed tab costs a night at most
   }
 }
@@ -311,14 +316,13 @@ export function travelStep() {
   } catch {
     /* no storage: nothing to clear */
   }
-  if (how === 'foot') {
-    fade(false);
-    arrive();
-  } else {
-    const ready = showRoute(arrive);
-    fade(false);
-    ready();
-  }
+  const ways = GS.RUN.journey && !GS.RUN.hm ? offerVia() : null, // which way to the next place: on foot or in the truck alike
+    ready = showRoute(id => {
+      if (id) applyVia(id);
+      arrive();
+    }, ways);
+  fade(false);
+  ready();
 }
 function moveOn() {
   const d = runData(),
@@ -372,6 +376,7 @@ export function resumeDawn() {
     legDawn(GS.RUN.moveOut);
     return;
   } // saved while you were on your way: the truck comes again, or the road out is marked again
+  radioDawn(); // a question this morning you never got to answer: asked again
   const kept = GS.RUN.nextSig && GS.RUN.nextSig.w === GS.wave + 1 ? GS.RUN.nextSig.s : null,
     s = kept || planSig(GS.wave + 1); // tomorrow was already announced: it stays what it was
   GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
