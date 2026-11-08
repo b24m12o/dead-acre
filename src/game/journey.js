@@ -189,7 +189,8 @@ function garageTruck() {
   showStreak(
     'A truck, and no fuel',
     `Someone is holed up in the garage with a box truck and a dry tank · find ${FUEL_N} cans of fuel and bring them to him`,
-    true
+    true,
+    () => GS.truck && GS.truck.dry && GS.truck.fuel < FUEL_N // once the cans are in, it's old news
   );
 }
 // where the cans are: by the wrecks first (the one in a trunk, what's left in a tank), spread round the place, well
@@ -259,6 +260,23 @@ function fuelRun(T, P, dt) {
     for (let k = 0; k < 3; k++) tone(52, 0.22, 'sawtooth', 0.05, 1.25, 0.25 + k * 0.3, 380); // the starter, turning it over
   }
 }
+// where you climb aboard: the back half of the truck, from behind it or from either side (not the cab, not the
+// bonnet you were just pushed off). The marker sits by the rear wheel on your side, which you can always walk to
+const atBack = (T, P) => {
+  const c = Math.cos(T.a),
+    s = Math.sin(T.a),
+    u = (P.x - T.x) * c + (P.y - T.y) * s,
+    v = -(P.x - T.x) * s + (P.y - T.y) * c;
+  return u < TL * 0.05 && u > -TL / 2 - 60 && Math.abs(v) < TW_ / 2 + 44;
+};
+const rearOf = (T, P) => {
+  const c = Math.cos(T.a),
+    s = Math.sin(T.a),
+    side = P && -(P.x - T.x) * s + (P.y - T.y) * c < 0 ? -1 : 1,
+    u = -TL / 2 + 22,
+    v = side * (TW_ / 2 + 22);
+  return [T.x + u * c - v * s, T.y + u * s + v * c];
+};
 function honk(k = 1) {
   tone(196, 0.42, 'sawtooth', 0.045 * k, 1, 0, 900);
   tone(247, 0.42, 'sawtooth', 0.035 * k, 1, 0, 900);
@@ -281,7 +299,7 @@ function tickTruck(dt) {
       noise(0.5, 0.06, 220, 70, 'lowpass');
       shake(0.12);
       T.drive = true;
-      T.pull = (T.garage.y + T.garage.h) * TILE + 53 - T.y; // out until its tail is at the door
+      T.pull = (T.garage.y + T.garage.h) * TILE + 24 + TL / 2 - T.y; // right out: its tailgate clear of the door, so you can get round to it
     } // it catches
   }
   if (T.drive && T.garage) {
@@ -327,14 +345,15 @@ function tickTruck(dt) {
     if (Math.abs(u) < hu && Math.abs(v) < hv) {
       let nu = u,
         nv = v;
-      if (hu - Math.abs(u) < hv - Math.abs(v)) nu = Math.sign(u || 1) * hu;
-      else nv = Math.sign(v || 1) * hv; // out by the shorter way
+      if (hu - Math.abs(u) < hv - Math.abs(v) && !(T.drive && T.garage)) nu = Math.sign(u || 1) * hu;
+      else nv = Math.sign(v || 1) * hv; // out by the shorter way; as it pulls out of the garage, always to the side: it doesn't shove you ahead of it into whatever is in front
       P.x = T.x + nu * c - nv * s;
       P.y = T.y + nu * s + nv * c;
     }
   }
   if (T.parked) {
-    const near = d2(P.x, P.y, T.x, T.y) < (TL / 2 + 46) ** 2 && P.hp > 0 && !(P.dashT > 0);
+    T.parkT = (T.parkT || 0) + dt;
+    const near = T.parkT > 2 && atBack(T, P) && P.hp > 0 && !(P.dashT > 0); // you climb in at the back, and not the instant it stops
     T.board = near ? T.board + dt : Math.max(0, T.board - dt * 2);
     if (T.board >= 1.1) {
       sfx.ammo();
@@ -394,7 +413,15 @@ function ridePath(T) {
       let pole = 0;
       for (let j = -1; j <= 1; j++)
         for (let k = -1; k <= 1; k++) if (poles[(ty + j) * MW + tx + k]) pole += j || k ? 1.5 : 5;
-      base[i] = 1 + near * 6 + far * 0.6 + pole + (ROAD && ROAD[i] === 1 ? 0 : ROAD && ROAD[i] ? 0.9 : 2.6);
+      const W = (k, j) => isWall(tx + k, ty + j) && !SMASH.has(ttype[(ty + j) * MW + tx + k]),
+        narrow = (W(-1, 0) && W(1, 0)) || (W(0, -1) && W(0, 1)); // a one-tile gap: narrower than the truck
+      base[i] =
+        1 +
+        near * 6 +
+        far * 0.6 +
+        pole +
+        (narrow ? 400 : 0) +
+        (ROAD && ROAD[i] === 1 ? 0 : ROAD && ROAD[i] ? 0.9 : 2.6);
     }
   const step = i => (shut[i] ? 1e9 : base[i]),
     cost = new Float32Array(N),
@@ -555,8 +582,8 @@ function startRide(T) {
   P.inv = 1e9;
   P.vx = P.vy = 0;
   honk(0.6);
-  GS.streakQ.length = 0;
-  GS.streakT = 0; // "the truck is here" is done with
+  GS.streakQ = GS.streakQ.filter(q => !/^The truck|truck is running|truck is here/i.test(q[0]));
+  if (GS.streakCur && /truck/i.test(GS.streakCur[0])) GS.streakT = 0; // "the truck is here" is done with; other news waits
   showStreak(
     'On the gun',
     'Hold click to fire where you aim · the ring round your sights is its heat: fire in bursts',
@@ -850,7 +877,7 @@ function mountedGun(r, P, dt) {
     }
   } else if (!mouse.down) r.heat = Math.max(0, r.heat - dt * GUN_HEAT.cool);
   if (!mouse.down || r.over > 0 || r.cd > 0 || r.t < 1.2) return;
-  r.cd = 0.08;
+  r.cd = Math.max(r.cd, -1 / 60) + 0.08;
   r.heat += 0.0115; // the same budget as the door gun: about seven seconds from cold (evac-ride.js GUN_HEAT)
   shake(0.025);
   const c = Math.cos(P.aimA),
@@ -891,7 +918,10 @@ export function tickJourney(dt, onLeave) {
 // where your way on is, for the markers, the radar and the boarding ring
 export function wayOut() {
   const T = GS.truck;
-  if (T && !T.gone && !T.ride && T.parked) return { x: T.x, y: T.y, label: 'TRUCK', board: T.board / 1.1 };
+  if (T && !T.gone && !T.ride && T.parked) {
+    const [x, y] = rearOf(T, GS.P);
+    return { x, y, label: 'TRUCK', board: T.board / 1.1 };
+  }
   if (T && !T.gone && T.dry) {
     if (T.fuel >= FUEL_N) {
       const [x, y] = doorSpot(T.garage);
@@ -961,7 +991,7 @@ export function placeArrival() {
 
 // the travel card: the road so far, the stop ahead, what comes with you, and which way to go: two ways to the
 // next place (routes.js), picked with a click or 1 / 2 once the place is laid out behind the card
-export function showRoute(onGo, ways) {
+export function showRoute(onGo, ways, how) {
   const el = $('route'),
     to = stopNow(),
     S = STOPS[to];
@@ -982,7 +1012,7 @@ export function showRoute(onGo, ways) {
   ].join(' · '); // what comes with you
   const box = $('routeWays');
   box.innerHTML =
-    `<p class="wq">Which way to ${S.short}?</p>` +
+    `<p class="wq">${how === 'truck' ? `The driver asks: which way to ${S.short}?` : `Which way to ${S.short}?`}</p>` +
     (ways || [])
       .map(
         (id, i) =>
@@ -1002,8 +1032,9 @@ export function showRoute(onGo, ways) {
   btn.textContent = 'On the road…';
   let ready = false,
     done = false;
+  let armT = 1e15;
   const go = i => {
-    if (!ready || done) return;
+    if (!ready || done || performance.now() < armT) return; // a beat first: a key held from the walk can't pick for you
     if (ways && ways.length && !(i >= 0)) return; // there's a choice to make first
     done = true;
     window.removeEventListener('keydown', key, true);
@@ -1013,11 +1044,11 @@ export function showRoute(onGo, ways) {
   const key = e => {
     if (ways && ways.length) {
       const i = e.key === '1' ? 0 : e.key === '2' ? 1 : -1;
-      if (i >= 0) {
+      if (i >= 0 || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         e.stopPropagation();
-        go(i);
-      }
+      } // Enter doesn't pick for you: a way is chosen, with a click or its number
+      if (i >= 0) go(i);
       return;
     }
     if (e.key === 'Enter' || e.key === ' ') {
@@ -1031,11 +1062,12 @@ export function showRoute(onGo, ways) {
   for (const w of box.querySelectorAll('.way')) w.onclick = () => go(+w.dataset.i);
   return () => {
     ready = true;
+    armT = performance.now() + 600;
     if (ways && ways.length) {
       btn.hidden = true;
       for (const w of box.querySelectorAll('.way')) w.disabled = false;
-      const f = box.querySelector('.way');
-      if (f) f.focus({ preventScroll: true });
+      box.classList.add('arming');
+      setTimeout(() => box.classList.remove('arming'), 600);
     } else {
       btn.disabled = false;
       btn.textContent = 'Climb out · Enter';

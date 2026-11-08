@@ -49,7 +49,7 @@ export function makeNoise(x, y, r, soft, you = true) {
   const r2 = r * r;
   for (const e of GS.enemies) {
     if (e.dead || d2(e.x, e.y, x, y) > r2) continue;
-    if (e.horde && GS.horde && !GS.horde.alert && d2(e.x, e.y, x, y) > 560 * 560) {
+    if (e.horde && GS.horde && !GS.horde.alert && (!you || d2(e.x, e.y, x, y) > 560 * 560)) {
       GS.horde.lure.heard = { x, y };
       continue;
     } // far off, a roaming horde only turns toward the sound (even one stood round a clock); up close it comes for you
@@ -77,7 +77,7 @@ export function makeNoise(x, y, r, soft, you = true) {
         e.heardT = GS.time;
         e.aw = Math.max(e.aw || 0, 8);
       } // a horde moves as one: when the ones that heard you turn off the clock, the rest of it follows them
-  if (woke >= 6 && r >= 900 && !GS.loudSaid && GS.state === 'play' && GS.wave > 0) {
+  if (you && woke >= 6 && r >= 900 && !GS.loudSaid && GS.state === 'play' && GS.wave > 0) {
     GS.loudSaid = true;
     radio(RADIO.loud);
   }

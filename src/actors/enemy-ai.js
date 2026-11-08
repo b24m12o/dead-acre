@@ -12,7 +12,20 @@ import { S, cam } from '../game/state.js';
 import { showStreak } from '../ui/callouts.js';
 import { ET, makeEnemy, traitTick } from './enemies.js';
 import { spawnPoint } from '../game/waves.js';
-import { HUMAN, bleed, bloodOf, chips, decal, distort, dust, part, pool, shake, sparks } from '../render/effects.js';
+import {
+  HUMAN,
+  bleed,
+  bloodOf,
+  chips,
+  decal,
+  distort,
+  dust,
+  floatText,
+  part,
+  pool,
+  shake,
+  sparks,
+} from '../render/effects.js';
 import { SHIELD_TURN, SIGHT, hurtPlayer, killEnemy, releaseGrab, shieldUp } from '../game/combat.js';
 import { toWorld } from './projectiles.js';
 import { updateQueen } from './queen.js';
@@ -490,6 +503,11 @@ export function updateEnemy(e, dt, p) {
           }
         } else if (e.st === 'opening') {
           e.open = Math.min(1, e.open + dt / 0.45);
+          if (e.stag > 0 || e.down > 0) {
+            e.st = 'closing';
+            e.stT = 0.4;
+            floatText(e.x, e.y - 44, 'Choked', '#ffd27a', 14);
+          } // hit it while it draws breath and the scream dies in its throat
           if (e.stT <= 0) {
             e.st = 'open';
             e.stT = 1.8;

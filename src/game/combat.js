@@ -920,7 +920,8 @@ function killerAt(sx, sy) {
       ? bossOf(best)
       : best.type === 'skitter' && best.run
         ? 'a runner'
-        : FOE_NAME[best.type] || 'the dead';
+        : (best.trait && TRAIT[best.trait] ? 'a ' + TRAIT[best.trait].name.toLowerCase() : FOE_NAME[best.type]) ||
+          'the dead';
   return GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead';
 }
 export function hurtPlayer(dmg, sx, sy, why) {
@@ -1209,21 +1210,21 @@ export function dropCrate(gun, alt, kits, note) {
     if (kits)
       showStreak(
         'Convoy airdrop',
-        `A weapon case is coming down · ${kits.map(k => KITS[k].name).join(' or ')}`,
+        `A weapon case, dropped nearby · ${kits.map(k => KITS[k].name).join(' or ')}`,
         undefined,
         live
       );
     else if (gun && alt)
       showStreak(
         'Convoy airdrop',
-        `A weapon case is coming down · ${GUNS[gun].name} or ${GUNS[alt].name}`,
+        `A weapon case, dropped nearby · ${GUNS[gun].name} or ${GUNS[alt].name}`,
         undefined,
         live
       );
     else if (gun) {
       const nm = GUNS[gun].name,
         low = /^[A-Z]{2,}/.test(nm) ? nm : nm.toLowerCase();
-      showStreak('Convoy airdrop', `${/^[aeiou]|^SMG/i.test(low) ? 'An' : 'A'} ${low} is coming down`, undefined, live);
+      showStreak('Convoy airdrop', `${/^[aeiou]|^SMG/i.test(low) ? 'An' : 'A'} ${low} dropped nearby`, undefined, live);
     } else showStreak('Supply drop', note || 'Ammo and a free pick of gear · no gun in this one', undefined, live);
     sfx.streak();
     return cr;
@@ -1481,7 +1482,7 @@ export function blowBarrel(b) {
   b.dead = true;
   tip('barrel');
   GS.trapBlast = !!b.gas; // the gas drums are yours: you set them
-  explode(b.x, b.y, b.gas ? 120 : 105, (70 + GS.wave * 6) * (b.gas ? 1.2 : 1), true, 0.5);
+  explode(b.x, b.y, b.gas ? 120 : 105, (70 + GS.wave * 6) * (b.gas ? 1.2 : 1), true, b.gas ? 0 : 0.5); // your gas drum is a trap: the full blast
   GS.trapBlast = false;
   if (b.gas) {
     firePool(b.x, b.y, 115, 11);

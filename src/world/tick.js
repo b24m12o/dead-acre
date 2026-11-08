@@ -183,10 +183,14 @@ export function tickWorld(dt) {
       GS.streakCur = null;
     }
   } else if (GS.state === 'play' && GS.streakQ.length && GS.bannerT <= -0.45) {
-    const [t, sub, ok] = GS.streakQ.shift();
-    if (!ok || ok()) {
-      GS.later.push({ t: 0.2, fn: () => showStreak(t, sub, undefined, ok) });
-      GS.streakT = 0.01;
+    const [t, sub, ok, w, nd, urg, at] = GS.streakQ.shift();
+    if (
+      (!ok || ok()) &&
+      (w === undefined || (w === GS.wave && nd === !!GS.nightDone)) &&
+      (urg || !(GS.time - at > 12))
+    ) {
+      GS.later.push({ t: 0.2, fn: () => showStreak(t, sub, urg || undefined, ok) });
+      GS.streakT = 0.22; // the slot is held through the gap: one line at a time
     }
   } // news that has gone stale while it waited (a case already opened) is dropped
   for (const c of crystals) {

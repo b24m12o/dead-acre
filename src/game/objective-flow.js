@@ -3,14 +3,14 @@ import { GS } from '../core/gs.js';
 import { sfx } from '../audio/sfx.js';
 import { LV, S, addAmmo } from './state.js';
 import { UP, renderMods } from './upgrades.js';
-import { showStreak } from '../ui/callouts.js';
+import { dropStreak, showStreak } from '../ui/callouts.js';
 import { dropCrate } from './combat.js';
 import { bump } from './challenges.js';
 import { BOX_SEARCH, boxSignal, objKey, objName } from './objectives.js';
 import { RADIO, radio } from '../audio/radio.js';
 import { siegeText } from './siege.js';
 import { rideKills } from './evac-ride.js';
-import { rollBud } from '../actors/backups.js';
+import { TRAITS, rollBud } from '../actors/backups.js';
 export const OBJ_TIP = {
   box: 'Watch the signal on the night plate. At the wreck, stand still at a pile to search it',
   hale: 'Reach Dr. Hale, then keep her alive till dawn. She joins as your medic',
@@ -161,7 +161,8 @@ export function finishObjective(ok, why) {
         b.bodyA = GS.obj.s.bodyA;
         GS.obj.joined = true;
         renderMods();
-        extra += ' · they join your backup';
+        dropStreak(/joins you$/); // the job's own line says it, with the name
+        extra += ` · ${b.nm}, ${TRAITS[b.tr].name.toLowerCase()}, joins your backup`;
       } else {
         GS.runSeeds += 15;
         sc += 15;
@@ -191,7 +192,8 @@ export function finishObjective(ok, why) {
           b.tint = s.tint;
         }
         renderMods();
-        extra += ' · one of them joins your backup';
+        dropStreak(/joins you$/);
+        extra += ` · ${b.nm}, ${TRAITS[b.tr].name.toLowerCase()}, stays to fight`;
       } else extra += ' · they head for the convoy';
       GS.obj.civ = []; // the rest go off to the convoy
     } // the ones you kept alive: scrap and thanks, and one who stays to fight

@@ -19,6 +19,8 @@ import { TW } from './districts.js';
 import { dropCrate } from './combat.js';
 import { bump } from './challenges.js';
 import { bark } from '../audio/barks.js';
+import { viaNight } from './routes.js';
+import { choiceNight } from './radio-choice.js';
 
 GS.horde = null;
 export const hordeSize = w =>
@@ -74,7 +76,11 @@ function pass(H) {
 // finale: the last night's evac. The rotors are the loudest thing in the county, and every one of the dead comes
 // for the landing zone at once, from two sides, running: no roaming, no gathering, just the flood
 export function planHorde(finale = false) {
-  const n = finale ? Math.min(400, 340 + 12 * (GS.RUN.inf || 0)) : hordeSize(GS.wave);
+  const n = Math.round(
+    (finale ? Math.min(400, 340 + 12 * (GS.RUN.inf || 0)) : hordeSize(GS.wave)) *
+      ((viaNight(GS.wave) || {}).k || 1) *
+      ((choiceNight(GS.wave) || {}).k || 1)
+  ); // the way you came and what you answered at dawn reach the horde too, not only the night's stragglers
   GS.horde = {
     n,
     finale,

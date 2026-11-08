@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { requeueStreak } from '../ui/callouts.js';
 import { pitSpot } from './setpieces.js';
 import { reachPt } from '../world/nav.js';
 import { GS } from '../core/gs.js';
@@ -32,10 +33,8 @@ export function buildWave(w) {
   if (w >= 4) T.push(['beetle', 0.45 + 0.07 * w]);
   if (Dn === 'highway' && w >= 2) T.push(['hound', 0.5]);
   if (TW('horde')) n = Math.round(n * 1.4);
-  const via = viaNight(w);
-  if (via) n = Math.round(n * via.k);
-  const ch = choiceNight(w);
-  if (ch) n = Math.round(n * ch.k); // what you answered on the radio this morning // the way you came: what followed you in, or how far ahead of them you got
+  const via = viaNight(w), // the way you came here: what followed you in, or how far ahead of them you got
+    ch = choiceNight(w); // what you answered on the radio this morning
   if (via && via.brutes && w >= 2) T.push(['beetle', 1.4]);
   if (bossNight(w)) n = Math.floor(n * (w >= 10 ? 0.3 : 0.38)); // the boss is staged by bossEntrance, not spawned from the queue
   if (w >= 3 && !bossNight(w))
@@ -53,7 +52,6 @@ export function buildWave(w) {
     sp('climb', 3, 3);
     sp('spore', 5, 4);
     sp('drag', 6, 4);
-    sp('scream', 5, 4);
   } // the special infected: climbers from night 3, spores from 5, draggers from 6, a few more as the nights go
   const tw = T.reduce((s, t) => s + t[1], 0);
   for (let i = 0; i < n; i++) {
@@ -69,6 +67,13 @@ export function buildWave(w) {
   for (let i = q.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [q[i], q[j]] = [q[j], q[i]];
+  }
+  {
+    const k = ((via && via.k) || 1) * ((ch && ch.k) || 1),
+      want = Math.round(q.length * k); // both of them: the whole night, specials and all, not only the ordinary dead
+    while (q.length > want) q.splice(Math.floor(Math.random() * q.length), 1);
+    while (q.length < want && q.length)
+      q.splice(Math.floor(Math.random() * q.length), 0, q[Math.floor(Math.random() * q.length)]);
   }
   return q;
 }
@@ -112,10 +117,10 @@ export function underBoss(el) {
   const bb = $('bossBox');
   el.style.top = bb && !bb.hidden ? Math.max(innerHeight * 0.15, bb.getBoundingClientRect().bottom + 14) + 'px' : '';
 } // never on top of the boss panel
-export function banner(t, sub, red) {
+export function banner(t, sub, red, dur = 2.2) {
   underBoss($('banner'));
   if (GS.streakT > 0 && GS.streakCur) {
-    GS.streakQ.unshift(GS.streakCur);
+    requeueStreak();
     GS.streakT = 0;
     GS.streakCur = null;
     $('streak').classList.remove('show');
@@ -124,7 +129,7 @@ export function banner(t, sub, red) {
   b.innerHTML = `${t}<small>${sub}</small>`;
   b.classList.toggle('red', !!red);
   b.classList.add('show');
-  GS.bannerT = 2.2;
+  GS.bannerT = dur; // a longer one when it carries news: what the way here gave you, say
 }
 
 /* ---------- FX ---------- */

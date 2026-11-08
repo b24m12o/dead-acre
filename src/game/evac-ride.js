@@ -300,7 +300,7 @@ function doorGun(e, r, dt) {
   }
   r.cases = r.cases.filter(c => c.t < 0.7);
   if (!mouse.down || r.over > 0 || r.cd > 0 || r.t < LIFT * 0.6) return;
-  r.cd = 0.072;
+  r.cd = Math.max(r.cd, -1 / 60) + 0.072;
   r.heat += 0.0105;
   r.n = (r.n || 0) + 1;
   const G = gunPose(e),
@@ -395,7 +395,7 @@ function groups(e, r, dt) {
         dijk(fl, [ty * MW + tx], false);
         g.lure = { x: g.x, y: g.y, alarm: 1e9, flare: true, flow: fl };
       } // one lure for the group, with its own way through the streets
-      showStreak('Survivors below', 'Cover them as you go over · keep the dead off them', true);
+      showStreak('Survivors below', 'Cover them as you go over · keep the dead off them', true, () => !g.done);
       for (let i = 0; i < 12; i++) {
         const sp = spotNear(g.x, g.y, 300, 460);
         if (!sp) continue;

@@ -57,8 +57,7 @@ export function giveTraps(kit) {
       fn: () =>
         showStreak(
           'Traps',
-          `${kn('trap')} uses the one you hold · pick it on the ${kn('wheel')} wheel or switch with ${kn('trapNext')}`,
-          true
+          `${kn('trap')} uses the one you hold · pick it on the ${kn('wheel')} wheel or switch with ${kn('trapNext')}`
         ),
     });
   } // the first ever: how they work

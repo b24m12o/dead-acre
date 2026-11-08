@@ -134,6 +134,8 @@ export function genDecor() {
         i = ty * MW + tx;
       if (grid[i] || !pred(tx, ty, i) || Math.hypot(tx - c0, ty - c0) < 4) continue;
       if (houses.some(o => o.open && tx >= o.x - 1 && tx <= o.x + o.w && ty >= o.y - 1 && ty <= o.y + o.h)) continue; // the big ruin kept clear, inside and round its windows
+      if (GARAGE && tx >= GARAGE.x && tx < GARAGE.x + GARAGE.w && ty >= GARAGE.y && ty <= GARAGE.y + GARAGE.h + 4)
+        continue; // the garage and its apron: the truck's way out
       if (GS.decor.some(d => Math.hypot(d.tx - tx, d.ty - ty) < minGap)) continue;
       return [tx, ty];
     }
@@ -166,7 +168,7 @@ export function genDecor() {
         tx >= GARAGE.x - 1 &&
         tx <= GARAGE.x + GARAGE.w &&
         ty >= GARAGE.y + GARAGE.h - 1 &&
-        ty <= GARAGE.y + GARAGE.h + 3
+        ty <= GARAGE.y + GARAGE.h + 4
       ) && // not across the garage door
       ![
         [1, 0],

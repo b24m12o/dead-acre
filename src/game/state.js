@@ -165,6 +165,7 @@ export function equip(g, silent) {
   p.gun = g;
   p.reload = 0;
   p.pumpT = p.rackT = 0;
+  p.fireCd = Math.min(p.fireCd || 0, 0); // the last gun's cooldown stays with it: the swap time is the wait
   S.weapon = g;
   S.gun = GUNS[g].reg;
   S.muzzle = GUNS[g].muzzle;

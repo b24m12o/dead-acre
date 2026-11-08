@@ -12,7 +12,7 @@ import { SBV, noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, WHEEL, addAmmo, addAmmoType, ammoRoomFor, ammoRoomK, cam, gd, magSize, reloadTime } from '../game/state.js';
 import { lvCan, openLevel } from '../game/upgrades.js';
-import { makeElite, makeEnemy, makeScreamer } from '../actors/enemies.js';
+import { makeElite, makeEnemy } from '../actors/enemies.js';
 import { bossNight, sinceBoss, spawnPoint } from '../game/waves.js';
 import { chips, decal, dust, floatText, glowBurst, part, pool, ring } from '../render/effects.js';
 import { bossOf, explode, hurtPlayer, makeLurker, makeShield, updateCrates } from '../game/combat.js';
@@ -591,15 +591,12 @@ export function update(dt) {
               })()
             : t === 'shield'
               ? makeShield(makeEnemy('skitter', sx, sy))
-              : t === 'scream'
-                ? makeScreamer(makeEnemy('skitter', sx, sy))
-                : makeEnemy(t, sx + (i ? rand(-16, 16) : 0), sy + (i ? rand(-16, 16) : 0));
+              : makeEnemy(t, sx + (i ? rand(-16, 16) : 0), sy + (i ? rand(-16, 16) : 0));
         if (
           GS.wave >= 3 &&
           t !== 'queen' &&
           t !== 'flower' &&
           !ne.kind &&
-          !ne.screamSp &&
           Math.random() < (0.03 + GS.wave * 0.005 + 0.012 * sinceBoss(GS.wave)) * (INF(3) ? 2 : 1)
         )
           makeElite(ne);
@@ -877,7 +874,7 @@ export function update(dt) {
   // cards whenever you like, and on their own they only come up in a real lull: nothing awake within reach and no
   // kill for a few seconds, so the blast you just set off plays out in full. "Later" puts them back until the next
   // fight is over
-  if (GS.xp >= GS.xpNeed && GS.state === 'play') {
+  if (GS.xp >= GS.xpNeed && GS.state === 'play' && !(GS.evac && GS.evac.ride) && !p.ride) {
     if (!GS.lvReady) {
       GS.lvReady = GS.time;
       GS.lvCalm = GS.time;
@@ -885,7 +882,7 @@ export function update(dt) {
       sfx.ting();
       if (!GS.RUN.lvTold) {
         GS.RUN.lvTold = 1;
-        showStreak('Level up', 'Tab to pick now · or it waits for a lull');
+        showStreak('Level up', 'Tab to pick now · or it waits for a lull', false, () => lvCan()); // not after it's spent
       }
     }
     const killing = GS.time - (GS.lastKillT || -99) < 3; // the last kill's blast and gibs get three seconds to play out

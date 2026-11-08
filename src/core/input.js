@@ -111,6 +111,7 @@ export function init() {
         !e.repeat &&
         GS.nightDone &&
         !GS.RUN.jobPend &&
+        !GS.RUN.askDue &&
         !GS.RUN.moveOut &&
         !GS.evac &&
         !GS.queue.length &&

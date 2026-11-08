@@ -23,10 +23,11 @@ export const RUN = String.raw`(()=>{
   while (T < cap && GS.state !== 'over' && GS.state !== 'won' && GS.wave <= FINAL_NIGHT) {
     if (GS.state === 'levelup') { GS.luOpenT = 0; choosePick(); continue; }
     if (GS.state === 'radio') { const ws = document.querySelectorAll('#radioAsk .way'); if (ws.length) { window.__rAsk = (window.__rAsk || 0) + 1; const t = performance.now(); while (performance.now() - t < 650); ws[Math.floor(Math.random() * ws.length)].click(); } continue; } /* the radio's question: a random answer */
-    if (GS.state === 'travel') { travelStep(); const ws = document.querySelectorAll('#route .way'); if (ws.length) ws[PICK === 'first' ? 0 : Math.floor(Math.random() * ws.length)].click(); else $('routeGo').click(); continue; } /* on the truck to the next place: straight off at the other end */
+    if (GS.state === 'travel') { travelStep(); { const t = performance.now(); while (performance.now() - t < 650); } const ws = document.querySelectorAll('#route .way'); if (ws.length) ws[PICK === 'first' ? 0 : Math.floor(Math.random() * ws.length)].click(); else $('routeGo').click(); continue; } /* on the truck to the next place: straight off at the other end */
     if (GS.state !== 'play') break;
     if (GS.wave !== curW) { if (curW >= 0) close(); curW = GS.wave; startN(); }
-    __bot2(); const goal = GS.evac || wayOut(); /* the landing zone, or the way on: a fuel can, the garage door, the truck, the road out */ if (goal) { let gx = goal.x, gy = goal.y; { /* walk the flow field backwards from the landing zone: the path to it from here */ let cx = Math.floor(goal.x / TILE), cy = Math.floor(goal.y / TILE); const path = []; for (let k = 0; k < 400; k++) { path.push([cx, cy]); let best = flow[cy * MW + cx], bx = cx, by = cy; for (const [ox, oy] of N8) { const nx = cx + ox, ny = cy + oy; if (isWall(nx, ny) || (ox && oy && (isWall(cx + ox, cy) || isWall(cx, cy + oy)))) continue; const v = flow[ny * MW + nx]; if (v < best) { best = v; bx = nx; by = ny; } } if (bx === cx && by === cy) break; cx = bx; cy = by; } if (path.length > 3) { const w = path[Math.max(0, path.length - 3)]; gx = (w[0] + 0.5) * TILE; gy = (w[1] + 0.5) * TILE; } }
+    __bot2(); let goal = GS.evac || wayOut(); /* the landing zone, or the way on: a fuel can, the garage door, the truck, the road out */
+      { const T = GS.truck; if (!GS.evac && T && T.parked && !T.gone && goal && goal.label === 'TRUCK') { const c = Math.cos(T.a), s = Math.sin(T.a), u = (GS.P.x - T.x) * c + (GS.P.y - T.y) * s, v = -(GS.P.x - T.x) * s + (GS.P.y - T.y) * c; if (u > -20) { const sd = v < 0 ? -1 : 1, gu = -45, gv = sd * 50; goal = { x: T.x + gu * c - gv * s, y: T.y + gu * s + gv * c, label: 'TRUCK' }; } } } /* a person walks round the truck to its back: the bot's paths don't see the truck */ if (goal) { let gx = goal.x, gy = goal.y; { /* walk the flow field backwards from the landing zone: the path to it from here */ let cx = Math.floor(goal.x / TILE), cy = Math.floor(goal.y / TILE); const path = []; for (let k = 0; k < 400; k++) { path.push([cx, cy]); let best = flow[cy * MW + cx], bx = cx, by = cy; for (const [ox, oy] of N8) { const nx = cx + ox, ny = cy + oy; if (isWall(nx, ny) || (ox && oy && (isWall(cx + ox, cy) || isWall(cx, cy + oy)))) continue; const v = flow[ny * MW + nx]; if (v < best) { best = v; bx = nx; by = ny; } } if (bx === cx && by === cy) break; cx = bx; cy = by; } if (path.length > 3) { const w = path[Math.max(0, path.length - 3)]; gx = (w[0] + 0.5) * TILE; gy = (w[1] + 0.5) * TILE; } }
       const dx = gx - GS.P.x, dy = gy - GS.P.y, dl = Math.hypot(dx, dy), de = Math.hypot(goal.x - GS.P.x, goal.y - GS.P.y); if (de > 30) { __pad.lx = dx / (dl || 1); __pad.ly = dy / (dl || 1); } else __pad.lx = __pad.ly = 0; __kmApply(); } update(1/60); tickWorld(1/60); updateCamera(1/60); T += 1/60;
     if (window.__hook && window.__hook(N) === 'stop') break;
     for (const k of GS.pickups) if (!seenPk.has(k)) { seenPk.add(k); if (k.k === 'hp') N.hpDrops++; else N.ammoDrops++; }
@@ -87,7 +88,14 @@ export function wonRun(r, errs, what) {
   const stuck = Object.values(r.nights)
     .filter(n => n.stuck || n.evacStuck)
     .map(n => n.w);
-  check(!stuck.length, `${what}: stalled on night(s) ${stuck.join(', ')}`);
+  check(
+    !stuck.length,
+    `${what}: stalled on night(s) ${stuck.join(', ')}: ` +
+      Object.values(r.nights)
+        .filter(n => n.stuck || n.evacStuck)
+        .map(n => JSON.stringify(n.stuck || n.evacStuck).slice(0, 900))
+        .join(' | ')
+  );
   check(r.end === 'won', `${what}: run ended "${r.end}" on night ${r.wave}`);
   check(r.district === 'cemetery', `${what}: the evac was made in ${r.district}, not Hollow Hill`);
   check(!errs.length, `${what}: page errors: ` + errs.join(' | '));

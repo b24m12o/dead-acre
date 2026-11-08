@@ -13,6 +13,7 @@ import { underBoss } from '../game/waves.js';
 import { AB, abCd } from '../game/abilities.js';
 import { bossHint } from '../actors/bosses.js';
 import { FINAL_NIGHT } from '../game/districts.js';
+import { GARAGE } from '../world/map.js';
 import { TRAITS } from '../actors/backups.js';
 import { EV_NAME } from '../audio/radio.js';
 import { objText } from '../game/objective-flow.js';
@@ -271,11 +272,13 @@ export function updateHud() {
                       : 'Take the fuel to the garage'
                     : GS.truck && GS.truck.garage && !GS.truck.gone
                       ? 'The truck is starting'
-                      : 'A truck is on its way'
+                      : !GS.truck && GARAGE && !GARAGE.open
+                        ? 'There is a truck in a garage here · listen'
+                        : 'A truck is on its way'
               : GS.nightDone && !left && GS.interT > 0
                 ? GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14
-                  ? 'Drop waiting · Enter to skip'
-                  : `Next night in ${Math.ceil(GS.interT)}${GS.RUN.nextSig ? ' · ' + SIG[GS.RUN.nextSig.s] : ''} · Enter to start`
+                  ? `Drop unopened · Enter starts night ${GS.wave + 1}`
+                  : `Night ${GS.wave + 1} in ${Math.ceil(GS.interT)}${GS.RUN.nextSig ? ' · ' + SIG[GS.RUN.nextSig.s] : ''} · Enter to start now`
                 : GS.horde && !GS.horde.done && !GS.horde.finale && GS.horde.startT > 1 && GS.nightLive
                   ? `Horde in ${Math.ceil(GS.horde.startT)} s · Enter to call it now`
                   : quiet

@@ -12,7 +12,7 @@ const RIDE = String.raw`(() => {
   const fr = () => { update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60); };
   const fr0 = () => { fr(); if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } GS.P.hp = S.maxHp; }; // getting there: no cards, no harm
   initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null;
-  GS.RUN.stop = 0; GS.wave = 2; leaveStop('foot'); travelStep(); document.querySelector('#route .way[data-i="0"]').click(); // walk into St. Mary's, the first place left by truck
+  GS.RUN.stop = 0; GS.wave = 2; leaveStop('foot'); travelStep(); { const t = performance.now(); while (performance.now() - t < 650); } document.querySelector('#route .way[data-i="0"]').click(); // walk into St. Mary's, the first place left by truck
   GS.queue = []; GS.enemies.length = 0; GS.wave = 5; GS.nightLive = true; GS.nightDone = false; nightCleared();
   for (let i = 0; i < 60 * 8 && !GS.truck; i++) fr0();
   const T = GS.truck;
@@ -29,7 +29,7 @@ const RIDE = String.raw`(() => {
   for (let i = 0; i < 60 * 8 && !T.parked; i++) { GS.enemies.length = 0; fr0(); }
   if (!T.parked) return { err: 'it never pulled out', g };
   GS.P.x = T.x - Math.cos(T.a) * 90; GS.P.y = T.y - Math.sin(T.a) * 90; GS.enemies.length = 0;
-  for (let i = 0; i < 120 && !GS.P.ride; i++) fr();
+  for (let i = 0; i < 300 && !GS.P.ride; i++) fr();
   if (GS.P.ride !== 'truck') return { err: 'never climbed aboard' };
   GS.P.hp = 70; GS.xp = GS.xpNeed * 3; mouse.down = false;
   const o = { minHp: GS.P.hp, maxCl: 0, cards: false, over: false, block: !!T.ride.block, t: 0, g, gap: 0 };
@@ -49,7 +49,7 @@ const RIDE = String.raw`(() => {
   o.cards = o.cards || GS.state === 'levelup'; o.over = GS.state === 'over'; o.stateEnd = GS.state;
   o.blockLeft = T.ride.block ? T.ride.block.hp : 0;
   if (GS.state !== 'travel') return o;
-  travelStep(); document.querySelector('#route .way').click();
+  travelStep(); { const t = performance.now(); while (performance.now() - t < 650); } document.querySelector('#route .way').click();
   o.arrived = GS.state; o.inv = GS.P.inv; o.ride = GS.P.ride; o.cling = GS.enemies.filter(e => e.cling).length;
   for (let i = 0; i < 60 * 8 && GS.state === 'play'; i++) fr();
   o.cardsAfter = GS.state === 'levelup';

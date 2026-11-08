@@ -22,7 +22,7 @@ import { TRAITS, freeSpot } from '../actors/backups.js';
 import { RADIO, radio, radioVoice, storyEnd } from '../audio/radio.js';
 import { bossLogHtml } from './boss-flow.js';
 import { planHorde } from './horde.js';
-import { flow, solidPt } from '../world/nav.js';
+import { flow, los, solidPt } from '../world/nav.js';
 import { rideKills, rideTick, startRide } from './evac-ride.js';
 import { lvBank } from './upgrades.js';
 export function startEvac() {
@@ -79,6 +79,7 @@ function evacTarget(e) {
     if (z.dead || z.type === 'queen' || z.emerge < 0.6 || z.dying !== undefined) continue;
     const dl = d2(z.x, z.y, e.x, e.y);
     if (dl > 520 * 520) continue;
+    if (e.t >= e.land && !los(e.x, e.y, z.x, z.y)) continue; // on the ground the gunner can't shoot through a wall
     const dp = d2(z.x, z.y, GS.P.x, GS.P.y),
       sc = Math.min(dl, dp * 0.6);
     if (sc < bd) {
@@ -396,7 +397,6 @@ function winRun() {
     if (GS.state === 'won') {
       $('won').hidden = false;
       $('wonMenuBtn').focus({ preventScroll: true });
-      $('wonMenuBtn').scrollIntoView({ block: 'nearest' });
     }
   }, 1400);
 }

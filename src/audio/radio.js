@@ -147,7 +147,7 @@ export const STORY_J = {
   ],
   5: [
     'Reyes',
-    'Nine, that was the last of the relay. There is nothing left to hold in that town. I sent a truck back for you. Get on it.',
+    'Nine, that was the last of the relay. There is nothing left to hold in that town. There is a box truck shut in a garage on the west side, tank dry. Find it fuel and get out of there.',
   ],
   6: [
     'Reyes',
@@ -165,7 +165,7 @@ export const STORY_J = {
     STORY[10][1],
     [
       'Hawk',
-      'Nine, this is Hawk, the pilot. I lost the convoy at the quarry. A fuel truck is coming for you. Take it to the Mill River bridge. If any of them got out, that is where they went.',
+      'Nine, this is Hawk, the pilot. I lost the convoy at the quarry. There is a truck in a garage by the pit, tank dry. Fuel it and take it to the Mill River bridge. If any of them got out, that is where they went.',
     ],
   ],
   11: ['Hawk', 'Nothing from the convoy. I will look for their lights on the way in. You just hold.'],
@@ -176,7 +176,10 @@ export const STORY_J = {
   14: [
     'Reyes',
     STORY[14][1],
-    ['Reyes', 'We sent the last truck back over the bridge for you. Ride it up to the hospital, nine.'],
+    [
+      'Reyes',
+      "The groundskeeper's truck is shut in a garage on the hill, tank dry. Fuel it and drive up to the hospital, nine.",
+    ],
   ],
 };
 // the first dawn at each stop on the road, by its place in route.js
@@ -478,6 +481,12 @@ export function radioTick(dt) {
   radioVoice(l, who);
 }
 
+// said now, not queued: for a line the screen is already showing (the radio's question card), so the voice and the
+// words arrive together even though the game is held while you read
+export function radioNow(line, who) {
+  hushBarks();
+  radioVoice(line, who || (GS.RUN && GS.RUN.voice) || 'Reyes');
+}
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
   TIPS = {

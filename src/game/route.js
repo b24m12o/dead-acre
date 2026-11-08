@@ -32,7 +32,7 @@ export const STOPS = [
     map: 'highway',
     to: 7,
     leave: 'foot',
-    desc: 'A truck stop with its pumps still half full.',
+    desc: 'A truck stop off Route 9. The pumps ran dry weeks ago.',
   },
   {
     id: 'motel',

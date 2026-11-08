@@ -509,3 +509,5 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #radioAsk .way .wgain::before{content:'+ ';font-weight:600}
 #radioAsk .way .wcost{color:#e8a27a}
 #radioAsk .way .wcost::before{content:'− ';font-weight:600}
+#route .ways.arming .way{opacity:.6;pointer-events:none}
+#won .panel>.btns{position:sticky;bottom:-26px;margin:0 -8px -10px;padding:12px 8px 14px;background:linear-gradient(rgba(20,24,29,0),rgba(20,24,29,.97) 30%)}

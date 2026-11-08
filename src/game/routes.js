@@ -19,6 +19,7 @@ export const VIA = {
     gain: 'You get there ahead of them: fewer of the dead on your first night',
     cost: 'Nothing picked up on the way',
     k: 0.85,
+    why: 'you got here ahead of them: fewer tonight',
   },
   pharmacy: {
     name: 'Past the pharmacy',
@@ -26,6 +27,7 @@ export const VIA = {
     gain: 'You and your people patched up to full',
     cost: 'More of the dead follow you in',
     k: 1.15,
+    why: 'more of them followed you from the pharmacy',
   },
   gunshop: {
     name: 'By the gun shop',
@@ -33,6 +35,7 @@ export const VIA = {
     gain: 'Every gun you carry topped up',
     cost: 'The shooting draws a crowd after you',
     k: 1.2,
+    why: 'the shooting at the gun shop drew more of them',
   },
   hideout: {
     name: 'The farmhouse on the radio',
@@ -40,6 +43,7 @@ export const VIA = {
     gain: 'A survivor joins you · if your team is full, they share their supplies',
     cost: 'A crowd was round the house: it follows you',
     k: 1.25,
+    why: 'the crowd from the farmhouse followed you',
   },
   checkpoint: {
     name: 'Through the army checkpoint',
@@ -48,6 +52,7 @@ export const VIA = {
     cost: 'The dead in uniform come with you: more brutes',
     k: 1.15,
     brutes: true,
+    why: 'the dead in uniform followed you from the checkpoint',
   },
   wrecks: {
     name: 'Through the pile-up',
@@ -55,6 +60,7 @@ export const VIA = {
     gain: '+50 scrap',
     cost: 'Slow going: more of them catch up',
     k: 1.15,
+    why: 'more of them caught up with you at the pile-up',
   },
 };
 // the two on offer: often the main road against one detour, sometimes two detours; never the same pair twice running
@@ -83,7 +89,7 @@ export function applyVia(id) {
   const V = VIA[id];
   if (!V) return '';
   GS.RUN.via = id;
-  GS.RUN.viaN = { w: GS.wave + 1, k: V.k, brutes: !!V.brutes };
+  GS.RUN.viaN = { w: GS.wave + 1, k: V.k, brutes: !!V.brutes, why: V.why };
   GS.RUN.viaTaken = (GS.RUN.viaTaken || []).concat(id);
   const P = GS.P;
   let note = '';
@@ -113,18 +119,24 @@ export function applyVia(id) {
       note = 'the farmhouse shared their ammo, a medkit and 30 scrap';
     }
   } else if (id === 'checkpoint') {
-    const go = () => {
-      if (GS.state === 'play') offerUpgrades('route');
-      else GS.later.push({ t: 0.3, fn: go });
-    };
-    GS.later.push({ t: 1.2, fn: go });
-    note = 'kit from the army checkpoint';
+    GS.RUN.viaPick = true; // saved with the arrival: a closed tab doesn't lose it (night-flow.js arrive/resumeDawn)
+    note = 'kit from the army checkpoint · pick yours';
   } else if (id === 'wrecks') {
     GS.runSeeds += 50;
     note = '+50 scrap from the pile-up';
   }
   if (id !== 'road') sfx.ammo();
   return note;
+}
+// the checkpoint's free pick: once the arrival banner is gone and nothing else is on screen
+export function viaPickSoon() {
+  const go = () => {
+    if (!GS.RUN.viaPick) return;
+    if (GS.state !== 'play' || GS.bannerT > 0) return GS.later.push({ t: 0.3, fn: go });
+    GS.RUN.viaPick = false;
+    offerUpgrades('route');
+  };
+  GS.later.push({ t: 0.5, fn: go });
 }
 // the first night at the new place: how many of the dead, and how many brutes among them
 export const viaNight = w => (GS.RUN && GS.RUN.viaN && GS.RUN.viaN.w === w ? GS.RUN.viaN : null);

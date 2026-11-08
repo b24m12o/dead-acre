@@ -26,27 +26,51 @@ export function placeStreak() {
       : '';
   if (el.style.top !== top) el.style.top = top;
 } // follows the boss panel as it appears, grows or moves, so the two never overlap
+// The queue of callouts waiting their turn behind a banner or each other. Each entry: [title, sub, valid, night,
+// dawn?, urgent, queued-at]. Up to six wait; when it's full the oldest ordinary one goes, never an urgent one. An
+// ordinary one that has waited 12 s is old news and goes too, as does one whose night has turned to dawn (or the
+// dawn to night), or whose own check (valid) no longer holds (tick.js)
+const QMAX = 6;
+function enqueue(entry, front) {
+  if (GS.streakQ.some(q => q[0] === entry[0])) return;
+  if (front) GS.streakQ.unshift(entry);
+  else GS.streakQ.push(entry);
+  while (GS.streakQ.length > QMAX) {
+    const i = GS.streakQ.findIndex(q => !q[5]);
+    GS.streakQ.splice(i < 0 ? GS.streakQ.length - 1 : i, 1);
+  }
+}
+// the callout on screen, cut off by a banner, a card screen or something urgent: it comes back only if it had barely
+// been seen (under 1.2 s); a line already read is not said twice
+export function requeueStreak() {
+  const c = GS.streakCur;
+  if (c && (GS.streakDur || 0) - GS.streakT < 1.2) enqueue(c, true);
+}
+// a line that no longer needs saying (another one says it better)
+export function dropStreak(re) {
+  GS.streakQ = GS.streakQ.filter(q => !re.test(q[0]));
+  if (GS.streakCur && re.test(GS.streakCur[0]) && GS.streakT > 0) GS.streakT = Math.min(GS.streakT, 0.05);
+}
 export function showStreak(t, sub, urgent = STREAK_URGENT[t], valid = null) {
   if (urgent && GS.state === 'play' && GS.streakT > 0.25 && GS.streakCur && !STREAK_URGENT[GS.streakCur[0]]) {
-    GS.streakQ.unshift(GS.streakCur);
+    requeueStreak();
     GS.streakT = 0;
   } // urgent news cuts in front
+  const entry = [t, sub, valid, GS.wave, !!GS.nightDone, !!urgent, GS.time];
   if (GS.state !== 'play' || GS.streakT > 0.25 || GS.bannerT > -0.45) {
-    if (!GS.streakQ.some(q => q[0] === t) && (!GS.streakCur || GS.streakCur[0] !== t || GS.streakT <= 0))
-      GS.streakQ.push([t, sub, valid]);
-    if (GS.streakQ.length > 4) GS.streakQ.shift();
+    if (!GS.streakCur || GS.streakCur[0] !== t || GS.streakT <= 0) enqueue(entry, !!urgent);
     return;
   }
-  GS.streakCur = [t, sub, valid];
+  GS.streakCur = entry;
   const el = $('streak');
   HUDR.t = -1;
   placeStreak();
   el.innerHTML = `${t}<small>${sub}</small>`;
   el.classList.add('show');
-  GS.streakT = clamp(1.3 + (String(t).length + String(sub || '').length) * 0.04, 1.6, 4.5);
+  GS.streakT = GS.streakDur = clamp(1.3 + (String(t).length + String(sub || '').length) * 0.04, 1.6, 4.5);
 } // long lines stay up long enough to read
 export function hideCallouts() {
-  if (GS.streakT > 0 && GS.streakCur) GS.streakQ.unshift(GS.streakCur);
+  if (GS.streakT > 0 && GS.streakCur) requeueStreak();
   GS.streakT = 0;
   GS.streakCur = null;
   $('streak').classList.remove('show');

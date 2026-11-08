@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { choiceNight } from './radio-choice.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, pick, rand } from '../core/util.js';
@@ -59,6 +60,7 @@ export function planSig(w) {
   return pick(deck.length ? deck : J ? ['storm'] : ['horde', 'storm']);
 }
 export function nightSetup() {
+  GS.RUN.askDue = false;
   GS.obj = null;
   GS.ev = null;
   GS.nightHit = false;
@@ -73,7 +75,7 @@ export function nightSetup() {
   if (sig) GS.RUN.sigUsed = (GS.RUN.sigUsed || []).concat(sig);
   if (!boss && !last && sig && SIG_EV[sig]) GS.ev = sig;
   else if (!boss && !last && !sig && GS.wave >= 4 && Math.random() < 0.32)
-    GS.ev = pick(['blood', 'fog', 'blackout', 'storm']);
+    GS.ev = pick(['blood', 'fog', 'storm'].concat(choiceNight(GS.wave)?.lights === 'on' ? [] : ['blackout'])); // the lights you asked for stay on
   if (GS.RUN.district === 'cemetery' && !GS.ev && !sig && Math.random() < 0.25) GS.ev = 'fog';
   if (GS.ev && GS.ev === GS.RUN.lastEv && !last && !sig) GS.ev = null;
   GS.RUN.lastEv = GS.ev; // never the same weather two nights running

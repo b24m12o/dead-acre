@@ -38,7 +38,7 @@ import {
   stopNow,
   truckLive,
 } from './journey.js';
-import { applyVia, offerVia } from './routes.js';
+import { applyVia, offerVia, viaPickSoon } from './routes.js';
 import { radioDawn } from './radio-choice.js';
 import { BOSS_HORDE_J, STOPS } from './route.js';
 import { newRun } from './run.js';
@@ -317,7 +317,7 @@ export function travelStep() {
     /* no storage: nothing to clear */
   }
   const ways = GS.RUN.journey && !GS.RUN.hm ? offerVia() : null, // which way to the next place: on foot or in the truck alike
-    ready = showRoute(id => arrive(id ? applyVia(id) : ''), ways);
+    ready = showRoute(id => arrive(id ? applyVia(id) : ''), ways, how);
   fade(false);
   ready();
 }
@@ -351,8 +351,11 @@ function arrive(note = '') {
   const S = STOPS[stopNow()];
   banner(
     S.name,
-    `${S.area} · night ${GS.wave + 1} tonight${note ? ' · ' + note : ` · ${FINAL_NIGHT - GS.wave} to go`}`
+    `${S.area} · night ${GS.wave + 1} tonight${note ? ' · ' + note : ` · ${FINAL_NIGHT - GS.wave} to go`}`,
+    false,
+    note ? 4.5 : 2.2
   );
+  if (GS.RUN.viaPick) viaPickSoon(); // the checkpoint's gear: after the banner has had its say
   storyArrive(stopNow());
   planDawn();
   saveRun(); // the new place is the checkpoint now
@@ -377,6 +380,7 @@ export function resumeDawn() {
     return;
   } // saved while you were on your way: the truck comes again, or the road out is marked again
   radioDawn(); // a question this morning you never got to answer: asked again
+  if (GS.RUN.viaPick) viaPickSoon(); // and the checkpoint's gear, if the tab closed before you took it
   const kept = GS.RUN.nextSig && GS.RUN.nextSig.w === GS.wave + 1 ? GS.RUN.nextSig.s : null,
     s = kept || planSig(GS.wave + 1); // tomorrow was already announced: it stays what it was
   GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;

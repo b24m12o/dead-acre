@@ -21,7 +21,8 @@ import { EV_NAME, RADIO, radio, tip } from '../audio/radio.js';
 import { OBJ_TIP } from './objective-flow.js';
 import { BOSS_PRE, bossEntrance, bossName, bossType } from './boss-flow.js';
 import { tutStart, tutWanted } from './tutorial.js';
-import { choiceLights } from './radio-choice.js';
+import { choiceLights, choiceNight } from './radio-choice.js';
+import { viaNight } from './routes.js';
 function surgePlan(w) {
   if (bossNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice || GS.horde) return null; // a horde night has no surges: the horde is the night
   const n = GS.queue.length;
@@ -133,7 +134,11 @@ export function startWave() {
   placeNight(); // what this place does tonight (setpieces.js)
   choiceLights(); // the streetlights, if you had a say in them this morning
   GS.RUN.sg = surgePlan(GS.wave);
-  const evTxt = GS.ev ? EV_NAME[GS.ev] + ' · ' : '';
+  const evTxt = GS.ev ? EV_NAME[GS.ev] + ' · ' : '',
+    why = [viaNight(GS.wave), choiceNight(GS.wave)]
+      .filter(c => c && c.why)
+      .map(c => ' · ' + c.why)
+      .join(''); // the cost of this morning's choices, said where it lands
   if (qb) {
     const bt = bossType();
     banner(last ? `Night ${GS.wave} · the last night` : `Night ${GS.wave}`, BOSS_PRE[bt], true);
@@ -145,10 +150,12 @@ export function startWave() {
         ? `${GS.horde ? GS.horde.n : ''} of them${GS.wave === 1 ? ' · lay your traps before they come' : ''}`
         : GS.wave === 1 && true && !GS.RUN.endless
           ? `Survive till dawn · ${FINAL_NIGHT} nights to the evac`
-          : GS.obj
-            ? evTxt + objName()
-            : evTxt + (GS.RUN.low ? `Lying low · ${GS.queue.length} dead walking` : `${GS.queue.length} dead walking`),
-      GS.ev === 'blood'
+          : (GS.obj
+              ? evTxt + objName()
+              : evTxt +
+                (GS.RUN.low ? `Lying low · ${GS.queue.length} dead walking` : `${GS.queue.length} dead walking`)) + why,
+      GS.ev === 'blood',
+      why ? 3.6 : 2.2
     );
   if (GS.obj && true) {
     GS.meta.tips = GS.meta.tips || {};

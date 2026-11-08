@@ -53,9 +53,9 @@ function placeGarage(set, seen, RES, clearOK) {
     soft = i =>
       ttype[i] === 2 || ttype[i] === 3 || ttype[i] === 4 || ttype[i] === 7 || ttype[i] === 8 || ttype[i] === 9; // rubble, trees, crates, burn barrels, headstones, fences: cleared for it
   const cand = [];
-  for (let y = 3; y <= MH - h - 6; y++)
+  for (let y = 3; y <= MH - h - 7; y++)
     for (let x = 3; x <= MW - w - 4; x++) {
-      if (x < 17 && y + h + 3 > 25 && y - 1 < 36) continue; // never on the way in: you arrive at the west edge, mid-height
+      if (x < 17 && y + h + 4 > 25 && y - 1 < 36) continue; // never on the way in: you arrive at the west edge, mid-height
       let ok = clearOK(x + w / 2, y + h / 2, 9);
       for (let j = -1; j <= h && ok; j++)
         for (let k = -1; k <= w && ok; k++) {
@@ -77,7 +77,7 @@ function placeGarage(set, seen, RES, clearOK) {
         continue;
       let road = 0,
         reach = 0;
-      for (let j = h; j < h + 3 && ok; j++)
+      for (let j = h; j < h + 4 && ok; j++)
         for (let k = 1; k <= 3; k++) {
           const i = (y + j) * MW + x + k;
           if (grid[i] && !soft(i)) ok = false;
@@ -97,7 +97,7 @@ function placeGarage(set, seen, RES, clearOK) {
         const tx = i % MW,
           ty = (i / MW) | 0;
         if (tx >= x && tx < x + w && ty >= y && ty < y + h) return true;
-        if (tx >= x - 1 && tx <= x + w && ty >= y - 1 && ty <= y + h + 2) return !!grid[i] && !soft(i);
+        if (tx >= x - 1 && tx <= x + w && ty >= y - 1 && ty <= y + h + 3) return !!grid[i] && !soft(i);
         return !!grid[i];
       },
       goal = (y + h) * MW + x + 2,
@@ -119,7 +119,7 @@ function placeGarage(set, seen, RES, clearOK) {
   if (!best) return;
   const [, x, y] = best,
     door = [];
-  for (let j = -1; j <= h + 2; j++)
+  for (let j = -1; j <= h + 3; j++)
     for (let k = -1; k <= w; k++) {
       const i = (y + j) * MW + x + k;
       if (grid[i] && soft(i)) {
@@ -141,7 +141,7 @@ function placeGarage(set, seen, RES, clearOK) {
         if (j === h - 1 && k >= 1 && k <= 3) door.push((y + j) * MW + x + k);
       }
     }
-  for (let j = h; j < h + 3; j++) for (let k = 1; k <= 3; k++) RES[(y + j) * MW + x + k] = 1; // nothing set down on the apron
+  for (let j = h; j < h + 4; j++) for (let k = 1; k <= 3; k++) RES[(y + j) * MW + x + k] = 1; // nothing set down on the apron (four deep: the truck stands on it)
   houses.push({ x, y, w, h, style: 'store', garage: true });
   GARAGE = { x, y, w, h, door, tx: (x + w / 2) * TILE, ty: (y + 1) * TILE + 160 - 64, open: false };
 }

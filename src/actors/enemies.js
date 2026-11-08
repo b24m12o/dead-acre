@@ -9,7 +9,9 @@ import { LEGSPEC, makeLegs } from './legs.js';
 import { budKey, playR, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { bossNight } from '../game/waves.js';
-import { bleed, distort, ring } from '../render/effects.js';
+import { bleed, distort, floatText, ring } from '../render/effects.js';
+import { cam } from '../game/state.js';
+import { viewH, viewW } from '../render/sprites.js';
 import { BILE, ZSKIN } from '../render/draw-enemies.js';
 import { INF } from '../game/districts.js';
 import { tip } from '../audio/radio.js';
@@ -276,15 +278,6 @@ export const TRAIT = {
     tip: 'That one has body armour on. Rounds stop in it and it shrugs off a shove. Use blasts or fire.',
   },
 };
-// the screamer, as one of the night's specials from night 5 (and still a trait on late elites): an ordinary body,
-// a little tougher than most, that stops when it sees you, draws a long breath and shrieks the street awake
-export function makeScreamer(e) {
-  e.hp *= 1.8;
-  setTrait(e, 'screamer');
-  e.scrT = rand(0.6, 1.4);
-  e.screamSp = true;
-  return e;
-}
 function setTrait(e, t) {
   e.trait = t;
   if (GS.state === 'play' && thr('budLook', 18000)) {
@@ -325,6 +318,9 @@ function setTrait(e, t) {
   e.hp *= 0.8;
   e.maxHp = e.hp; // the trait is the threat now, not the extra health
 }
+// on your screen, with a margin: a breath you can't see coming is a breath you can't stop
+const onView = e =>
+  Math.abs(e.x - cam.x - viewW / 2) < viewW / 2 - 30 && Math.abs(e.y - cam.y - viewH / 2) < viewH / 2 - 30;
 // the shriek: everything within earshot wakes and comes for you, faster for a while, and the noise carries
 function scream(e) {
   e.scrT = 9;
@@ -335,7 +331,7 @@ function scream(e) {
   distort(e.x, e.y, 0.016, 0.7, 0.5);
   for (let i = 0; i < 3; i++)
     GS.later.push({ t: i * 0.1, fn: () => ring(e.x, e.y - 30, 10, 180 + i * 70, 0.55, [1, 0.9, 0.8], 0.45) });
-  const R = e.screamSp ? 620 : 380;
+  const R = 380;
   query(e.x, e.y, R, o => {
     if (o !== e && !o.dead && o.type !== 'queen' && d2(o.x, o.y, e.x, e.y) < R * R) {
       o.aw = Math.max(o.aw || 0, 8);
@@ -354,13 +350,14 @@ export function traitTick(e, dt, pd2) {
       // it and the scream dies in its throat
       e.scrIn -= dt;
       e.wakeT = Math.max(e.wakeT || 0, 0.12);
-      if (e.down > 0 || e.stag > 0) {
+      if (e.down > 0 || e.stag > 0 || e.cfall > 0) {
         e.scrIn = 0;
         e.scrT = 2.5;
+        floatText(e.x, e.y - 44, 'Choked', '#ffd27a', 14); // you cut it off: you see that you did
       } else if (e.scrIn <= 0) scream(e);
     } else {
       e.scrT -= dt;
-      if (e.scrT <= 0 && e.los && pd2 < 560 * 560 && !(e.down > 0) && !(e.stag > 0)) {
+      if (e.scrT <= 0 && e.los && pd2 < 560 * 560 && onView(e) && !(e.down > 0) && !(e.stag > 0)) {
         e.scrIn = 0.95;
         e.scrInT = GS.time;
         sfx.inhale(e.x, e.y);

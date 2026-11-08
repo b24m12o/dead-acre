@@ -22,7 +22,15 @@ export function saveRun() {
 // the run as the save holds it: also what goes on the truck to the next place (see journey.js)
 export function runData() {
   const P = GS.P,
-    RUN = { ...GS.RUN, sg: null, job: null, jobPend: false, tut: null, lvHold: 0, metrics: { ...GS.RUN.metrics } }; // lvHold is a time on this session's clock
+    RUN = {
+      ...GS.RUN,
+      sg: null,
+      job: GS.RUN.job && GS.RUN.job.fam ? GS.RUN.job : null,
+      jobPend: false,
+      tut: null,
+      lvHold: 0,
+      metrics: { ...GS.RUN.metrics },
+    }; // lvHold is a time on this session's clock
   const d = {
     v: V,
     at: Date.now(),

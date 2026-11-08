@@ -9,11 +9,13 @@ import { rollBud } from '../actors/backups.js';
 import { AMMO_MAX } from './arsenal.js';
 import { giveTraps } from './traps.js';
 import { lamps } from '../world/map.js';
-import { radio } from '../audio/radio.js';
+import { radioNow } from '../audio/radio.js';
 import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
 import { saveRun } from './save.js';
 import { bossNight } from './waves.js';
+import { TW } from './districts.js';
+import { BOSS_HORDE_J, HORDE_J } from './route.js';
 
 // each one: what Reyes says (voiced, word for word), and the two answers: what each gives, what each costs
 export const RCH = {
@@ -23,10 +25,10 @@ export const RCH = {
     b: { label: 'Medical', gain: 'Everyone patched up to full · +10 max health', cost: 'No ammo' },
   },
   family: {
-    line: 'Nine, there is a family on the laundromat roof, a few streets east. Go now and you will still be out there when it gets dark.',
+    line: 'Nine, someone is signalling from a roof a few streets over. Go for them tonight and the dead come early.',
     a: {
       label: 'Go and get them',
-      gain: 'Tonight: reach them and bring them back alive · one of them joins you',
+      gain: 'Tonight: reach the survivor and bring them back alive · they join you',
       cost: 'Night comes sooner, and more of the dead with it',
     },
     b: { label: 'Stay put', gain: 'The whole dawn to get ready', cost: 'They are on their own' },
@@ -59,20 +61,39 @@ export function radioDawn() {
   if (!GS.RUN.journey || GS.RUN.hm || GS.RUN.practice || GS.RUN.tut) return;
   const q = plan().find(d => d.w === GS.wave && !d.done);
   if (!q) return;
+  GS.RUN.askDue = true; // Enter can't start the night over a question you haven't heard yet (input.js)
   const ask = () => {
-    if (!GS.nightDone || q.done) return;
-    if (GS.state !== 'play' || GS.RUN.jobPend) return GS.later.push({ t: 0.5, fn: ask }); // behind any cards on screen
-    if (q.id === 'family' && (GS.RUN.job || bossNight(GS.wave + 1))) {
+    if (!GS.nightDone || q.done) return (GS.RUN.askDue = false);
+    if (GS.state !== 'play' || GS.RUN.jobPend || (GS.radioT > 0 && (q.wait = (q.wait || 0) + 0.5) < 10))
+      return GS.later.push({ t: 0.5, fn: ask }); // behind any cards on screen, and after the line already on the air
+    if (!fits(q.id, GS.wave)) {
       const used = GS.RUN.rDawns.map(d => d.id),
-        alt = Object.keys(RCH).find(k => k !== 'family' && !used.includes(k)),
-        later = GS.RUN.rDawns.find(d => d.w > GS.wave && !d.done);
-      if (later && later.id !== 'family' && !bossNight(later.w + 1)) [later.id, q.id] = ['family', later.id];
+        later = GS.RUN.rDawns.find(d => d.w > GS.wave && !d.done && fits(d.id, GS.wave) && fits(q.id, d.w, true)),
+        alt = Object.keys(RCH).find(k => !used.includes(k) && fits(k, GS.wave));
+      if (later) [later.id, q.id] = [q.id, later.id];
       else if (alt) q.id = alt;
-      else return;
-    } // tonight already has a job, or a boss: the family waits for another morning, another question takes its place
+      else {
+        q.done = true;
+        GS.RUN.askDue = false;
+        return;
+      }
+    } // a question that can't come true tonight (a job or a boss already, a blackout coming) swaps for another
     openAsk(q);
   };
-  GS.later.push({ t: 6, fn: ask });
+  GS.later.push({ t: 3, fn: ask });
+}
+// can this question come true for the night after dawn w? (ahead: judged for a later dawn, on what's known now)
+function fits(id, w, ahead = false) {
+  if (id === 'family')
+    return (
+      !bossNight(w + 1) &&
+      !HORDE_J[w + 1] &&
+      !BOSS_HORDE_J[w + 1] &&
+      (ahead || (!GS.RUN.job && !(GS.RUN.nextSig && GS.RUN.nextSig.s === 'horde')))
+    ); // a rescue is its own night: not a boss's, not a horde's
+  if (id === 'power')
+    return !bossNight(w + 1) && !TW('dark') && (ahead || !(GS.RUN.nextSig && GS.RUN.nextSig.s === 'blackout'));
+  return true;
 }
 function openAsk(q) {
   const C = RCH[q.id],
@@ -83,26 +104,28 @@ function openAsk(q) {
   box.innerHTML = ['a', 'b']
     .map(
       (k, i) =>
-        `<button class="way" type="button" data-k="${k}"><span class="wk">${i + 1}</span><b>${C[k].label}</b><span class="wgain">${gainText(q.id, k)}</span><span class="wcost">${C[k].cost}</span></button>`
+        `<button class="way" type="button" data-k="${k}"><span class="wk">${i + 1}</span><b>${C[k].label}</b><span class="wgain">${gainText(q.id, k)}</span><span class="wcost">${costText(q.id, k)}</span></button>`
     )
     .join('');
   GS.state = 'radio';
   el.hidden = false;
   sfx.radioIn && sfx.radioIn();
-  radio(C.line);
+  radioNow(C.line); // spoken as the card opens: the radio queue doesn't play while the card holds the game
   const t0 = performance.now() + 600; // a beat first: a key held from the fight can't answer for you
   const done = k => {
     if (performance.now() < t0 || q.done) return;
     q.done = true;
+    GS.RUN.askDue = false;
     window.removeEventListener('keydown', key, true);
     el.hidden = true;
     GS.state = 'play';
+    GS.interT = Math.max(GS.interT, 8); // the dawn doesn't run out while you were deciding
     answer(q.id, k);
     saveRun(); // answered is answered: a Continue doesn't ask again
   };
   const key = e => {
     const k = e.key === '1' ? 'a' : e.key === '2' ? 'b' : null;
-    if (k || e.key === 'Escape') {
+    if (k || e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       e.stopPropagation();
     }
@@ -110,14 +133,19 @@ function openAsk(q) {
   };
   window.addEventListener('keydown', key, true);
   for (const b of box.querySelectorAll('.way')) b.onclick = () => done(b.dataset.k);
-  const f = box.querySelector('.way');
-  if (f) f.focus({ preventScroll: true });
 }
 const gainText = (id, k) =>
   id === 'family' && k === 'a' && GS.buddies.length >= 3
-    ? 'Tonight: reach them and bring them back alive · your team is full: they head for the convoy'
+    ? 'Tonight: reach the survivor and bring them back alive · your team is full: they head for the convoy'
     : RCH[id][k].gain;
-const night = (k, extra) => (GS.RUN.choiceN = Object.assign({ w: GS.wave + 1, k }, extra || {}));
+const costText = (id, k) =>
+  id === 'scouts' && k === 'a' && GS.runSeeds < 40
+    ? GS.runSeeds > 0
+      ? `−${GS.runSeeds} scrap: all you have`
+      : 'Nothing: you have no scrap to give'
+    : RCH[id][k].cost;
+// why: said when the night begins, so the cost is felt where it lands
+const night = (k, why, extra) => (GS.RUN.choiceN = Object.assign({ w: GS.wave + 1, k, why }, extra || {}));
 function answer(id, k) {
   const P = GS.P;
   let say = '';
@@ -139,19 +167,20 @@ function answer(id, k) {
     if (k === 'a') {
       GS.RUN.job = { t: 'rescue', rw: rollBud(), fam: true }; // tonight's job: the ordinary rescue, marked when the night starts
       GS.RUN.lastJob = 'rescue';
-      GS.interT = Math.min(GS.interT, 6);
-      night(1.15);
+      GS.later.push({ t: 0, fn: () => (GS.interT = Math.max(3, GS.interT * 0.4)) }); // night comes sooner
+      night(1.15, 'more of them came after you on the roofs');
       say = 'They are marked when it gets dark · bring them back before dawn';
     } else say = 'Copy. We will try for them later';
   } else if (id === 'power') {
-    if (k === 'a') night(1.15, { lights: 'on' });
-    else night(0.9, { lights: 'off' });
+    if (k === 'a') night(1.15, 'the streetlights hum: more of them come', { lights: 'on' });
+    else night(0.9, 'dark and quiet: fewer of them', { lights: 'off' });
     say = k === 'a' ? 'Lights on tonight · they will hear it' : 'Staying dark tonight';
   } else if (id === 'scouts') {
     if (k === 'a') {
-      GS.runSeeds = Math.max(0, GS.runSeeds - 40);
-      night(0.75);
-      say = 'Scouts are leading part of them off · −40 scrap';
+      const pay = Math.min(40, GS.runSeeds);
+      GS.runSeeds -= pay;
+      night(0.75, 'the scouts led part of them off');
+      say = `Scouts are leading part of them off${pay ? ` · −${pay} scrap` : ''}`;
     } else say = 'Keeping the flares';
   }
   sfx.ammo();
