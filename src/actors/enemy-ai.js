@@ -803,7 +803,8 @@ export function updateEnemy(e, dt, p) {
   if (!e.fly && !e.big && e.st === 'move' && em) {
     const moved = Math.hypot(e.x - ox0, e.y - oy0),
       want = Math.hypot(tvx, tvy) * dt;
-    if (GS.time - (e.boardT ?? -9) < 0.3) e.stk = 0; // pounding on a board: held there on purpose (boards.js)
+    if (GS.time - (e.boardT ?? -9) < 0.3)
+      e.stk = 0; // pounding on a board: held there on purpose (boards.js)
     else if (want > 0.5 && moved < want * 0.25) e.stk = (e.stk || 0) + dt;
     else e.stk = Math.max(0, (e.stk || 0) - dt);
     if (e.stk > 0.5 && e.los) {
