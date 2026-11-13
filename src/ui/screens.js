@@ -1,4 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { renderSummary } from './summary.js';
+import { dailyEnd, dailyK, dailySetup, dayKey } from '../game/daily.js';
 import { HEROES } from '../game/arsenal.js';
 import { clearSave, savedRun } from '../game/save.js';
 import { GS } from '../core/gs.js';
@@ -70,6 +72,7 @@ export function gameOver() {
   if (!GS.RUN.hm) statMax('maxNight', GS.wave - 1); // Horde Mode's waves aren't nights of the campaign
   statMax('maxLevel', GS.level);
   checkChal(true);
+  dailyEnd(); // a daily's best score for its day
   const pd = GS.RUN.paid || { k: 0, w: 1, s: 0 },
     earned = Math.max(
       1,
@@ -79,7 +82,8 @@ export function gameOver() {
           (GS.RUN.clean ? 1.25 : 1) *
           DIFF().seeds *
           (1 + 0.12 * (GS.RUN.inf || 0)) *
-          twistK()
+          twistK() *
+          dailyK()
       )
     );
   GS.meta.seeds += earned;
@@ -117,10 +121,11 @@ export function gameOver() {
   $('oKills').textContent = GS.kills;
   $('oLevel').textContent = GS.level;
   renderRunReport('oBreakdown');
+  renderSummary('oSum', false); // the road, the build, your people (summary.js)
   {
     const lost = (GS.RUN.lost || []).concat(GS.buddies.map(b => b.nm).filter(Boolean));
     $('oCrew').textContent = lost.length ? `Lost with you: ${lost.join(', ')}.` : '';
-    $('oCrew').hidden = !lost.length;
+    $('oCrew').hidden = true; // your people are in the summary now
     const who = GS.RUN.voice || 'Reyes';
     $('oRadio').innerHTML = GS.RUN.practice
       ? ''
@@ -185,7 +190,13 @@ export function showMenuRec() {
 export function init() {
   $('startBtn').addEventListener('click', () => {
     GS.HM = SETUP === 'hm' ? true : null;
+    GS.DAILY = null;
     if (begin(false) === false) GS.HM = null;
+  });
+  $('dailyBtn').addEventListener('click', () => {
+    GS.HM = null;
+    GS.DAILY = dailySetup(dayKey()); // today's: the hero, the twists and the road decided by the date
+    if (begin(false) === false) GS.DAILY = null;
   });
   $('contBtn').addEventListener('click', continueRun);
   $('hmBtn').addEventListener('click', () => {
@@ -229,7 +240,10 @@ export function init() {
     openHangar();
   });
   $('wonHomeBtn').addEventListener('click', wonToMenu);
-  $('againBtn').addEventListener('click', () => begin(false));
+  $('againBtn').addEventListener('click', () => {
+    if (GS.DAILY) GS.DAILY = dailySetup(dayKey()); // a daily again: today's
+    begin(false);
+  });
   $('resumeBtn').addEventListener('click', () => setPause(false));
   $('quitBtn').addEventListener('click', () => {
     const qb = $('quitBtn');

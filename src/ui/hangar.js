@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { dailySetup } from '../game/daily.js';
 import { clearSave, restoreRun, savedRun } from '../game/save.js';
 import { resumeDawn } from '../game/night-flow.js';
 import { TW } from '../game/districts.js';
@@ -259,16 +260,21 @@ export function begin() {
   const camp = !GS.PRACTICE && !GS.HM, // the campaign: the road from Dead Acre to the County Hospital
     hmAt = GS.HM && !GS.PRACTICE ? STOPS.find((s, i) => s.id === GS.meta.hmPlace && stopOpen(i)) || STOPS[0] : null; // Horde Mode's ground
   GS.RUN = {
-    hero: GS.meta.unlocked[GS.meta.hero] ? GS.meta.hero : 'ranger',
+    hero: GS.DAILY && camp ? GS.DAILY.hero : GS.meta.unlocked[GS.meta.hero] ? GS.meta.hero : 'ranger', // the daily's hero, locked or not
     journey: camp,
     district: GS.PRACTICE ? GS.PRACTICE.d : hmAt ? hmAt.map : 'town',
     layout: hmAt ? hmAt.id : camp ? 'main' : undefined,
-    inf: GS.PRACTICE ? 0 : Math.min(GS.meta.inf || 0, GS.meta.infMax || 0),
+    inf: GS.PRACTICE || (GS.DAILY && camp) ? 0 : Math.min(GS.meta.inf || 0, GS.meta.infMax || 0),
     endless: false,
     clean: cleanRun(),
     practice: !!GS.PRACTICE,
-    tw: GS.PRACTICE ? {} : Object.assign({}, GS.meta.twists || {}),
+    tw: GS.PRACTICE
+      ? {}
+      : GS.DAILY && camp
+        ? Object.fromEntries(GS.DAILY.tw.map(t => [t, true]))
+        : Object.assign({}, GS.meta.twists || {}),
   };
+  if (GS.DAILY && camp) GS.RUN.daily = { date: GS.DAILY.date }; // the day it counts for, even if continued tomorrow
   if (GS.HM && !GS.PRACTICE) {
     GS.RUN.hm = true;
     GS.RUN.endless = true;
@@ -368,6 +374,7 @@ export function continueRun() {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   GS.PRACTICE = null;
   GS.HM = d.RUN.hm ? true : null; // so "Try again" after a continued Horde Mode run is Horde Mode again
+  GS.DAILY = d.RUN.daily ? dailySetup(d.RUN.daily.date) : null; // and a daily, a daily
   GS.RUN = { ...d.RUN, resumed: true };
   try {
     newRun();

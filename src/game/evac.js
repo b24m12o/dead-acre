@@ -15,6 +15,8 @@ import { dust, part, shake, sparks } from '../render/effects.js';
 import { hurtEnemy } from './combat.js';
 import { PK } from '../ui/hangar.js';
 import { renderRunReport } from '../ui/screens.js';
+import { renderSummary } from '../ui/summary.js';
+import { dailyEnd, dailyK } from './daily.js';
 import { WINDX } from '../world/physics.js';
 import { DISTRICTS, INFECTION, twistK } from './districts.js';
 import { bump, chalRunSummary, checkChal, statMax } from './challenges.js';
@@ -361,13 +363,15 @@ function winRun() {
       if (GS.state === 'won') radioVoice(t, who);
     }, 1100);
   } /* and you hear it, over the win screen */
+  dailyEnd(); // a daily's best score for its day
   const earned = Math.round(
     (GS.kills * 0.5 + GS.wave * 10 + GS.runSeeds + 200 + inf * 60) *
       (1 + 0.15 * (PK().vault || 0)) *
       (GS.RUN.clean ? 1.25 : 1) *
       DIFF().seeds *
       (1 + 0.12 * inf) *
-      twistK()
+      twistK() *
+      dailyK()
   );
   GS.meta.seeds += earned;
   statMax('maxLevel', GS.level);
@@ -384,6 +388,7 @@ function winRun() {
   $('wInf').textContent = inf ? inf : 'Clean';
   $('wSeeds').innerHTML = `+${earned} scrap · <b>${GS.meta.seeds.toLocaleString()}</b> banked`;
   renderRunReport('wBreakdown');
+  renderSummary('wSum', true);
   $('wUnlock').innerHTML =
     bossLogHtml() +
     chalRunSummary() +

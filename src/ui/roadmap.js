@@ -69,7 +69,8 @@ function mark(svg, id, x, y, col, scale, ring) {
   return g;
 }
 // draw the map into the card's .road: `to` is the stop you are heading for, `ways` the two on offer (or none)
-export function drawRoad(box, to, ways) {
+// end: the run's over (the summary): no leg ahead is lit, the van stands where you finished
+export function drawRoad(box, to, ways, end = false) {
   box.innerHTML = '';
   const svg = el('svg', { viewBox: `0 0 ${VW} ${VH}`, class: 'rmap' }, box),
     log = (GS.RUN && GS.RUN.viaLog) || [];
@@ -90,13 +91,17 @@ export function drawRoad(box, to, ways) {
     } else
       el(
         'path',
-        { d: legPath(i, null, 0).d, class: i === to ? 'rleg fork solo' : 'rleg ahead', id: i === to ? 'rway0' : null },
+        {
+          d: legPath(i, null, 0).d,
+          class: i === to && !end ? 'rleg fork solo' : 'rleg ahead',
+          id: i === to ? 'rway0' : null,
+        },
         svg
       );
   }
   STOPS.forEach((s, i) => {
     const x = X(i),
-      g = el('g', { class: `rstop${i < to ? ' done' : ''}${i === to ? ' next' : ''}` }, svg);
+      g = el('g', { class: `rstop${i < to ? ' done' : ''}${i === to && !end ? ' next' : ''}` }, svg);
     el('circle', { cx: x, cy: Y, r: 5.5 }, g);
     const t = el('text', { x, y: i % 2 ? 22 : 102, 'text-anchor': 'middle' }, g);
     t.textContent = s.short;

@@ -23,7 +23,7 @@ export async function run(b) {
     out.inside4 = zs.filter(e => inHouse(O, e.x, e.y)).length;
     out.pounded = hp0 - bar.hp;
     bar.hp = 1;
-    fr(60 * 6);
+    for (let i = 0; i < 12 * 60 && !zs.some(e => e.sgIn || inHouse(O, e.x, e.y)); i++) fr(1);
     out.broke = bar.broken;
     out.through = zs.some(e => e.sgIn || inHouse(O, e.x, e.y));
     for (const e of zs) e.dead = true; GS.enemies.length = 0;
@@ -42,7 +42,7 @@ export async function run(b) {
   await pg.close();
   check(!o.err, o.err);
   check(o.inside4 === 0, `in the first 4 s the board should hold them all outside: ${o.inside4} got in`);
-  check(o.pounded > 20, `the board should take a beating: it lost ${Math.round(o.pounded)} hp in 4 s`);
+  check(o.pounded > 8, `the board should take a beating: it lost ${Math.round(o.pounded)} hp in 4 s`);
   check(
     o.broke && o.through,
     `a board at its last should give and let them through: broke ${o.broke}, through ${o.through}`

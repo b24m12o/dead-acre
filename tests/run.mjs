@@ -20,6 +20,8 @@ const ALL = [
   'siege',
   'supply',
   'crowd',
+  'summary',
+  'daily',
   'campaign',
   'variants',
 ];

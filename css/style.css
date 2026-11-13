@@ -553,3 +553,36 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #supply .way .shave{position:absolute;bottom:10px;right:10px;font:600 11px "JetBrains Mono",monospace;color:#a9d9bf}
 #supply .shint{margin-top:12px;font-size:12px;color:#7d878d;text-align:right}
 #supply.arming .way{pointer-events:none}
+.runsum .road{position:relative;height:66px;margin:6px 34px 0}
+.runsum .road::before{content:'';position:absolute;left:0;right:0;top:30px;border-top:2px dashed rgba(207,214,217,.28)}
+.runsum .road{height:auto;margin:0 0 6px}
+.runsum .road::before{content:none}
+.runsum .rmap{display:block;width:100%;height:auto;overflow:visible}
+.runsum .rleg{fill:none;stroke-width:2}
+.runsum .rleg.past{stroke:#5d8a70;stroke-width:2.4}
+.runsum .rleg.ahead{stroke:rgba(207,214,217,.26);stroke-dasharray:4 5}
+.runsum .rmark{transition:opacity .15s}
+.runsum .rstop circle{fill:#262c32;stroke:#59636a;stroke-width:2}
+.runsum .rstop text{font:600 10.5px "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;fill:#7d878d}
+.runsum .rstop.done circle{fill:#8ef0b8;stroke:#8ef0b8}.runsum .rstop.done text{fill:#a9d9bf}
+.runsum .rstop.next circle{stroke:#ffd08a;fill:#262c32}.runsum .rstop.next text{fill:#ffd08a}
+.runsum .rvan rect{fill:#c9d49a;filter:drop-shadow(0 0 5px rgba(216,228,168,.6))}
+.runsum{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:10px;align-items:start;margin:2px 0 4px}
+.runsum.nomap{grid-template-columns:minmax(0,1fr)}
+.runsum .rmap{max-height:120px}
+.runsum .sumroad{align-self:center}
+.runsum .sumcols{display:grid;gap:6px}
+.runsum .scol2{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 9px;font-size:12.5px;line-height:1.4;color:#c9cfd1;min-width:0}
+.runsum .scol2 .sh{display:block;font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-bottom:3px}
+.runsum .scol2 b{color:var(--cream)}
+.runsum .scol2 i{color:#9aa3a8;font-style:normal}
+.runsum .scol2 s{color:#e8a27a}
+.runsum .scol2 .none{color:var(--mute)}
+.runsum .sumfoot{display:flex;align-items:center;gap:10px}
+.runsum .sumfoot .opt{font-size:12px;padding:5px 10px}
+.runsum .copied{font-size:12px;color:#a9d9bf}
+#survSetup .dailybox{display:grid;gap:6px;padding:10px 12px;border:1px solid rgba(255,208,138,.22);border-radius:10px;background:rgba(40,34,24,.35)}
+#survSetup .dailybox .note{margin:0;line-height:1.5}
+#survSetup .dailybox .btns{margin:2px 0 0;justify-content:flex-start}
+#survSetup .dailybox .btn{padding:8px 14px;font-size:14px}
+.runsum .rstop text{font-size:17px;letter-spacing:.02em}
