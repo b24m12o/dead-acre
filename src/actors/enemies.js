@@ -253,7 +253,16 @@ export function makeElite(e) {
   if (e.legSpec) {
     e.legSpec = Object.assign({}, e.legSpec);
   }
-  if ((GS.wave >= 9 || GS.RUN.endless) && GS.state === 'play' && !GS.RUN.practice && !bossNight(GS.wave)) {
+  const vt = GS.RUN && GS.RUN.viaN && GS.RUN.viaN.w === GS.wave && GS.RUN.viaN.trait; // the elites the way you came brought
+  if (
+    vt &&
+    GS.state === 'play' &&
+    !e.shield &&
+    (e.type === 'skitter' || (e.type === 'beetle' && vt !== 'runner')) &&
+    Math.random() < 0.7
+  )
+    setTrait(e, vt);
+  else if ((GS.wave >= 9 || GS.RUN.endless) && GS.state === 'play' && !GS.RUN.practice && !bossNight(GS.wave)) {
     const pool =
       e.type === 'skitter' && !e.shield
         ? ['runner', 'bloater', 'screamer', 'armored']

@@ -38,7 +38,7 @@ import {
   stopNow,
   truckLive,
 } from './journey.js';
-import { applyVia, offerVia, viaPickSoon } from './routes.js';
+import { applyVia, offerVia, viaPickSoon, viaSig } from './routes.js';
 import { radioDawn } from './radio-choice.js';
 import { BOSS_HORDE_J, STOPS } from './route.js';
 import { newRun } from './run.js';
@@ -332,7 +332,7 @@ export function travelStep() {
     /* no storage: nothing to clear */
   }
   const ways = GS.RUN.journey && !GS.RUN.hm ? offerVia() : null, // which way to the next place: on foot or in the truck alike
-    ready = showRoute(id => arrive(id ? applyVia(id) : ''), ways, how);
+    ready = showRoute(id => arrive(id ? applyVia(id, ways) : ''), ways, how);
   fade(false);
   ready();
 }
@@ -373,6 +373,7 @@ function arrive(note = '') {
   if (GS.RUN.viaPick) viaPickSoon(); // the checkpoint's gear: after the banner has had its say
   storyArrive(stopNow());
   planDawn();
+  viaSig();
   saveRun(); // the new place is the checkpoint now
 }
 // Continue: the saved run comes back at the dawn it was saved at, the night's drops and the dawn job on their way again

@@ -35,7 +35,10 @@ export function buildWave(w) {
   if (TW('horde')) n = Math.round(n * 1.4);
   const via = viaNight(w), // the way you came here: what followed you in, or how far ahead of them you got
     ch = choiceNight(w); // what you answered on the radio this morning
-  if (via && via.brutes && w >= 2) T.push(['beetle', 1.4]);
+  if (via && via.brutes && w >= 2) T.push(['beetle', 1.4]); // a save from before the ways had their own mix
+  if (via && via.mix) for (const m of via.mix) T.push(m.slice()); // what followed you in by the way you came
+  if (via && via.add && !bossNight(w))
+    for (const [t, c] of Object.entries(via.add)) for (let i = 0; i < (w < 5 ? Math.ceil(c / 2) : c); i++) q.push(t);
   if (bossNight(w)) n = Math.floor(n * (w >= 10 ? 0.3 : 0.38)); // the boss is staged by bossEntrance, not spawned from the queue
   if (w >= 3 && !bossNight(w))
     for (let i = 0; i < (1 + Math.floor(w / 5) + (INF(8) ? 1 : 0) + (Dn === 'cemetery' ? 1 : 0)) * 1; i++)

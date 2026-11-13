@@ -25,6 +25,7 @@ import { OBJ_NAME, finishObjective } from './objective-flow.js';
 import { planHorde } from './horde.js';
 import { giveTraps, trapKitStreak } from './traps.js';
 import { planSiege, siegeHouse } from './siege.js';
+import { viaNight } from './routes.js';
 import { BOSS_HORDE_J, HORDE_J } from './route.js';
 // every ordinary night from the second on has its own signature, known at dawn: weather, a horde, car alarms, a dog
 // pack, brutes. The first ones bring in one new threat each; later ones are dealt from a deck, never the same twice
@@ -80,6 +81,8 @@ export function nightSetup() {
   if (GS.ev && GS.ev === GS.RUN.lastEv && !last && !sig) GS.ev = null;
   GS.RUN.lastEv = GS.ev; // never the same weather two nights running
   GS.RUN.wet = GS.ev === 'storm' ? 1 : (GS.RUN.wet || 0) * 0.5; // after a storm the puddles linger a night or two
+  const via = viaNight(GS.wave); // the way you came here: its weather follows you in
+  if (via && (via.ev === 'fog' || via.ev === 'blood') && !last) GS.ev = GS.RUN.lastEv = via.ev;
   if (TW('dark')) GS.ev = 'blackout';
   if (GS.ev === 'blood') {
     const extra = Math.round(GS.queue.length * 0.35);
@@ -100,12 +103,20 @@ export function nightSetup() {
     GS.horde.startT = 34;
   } // the boss brings its own: a smaller horde rises half a minute into the night
   if (sig === 'siege' && !planSiege()) GS.RUN.sig = null; // no house fit to hold after all: an ordinary night
-  if (sig === 'pack' || sig === 'brute') {
-    const t = sig === 'pack' ? 'hound' : 'beetle',
-      n = sig === 'pack' ? 2 + Math.floor(GS.wave / 4) : 2 + Math.floor(GS.wave / 4), // a hound entry is a pack of three
-      at = Math.round(GS.queue.length * 0.3);
-    GS.queue.splice(at, 0, ...Array(n).fill(t));
-  } // the pack runs together; the brutes come in a knot
+  for (const g of [sig, via && via.ev !== sig ? via.ev : null])
+    if (g === 'pack' || g === 'brute') {
+      const t = g === 'pack' ? 'hound' : 'beetle',
+        n = 2 + Math.floor(GS.wave / 4), // a hound entry is a pack of three
+        at = Math.round(GS.queue.length * (g === sig ? 0.3 : 0.15));
+      GS.queue.splice(at, 0, ...Array(n).fill(t));
+    } // the pack runs together; the brutes come in a knot (the way you came can bring one of its own, earlier)
+  if (via && via.ev === 'horde' && !GS.horde && !last && !GS.RUN.hm) {
+    planHorde();
+    if (GS.horde) {
+      GS.horde.n = Math.round(GS.horde.n * 0.4);
+      GS.horde.startT = 40;
+    }
+  } // the crowd from the farmhouse: a smaller horde, forty seconds into the night
   const J = GS.RUN.job;
   GS.RUN.job = null;
   GS.RUN.jobPend = false;
@@ -122,6 +133,7 @@ export function nightSetup() {
       }
     }
   }
+  if (via && via.ev === 'rescue' && !GS.obj && !boss && !last) makeObj('rescue'); // the one left in the coach
 }
 function makeObj(type) {
   if (FAVOURS.includes(type)) {

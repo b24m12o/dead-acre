@@ -599,7 +599,10 @@ export function update(dt) {
           t !== 'queen' &&
           t !== 'flower' &&
           !ne.kind &&
-          Math.random() < (0.03 + GS.wave * 0.005 + 0.012 * sinceBoss(GS.wave)) * (INF(3) ? 2 : 1)
+          Math.random() <
+            (0.03 + GS.wave * 0.005 + 0.012 * sinceBoss(GS.wave)) *
+              (INF(3) ? 2 : 1) *
+              (GS.RUN.viaN && GS.RUN.viaN.w === GS.wave && GS.RUN.viaN.trait ? 2 : 1)
         )
           makeElite(ne);
         if (mark && !i && ne) {

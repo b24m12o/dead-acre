@@ -511,3 +511,27 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #radioAsk .way .wcost::before{content:'− ';font-weight:600}
 #route .ways.arming .way{opacity:.6;pointer-events:none}
 #won .panel>.btns{position:sticky;bottom:-26px;margin:0 -8px -10px;padding:12px 8px 14px;background:linear-gradient(rgba(20,24,29,0),rgba(20,24,29,.97) 30%)}
+#route .road{height:auto;margin:8px 0 0}
+#route .road::before{content:none}
+#route .rmap{display:block;width:100%;height:auto;overflow:visible}
+#route .rleg{fill:none;stroke-width:2}
+#route .rleg.past{stroke:#5d8a70;stroke-width:2.4}
+#route .rleg.ahead{stroke:rgba(207,214,217,.26);stroke-dasharray:4 5}
+#route .rleg.fork{stroke-dasharray:5 4;stroke-width:2.2;transition:stroke-width .15s,opacity .15s}
+#route .rleg.fork.solo{stroke:#ffd08a}
+#route .rmark{transition:opacity .15s}
+#route .rmap.hover .rleg.fork:not(.hot),#route .rmap.hover .rmark[data-i]:not(.hot){opacity:.32}
+#route .rleg.fork.hot{stroke-width:3.4;stroke-dasharray:none}
+#route .rstop circle{fill:#262c32;stroke:#59636a;stroke-width:2}
+#route .rstop text{font:600 10.5px "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;fill:#7d878d}
+#route .rstop.done circle{fill:#8ef0b8;stroke:#8ef0b8}#route .rstop.done text{fill:#a9d9bf}
+#route .rstop.next circle{stroke:#ffd08a;fill:#262c32}#route .rstop.next text{fill:#ffd08a}
+#route .rvan rect{fill:#c9d49a;filter:drop-shadow(0 0 5px rgba(216,228,168,.6))}
+#route:not(.leaving) .rvan rect{animation:rvanIdle 1.6s ease-in-out infinite}
+@keyframes rvanIdle{50%{opacity:.62}}
+#route .way .wtag{display:inline-flex;align-items:center;gap:6px;font:600 10.5px "JetBrains Mono",monospace;letter-spacing:.08em;text-transform:uppercase;margin-bottom:-1px}
+#route .way .wtag svg{width:16px;height:16px}
+#route .way .wtag.r0{color:#8ec5a0}#route .way .wtag.r1{color:#e0b36a}#route .way .wtag.r2{color:#e8806a}
+#route.leaving{pointer-events:none}
+#route.leaving .ways,#route.leaving .btns{opacity:.5;transition:opacity .3s}
+#route.out{opacity:0;transition:opacity .35s}

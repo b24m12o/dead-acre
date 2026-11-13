@@ -28,6 +28,7 @@ import { hurtEnemy, hurtPlayer } from './combat.js';
 import { flow, query } from '../world/nav.js';
 import { STOPS, stopAt } from './route.js';
 import { VIA, viaGain } from './routes.js';
+import { RISK, drawRoad, driveVan, glyphSvg, hotWay } from '../ui/roadmap.js';
 
 export const journeyOn = () => !!(GS.RUN && GS.RUN.journey && !GS.RUN.hm && !GS.RUN.practice);
 export const stopNow = () => (GS.RUN && Number.isInteger(GS.RUN.stop) ? GS.RUN.stop : stopAt(GS.wave + 1));
@@ -1136,6 +1137,7 @@ export function placeArrival() {
 
 // the travel card: the road so far, the stop ahead, what comes with you, and which way to go: two ways to the
 // next place (routes.js), picked with a click or 1 / 2 once the place is laid out behind the card
+let routeOutT = 0;
 export function showRoute(onGo, ways, how) {
   const el = $('route'),
     to = stopNow(),
@@ -1145,11 +1147,7 @@ export function showRoute(onGo, ways, how) {
   el.querySelector('h2').textContent = S.name;
   el.querySelector('.rdesc').textContent = S.desc;
   const road = el.querySelector('.road');
-  road.innerHTML =
-    STOPS.map(
-      (s, i) =>
-        `<span class="stop${i < to ? ' done' : ''}${i === to ? ' next' : ''}${i % 2 ? ' lo' : ''}" style="left: ${(i / (STOPS.length - 1)) * 100}%"><i></i>${s.short}</span>`
-    ).join('') + '<b class="van"></b>';
+  drawRoad(road, to, ways); // the stops, the ways you took, and the fork ahead (roadmap.js)
   el.querySelector('.rcarry').textContent = [
     `${GS.P.owned.length} ${GS.P.owned.length === 1 ? 'gun' : 'guns'}`,
     GS.buddies.length ? `${GS.buddies.length} with you` : 'on your own',
@@ -1161,15 +1159,12 @@ export function showRoute(onGo, ways, how) {
     (ways || [])
       .map(
         (id, i) =>
-          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span></button>`
+          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><span class="wtag r${VIA[id].risk || 0}">${glyphSvg(id)}${RISK[VIA[id].risk || 0]}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span></button>`
       )
       .join('');
   box.hidden = !(ways && ways.length);
-  el.style.setProperty('--from', (to - 1) / (STOPS.length - 1));
-  el.style.setProperty('--to', to / (STOPS.length - 1));
-  el.classList.remove('go');
-  void el.offsetWidth;
-  el.classList.add('go');
+  clearTimeout(routeOutT);
+  el.classList.remove('leaving', 'out');
   el.hidden = false;
   const btn = $('routeGo');
   btn.disabled = true;
@@ -1183,7 +1178,14 @@ export function showRoute(onGo, ways, how) {
     if (ways && ways.length && !(i >= 0)) return; // there's a choice to make first
     done = true;
     window.removeEventListener('keydown', key, true);
-    el.hidden = true;
+    el.classList.add('leaving'); // the van drives the way you picked, then the card fades: the place is already yours
+    driveVan(road, ways && ways.length ? i : 0, () => {
+      el.classList.add('out');
+      routeOutT = setTimeout(() => {
+        el.hidden = true;
+        el.classList.remove('leaving', 'out');
+      }, 380);
+    });
     onGo(ways && ways.length ? ways[i] : undefined);
   };
   const key = e => {
@@ -1204,7 +1206,11 @@ export function showRoute(onGo, ways, how) {
   };
   window.addEventListener('keydown', key, true);
   btn.onclick = () => go();
-  for (const w of box.querySelectorAll('.way')) w.onclick = () => go(+w.dataset.i);
+  for (const w of box.querySelectorAll('.way')) {
+    w.onclick = () => go(+w.dataset.i);
+    w.onmouseenter = w.onfocus = () => !done && hotWay(road, +w.dataset.i); // its fork on the map lights up
+    w.onmouseleave = w.onblur = () => !done && hotWay(road, -1);
+  }
   return () => {
     ready = true;
     armT = performance.now() + 600;

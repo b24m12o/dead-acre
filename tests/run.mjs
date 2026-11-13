@@ -14,6 +14,7 @@ const ALL = [
   'trigger',
   'blast',
   'setpieces',
+  'ways',
   'campaign',
   'variants',
 ];
