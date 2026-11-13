@@ -63,24 +63,30 @@ export async function run(b) {
     }
     if (!gap) return { err: 'no doorway with a long way round on this map' };
     const gx = (gap.tx + 0.5) * TILE, gy = (gap.ty + 0.5) * TILE;
-    P.x = gx + gap.nx * 80; P.y = gy + gap.ny * 80; P.vx = P.vy = 0; P.aimA = Math.atan2(-gap.ny, -gap.nx);
+    P.x = gx + gap.nx * 45; P.y = gy + gap.ny * 45; P.vx = P.vy = 0; P.aimA = Math.atan2(-gap.ny, -gap.nx); // in the doorway's mouth to nail it up, then back out of reach to watch
     buildFlow(P.x, P.y); GS.flowTile = -1;
     GS.RUN.traps = { board: 2 }; GS.RUN.trapSel = 'board';
     const sp = boardSpot(P.x, P.y, P.aimA);
     if (!sp) return { err: 'boardSpot found nothing in front of the doorway' };
     trapDown();
     const B = GS.boards[0];
+    if (!B || Math.hypot(B.x - gx, B.y - gy) > 21) return { err: 'the board went up somewhere else: ' + (B && [Math.round(B.x - gx), Math.round(B.y - gy)]) };
+    P.x = gx + gap.nx * 80; P.y = gy + gap.ny * 80;
     const out = { max: B && B.max, w: sp.pts.length, left: GS.RUN.traps.board, round: gap.r };
     const zs = [0, 1, 2, 3, 4, 5].map(k => { const e = makeEnemy('skitter', gx - gap.nx * (70 + (k >> 1) * 30) + gap.ny * ((k & 1) ? 10 : -10), gy - gap.ny * (70 + (k >> 1) * 30) + gap.nx * ((k & 1) ? 10 : -10)); e.emerge = 1; e.aw = 9; e.hp = e.maxHp = 5000; return e; });
-    const past = () => zs.some(e => (e.x - gx) * gap.nx + (e.y - gy) * gap.ny > 20);
+    const lat = e => Math.abs((e.x - gx) * gap.ny - (e.y - gy) * gap.nx), along = e => (e.x - gx) * gap.nx + (e.y - gy) * gap.ny;
+    const mouth = e => { if (lat(e) >= 26) e.inGap = false; else if (along(e) < 0) e.inGap = true; }; // in the doorway's outer mouth, or left it sideways
+    const past = () => zs.some(e => e.inGap && along(e) > 20 && lat(e) < 26); // from the outer mouth to inside: through the doorway itself, not the long way round
+    for (const e of zs) mouth(e);
     let t = 0, held = 0, brokeAt = -1, passAt = -1;
     for (; t < 60 * 60; t++) {
       update(1 / 60); tickWorld(1 / 60); P.hp = S.maxHp; P.x = gx + gap.nx * 80; P.y = gy + gap.ny * 80;
       if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; }
       if (B.broken && brokeAt < 0) brokeAt = t / 60;
       if (past() && passAt < 0) { passAt = t / 60; break; }
+      for (const e of zs) mouth(e);
     }
-    out.brokeAt = brokeAt; out.passAt = passAt; out.hpLeft = B.hp;
+    out.brokeAt = brokeAt; out.passAt = passAt; out.hpLeft = B.hp; out.zs = zs.map(e => [Math.round(along(e)), Math.round(lat(e)), e.dead ? 1 : 0]);
     for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0;
     // you walk through your own board
     B.broken = false; B.hp = B.max;
@@ -111,7 +117,10 @@ export async function run(b) {
     o.max === 240 && o.left === 1,
     `a night-3 board should have 240 hp and use one from the pack: ${o.max}, ${o.left} left`
   );
-  check(o.brokeAt >= 8, `the board should hold six of them at least 8 s: it broke at ${o.brokeAt} s`);
+  check(
+    o.brokeAt >= 8,
+    `the board should hold six of them at least 8 s: it broke at ${o.brokeAt} s; through at ${o.passAt} s, ${Math.round(o.hpLeft)} hp left, the six at ${JSON.stringify(o.zs)}`
+  );
   check(
     o.passAt > 0 && o.passAt >= o.brokeAt,
     `once it gives they should come through: through at ${o.passAt} s, broke at ${o.brokeAt} s`

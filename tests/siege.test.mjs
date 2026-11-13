@@ -25,6 +25,7 @@ export async function run(b) {
     bar.hp = 1;
     for (let i = 0; i < 12 * 60 && !zs.some(e => e.sgIn || inHouse(O, e.x, e.y)); i++) fr(1);
     out.broke = bar.broken;
+    out.zs = zs.map(e => [Math.round((e.x - bar.x) * bar.nx + (e.y - bar.y) * bar.ny), Math.round((e.x - bar.x) * -bar.ny + (e.y - bar.y) * bar.nx), e.st, e.sgIn ? 1 : 0]);
     out.through = zs.some(e => e.sgIn || inHouse(O, e.x, e.y));
     for (const e of zs) e.dead = true; GS.enemies.length = 0;
     // nailing back: stand still beside it
@@ -45,7 +46,7 @@ export async function run(b) {
   check(o.pounded > 8, `the board should take a beating: it lost ${Math.round(o.pounded)} hp in 4 s`);
   check(
     o.broke && o.through,
-    `a board at its last should give and let them through: broke ${o.broke}, through ${o.through}`
+    `a board at its last should give and let them through: broke ${o.broke}, through ${o.through}, the three at ${JSON.stringify(o.zs)}`
   );
   check(o.fixed, 'standing still beside a broken board should nail it back up');
   check(!o.out, 'you should not walk out through a board');

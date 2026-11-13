@@ -12,7 +12,8 @@ import { MH, MW, TILE, grid } from '../world/map.js';
 import { sfx } from '../audio/sfx.js';
 import { chips, floatText, shake } from '../render/effects.js';
 
-export const BAR_R = 21; // a board's reach round each post: it plugs a one-tile gap
+export const BAR_R = 21; // a board's reach round each post: it plugs a one-tile gap (the player's siege-night limit)
+const PLANK = 12; // how far in front of the planks the dead are held, past their own size
 export const BOARD_MAX = 4; // your own boards standing at once
 const isWallT = (tx, ty) => tx < 0 || ty < 0 || tx >= MW || ty >= MH || !!grid[ty * MW + tx];
 export const postsOf = b => b.pts || [[b.x, b.y]];
@@ -33,31 +34,32 @@ export function tickBoards(
 ) {
   for (const b of list) {
     b.hitT = Math.max(0, (b.hitT || 0) - dt);
-    if (!b.broken)
+    if (!b.broken) {
+      const half = ((b.w || 1) * TILE) / 2, // along the board: the whole gap it spans
+        ax = -b.ny,
+        ay = b.nx;
       for (const e of GS.enemies) {
         if (e.dead || e.fly || !(e.emerge >= 1) || (climbOver && e.kind === 'climb')) continue;
-        for (const [px, py] of postsOf(b)) {
-          const rr = BAR_R + e.r,
-            dd = d2(e.x, e.y, px, py);
-          if (dd >= (rr + 4) * (rr + 4)) continue; // at the board: touching it, or just pushed back off it
-          if (dd < 0.01) {
-            e.x = px + b.nx * rr;
-            e.y = py + b.ny * rr;
-          } else if (dd < rr * rr) {
-            const d = Math.sqrt(dd);
-            e.x += ((e.x - px) / d) * (rr - d);
-            e.y += ((e.y - py) / d) * (rr - d);
-          }
-          if (e.dmg > 0 && pound(e)) {
-            e.boardT = GS.time; // busy at the board: it stays and pounds, it doesn't look for a way round
-            b.hp -= heavy && e.type === 'queen' ? b.hp + 1 : e.dmg * dt * rate * (heavy && e.type === 'beetle' ? 3 : 1);
-            b.hitT = 0.25;
-            if (Math.random() < dt * 5) chips(px, py, 2, [0.42, 0.3, 0.18], 3, 120);
-            if (Math.random() < dt * 2.5) sfx.dig(px, py);
-          }
-          break;
+        const dx = e.x - b.x,
+          dy = e.y - b.y,
+          u = dx * b.nx + dy * b.ny, // across it: + outside, - inside
+          v = dx * ax + dy * ay, // along it
+          th = PLANK + e.r;
+        if (Math.abs(v) > half + e.r * 0.5 || Math.abs(u) >= th + 4) continue; // not at it
+        if (Math.abs(u) < th) {
+          const k = (u >= 0 ? th : -th) - u;
+          e.x += b.nx * k;
+          e.y += b.ny * k;
+        } // a plank, not a post: held back on its own side all along the gap, never squeezed round an end
+        if (e.dmg > 0 && pound(e)) {
+          e.boardT = GS.time; // busy at the board: it stays and pounds, it doesn't look for a way round
+          b.hp -= heavy && e.type === 'queen' ? b.hp + 1 : e.dmg * dt * rate * (heavy && e.type === 'beetle' ? 3 : 1);
+          b.hitT = 0.25;
+          if (Math.random() < dt * 5) chips(b.x + ax * v, b.y + ay * v, 2, [0.42, 0.3, 0.18], 3, 120);
+          if (Math.random() < dt * 2.5) sfx.dig(b.x, b.y);
         }
       }
+    }
     if (!b.broken && b.hp <= 0) {
       b.broken = true;
       b.hp = 0;
