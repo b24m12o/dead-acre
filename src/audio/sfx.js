@@ -539,6 +539,25 @@ export const sfx = {
     tone(rand(2600, 3200), 0.06, 'triangle', 0.012, 1, 0, 0, b);
     tone(rand(1800, 2200), 0.05, 'triangle', 0.008, 1, 0.05, 0, b);
   }, // the lantern swinging on its chain
+  // the special infected's tells: each its own sound, so you hear what is coming before you see it
+  scrabble(x, y) {
+    const b = spat(x, y),
+      n = randi(4, 6);
+    for (let i = 0; i < n; i++) noise(0.025, 0.05, rand(2600, 4200), 1800, 'highpass', i * rand(0.035, 0.06), b);
+  }, // the climber: claws on brick, quick and dry
+  wheeze(x, y) {
+    const b = spat(x, y);
+    noise(0.75, 0.05, 520, 900, 'bandpass', 0, b);
+    noise(0.9, 0.045, 880, 420, 'bandpass', 0.8, b);
+    tone(rand(70, 85), 0.5, 'sine', 0.018, 0.85, 0.85, 0, b);
+  }, // the spore: a slow, wet breath in and out
+  scrape(x, y) {
+    const b = spat(x, y);
+    noise(0.55, 0.06, 360, 160, 'lowpass', 0, b);
+    noise(0.4, 0.03, 900, 500, 'bandpass', 0.08, b);
+    tone(rand(2300, 2600), 0.12, 'triangle', 0.02, 0.98, 0.58, 0, b);
+    tone(rand(3500, 3800), 0.07, 'sine', 0.01, 1, 0.6, 0, b);
+  }, // the dragger: something heavy hauled along the road, then one clink of metal
   rumble(x, y) {
     const b = spat(x, y);
     tone(48, 0.7, 'sawtooth', 0.05, 1.3, 0, 260, b);

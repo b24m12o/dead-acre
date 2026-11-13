@@ -119,7 +119,7 @@ GS.MUSHD = (window.__DA_DATA && window.__DA_DATA.mus) || null; // the band's ins
 let GUNVAR;
 // recorded sounds, all CC0: full-quality guns (The Free Firearm Sound Library: 2-4 stereo takes per gun near and at mid distance, each gun's own reload, bolt, lever, pump and dry fire), zombie voices (80 CC0 creature SFX, pitched down), impacts and footsteps (Kenney Impact Sounds), ricochets (Warfork), your backups' call-outs (Kenney Voiceover Pack). Names ending in a digit are takes of one sound
 let SB;
-let sfxRev;
+export let sfxRev;
 function loadGunSounds() {
   const len = Math.floor(AC.sampleRate * 0.9),
     ir = AC.createBuffer(2, len, AC.sampleRate);

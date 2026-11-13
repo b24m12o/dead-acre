@@ -21,6 +21,8 @@ import { startEvac } from '../../src/game/evac.js';
 import { giveTraps } from '../../src/game/traps.js';
 import { endHorde } from '../../src/game/horde.js';
 import { freeSpot } from '../../src/actors/backups.js';
+import { makeEnemy } from '../../src/actors/enemies.js';
+import { blockPt } from '../../src/world/nav.js';
 import { RSTEP, sfx } from '../../src/audio/sfx.js';
 import { initAudio, playS } from '../../src/audio/audio.js';
 import { soundWait } from '../../src/ui/loading.js';
@@ -93,6 +95,8 @@ function boot() {
     <div class="set" id="trBody"></div>
     <div class="sec">Sound board</div>
     <div class="perks" id="trBoard"></div>
+    <div class="sec">Listen: the special infected, and the crowd</div>
+    <div class="perks" id="trListen"></div>
 
     <div class="btns"><button class="btn" id="trStart" type="button">Start</button
       ><button class="btn ghost" id="trBack" type="button">Back</button></div></div>`;
@@ -147,6 +151,52 @@ function boot() {
   ).join('');
   for (const b of q('trBoard').querySelectorAll('[data-shot]')) b.onclick = () => shot(b.dataset.shot);
   for (const b of q('trBoard').querySelectorAll('[data-rld]')) b.onclick = () => reload(b.dataset.rld);
+  q('trListen').innerHTML =
+    [
+      ['scrabble', 'Climber'],
+      ['wheeze', 'Spore'],
+      ['scrape', 'Dragger'],
+    ]
+      .map(
+        ([id, nm]) =>
+          `<div class="perk"><span class="nm">${nm}</span><span class="seg"><button type="button" data-tell="${id}">Tell × 3</button></span></div>`
+      )
+      .join('') +
+    `<div class="perk"><span class="nm">Crowd</span><span class="seg">${[20, 50, 100].map(n => `<button type="button" data-crowd="${n}">${n}</button>`).join('')}</span></div>`;
+  for (const b of q('trListen').querySelectorAll('[data-tell]'))
+    b.onclick = () => {
+      initAudio();
+      for (let i = 0; i < 3; i++) setTimeout(() => sfx[b.dataset.tell](), i * 2200);
+    }; // three times, two seconds apart: long enough to tell each apart with your eyes shut
+  for (const b of q('trListen').querySelectorAll('[data-crowd]')) b.onclick = () => crowd(+b.dataset.crowd);
+  // a night with only a crowd of n in it, round you at 300 to 850 px and coming in; you can't be hurt
+  function crowd(n) {
+    if (soundWait()) return;
+    initAudio();
+    ov.hidden = true;
+    T.god = true;
+    begin();
+    GS.RUN.tut = null;
+    GS.wave = 6;
+    startWave();
+    GS.queue = [];
+    for (const e of GS.enemies) e.dead = true;
+    GS.enemies.length = 0;
+    const P = GS.P;
+    let made = 0;
+    for (let t = 0; made < n && t < n * 20; t++) {
+      const a = Math.random() * Math.PI * 2,
+        d = 300 + Math.random() * 550,
+        x = P.x + Math.cos(a) * d,
+        y = P.y + Math.sin(a) * d;
+      if (blockPt(x, y)) continue;
+      const e = makeEnemy('skitter', x, y);
+      e.emerge = 1;
+      e.aw = 9;
+      made++;
+    }
+    showStreak(`A crowd of ${made}`, 'Invulnerable · listen to it build and die away as you shoot', true);
+  }
   function shot(id) {
     initAudio();
     if (id === 'revolver') playS('revolver', 0.78, 1, 0, 0.32);

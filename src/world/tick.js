@@ -9,6 +9,7 @@ import { WH, WW, crystals } from './map.js';
 import { solidPt } from './nav.js';
 import { updateLegs } from '../actors/legs.js';
 import { AC, MUS, ambG, musLP, playS, thr } from '../audio/audio.js';
+import { tickCrowd } from '../audio/crowd.js';
 import { S, cam } from '../game/state.js';
 import { showStreak } from '../ui/callouts.js';
 import { HUMAN, decal, part, ring, shake } from '../render/effects.js';
@@ -24,6 +25,7 @@ import { bossNight } from '../game/waves.js';
 import { updateWeather } from './weather.js';
 export function tickWorld(dt) {
   sightTick(dt);
+  tickCrowd(dt); // the moan of the many (crowd.js)
   updateJets(dt);
   updateAsh(dt);
   updateFire(dt);

@@ -117,8 +117,22 @@ function kin(e, dt) {
   return k;
 }
 // runs before the ordinary AI; returns true when it has moved the zombie itself this frame
+// its tell, every few seconds while it is up and within earshot: you hear what it is before you see it
+const TELL = { climb: ['scrabble', 2.2, 3.5], spore: ['wheeze', 3, 4], drag: ['scrape', 3, 4.5] };
+GS.tells = { climb: 0, spore: 0, drag: 0 };
+function tell(e, p) {
+  const T = TELL[e.kind];
+  if (!T || !(e.emerge >= 1) || e.dead) return;
+  if (e.tellT === undefined) e.tellT = GS.time + rand(0.2, 1.2);
+  if (GS.time < e.tellT) return;
+  e.tellT = GS.time + rand(T[1], T[2]);
+  if (d2(e.x, e.y, p.x, p.y) > 700 * 700 || (e.kind === 'climb' && e.st !== 'move')) return;
+  sfx[T[0]](e.x, e.y);
+  GS.tells[e.kind]++;
+}
 export function specialTick(e, dt, p) {
   specialTip(e);
+  tell(e, p);
   if (stunned(e)) return false;
   if (e.kind === 'climb') {
     if (!(GS.time < (e.clT || 0))) {
