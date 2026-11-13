@@ -8,7 +8,8 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { pick } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
-import { GUNS, GUN_PATH, HEROES, PERKS, WEAPON_NIGHTS, nextGuns } from '../game/arsenal.js';
+import { GUNS, GUN_FROM, GUN_PATH, HEROES, PERKS, WEAPON_NIGHTS, nextGuns } from '../game/arsenal.js';
+import { showStreak } from './callouts.js';
 import { glc } from '../render/gl.js';
 import { RW, VW, ZOOM } from '../render/sprites.js';
 import { initAudio } from '../audio/audio.js';
@@ -323,6 +324,12 @@ export function begin() {
       },
     });
 }
+// the first weapon-case night at or after night w
+export const firstCase = w =>
+  Object.keys(WEAPON_NIGHTS)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .find(n => n >= w) || w;
 // the starting loadout taken in the Armory: a gun and its ammo, a few traps, or a survivor at your side from night 1
 function applyLoadout() {
   const id = GS.meta.loadout,
@@ -330,8 +337,20 @@ function applyLoadout() {
   if (!L || id === 'std' || !loadoutOpen(id)) return;
   if (!GS.RUN.endless && (GS.meta.tutForce || (!GS.meta.tutDone && (stat('maxNight') || 0) < 2))) return; // the training run teaches the guns and traps itself
   if (L.gun && !TW('pistol')) {
-    giveGun(L.gun);
-    GS.RUN.lcase = true; // the loadout gun is this run's first weapon case: that dawn brings a supply crate instead
+    if ((GUN_FROM[L.gun] || 1) > 2) {
+      GS.RUN.lgun = L.gun; // a heavy gun rides with the convoy: it comes in the first weapon case of its night (night-flow.js)
+      GS.later.push({
+        t: 4,
+        fn: () =>
+          showStreak(
+            `Your ${GUNS[L.gun].name} is with the convoy`,
+            `It comes in the weapon case before night ${firstCase(GUN_FROM[L.gun])}`
+          ),
+      });
+    } else {
+      giveGun(L.gun);
+      GS.RUN.lcase = true; // the loadout gun is this run's first weapon case: that dawn brings a supply crate instead
+    }
   } // "Sidearm only" means it: the loadout's gun stays home
   if (L.traps) giveTraps(L.traps);
   if (L.buddy) {

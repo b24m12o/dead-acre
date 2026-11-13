@@ -267,9 +267,11 @@ export function updateHud() {
                 : GS.truck && GS.truck.parked && !GS.truck.gone
                   ? 'Get to the truck'
                   : GS.truck && GS.truck.dry && !GS.truck.gone
-                    ? GS.truck.fuel < GS.truck.cans.length
-                      ? `Find fuel for the truck · ${GS.truck.fuel} / ${GS.truck.cans.length}`
-                      : 'Take the fuel to the garage'
+                    ? !GS.truck.garage.open
+                      ? `Get to the garage · fuel ${GS.truck.fuel} / ${GS.truck.cans.length}`
+                      : GS.truck.fuel < GS.truck.cans.length
+                        ? `Find fuel for the truck · ${GS.truck.fuel} / ${GS.truck.cans.length}`
+                        : 'Pour the fuel in at the truck'
                     : GS.truck && GS.truck.garage && !GS.truck.gone
                       ? 'The truck is starting'
                       : !GS.truck && GARAGE && !GARAGE.open

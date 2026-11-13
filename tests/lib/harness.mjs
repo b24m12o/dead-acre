@@ -10,6 +10,7 @@ import { ROOT, bundle } from '../../tools/lib/source.mjs';
 export { ROOT };
 export const browser = () =>
   chromium.launch({
+    executablePath: process.env.CHROME_PATH || undefined, // a machine whose browser download is blocked can point at its own
     args: [
       '--use-gl=angle',
       '--use-angle=swiftshader',

@@ -229,12 +229,25 @@ export const GUN_DESC = {
   lmg: 'A 100-round belt and a long reload. Holds a street on its own, but you walk slowly while it fires. Uses rifle ammo.',
   auto: 'A semi-auto shotgun: ten shells as fast as you can pull. Pushes them back, rarely knocks one down. Uses shells.',
 };
+// when each gun can first come your way: the light ones early, the ones that hold a street on their own late, so the
+// run grows into its firepower (a weapon case only holds guns whose night has come; a loadout's gun waits for it too)
+export const GUN_FROM = { shotgun: 2, smg: 2, rifle: 4, lever: 4, hunter: 7, auto: 7, lmg: 9, launcher: 9 };
+export const gunOpen = (g, w = GS.wave + 1) => w >= (GUN_FROM[g] || 1);
 export function nextGuns() {
   if (TW('pistol')) return [];
   const fav = { ranger: 'rifle', breacher: 'shotgun', grenadier: 'smg' }[GS.RUN.hero] || 'shotgun',
     base = GS.RUN.gunPath || GUN_PATH,
     path = [fav, ...base.filter(g => g !== fav)];
-  return path.filter(g => GS.P && !GS.P.owned.includes(g) && !(GS.RUN.declined || []).includes(g)).slice(0, 2);
+  return path
+    .filter(
+      g =>
+        GS.P &&
+        !GS.P.owned.includes(g) &&
+        !(GS.RUN.declined || []).includes(g) &&
+        g !== GS.RUN.lgun && // your loadout's gun comes on its own
+        gunOpen(g)
+    )
+    .slice(0, 2);
 } // a gun you turned down went back on the truck for good // the first case always holds a gun your character is good with
 export const PERKS = [
   { id: 'hp', name: 'Kevlar Inserts', desc: '+10 max health for every character.', max: 5, cost: l => 60 + l * 60 },

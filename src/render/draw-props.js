@@ -290,9 +290,11 @@ export function drawCasters() {
   for (const f of fires) if (vis(f.x, f.y)) push(f.y + 12, drawBurnBarrel, f);
   for (const b of GS.barrels) if (!b.dead && vis(b.x, b.y)) push(b.y + 10, drawBarrel, b);
   {
-    const B = GS.truck && GS.truck.ride && !GS.truck.gone && GS.truck.ride.block;
+    const B =
+      (GS.truck && GS.truck.ride && !GS.truck.gone && GS.truck.ride.block) ||
+      (GS.blockade && GS.blockade.cars && !(GS.truck && GS.truck.ride) ? GS.blockade : null);
     if (B) for (const c of B.cars) if (vis(c.x, c.y)) push(c.y + 20, drawRoadblock, [c, B]);
-  } // the wrecks across the convoy's road
+  } // the wrecks across the convoy's road: there from the moment you arrive at a place you'll leave by truck
   if (!GS.SHMODE) for (const h of HATCHES) if (vis(h.x, h.y)) push(h.y - 60, drawHatch, h); // flat in the road, under whoever crosses it
   for (const e of GS.corpses) if (vis(e.x, e.y)) push(e.y - 18, drawEnemy, e);
   {

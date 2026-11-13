@@ -170,7 +170,7 @@ export function newRun(forMenu = false) {
   GS.obj = null;
   GS.ev = null;
   GS.evac = null;
-  GS.truck = GS.roadOut = null; // no way on from the last run carries into this one
+  GS.truck = GS.roadOut = GS.blockade = null; // no way on from the last run carries into this one
   GS.sewerPend = 0;
   GS.nightDone = false;
   GS.nightLive = false;

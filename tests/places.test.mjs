@@ -32,10 +32,13 @@ const PLACES = String.raw`(() => {
       if (STOPS[GS.RUN.stop].leave === 'truck') {
         if (!GARAGE) bad.push('no garage for the truck');
         else {
+          GS.blockade = null; planBlockade(); GS.flowTile = -1; buildFlow(GS.P.x, GS.P.y); // the roadblock stands from arrival: nothing may be cut off by it
+          if (!(GS.blockade && GS.blockade.cars)) bad.push('no roadblock on the way out');
           at('garage door', (GARAGE.x + GARAGE.w / 2) * TILE, (GARAGE.y + GARAGE.h) * TILE + 30);
           if (Math.hypot(GS.P.x - GARAGE.tx, GS.P.y - GARAGE.ty) < 300) bad.push('the garage stands on the way in');
           GS.truck = null; callTruck();
           for (const c of GS.truck.cans) at('truck fuel', c.x, c.y);
+          for (let i = 0; i < 40; i++) { const [x, y] = spawnPoint(460, false); at('spawn past the roadblock', x, y); }
           GS.truck = null;
         }
       } // the truck's garage: its door can be walked to, and so can every can of fuel for it

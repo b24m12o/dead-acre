@@ -24,8 +24,13 @@ const RIDE = String.raw`(() => {
   for (const c of T.cans) { GS.P.x = c.x; GS.P.y = c.y; for (let i = 0; i < 3; i++) fr0(); }
   if (T.fuel !== 3) return { err: 'walking onto the cans picked up ' + T.fuel };
   { const W = wayOut(); GS.P.x = W.x; GS.P.y = W.y; g.label = W.label; }
+  for (let i = 0; i < 10; i++) fr0();
+  g.open = G.open && G.door.every(i => !grid[i]); // at the door, it goes up
+  g.still = T.dry; // and the truck is still dry: the fuel goes in at its side, not at the door
+  { const W = wayOut(); GS.P.x = W.x; GS.P.y = W.y; g.label2 = W.label; }
   for (let i = 0; i < 60 * 4 && T.dry; i++) { GS.enemies.length = 0; fr0(); }
-  g.open = !T.dry && G.door.every(i => !grid[i]);
+  g.fuelled = !T.dry;
+  g.block = !!(GS.blockade && GS.blockade.cars); // the roadblock has stood on its road since the place was laid out
   for (let i = 0; i < 60 * 8 && !T.parked; i++) { GS.enemies.length = 0; fr0(); }
   if (!T.parked) return { err: 'it never pulled out', g };
   GS.P.x = T.x - Math.cos(T.a) * 90; GS.P.y = T.y - Math.sin(T.a) * 90; GS.enemies.length = 0;
@@ -61,10 +66,21 @@ export async function run(b) {
   await pg.close();
   check(!o.err, o.err);
   check(o.g.gx < 26 && o.g.shut, `the garage should stand shut on the west side: ${JSON.stringify(o.g)}`);
-  check(o.g.label === 'GARAGE' && o.g.open, `with the fuel in, the door never went up: ${JSON.stringify(o.g)}`);
+  check(
+    o.g.label === 'GARAGE' && o.g.open && o.g.still,
+    `at the garage door the door should go up, the truck still dry: ${JSON.stringify(o.g)}`
+  );
+  check(
+    o.g.label2 === 'FUEL IN' && o.g.fuelled,
+    `pouring at the truck's side never fuelled it: ${JSON.stringify(o.g)}`
+  );
   check(
     o.endX > 50 && o.west < 20 && o.turn < 720 && o.len < 120,
     `the drive out wanders: ${o.len} tiles, ${o.turn}° of turning, ${o.west}% of it back west, ends at x ${o.endX}`
+  );
+  check(
+    o.g.block && o.block,
+    `the roadblock should stand on the road from arrival and be the one rammed: ${JSON.stringify(o.g)}`
   );
   check(!o.block || o.gap <= 6, `the bumper stops ${o.gap} px short of the roadblock`);
   check(o.stateEnd === 'travel', `the ride ended in state ${o.stateEnd}`);

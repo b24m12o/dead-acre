@@ -5,7 +5,7 @@ import { MUS } from '../audio/audio.js';
 import { GS } from '../core/gs.js';
 import { pick, rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
-import { WEAPON_NIGHTS, nextGuns } from './arsenal.js';
+import { WEAPON_NIGHTS, gunOpen, nextGuns } from './arsenal.js';
 import { HELIPAD, lamps } from '../world/map.js';
 import { sfx } from '../audio/sfx.js';
 import { S } from './state.js';
@@ -47,6 +47,21 @@ function dawnDrops() {
   // dawn has a job now: the convoy drops what the next night needs while it is quiet, and the night waits a little while it sits unopened
   const nx = GS.wave + 1;
   const wcase = GS.RUN.hm ? nx % 2 === 0 : WEAPON_NIGHTS[nx]; // Horde Mode: a case every other wave
+  if (wcase && GS.RUN.lgun && gunOpen(GS.RUN.lgun, nx)) {
+    const g = GS.RUN.lgun;
+    GS.later.push({
+      t: 1.6,
+      fn: () => {
+        if (GS.state !== 'play') return;
+        const c = dropCrate(g, null, null, 'Your loadout gun, off the convoy');
+        if (c) {
+          c.dawn = true;
+          c.lgun = true;
+        }
+      },
+    });
+    return;
+  } // the loadout's heavy gun: its night has come, and it takes this dawn's weapon case
   const again = wcase && GS.RUN.lcaseW === nx, // this dawn was already the loadout's: a Continue mid-dawn drops the same
     owed = again || (wcase && GS.RUN.lcase && nextGuns().length);
   if (owed) {

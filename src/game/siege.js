@@ -160,6 +160,12 @@ export function siegeTarget(e) {
   } // through the gap: straight for the nearest of them
   return o.core;
 }
+// how fast the night's dead arrive while you hold the house: a rush (a crowd at once), else a steady quick stream
+export const siegeK = () => {
+  const o = GS.obj;
+  if (!o || o.type !== 'siege' || o.done || !o.sealed) return 1;
+  return o.rushT > 0 ? 0.12 : 0.5;
+};
 export function tickSiege(dt) {
   const o = GS.obj;
   if (!o || o.type !== 'siege') return;
@@ -171,6 +177,9 @@ export function tickSiege(dt) {
   const P = GS.P;
   if (!o.sealed && P && inHouse(o, P.x, P.y)) {
     o.sealed = true;
+    o.rushT = 6;
+    o.nextRush = 20;
+    GS.queue.push(...Array(Math.round(GS.queue.length * 0.35) + 6).fill('skitter')); // the hammering carries: more of them come
     sfx.dig(P.x, P.y);
     showStreak(
       'Door barred',
@@ -178,6 +187,16 @@ export function tickSiege(dt) {
       true
     );
   } // you're in: they bar the door behind you, and nobody leaves till dawn
+  if (o.sealed) {
+    o.rushT = Math.max(0, (o.rushT || 0) - dt);
+    o.nextRush -= dt;
+    if (o.nextRush <= 0 && GS.queue.length) {
+      o.nextRush = 20;
+      o.rushT = 4;
+      floatText(o.cx, o.cy - 60, 'More of them', '#ff9a6a', 14);
+      sfx.groan(o.cx + rand(-300, 300), o.cy + rand(-300, 300));
+    } // every so often they come in a rush, not one at a time
+  }
   // the boards: the dead pound on them, and you nail them back
   for (const b of o.bars) {
     b.hitT = Math.max(0, b.hitT - dt);

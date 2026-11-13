@@ -6,7 +6,7 @@ import { opt, saveMeta } from '../core/settings.js';
 import { GUNS } from './arsenal.js';
 import { DIFF } from '../core/profile.js';
 import { R } from '../render/atlas.js';
-import { MH, MW, TILE, WH, WW, cars, crystals, grid, isWall, ttype } from '../world/map.js';
+import { MH, MW, TILE, WH, WW, cars, crystals, grid, houses, isWall, ttype } from '../world/map.js';
 import { query, blockPt, reachPt } from '../world/nav.js';
 import { MUS, noise, playS, spat, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
@@ -1204,6 +1204,17 @@ export function dropCrate(gun, alt, kits, note) {
       y = clamp(GS.P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
     if (blockPt(x, y) || blockPt(x + 20, y) || blockPt(x - 20, y) || blockPt(x, y + 20) || blockPt(x, y - 20)) continue;
     if (!reachPt(x, y) && k < 36) continue; // never in a yard you can't get into
+    if (
+      houses.some(
+        o =>
+          o.roof &&
+          x > o.x * TILE - 30 &&
+          x < (o.x + o.w) * TILE + 30 &&
+          y > o.y * TILE - 30 &&
+          y < (o.y + o.h) * TILE + 30
+      )
+    )
+      continue; // a parachute comes down in the open: never through a roof, nor onto one's edge
     const cr = { x, y, z: 640, landed: false, t: 0, gun, alt, kit: kits };
     GS.crates.push(cr);
     const live = () => GS.crates.includes(cr) && !cr.open;
@@ -1404,7 +1415,10 @@ export function updateCrates(dt) {
               .forEach(giveGun);
         };
         GS.later.push({ t: 0.15, fn: go }); // a level-up card on the same tick waits its turn: the case is never lost
-      } else giveGun(c.alt && GS.P.owned.includes(c.gun) ? c.alt : c.gun);
+      } else {
+        giveGun(c.alt && GS.P.owned.includes(c.gun) ? c.alt : c.gun);
+        if (c.lgun) GS.RUN.lgun = null; // the loadout's gun, in your hands at last
+      }
       glowBurst(c.x, c.y, [1, 0.8, 0.3], 22, 240, 0.5, 0.6);
       chips(c.x, c.y, 10, [0.45, 0.5, 0.3], 3, 260);
     } else if (GS.state === 'play' && !GS.P.ride && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40) {

@@ -3,7 +3,7 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, d2, damp, rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
-import { GUNS, PERKS } from '../game/arsenal.js';
+import { GUNS, GUN_FROM, PERKS } from '../game/arsenal.js';
 import { DIFF } from '../core/profile.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { collide, los, solidPt } from '../world/nav.js';
@@ -13,7 +13,7 @@ import { newRun } from '../game/run.js';
 import { hideCallouts } from './callouts.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { HUMAN } from '../render/effects.js';
-import { PK, cleanRun, pvLabel } from './hangar.js';
+import { PK, cleanRun, firstCase, pvLabel } from './hangar.js';
 import { rope } from '../core/later.js';
 import { INFECTION, TWISTS } from '../game/districts.js';
 import { LOADOUTS, chalDone, loadoutOpen, lockLine, stopOpen } from '../game/challenges.js';
@@ -141,7 +141,30 @@ function renderTwists() {
   ).join('');
   const hint = $('twHint'),
     idle = 'Optional rules for the run. Each one pays more scrap. Point at one, or tab to it, to read it.';
+  // room for the longest of the descriptions, kept whichever one shows: the panel never changes size under the
+  // pointer (it's centred, so a line more or less moved every chip, and a chip moved out from under the pointer
+  // hid its own text again, back and forth)
+  const fit = () => {
+    if (!hint.offsetWidth) return;
+    hint.style.minHeight = '';
+    let h = 0;
+    for (const t of TWISTS) {
+      hint.innerHTML = `<b>${t.name}</b> · ${t.desc} · +${Math.round(t.scrap * 100)}% scrap`;
+      h = Math.max(h, hint.offsetHeight);
+    }
+    hint.textContent = idle;
+    hint.style.minHeight = Math.max(h, hint.offsetHeight) + 'px';
+  };
   hint.textContent = idle;
+  fit();
+  if (!renderTwists.fit) {
+    renderTwists.fit = true;
+    window.addEventListener('resize', () => renderTwists());
+    new MutationObserver(() => !$('survSetup').hidden && fit()).observe($('survSetup'), {
+      attributes: true,
+      attributeFilter: ['hidden'],
+    });
+  }
   for (const b of box.children) {
     const t = TWISTS.find(q => q.id === b.dataset.t),
       show = () => (hint.innerHTML = `<b>${t.name}</b> · ${t.desc} · +${Math.round(t.scrap * 100)}% scrap`),
@@ -174,7 +197,9 @@ export function renderChallenges() {
         on = (GS.meta.loadout || 'std') === id,
         ds =
           o.desc ||
-          `Start with the ${GUNS[o.gun].name} and its ammo. It takes the place of your first weapon case, which brings a supply crate and scrap instead.`;
+          ((GUN_FROM[o.gun] || 1) > 2
+            ? `Your ${GUNS[o.gun].name} rides with the convoy and comes in the weapon case before night ${firstCase(GUN_FROM[o.gun])}, in place of that case.`
+            : `Start with the ${GUNS[o.gun].name} and its ammo. It takes the place of your first weapon case, which brings a supply crate and scrap instead.`);
       return `<div class="perk"><span class="nm">${o.name}</span><button type="button" class="buy" data-load="${id}" ${!open || on ? 'disabled' : ''}>${on ? 'Taking' : open ? 'Take' : 'Locked'}</button><span class="ds">${ds}${open ? '' : ' ' + lockLine(o.req)}</span></div>`;
     })
     .join('');

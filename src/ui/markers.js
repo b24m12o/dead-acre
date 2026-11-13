@@ -146,8 +146,8 @@ export function markerList() {
     m.push({ x: GS.RUN.sg.horde.x, y: GS.RUN.sg.horde.y, col: '#ff8a6a', label: 'HORDE' });
   {
     const W = wayOut();
-    if (W && W.can) for (const c of truckCans()) m.push({ x: c.x, y: c.y, col: '#ffb070', label: 'FUEL' });
-    else if (W) m.push({ x: W.x, y: W.y, col: '#d8e4a8', label: W.label });
+    for (const c of truckCans()) m.push({ x: c.x, y: c.y, col: '#ffb070', label: 'FUEL' }); // every can still out there
+    if (W && !W.can) m.push({ x: W.x, y: W.y, col: '#d8e4a8', label: W.label });
   } // the way on to the next place: the fuel for the truck, the garage, the truck, or the road out
   if (GS.RUN.lz && !GS.evac && !GS.RUN.hm && GS.wave >= FINAL_NIGHT - 1)
     m.push({ x: GS.RUN.lz[0], y: GS.RUN.lz[1], col: '#8ef0a0', label: 'LANDING ZONE' }); // named at the last dawn
@@ -320,8 +320,10 @@ export function drawInd() {
   }
   IND.length = 0;
 }
+// the wreck search is on: tonight's job, not done or failed, and still night (the dawn ends it, prompts and all)
+const boxLive = () => GS.obj && GS.obj.type === 'box' && !GS.obj.done && GS.nightLive && !GS.nightDone;
 function boxPill(toS) {
-  if (!GS.obj || GS.obj.type !== 'box' || !GS.obj.cur || GS.obj.still) return null;
+  if (!boxLive() || !GS.obj.cur || GS.obj.still) return null;
   const k = TS(),
     [bx, by] = toS(GS.obj.cur.x, GS.obj.cur.y),
     lb = 'Stand still to search';
@@ -479,12 +481,7 @@ export function drawMarkersUI(toS) {
       ui.fillText(pr.label, x, y + 10 * k);
     } // by a board that needs you: what to do
   }
-  if (
-    GS.obj &&
-    GS.obj.type === 'box' &&
-    !GS.obj.done &&
-    d2(GS.obj.crash.x, GS.obj.crash.y, GS.P.x, GS.P.y) < 420 * 420
-  ) {
+  if (boxLive() && d2(GS.obj.crash.x, GS.obj.crash.y, GS.P.x, GS.P.y) < 420 * 420) {
     const k = TS();
     ui.save();
     const pl = boxPill(toS),
@@ -548,7 +545,7 @@ export function drawMarkersUI(toS) {
       ui.restore();
     }
   } /* on a pile but moving: say what to do, under the pile and clear of you */
-  if (GS.obj && GS.obj.type === 'box' && GS.obj.cur && GS.obj.cur.prog > 0) {
+  if (boxLive() && GS.obj.cur && GS.obj.cur.prog > 0) {
     const q = GS.obj.cur,
       [bx, by] = toS(q.x, q.y),
       r = 22 * ZOOM;

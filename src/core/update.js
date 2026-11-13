@@ -13,6 +13,7 @@ import { sfx } from '../audio/sfx.js';
 import { S, WHEEL, addAmmo, addAmmoType, ammoRoomFor, ammoRoomK, cam, gd, magSize, reloadTime } from '../game/state.js';
 import { lvCan, openLevel } from '../game/upgrades.js';
 import { makeElite, makeEnemy } from '../actors/enemies.js';
+import { siegeK } from '../game/siege.js';
 import { bossNight, sinceBoss, spawnPoint } from '../game/waves.js';
 import { chips, decal, dust, floatText, glowBurst, part, pool, ring } from '../render/effects.js';
 import { bossOf, explode, hurtPlayer, makeLurker, makeShield, updateCrates } from '../game/combat.js';
@@ -566,7 +567,8 @@ export function update(dt) {
         (SG && SG.horde ? 0.7 : 1) *
         (1 + clamp((GS.press || 0) - 0.25, 0, 0.6)) *
         ((GS.press || 0) < 0.03 ? 0.88 : 1) *
-        (bossNight(GS.wave) ? 1.7 : 1); // spawns quicken toward each boss; a surge comes faster, a horde faster still. They ease off while you are being hurt and press on while you are not, and a boss's company arrives in its own time
+        (bossNight(GS.wave) ? 1.7 : 1) *
+        siegeK(); // spawns quicken toward each boss; a surge comes faster, a horde faster still. They ease off while you are being hurt and press on while you are not, and a boss's company arrives in its own time
       let t = GS.queue.shift();
       const mark = t === 'hunt';
       if (mark) t = GS.wave >= 6 && Math.random() < 0.5 ? 'beetle' : 'skitter'; // a marked elite for the hunt job
