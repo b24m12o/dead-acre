@@ -10,7 +10,7 @@ import { VH, VW, ZOOM } from '../render/sprites.js';
 import { S, hasAmmo, magSize } from '../game/state.js';
 import { placeStreak } from './callouts.js';
 import { underBoss } from '../game/waves.js';
-import { AB, abCd } from '../game/abilities.js';
+import { AB, SHOVE, abCd } from '../game/abilities.js';
 import { bossHint } from '../actors/bosses.js';
 import { FINAL_NIGHT } from '../game/districts.js';
 import { viaTag } from '../game/routes.js';
@@ -360,6 +360,14 @@ export function updateHud() {
     if (bank) setT('lvReady', bank > 1 ? `${bank} level-ups · Tab` : 'Level up · Tab');
   } // banked level-ups wait here until you open them, or a lull does
   setB('dashFill', 1 - GS.P.dashCd / S.dashCd);
+  setB('shoveFill', 1 - (GS.P.shoveCd || 0) / SHOVE.cd);
+  {
+    const sl = 'Shove · ' + kn('shove');
+    if (hc.shL !== sl) {
+      hc.shL = sl;
+      $('shoveLbl').textContent = sl;
+    }
+  } // the label follows the key, if you rebind it
   setB('abFill', 1 - (GS.P.abT || 0) / abCd());
   {
     const rd = !(GS.P.abT > 0),

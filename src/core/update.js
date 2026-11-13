@@ -1,5 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { showStreak } from '../ui/callouts.js';
+import { kn } from './binds.js';
+import { saveMeta } from './settings.js';
 import { GS } from './gs.js';
 import { $ } from './errors.js';
 import { TAU, angDiff, clamp, d2, damp, keepIf, lerp, pick, rand, randi } from './util.js';
@@ -125,6 +127,18 @@ export function update(dt) {
   const p = GS.P;
   p.inv = Math.max(0, p.inv - dt);
   p.dashCd = Math.max(0, p.dashCd - dt);
+  p.shoveCd = Math.max(0, (p.shoveCd || 0) - dt);
+  p.shoveT = Math.max(0, (p.shoveT || 0) - dt);
+  if (!(GS.meta.tips && GS.meta.tips.shove) && GS.state === 'play' && !GS.RUN.tut && !p.ride && p.hp > 0) {
+    let n = 0;
+    for (const e of GS.enemies) if (!e.dead && e.emerge >= 1 && d2(e.x, e.y, p.x, p.y) < 70 * 70 && ++n >= 3) break;
+    if (n >= 3) {
+      GS.meta.tips = GS.meta.tips || {};
+      GS.meta.tips.shove = 1;
+      saveMeta();
+      showStreak('Surrounded', `${kn('shove')} shoves them back`, true);
+    }
+  } // the first time they close round you: the answer
   if (p.abT > 0) {
     p.abT -= dt;
     if (p.abT <= 0) {
@@ -250,7 +264,14 @@ export function update(dt) {
     }
   }
   if (!firing) p.trigFresh = true; // a fresh pull of the trigger can cut a shell-by-shell reload short; holding it down can't
-  if (firing && !p.ride && p.fireCd <= 0 && p.swap <= 0 && !(p.reload > 0 && (!GUNS[p.gun].perShell || !p.trigFresh)))
+  if (
+    firing &&
+    !p.ride &&
+    p.fireCd <= 0 &&
+    p.swap <= 0 &&
+    !(p.shoveT > 0) &&
+    !(p.reload > 0 && (!GUNS[p.gun].perShell || !p.trigFresh))
+  )
     firePlayer(cwx, cwy, p, target);
   rope(p, dt, p.x - Math.cos(p.bodyA) * 9, p.y - Math.sin(p.bodyA) * 9);
   if (S.molo && !p.ride) {

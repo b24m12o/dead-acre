@@ -248,12 +248,13 @@ export function drawRanger(p) {
     pose = GPOSE[gid],
     swap = p.swap > 0 ? Math.sin(Math.min(1, p.swap / 0.3) * Math.PI) : 0,
     rk = p.rk || 0,
+    shv = p.shoveT > 0 ? Math.sin(Math.PI * clamp(1 - p.shoveT / 0.25, 0, 1)) : 0, // the shove: the gun goes out butt-first and back
     pis = gid === 'pistol';
   const idle = Math.max(0, 1 - amp * 3),
-    ga = p.aimA + swap * 0.9 + rk * (pis ? -0.42 : 0.5) + Math.sin(GS.time * 1.1 + 0.5) * 0.022 * idle,
+    ga = p.aimA + swap * 0.9 + rk * (pis ? -0.42 : 0.5) + shv * 0.35 + Math.sin(GS.time * 1.1 + 0.5) * 0.022 * idle,
     gc = Math.cos(ga),
     gs = Math.sin(ga),
-    GO = pose.go - p.recoil - swap * 8 - rk * (pis ? 7 : 4) + Math.sin(GS.time * 2.4) * 0.7 * idle;
+    GO = pose.go - p.recoil - swap * 8 - rk * (pis ? 7 : 4) + shv * 13 + Math.sin(GS.time * 2.4) * 0.7 * idle;
   const gx = lx + Math.cos(p.aimA) * GO,
     gy = ly + Math.sin(p.aimA) * GO;
   const ghw = GHW[gid] || 3.4,

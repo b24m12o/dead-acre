@@ -16,6 +16,7 @@ const ALL = [
   'setpieces',
   'ways',
   'impact',
+  'shove',
   'campaign',
   'variants',
 ];

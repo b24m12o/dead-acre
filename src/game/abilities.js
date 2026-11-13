@@ -9,7 +9,7 @@ import { noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, cam } from './state.js';
 import { dust, floatText, shake } from '../render/effects.js';
-import { explode, releaseGrab } from './combat.js';
+import { explode, releaseGrab, shoveEnemy } from './combat.js';
 import { mouse, moveInput } from '../core/input.js';
 import { makeNoise } from './noise.js';
 export const AB_DEF = {
@@ -239,6 +239,34 @@ function fanShot(a0) {
   GS.P.aimA = a;
   shake(0.03);
   makeNoise(GS.P.x, GS.P.y, 700);
+}
+// the shove (V): a cone in front of you, a short reach, a little over a second between shoves. It works mid-reload
+// without spoiling it, holds your fire a moment, and makes no more noise than a grunt. Not mid-roll, not on the
+// truck or in the chopper. Returns how many it caught
+export const SHOVE = { cd: 1.2, reach: 78, half: (55 * Math.PI) / 180, hold: 0.25 };
+export function tryShove() {
+  const P = GS.P;
+  if (GS.state !== 'play' || !P || P.ride || !(P.hp > 0) || P.dashT > 0 || (P.shoveCd || 0) > 0) return -1;
+  if (P.held) releaseGrab(1.4); // a shove tears you free of a grab
+  P.shoveCd = SHOVE.cd;
+  P.shoveT = SHOVE.hold;
+  const a = P.aimA;
+  let n = 0;
+  for (const e of GS.enemies) {
+    if (e.dead) continue;
+    const dx = e.x - P.x,
+      dy = e.y - P.y,
+      d = Math.hypot(dx, dy);
+    if (d > SHOVE.reach + (e.r || 14) || (d > 8 && Math.abs(angDiff(a, Math.atan2(dy, dx))) > SHOVE.half)) continue;
+    if (shoveEnemy(e, dx || Math.cos(a), dy || Math.sin(a))) n++;
+  }
+  sfx.thump(P.x, P.y);
+  sfx.grunt(P.x, P.y);
+  shake(n ? 0.14 : 0.06);
+  for (const k of [-0.6, 0, 0.6])
+    dust(P.x + Math.cos(a + k) * SHOVE.reach * 0.8, P.y + Math.sin(a + k) * SHOVE.reach * 0.8, 2, 30, 0.6, 0.5);
+  if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.shoves = (GS.RUN.metrics.shoves || 0) + 1;
+  return n;
 }
 export function tryDash() {
   if (GS.state === 'play' && GS.P.held) {

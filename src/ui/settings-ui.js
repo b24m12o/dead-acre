@@ -24,7 +24,7 @@ import { DIFF_DESC, renderDistricts } from './menu.js';
 GS.hintTO = 0;
 export function updateHint() {
   const ht = keysIn(
-    `${moveKeys()} move · hold click to fire · {reload} reload · {roll} roll · {ability} ability · 1–9 swap · hold {wheel} wheel`
+    `${moveKeys()} move · hold click to fire · {reload} reload · {roll} roll · {shove} shove · {ability} ability · 1–9 swap · hold {wheel} wheel`
   );
   if (typeof GS.RUN !== 'undefined' && GS.RUN && GS.RUN.tut && GS.RUN.tut.i >= 0) tutHint();
   else {
@@ -36,7 +36,7 @@ export function updateHint() {
     const kl = $('keysLine');
     if (kl)
       kl.textContent = keysIn(
-        `${moveKeys()} move · Mouse aim · Hold click to fire · {roll}, Shift or right-click roll · {ability} ability · 1–9 or mouse wheel swap guns · {wheel} last gun, hold {wheel} for the gun wheel · {reload} reload · {trap} traps, {trapNext} switch · Esc pause · M sound · N music`
+        `${moveKeys()} move · Mouse aim · Hold click to fire · {roll}, Shift or right-click roll · {shove} shove · {ability} ability · 1–9 or mouse wheel swap guns · {wheel} last gun, hold {wheel} for the gun wheel · {reload} reload · {trap} traps, {trapNext} switch · Esc pause · M sound · N music`
       );
   }
   keyCard($('keyCard'), false);

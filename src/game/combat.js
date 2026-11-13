@@ -554,6 +554,49 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   }
   if (e.hp <= 0) killEnemy(e, dmg, src, kx / kl, ky / kl, crit);
 }
+// the shove: the gun butt, your shoulder behind it. It throws the dead back and puts the ordinary ones on the
+// ground; brutes, a riot shield from the front, armour and bosses only rock. Six damage: it kills only the nearly dead
+export function shoveEnemy(e, kx, ky) {
+  if (e.dead || !(e.emerge >= 1) || e.fly || e.type === 'egg') return false;
+  const kl = Math.hypot(kx, ky) || 1,
+    ux = kx / kl,
+    uy = ky / kl,
+    boss = e.type === 'queen' || e.big,
+    brute = e.type === 'beetle',
+    front = !!e.shield && shieldUp(e) && Math.abs(angDiff(e.a, Math.atan2(-uy, -ux))) < 1.2,
+    armd = e.trait === 'armored',
+    mass = boss ? 0.05 : brute ? 0.25 : e.type === 'hopper' ? 0.4 : e.type === 'flower' ? 0.5 : 1,
+    push = SHOVE_KB * (armd ? 0.25 : 1) * (front ? 0.35 : 1);
+  e.kx += ux * 170 * push * mass;
+  e.ky += uy * 170 * push * mass;
+  e.aw = Math.max(e.aw || 0, 8);
+  e.heardT = GS.time;
+  e.flash = 0.05;
+  e.wob = 1;
+  if (!boss) {
+    e.flT = 0.16;
+    e.fdx = ux;
+    e.fdy = uy;
+    e.flS = Math.random() < 0.5 ? -1 : 1;
+  }
+  if (e === (GS.P && GS.P.held)) releaseGrab(1.4);
+  if (!boss && !brute && !front && !armd && HUMAN[e.type] && !e.crawl && !e.half && !(e.down > 0)) {
+    e.dT = DOWN_T * rand(0.9, 1.15);
+    e.down = e.dT;
+    e.fallA = lyAngle(e.x, e.y, Math.atan2(uy, ux) + rand(-0.4, 0.4), 100);
+    e.sup = supOK(e) && Math.random() < 0.75;
+    e.splay = rand(0.2, 1);
+    e.apose = randi(0, 3);
+    e.lyG = 0;
+  } // knocked flat on its back, away from you
+  else if (e.type !== 'queen') e.stag = Math.max(e.stag || 0, brute || front ? 0.25 : 0.45);
+  e.hp -= SHOVE_DMG;
+  if (GS.RUN && GS.RUN.metrics && GS.state === 'play') GS.RUN.metrics.damageDealt += SHOVE_DMG;
+  if (e.hp <= 0) killEnemy(e, SHOVE_DMG, 'shove', ux, uy);
+  return true;
+}
+export const SHOVE_KB = 2.6,
+  SHOVE_DMG = 6;
 function gibAll(e, dx, dy, col) {
   const ex = e.x,
     ey = e.y,
