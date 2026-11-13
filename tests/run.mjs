@@ -23,6 +23,7 @@ const ALL = [
   'summary',
   'campaign',
   'variants',
+  'skills',
 ];
 const args = process.argv.slice(2),
   mods = [];

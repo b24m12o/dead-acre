@@ -45,3 +45,85 @@ window.__bot2 = () => {
 { const b2 = window.__bot2; window.__bot2 = () => { b2(); __kmApply(); }; }
 
 { const b2 = window.__bot2; window.__bot2 = () => { b2(); if (window.__noAb || typeof useAbility !== 'function' || !GS.P || GS.P.abT > 0 || GS.state !== 'play') return; let n = 0, cx = 0, cy = 0; for (const e of GS.enemies) if (!e.dead && e.emerge >= 1 && d2(e.x, e.y, GS.P.x, GS.P.y) < 330 * 330) { n++; cx += e.x; cy += e.y; } const bn = GS.boss && !GS.boss.dead && d2(GS.boss.x, GS.boss.y, GS.P.x, GS.P.y) < 450 * 450; if (n >= 5 || bn) { const ub = bn && n < 5, tx = ub ? GS.boss.x : cx / n, ty = ub ? GS.boss.y : cy / n, sx = mouse.x, sy = mouse.y; mouse.x = (tx - cam.x) * ZOOM; mouse.y = (ty - cam.y) * ZOOM; useAbility(); mouse.x = sx; mouse.y = sy; window.__abUsed = (window.__abUsed || 0) + 1; } }; }
+
+// The new moves, only when a test asks for them (window.__skills): the shove when they close round, the traps into
+// a crowd, a board across a gap they're coming through, and the supply panel at dawn. What it did goes in __sk.
+{
+  const b2 = window.__bot2;
+  const sk = (window.__sk = { shoves: 0, caught: 0, traps: 0, boards: 0, buys: {}, spent: 0, dawns: 0 });
+  let dawnW = -1;
+  const pack = () => GS.RUN.traps || {}; // the trap pack (the game's own helper is renamed in the test build)
+  const crowd = (r, a0, half) => {
+    const p = GS.P;
+    let n = 0, cx = 0, cy = 0;
+    for (const e of GS.enemies) {
+      if (e.dead || !(e.emerge >= 1)) continue;
+      const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy);
+      if (d > r) continue;
+      if (half !== undefined && Math.abs(angDiff(a0, Math.atan2(dy, dx))) > half) continue;
+      n++; cx += dx; cy += dy;
+    }
+    return { n, a: Math.atan2(cy, cx) };
+  };
+  // a dawn's shopping: ammo when running low, a mine and a gas drum before the night, boards when it has none,
+  // keeping 120 scrap back
+  const shop = () => {
+    if (!supplyOK() || dawnW === GS.wave) return;
+    dawnW = GS.wave;
+    sk.dawns++;
+    const buy = id => {
+      const i = SUPPLY.findIndex(s => s.id === id);
+      if (i < 0 || GS.runSeeds - SUPPLY[i].cost < 120) return false;
+      const c = SUPPLY[i].cost;
+      if (!buySupply(i)) return false;
+      sk.buys[id] = (sk.buys[id] || 0) + 1;
+      sk.spent += c;
+      return true;
+    };
+    const ts = ammoTypes(), fill = ts.length ? ts.reduce((q, t) => q + ammoFill(t), 0) / ts.length : 1;
+    if (fill < 0.45) buy('ammo');
+    if (!(pack().mine > 0)) buy('mine');
+    if (!(pack().drum > 0)) buy('drum');
+    if (!(pack().board > 0)) buy('board');
+  };
+  window.__bot2 = () => {
+    b2();
+    if (!window.__skills || GS.state !== 'play' || !GS.P || GS.P.ride) return;
+    const p = GS.P;
+    if (GS.nightDone && !GS.nightLive) return shop();
+    // the shove: two or more within reach of it, or one on top of you with the roll spent
+    if (!(p.shoveCd > 0) && !(p.dashT > 0)) {
+      const c = crowd(SHOVE.reach + 6);
+      if (c.n >= 2 || (c.n >= 1 && p.dashCd > 0)) {
+        p.aimA = c.a;
+        const n = tryShove();
+        if (n >= 0) { sk.shoves++; sk.caught += n; }
+      }
+    }
+    // a board across a gap in front, with a crowd coming through it
+    if (pack().board > 0) {
+      const c = crowd(320);
+      if (c.n >= 5) {
+        const sp = boardSpot(p.x, p.y, c.a);
+        if (sp && Math.hypot(sp.x - p.x, sp.y - p.y) < 90 && crowd(320, c.a, 0.6).n >= 4) {
+          GS.RUN.trapSel = 'board';
+          p.aimA = c.a;
+          trapDown();
+          sk.boards++;
+        }
+      }
+    }
+    // a mine or a gas drum into a crowd
+    for (const t of ['mine', 'drum'])
+      if (pack()[t] > 0) {
+        const c = crowd(300);
+        if (c.n >= 8) {
+          GS.RUN.trapSel = t;
+          p.aimA = c.a;
+          trapDown();
+          sk.traps++;
+          break;
+        }
+      }
+  };
+}
