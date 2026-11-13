@@ -9,6 +9,7 @@ import { setMusic, setMuted } from '../audio/music.js';
 import { WHEEL, cycleGun, startReload, switchGun, wheelRelease } from '../game/state.js';
 import { choose, doReroll, openLevel, pickLater } from '../game/upgrades.js';
 import { tryDash, tryShove, useAbility } from '../game/abilities.js';
+import { openSupply } from '../game/supply.js';
 import { begin } from '../ui/hangar.js';
 import { setPause } from '../ui/screens.js';
 import { openPractice } from '../game/practice.js';
@@ -132,6 +133,7 @@ export function init() {
       if (k === 'f' && !e.repeat) trapDown();
       if (k === 'g' && !e.repeat) cycleTrap();
       if (k === 'v' && !e.repeat) tryShove();
+      if (k === 'b' && !e.repeat) openSupply();
     } else if (GS.state === 'pause' && k === 'escape' && !$('settings').hidden) $('settingsBack').click();
     else if (GS.state === 'pause' && (k === 'escape' || k === 'p')) setPause(false);
     else if (GS.state === 'levelup' && !e.repeat && ['1', '2', '3'].includes(k)) choose(+k - 1);

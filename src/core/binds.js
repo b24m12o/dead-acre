@@ -16,6 +16,7 @@ export const ACTIONS = [
   { id: 'trap', label: 'Use trap', def: 'KeyF', key: 'f' },
   { id: 'trapNext', label: 'Switch trap', def: 'KeyG', key: 'g' },
   { id: 'shove', label: 'Shove', def: 'KeyV', key: 'v' },
+  { id: 'supply', label: 'Supplies (dawn)', def: 'KeyB', key: 'b' },
 ];
 // what can't be moved, shown under the bindable rows
 export const FIXED_ROWS = [

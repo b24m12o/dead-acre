@@ -1,6 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { showStreak } from '../ui/callouts.js';
 import { kn } from './binds.js';
+import { tickOwnBoards } from '../game/boards.js';
 import { saveMeta } from './settings.js';
 import { GS } from './gs.js';
 import { $ } from './errors.js';
@@ -354,6 +355,7 @@ export function update(dt) {
   tickGadgets(dt);
   tickHorde(dt);
   tickTraps(dt);
+  tickOwnBoards(dt);
   tickHatches(dt);
   tickSpores(dt);
   // formation trails the way you walk, not the way you aim, and holds still while you stand

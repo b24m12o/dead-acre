@@ -17,6 +17,8 @@ const ALL = [
   'ways',
   'impact',
   'shove',
+  'siege',
+  'supply',
   'campaign',
   'variants',
 ];

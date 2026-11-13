@@ -74,7 +74,7 @@ export function gameOver() {
     earned = Math.max(
       1,
       Math.round(
-        ((GS.kills - pd.k) * 0.5 + Math.max(0, GS.wave - Math.max(1, pd.w)) * 10 + (GS.runSeeds - pd.s)) *
+        ((GS.kills - pd.k) * 0.5 + Math.max(0, GS.wave - Math.max(1, pd.w)) * 10 + Math.max(0, GS.runSeeds - pd.s)) *
           (1 + 0.15 * (PK().vault || 0)) *
           (GS.RUN.clean ? 1.25 : 1) *
           DIFF().seeds *

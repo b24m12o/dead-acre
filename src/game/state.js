@@ -203,6 +203,7 @@ export const WHEEL_SLOTS = [
   'drum',
   'noise',
   'rig',
+  'board',
   'hunter',
   'lever',
   'lmg',

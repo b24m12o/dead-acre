@@ -295,6 +295,19 @@ const G = {
       line(c, 71, 25, 80, 25); // switch
     },
   },
+  board: {
+    shape: c => {
+      poly(c, 10, 9, 90, 13, 89, 21, 9, 17); // three planks, not quite square to each other
+      poly(c, 12, 22, 88, 20, 88, 28, 12, 30);
+      poly(c, 9, 33, 89, 31, 90, 39, 10, 41);
+    },
+    hole: c => {
+      for (const y of [15, 25, 36]) {
+        ring(c, 18, y, 1.6);
+        ring(c, 81, y, 1.6);
+      } // nail heads
+    },
+  },
   noise: {
     shape: c => {
       ring(c, 50, 23, 14); // the clock

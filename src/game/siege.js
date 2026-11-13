@@ -15,8 +15,8 @@ import { chips, floatText, shake } from '../render/effects.js';
 import { showStreak } from '../ui/callouts.js';
 import { makeSurvivor } from '../actors/backups.js';
 import { finishObjective } from './objective-flow.js';
+import { BAR_R, tickBoards } from './boards.js';
 
-const BAR_R = 21; // a board's reach: it plugs a one-tile gap
 const isWallT = (tx, ty) => tx < 0 || ty < 0 || tx >= MW || ty >= MH || !!grid[ty * MW + tx];
 // the gaps in a ruined house's walls, and the floor inside
 function houseShape(h) {
@@ -199,7 +199,6 @@ export function tickSiege(dt) {
   }
   // the boards: the dead pound on them, and you nail them back
   for (const b of o.bars) {
-    b.hitT = Math.max(0, b.hitT - dt);
     if (P && !b.broken && (o.sealed || !b.door)) {
       const rr = BAR_R + (P.r || 14),
         dd = d2(P.x, P.y, b.x, b.y);
@@ -226,52 +225,16 @@ export function tickSiege(dt) {
         }
       }
     } // you can't get through the boards either: only by the door, and only until it's barred
-    if (!b.broken)
-      for (const e of GS.enemies) {
-        if (e.dead || e.fly || !(e.emerge >= 1)) continue;
-        const rr = BAR_R + e.r,
-          dd = d2(e.x, e.y, b.x, b.y);
-        if (dd >= (rr + 4) * (rr + 4)) continue; // at the board: touching it, or just pushed back off it
-        if (dd < 0.01) {
-          e.x = b.x + b.nx * rr;
-          e.y = b.y + b.ny * rr;
-        } else if (dd < rr * rr) {
-          const d = Math.sqrt(dd);
-          e.x += ((e.x - b.x) / d) * (rr - d);
-          e.y += ((e.y - b.y) / d) * (rr - d);
-        }
-        if (e.dmg > 0 && e.sg) {
-          b.hp -= e.dmg * dt * 0.5;
-          b.hitT = 0.25;
-          if (Math.random() < dt * 5) chips(b.x, b.y, 2, [0.42, 0.3, 0.18], 3, 120);
-          if (Math.random() < dt * 2.5) sfx.dig(b.x, b.y);
-        }
-      }
-    if (!b.broken && b.hp <= 0) {
-      b.broken = true;
-      b.hp = 0;
-      chips(b.x, b.y, 10, [0.42, 0.3, 0.18], 4, 220);
-      sfx.dig(b.x, b.y);
-      shake(0.05);
+  }
+  tickBoards(o.bars, dt, {
+    pound: e => e.sg,
+    onBreak: b => {
       if (!o.brokeSaid) {
         o.brokeSaid = true;
         showStreak('A board gave way', 'Stand still beside it to nail it back up · or shoot what climbs through', true);
       } else floatText(b.x, b.y - 30, 'Board down', '#ff9a6a', 13);
-    }
-    // nailing it back: you, standing still beside it
-    if (P && P.hp > 0 && b.hp < b.max && d2(P.x, P.y, b.x, b.y) < 58 * 58 && Math.hypot(P.vx || 0, P.vy || 0) < 30) {
-      const blocked = b.broken && GS.enemies.some(e => !e.dead && d2(e.x, e.y, b.x, b.y) < (BAR_R + e.r) ** 2);
-      if (!blocked) {
-        b.hp = Math.min(b.max, b.hp + b.max * 0.42 * dt);
-        b.fix = 0.25;
-        if (Math.random() < dt * 5) sfx.dig(b.x, b.y);
-        if (b.broken && b.hp >= b.max * 0.35) {
-          b.broken = false;
-          floatText(b.x, b.y - 30, 'Boarded', '#c8e6a0', 13);
-        }
-      }
-    } else b.fix = Math.max(0, (b.fix || 0) - dt);
-  }
+    },
+  }); // the dead pound on them, and you nail them back (boards.js)
   // inside: the ones that get onto the floor go for the survivors, and it takes them a few seconds each
   for (const e of GS.enemies) {
     if (e.dead || e.fly || !inHouse(o, e.x, e.y)) continue;

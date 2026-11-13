@@ -15,6 +15,13 @@ const KEY = 'rr_run',
 export function saveRun() {
   if (!GS.RUN || GS.RUN.practice || GS.RUN.tut || !GS.P || GS.state === 'over' || GS.state === 'won') return;
   const d = runData();
+  {
+    const up = (GS.boards || []).filter(b => b.own && !b.broken).length;
+    if (up) {
+      d.RUN.traps = { ...(d.RUN.traps || {}) };
+      d.RUN.traps.board = Math.min(3, (d.RUN.traps.board || 0) + up);
+    }
+  } // the streets are laid out fresh on a Continue: the boards you put up come back to your pack
   try {
     store.set(KEY, JSON.stringify(d));
   } catch (e) {}
