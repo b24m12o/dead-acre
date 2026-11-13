@@ -101,6 +101,7 @@ function beamK() {
   GS.flkT -= dt;
   return Math.sin(GS.flkT * 70) > 0.2 ? 1 : 0.45 + Math.random() * 0.2;
 }
+export const YOU_AO = { a: 0.34 };
 export function render() {
   const [sx, sy] = shakeOff();
   GS.camX = cam.x + sx;
@@ -227,7 +228,10 @@ export function render() {
   {
     // contact shadows: soft occlusion where bodies meet the ground
     const ao = (x, y, r, al, a = 0, ex = 1) => quad(R.blob, x, y, a, (r * ex) / 15, r / 15, 0, 0, 0, al, 0, 0, 0, 0);
-    if (GS.P && GS.state !== 'menu') ao(GS.P.x - 1, GS.P.y + 2, 19, 0.42, GS.P.bodyA, 1.15);
+    if (GS.P && GS.state !== 'menu') {
+      ao(GS.P.x - 1, GS.P.y + 2, 19, 0.42, GS.P.bodyA, 1.15);
+      ao(GS.P.x - 0.5, GS.P.y + 1, 12, YOU_AO.a, GS.P.bodyA, 1.1); // a darker core right under you: you stand out on a lit road
+    }
     for (const b of GS.buddies) ao(b.x - 1, b.y + 2, 18, 0.4, b.bodyA, 1.15);
     for (const e of GS.enemies)
       if (!e.dead && !e.fly && (e.z || 0) < 10)

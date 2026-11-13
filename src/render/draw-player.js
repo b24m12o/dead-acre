@@ -143,13 +143,15 @@ const GPOSE = {
     ],
   },
 };
+// you, a shade lighter and cooler than the lamp-lit street: easy to find in a crowd
+export const YOU_TINT = [1.06, 1.08, 1.13];
 export function drawRanger(p) {
   const fl = p.hurt > 0 ? 1 : 0,
     blink = p.inv > 0 && p.dashT <= 0 && Math.sin(GS.time * 40) < -0.3 ? 0.55 : 1;
   const pv = !p.npc && HPV.on && GS.state === 'menu',
     look = p.look ?? (HLOOK[(pv && HPV.hero) || GS.RUN.hero] || 0),
     st = HSTYLE[look],
-    ot = p.npc ? p.tint || [1, 1, 1] : [1, 1, 1];
+    ot = p.npc ? p.tint || [1, 1, 1] : GS.state === 'menu' ? [1, 1, 1] : YOU_TINT;
   const dn = p.down > 0,
     amp = dn ? 0 : p.strideAmp,
     ph = p.stride * TAU,
@@ -456,7 +458,7 @@ export function drawRanger(p) {
   });
   setH(26);
   const gsc = pis ? 0.86 : 1;
-  quad(R[GUNS[gid].reg], gx, gy, ga, gsc, gsc, 1, 1, 1, 1, E1, E1, E1, fl);
+  quad(R[GUNS[gid].reg], gx, gy, ga, gsc, gsc, ot[0], ot[1], ot[2], 1, E1, E1, E1, fl);
   if (handOver) {
     setH(27);
     quad(R[st.hand], hands[1][0], hands[1][1], ga, 0.9, 0.9, 1, 1, 1, 1, 1, 1, 1, fl);

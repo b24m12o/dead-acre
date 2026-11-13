@@ -15,6 +15,7 @@ const ALL = [
   'blast',
   'setpieces',
   'ways',
+  'impact',
   'campaign',
   'variants',
 ];

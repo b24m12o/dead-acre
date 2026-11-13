@@ -575,6 +575,21 @@ function gibAll(e, dx, dy, col) {
   pool(ex + dx * 30, ey + dy * 30, Math.min(1.4, e.r / 18), col);
   sfx.gib(ex, ey);
 }
+// a heavy round that kills: the game catches its breath for a few frames (the hunting rifle most, buckshot only up
+// close, a head taken off by anything); the light guns that kill in a stream don't stop it. One at most every 0.18 s,
+// so a load of buckshot that drops three counts once; never with screen shake off
+export const KILL_STOP = { hunter: 0.045, lever: 0.035 };
+GS.killStopT = -1;
+function killStop(e, src) {
+  if (src !== 'bolt' || !opt.shake || !GS.HITB) return;
+  const g = GS.HITB.gun;
+  let t = KILL_STOP[g] || 0;
+  if (g === 'shotgun' && GS.P && d2(e.x, e.y, GS.P.x, GS.P.y) < 160 * 160) t = Math.max(t, 0.03);
+  if (e.headless) t = Math.max(t, 0.025);
+  if (!t || (GS.time >= GS.killStopT && GS.time - GS.killStopT < 0.18)) return;
+  GS.killStopT = GS.time;
+  GS.hitstop = Math.max(GS.hitstop, t);
+}
 export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   if (GS.P && opt.gore && e.type !== 'queen' && d2(e.x, e.y, GS.P.x, GS.P.y) < 70 * 70) {
     GS.P.stains = GS.P.stains || [];
@@ -684,9 +699,11 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       (src === 'boom' && e.r < 26 && Math.random() < 0.4) ||
       (src === 'crystal' && Math.random() < 0.5));
   let fallK = 0;
-  if (overkill) gibAll(e, dx, dy, col);
-  else {
-    e.keep = e.horde ? 80 : big ? 14 : 11; // a horde's dead lie where they fell: the street fills with them
+  if (overkill) {
+    gibAll(e, dx, dy, col);
+    killStop(e, src);
+  } else {
+    e.keep = e.horde ? 80 : big ? 20 : 45; // the dead lie where they fell for a good while: the street fills with them
     e.tilt = rand(-0.4, 0.4);
     if ((e.down > 0 || e.crawl || e.half) && (e.lyG || 0) > 0.5) {
       e.dying = 0.45;
@@ -742,7 +759,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       e.vz = src === 'boom' || imp > 330 ? imp * 0.45 : 0;
     }
     GS.corpses.push(e);
-    if (GS.corpses.length > (GS.horde && !GS.horde.done ? 240 : 90)) GS.corpses.shift();
+    if (GS.corpses.length > (GS.horde && !GS.horde.done ? 240 : 160)) GS.corpses.shift();
     if (!big) sfx.fall(e.x, e.y);
     if (HUMAN[e.type] && e.type !== 'mini' && crit && Math.random() < 0.55) {
       e.headless = true;
@@ -752,6 +769,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       bleed(hx, hy, 24, dx, dy, 14, col, 300);
       sfx.gib(hx, hy);
     }
+    killStop(e, src);
     bleed(ex, ey, 14, dx, dy, big ? 40 : 10, col, big ? 420 : 300, big ? 1.6 : 1);
     if (Math.random() < 0.25) gib(ex, ey, R['g_meat' + randi(0, 1)], [1, 1, 1], col, 200, dx, dy);
     if (big)
