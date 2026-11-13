@@ -4,7 +4,7 @@
 // gives something when you get there and asks for it back on your first night at the new place: the dead you
 // stirred up on it come after you (more of them), or, the main road, fewer, since you got there ahead of them.
 import { GS } from '../core/gs.js';
-import { TAU, rand } from '../core/util.js';
+import { TAU, pick, rand } from '../core/util.js';
 import { LV, S, ammoMax } from './state.js';
 import { AMMO_MAX } from './arsenal.js';
 import { UP, offerUpgrades, renderMods } from './upgrades.js';
@@ -16,7 +16,6 @@ import { bossNight } from './waves.js';
 import { jobNight, planSig } from './objectives.js';
 import { giveTraps } from './traps.js';
 import { stopNow } from './journey.js';
-import { dailyRng } from './daily.js';
 import { TILE, WH, WW, isWall } from '../world/map.js';
 import { reachPt } from '../world/nav.js';
 import { makeEnemy } from '../actors/enemies.js';
@@ -159,13 +158,11 @@ const fits = (id, w) => {
 // the two on offer: often the main road against one detour, sometimes two detours; never the same pair twice running
 export function offerVia() {
   const w = GS.wave + 1,
-    det = Object.keys(VIA).filter(k => k !== 'road' && fits(k, w)),
-    R = GS.RUN.daily ? dailyRng(GS.RUN.daily.date, 'ways' + stopNow()) : Math.random, // a daily: the same ways for everyone
-    one = L => L[Math.floor(R() * L.length)];
+    det = Object.keys(VIA).filter(k => k !== 'road' && fits(k, w));
   let a, b;
   for (let n = 0; n < 6; n++) {
-    a = R() < 0.4 ? 'road' : one(det);
-    b = one(det.filter(k => k !== a));
+    a = Math.random() < 0.4 ? 'road' : pick(det);
+    b = pick(det.filter(k => k !== a));
     if (!GS.RUN.viaLast || GS.RUN.viaLast !== [a, b].sort().join()) break;
   }
   GS.RUN.viaLast = [a, b].sort().join();

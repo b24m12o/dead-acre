@@ -21,7 +21,6 @@ const ALL = [
   'supply',
   'crowd',
   'summary',
-  'daily',
   'campaign',
   'variants',
 ];

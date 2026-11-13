@@ -23,7 +23,6 @@ import { BOSS_PRE, bossEntrance, bossName, bossType } from './boss-flow.js';
 import { tutStart, tutWanted } from './tutorial.js';
 import { choiceLights, choiceNight } from './radio-choice.js';
 import { viaAmbush, viaNight } from './routes.js';
-import { dailyReached } from './daily.js';
 function surgePlan(w) {
   if (bossNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice || GS.horde) return null; // a horde night has no surges: the horde is the night
   const n = GS.queue.length;
@@ -127,7 +126,6 @@ export function startWave() {
   for (const c of GS.crates) if (c.dawn) c.dawn = false; // last dawn's drop is just a crate now
   GS.nightLive = true;
   GS.wave++;
-  dailyReached(); // a daily that gets to night 5 keeps the streak going (daily.js)
   GS.queue = buildWave(GS.wave);
   GS.spawnT = 0.3;
   const qb = bossNight(GS.wave),

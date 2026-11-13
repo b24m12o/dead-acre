@@ -37,7 +37,6 @@ export function summaryData(won) {
   }
   return {
     won: !!won,
-    daily: R.daily ? R.daily.date : null,
     night: GS.wave,
     of: FINAL_NIGHT,
     stop,
@@ -65,7 +64,7 @@ export function summaryData(won) {
 }
 export function summaryText(D) {
   const L = [
-    `Dead Acre · ${D.won ? 'made it out' : `eaten on night ${D.night} of ${D.of}`}${D.at ? ` at ${D.at}` : ''}${D.daily ? ` · daily run ${D.daily}` : ''}`,
+    `Dead Acre · ${D.won ? 'made it out' : `eaten on night ${D.night} of ${D.of}`}${D.at ? ` at ${D.at}` : ''}`,
     `${D.hero}${D.ability ? ` · ${D.ability}` : ''}`,
     `Nights ${D.won ? D.of : D.night} · kills ${D.kills} · score ${D.score} · best chain ×${D.chain} · time ${D.time}`,
     `Damage dealt ${D.dealt} · taken ${D.taken} · jobs done ${D.jobs} · scrap ${D.scrap} earned, ${D.spent} spent`,

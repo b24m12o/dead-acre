@@ -3,8 +3,7 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, d2, damp, rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
-import { GUNS, GUN_FROM, HEROES, PERKS } from '../game/arsenal.js';
-import { DAILY_NIGHT, dailyLeft, dailyRecord, dailySetup, dayKey } from '../game/daily.js';
+import { GUNS, GUN_FROM, PERKS } from '../game/arsenal.js';
 import { DIFF } from '../core/profile.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { collide, los, solidPt } from '../world/nav.js';
@@ -32,23 +31,10 @@ function refocus(box, sel) {
     el.focus();
 }
 export const setSetup = m => (SETUP = m);
-// the daily run's card on the campaign setup: what today's is, your best today, your streak, when it changes
-export function renderDaily() {
-  const today = dayKey(),
-    D = dailySetup(today),
-    rec = dailyRecord(today),
-    tw = D.tw.map(id => (TWISTS.find(t => t.id === id) || {}).name).filter(Boolean);
-  $('dailyDesc').innerHTML =
-    `<b>${today}</b> · ${HEROES[D.hero].name} · ${tw.join(' + ')} · the same road for everyone today<br>` +
-    `Best today <b>${rec.best.toLocaleString()}</b> · streak <b>${rec.streak}</b> day${rec.streak === 1 ? '' : 's'} · a new one in ${dailyLeft()}` +
-    (rec.done ? '' : ` · the first today to reach night ${DAILY_NIGHT} pays 25% more scrap`);
-}
 export function renderDistricts() {
   const hm = SETUP === 'hm';
   if (!STOPS.some((s, i) => s.id === GS.meta.hmPlace && stopOpen(i))) GS.meta.hmPlace = 'main';
   $('distWrap').hidden = !hm;
-  $('dailyBox').hidden = hm;
-  renderDaily();
   $('roadList').hidden = hm;
   $('roadList').innerHTML = STOPS.map((s, i) => {
     const from = i ? STOPS[i - 1].to + 1 : 1,

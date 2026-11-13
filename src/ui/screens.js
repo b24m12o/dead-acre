@@ -1,6 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { renderSummary } from './summary.js';
-import { dailyEnd, dailyK, dailySetup, dayKey } from '../game/daily.js';
 import { HEROES } from '../game/arsenal.js';
 import { clearSave, savedRun } from '../game/save.js';
 import { GS } from '../core/gs.js';
@@ -72,7 +71,6 @@ export function gameOver() {
   if (!GS.RUN.hm) statMax('maxNight', GS.wave - 1); // Horde Mode's waves aren't nights of the campaign
   statMax('maxLevel', GS.level);
   checkChal(true);
-  dailyEnd(); // a daily's best score for its day
   const pd = GS.RUN.paid || { k: 0, w: 1, s: 0 },
     earned = Math.max(
       1,
@@ -82,8 +80,7 @@ export function gameOver() {
           (GS.RUN.clean ? 1.25 : 1) *
           DIFF().seeds *
           (1 + 0.12 * (GS.RUN.inf || 0)) *
-          twistK() *
-          dailyK()
+          twistK()
       )
     );
   GS.meta.seeds += earned;
@@ -190,13 +187,7 @@ export function showMenuRec() {
 export function init() {
   $('startBtn').addEventListener('click', () => {
     GS.HM = SETUP === 'hm' ? true : null;
-    GS.DAILY = null;
     if (begin(false) === false) GS.HM = null;
-  });
-  $('dailyBtn').addEventListener('click', () => {
-    GS.HM = null;
-    GS.DAILY = dailySetup(dayKey()); // today's: the hero, the twists and the road decided by the date
-    if (begin(false) === false) GS.DAILY = null;
   });
   $('contBtn').addEventListener('click', continueRun);
   $('hmBtn').addEventListener('click', () => {
@@ -241,7 +232,6 @@ export function init() {
   });
   $('wonHomeBtn').addEventListener('click', wonToMenu);
   $('againBtn').addEventListener('click', () => {
-    if (GS.DAILY) GS.DAILY = dailySetup(dayKey()); // a daily again: today's
     begin(false);
   });
   $('resumeBtn').addEventListener('click', () => setPause(false));
