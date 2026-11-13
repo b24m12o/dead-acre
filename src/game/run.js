@@ -12,6 +12,7 @@ import { stopHeli } from './evac.js';
 import { resetGadgets } from './gadgets.js';
 import { endHorde } from './horde.js';
 import { resetBoards } from './boards.js';
+import { stationReset } from './station.js';
 import { resetTraps } from './traps.js';
 import { resetSpecials } from '../actors/specials.js';
 let mapCache = { fresh: false, d: '' };
@@ -64,9 +65,11 @@ export function newRun(forMenu = false) {
   for (const L of lamps) {
     L.off = 0;
     L.on = 0;
+    L.shot = false;
     if (L.bflick) L.broken = L.bflick = false;
   }
   GS.FOGB = GS.FOGBT = 0;
+  stationReset(); // the gas station, burnt out if it went up earlier this run
   GS.bossDue = false;
   cam.peek = null;
   MUS.cutT = 0;

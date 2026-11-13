@@ -1,4 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { stationCatch } from './station.js';
+import { boxCut } from '../world/lights.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, rand, randi, pick } from '../core/util.js';
@@ -1226,9 +1228,10 @@ function shatterCrystal(c) {
       fn: () => {
         explode(c.x, c.y, 140, 80 + GS.wave * 10, true, 0.5);
         firePool(c.x, c.y, 90, 8);
+        stationCatch(c); // the gas station's tanks catch (station.js)
       },
     });
-  }
+  } else boxCut(c.x, c.y); // an electrical box: the lamps on its block go out (lights.js)
   glowBurst(c.x, c.y - 6, col, 4, 160, 0.35, 0.25);
   chips(c.x, c.y, 18, col, 3, 380);
   sparks(c.x, c.y, [col[0] + 0.3, col[1] + 0.3, 1], 30, 520);
@@ -1250,7 +1253,7 @@ function shatterCrystal(c) {
     if (Math.random() < 0.35 * ammoNeed()) dropAmmo(c.x, c.y, 1, 60);
     if (Math.random() < 0.3)
       GS.pickups.push({ k: 'hp', v: 20, x: c.x, y: c.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
-    floatText(c.x, c.y - 30, 'Short circuit', '#ffe08a', 18);
+    floatText(c.x, c.y - 30, c.hue === 2 ? 'The pump goes up' : 'Short circuit', '#ffe08a', 18);
   }
 }
 export function dropCrate(gun, alt, kits, note, alt2) {

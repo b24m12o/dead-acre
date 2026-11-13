@@ -20,6 +20,7 @@ const ALL = [
   'siege',
   'supply',
   'crowd',
+  'world',
   'summary',
   'campaign',
   'variants',

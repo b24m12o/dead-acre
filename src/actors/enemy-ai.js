@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { seenFrom } from '../world/lights.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, damp, rand, randi } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
@@ -26,7 +27,7 @@ import {
   shake,
   sparks,
 } from '../render/effects.js';
-import { SHIELD_TURN, SIGHT, hurtPlayer, killEnemy, releaseGrab, shieldUp } from '../game/combat.js';
+import { SHIELD_TURN, hurtPlayer, killEnemy, releaseGrab, shieldUp } from '../game/combat.js';
 import { toWorld } from './projectiles.js';
 import { updateQueen } from './queen.js';
 import { BILE, BLOOD } from '../render/draw-enemies.js';
@@ -91,7 +92,7 @@ export function updateEnemy(e, dt, p) {
       e.type === 'flower' ||
       !!GS.evac ||
       (!GS.queue.length && GS.enemies.length <= 5);
-  const sr = SIGHT();
+  const sr = seenFrom(); // further when you stand in lamplight (lights.js)
   if (e.los && pd2 < sr * sr) {
     if (!(e.aw > 0)) e.wokeT = GS.time;
     e.aw = Math.max(e.aw || 0, 4);

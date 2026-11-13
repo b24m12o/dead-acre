@@ -24,7 +24,7 @@ export function lampHot(x, y) {
   return h;
 }
 export function lampK(L) {
-  if (GS.ev === 'blackout' || L.down) return 0;
+  if (GS.ev === 'blackout' || L.down || L.shot) return 0; // a shot-out bulb stays dark (lights.js)
   if (L.off) return GS.time - L.off < 0.5 ? (Math.sin(GS.time * 70 + L.ph) > 0 ? 0.8 : 0.05) : 0;
   if (L.on && GS.time - L.on < 0.7) return Math.sin(GS.time * 55 + L.ph) > -0.2 ? 1 : 0.1;
   if (!L.broken) return 1;

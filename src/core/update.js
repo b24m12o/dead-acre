@@ -2,6 +2,7 @@
 import { showStreak } from '../ui/callouts.js';
 import { kn } from './binds.js';
 import { tickOwnBoards } from '../game/boards.js';
+import { tickStation } from '../game/station.js';
 import { saveMeta } from './settings.js';
 import { GS } from './gs.js';
 import { $ } from './errors.js';
@@ -356,6 +357,7 @@ export function update(dt) {
   tickHorde(dt);
   tickTraps(dt);
   tickOwnBoards(dt);
+  tickStation(dt); // the gas station's tanks, once a pump has blown
   tickHatches(dt);
   tickSpores(dt);
   // formation trails the way you walk, not the way you aim, and holds still while you stand
