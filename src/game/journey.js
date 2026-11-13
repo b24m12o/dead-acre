@@ -27,7 +27,7 @@ import { S, cam } from './state.js';
 import { hurtEnemy, hurtPlayer } from './combat.js';
 import { flow, query } from '../world/nav.js';
 import { STOPS, stopAt } from './route.js';
-import { VIA, viaGain } from './routes.js';
+import { VIA, jerrycan, laterLine, viaGain } from './routes.js';
 import { RISK, drawRoad, driveVan, glyphSvg, hotWay } from '../ui/roadmap.js';
 
 export const journeyOn = () => !!(GS.RUN && GS.RUN.journey && !GS.RUN.hm && !GS.RUN.practice);
@@ -185,18 +185,18 @@ function garageTruck() {
     dry: true,
     fuel: 0,
     fill: 0,
-    cans: fuelCans(G),
+    cans: fuelCans(G, jerrycan() ? FUEL_N - 1 : FUEL_N), // the tanker's jerrycan: one can less (routes.js)
   };
   showStreak(
     'A truck, and no fuel',
-    `Someone is holed up in the garage with a box truck and a dry tank · get to the garage, and find ${FUEL_N} cans of fuel`,
+    `Someone is holed up in the garage with a box truck and a dry tank · get to the garage, and find ${GS.truck.cans.length} cans of fuel`,
     true,
     () => GS.truck && GS.truck.dry && !GS.truck.garage.open // once you're at the door, it's old news
   );
 }
 // where the cans are: by the wrecks first (the one in a trunk, what's left in a tank), spread round the place, well
 // away from the garage and from each other, somewhere you can walk to
-function fuelCans(G) {
+function fuelCans(G, N = FUEL_N) {
   const out = [],
     walk = (x, y) => {
       const tx = Math.floor(x / TILE),
@@ -207,7 +207,7 @@ function fuelCans(G) {
     add = (x, y) => out.push({ x, y, got: false, t: rand(0, 5) });
   const wrecks = cars.filter(c => !c.dead).sort(() => Math.random() - 0.5);
   for (const c of wrecks) {
-    if (out.length >= FUEL_N - 1) break; // one by a wreck or two; the last one anywhere
+    if (out.length >= N - 1) break; // one by a wreck or two; the last one anywhere
     for (const sd of [1, -1]) {
       const x = c.x - Math.sin(c.a) * sd * 42,
         y = c.y + Math.cos(c.a) * sd * 42;
@@ -218,11 +218,11 @@ function fuelCans(G) {
     }
   }
   for (const k of [1, 0.7, 0.4, 0])
-    for (let n = 0; n < 60 && out.length < FUEL_N; n++) {
+    for (let n = 0; n < 60 && out.length < N; n++) {
       const [x, y] = freeSpot(300, 1300);
       if (walk(x, y) && far(x, y, k)) add(x, y);
     }
-  while (out.length < FUEL_N) {
+  while (out.length < N) {
     const [x, y] = freeSpot(200, 1600);
     add(x, y);
   } // a cramped place: anywhere it can be reached
@@ -256,8 +256,8 @@ function fuelRun(T, P, dt) {
       c.got = true;
       T.fuel++;
       sfx.ammo();
-      floatText(c.x, c.y - 30, `Fuel ${T.fuel} / ${FUEL_N}`, '#ffd08a', 16);
-      if (T.fuel >= FUEL_N)
+      floatText(c.x, c.y - 30, `Fuel ${T.fuel} / ${T.cans.length}`, '#ffd08a', 16);
+      if (T.fuel >= T.cans.length)
         showStreak('That should do it', G.open ? 'Pour it into the truck' : 'Take it to the garage', true);
     }
   }
@@ -267,15 +267,15 @@ function fuelRun(T, P, dt) {
       openGarage(G);
       showStreak(
         'The door goes up',
-        T.fuel >= FUEL_N
+        T.fuel >= T.cans.length
           ? 'There it is, tank dry · pour the fuel in at its side'
-          : `There it is, tank dry · find ${FUEL_N - T.fuel} more can${FUEL_N - T.fuel > 1 ? 's' : ''} of fuel and bring them to it`,
+          : `There it is, tank dry · find ${T.cans.length - T.fuel} more can${T.cans.length - T.fuel > 1 ? 's' : ''} of fuel and bring them to it`,
         true
       );
     } // you're at the door: he lets you in
     return;
   }
-  if (T.fuel < FUEL_N) return;
+  if (T.fuel < T.cans.length) return;
   const [cx, cy] = capOf(T, P),
     near = d2(P.x, P.y, cx, cy) < 40 * 40 && P.hp > 0 && !(P.dashT > 0);
   T.fill = near ? T.fill + dt : Math.max(0, T.fill - dt * 2);
@@ -1069,7 +1069,7 @@ export function wayOut() {
       const [x, y] = doorSpot(T.garage);
       return { x, y, label: 'GARAGE', short: 'GAR', board: 0 };
     } // first the garage: the door goes up when you get there
-    if (T.fuel >= FUEL_N) {
+    if (T.fuel >= T.cans.length) {
       const [x, y] = capOf(T, GS.P);
       return { x, y, label: 'FUEL IN', short: 'TRUCK', board: T.fill / FILL };
     } // then the tank, at the truck's side
@@ -1159,7 +1159,7 @@ export function showRoute(onGo, ways, how) {
     (ways || [])
       .map(
         (id, i) =>
-          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><span class="wtag r${VIA[id].risk || 0}">${glyphSvg(id)}${RISK[VIA[id].risk || 0]}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span></button>`
+          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><span class="wtag r${VIA[id].risk || 0}">${glyphSvg(id)}${RISK[VIA[id].risk || 0]}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span>${laterLine(id, to) ? `<span class="wlater">Later · ${laterLine(id, to)}</span>` : ''}</button>`
       )
       .join('');
   box.hidden = !(ways && ways.length);

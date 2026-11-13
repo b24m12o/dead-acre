@@ -1253,7 +1253,7 @@ function shatterCrystal(c) {
     floatText(c.x, c.y - 30, 'Short circuit', '#ffe08a', 18);
   }
 }
-export function dropCrate(gun, alt, kits, note) {
+export function dropCrate(gun, alt, kits, note, alt2) {
   if (kits) {
     gun = KITS[kits[0]].gun;
     alt = KITS[kits[1] || kits[0]].gun;
@@ -1276,7 +1276,7 @@ export function dropCrate(gun, alt, kits, note) {
       )
     )
       continue; // a parachute comes down in the open: never through a roof, nor onto one's edge
-    const cr = { x, y, z: 640, landed: false, t: 0, gun, alt, kit: kits };
+    const cr = { x, y, z: 640, landed: false, t: 0, gun, alt, alt2: alt2 || null, kit: kits };
     GS.crates.push(cr);
     const live = () => GS.crates.includes(cr) && !cr.open;
     if (kits)
@@ -1289,7 +1289,7 @@ export function dropCrate(gun, alt, kits, note) {
     else if (gun && alt)
       showStreak(
         'Convoy airdrop',
-        `A weapon case, dropped nearby · ${GUNS[gun].name} or ${GUNS[alt].name}`,
+        `A weapon case, dropped nearby · ${GUNS[gun].name}${alt2 ? `, ${GUNS[alt2].name}` : ''} or ${GUNS[alt].name}`,
         undefined,
         live
       );
@@ -1463,7 +1463,7 @@ export function updateCrates(dt) {
     ) {
       c.open = true;
       if (c.alt && !GS.P.owned.includes(c.alt) && !GS.P.owned.includes(c.gun)) {
-        const gs = [c.gun, c.alt];
+        const gs = [c.gun, c.alt, c.alt2].filter(Boolean); // a third with the checkpoint's radio codes
         const go = () => {
           if (GS.state === 'play') {
             const left = gs.filter(g => !GS.P.owned.includes(g));

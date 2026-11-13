@@ -5,7 +5,7 @@
 // card and its fork lights up; pick it and the van drives that fork to the next stop.
 import { GS } from '../core/gs.js';
 import { STOPS } from '../game/route.js';
-import { VIA } from '../game/routes.js';
+import { VIA, laterPending } from '../game/routes.js';
 
 const NS = 'http://www.w3.org/2000/svg',
   VW = 560,
@@ -106,6 +106,14 @@ export function drawRoad(box, to, ways, end = false) {
     const t = el('text', { x, y: i % 2 ? 22 : 102, 'text-anchor': 'middle' }, g);
     t.textContent = s.short;
   });
+  {
+    const n = {};
+    for (const l of laterPending()) {
+      if (!(l.at >= 0) || l.at >= STOPS.length) continue;
+      const k = (n[l.at] = (n[l.at] || 0) + 1) - 1;
+      el('circle', { cx: X(l.at) + k * 7, cy: Y + 12, r: 3.2, class: 'rpip', 'data-later': l.id }, svg);
+    }
+  } // what the road ahead is keeping for you: a small mark under the stop where it pays (routes.js)
   const van = el('g', { class: 'rvan', transform: `translate(${X(Math.max(0, to - 1))} ${Y})` }, svg);
   el('rect', { x: -10, y: -5, width: 20, height: 10, rx: 3 }, van);
   return svg;

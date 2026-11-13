@@ -6,15 +6,16 @@
 import { GS } from '../core/gs.js';
 import { TAU, pick, rand } from '../core/util.js';
 import { LV, S, ammoMax } from './state.js';
-import { AMMO_MAX } from './arsenal.js';
+import { AMMO_MAX, WEAPON_NIGHTS } from './arsenal.js';
 import { UP, offerUpgrades, renderMods } from './upgrades.js';
 import { TRAITS } from '../actors/backups.js';
 import { sfx } from '../audio/sfx.js';
-import { FINAL_NIGHT } from './districts.js';
-import { BOSS_HORDE_J, HORDE_J } from './route.js';
+import { FINAL_NIGHT, TW } from './districts.js';
+import { BOSS_HORDE_J, HORDE_J, STOPS } from './route.js';
 import { bossNight } from './waves.js';
 import { jobNight, planSig } from './objectives.js';
-import { giveTraps } from './traps.js';
+import { giveTraps, giveTrapsQuiet } from './traps.js';
+import { dropCrate } from './combat.js';
 import { stopNow } from './journey.js';
 import { TILE, WH, WW, isWall } from '../world/map.js';
 import { reachPt } from '../world/nav.js';
@@ -194,6 +195,7 @@ export function applyVia(id, ways) {
   };
   GS.RUN.viaTaken = (GS.RUN.viaTaken || []).concat(id);
   GS.RUN.viaLog = (GS.RUN.viaLog || []).concat({ s: stopNow(), id, i: Math.max(0, (ways || []).indexOf(id)) }); // the road map draws the way you took
+  laterTake(id, stopNow()); // what it leaves you for later down the road
   const P = GS.P;
   let note = '';
   if (id === 'road') note = 'the main road: you are ahead of them tonight';
@@ -311,4 +313,118 @@ export function viaAmbush() {
     sfx.dig(P.x, P.y);
     showStreak('Ambush', 'They were waiting under the line · back to back', true);
   }
+}
+// ---- what some ways leave you for later ----
+// Five of the ways pay off again further down the road. Each is recorded when you take the way, waits on the road
+// map as a small mark at the stop where it pays, pays once (with a word from the radio), and is never promised when
+// the road ahead can't deliver it.
+export const LATER = {
+  pharmacy: {
+    text: 'Bandages · your people get back up twice as fast for 3 nights',
+    from: 'the pharmacy',
+    paid: 'Bandages · your people get back up twice as fast for 3 nights',
+  },
+  checkpoint: {
+    text: 'Radio codes · the next weapon case holds three guns, not two',
+    from: 'the checkpoint',
+    paid: 'Radio codes · three guns in this case',
+  },
+  tanker: {
+    text: 'A jerrycan · the next garage truck needs 2 cans of fuel, not 3',
+    from: 'the tanker',
+    paid: 'The jerrycan · two cans will do for this one',
+  },
+  bus: {
+    text: 'If they live, they know a cache · an extra supply crate at the stop after next',
+    from: 'the coach',
+    paid: 'The cache they told you about · a supply crate',
+  },
+  wrecks: {
+    text: 'Spare timber · 2 boards for free at the stop after next',
+    from: 'the pile-up',
+    paid: 'Spare timber · 2 boards in your pack',
+  },
+};
+const LAT = () => (GS.RUN.viaLater = GS.RUN.viaLater || []);
+const nextTruck = S => {
+  for (let k = S; k < STOPS.length; k++) if (STOPS[k].leave === 'truck') return k;
+  return -1;
+};
+const stopOfNight = n => STOPS.findIndex(s => n <= s.to);
+// where an effect taken on the way to stop S pays: a stop, or -1 when the road ahead can't deliver it
+export function laterAt(id, S, w = GS.wave) {
+  if (!LATER[id] || !GS.RUN || !GS.RUN.journey) return -1;
+  if (id === 'pharmacy') return S;
+  if (id === 'tanker') return nextTruck(S);
+  if (id === 'bus' || id === 'wrecks') return S + 1 < STOPS.length ? S + 1 : -1;
+  if (TW('pistol')) return -1; // checkpoint: no weapon cases at all
+  const n = Object.keys(WEAPON_NIGHTS)
+    .map(Number)
+    .filter(k => k > w + 1)
+    .sort((a, b) => a - b)[0];
+  return n ? Math.max(S, stopOfNight(n - 1)) : -1;
+}
+// the line on a way's card, or '' when it leaves nothing for later (or can't any more)
+export const laterLine = (id, S) => (LATER[id] && laterAt(id, S) >= 0 ? LATER[id].text : '');
+// the effects still waiting, with the stop each pays at (for the road map)
+export const laterPending = () => LAT().filter(l => !l.paid && l.cond !== false);
+function laterTake(id, S) {
+  if (!LATER[id] || !GS.RUN.journey) return;
+  const at = laterAt(id, S);
+  if (at < 0) return;
+  const l = { id, at, w0: GS.wave + 1 };
+  if (id === 'pharmacy') l.w1 = l.w0 + 2;
+  if (id === 'bus') l.cond = null; // waiting on the rescue
+  LAT().push(l);
+}
+const due = id => LAT().find(l => l.id === id && !l.paid && l.cond !== false);
+function pay(l, show = true) {
+  l.paid = true;
+  if (show) showStreak(`From ${LATER[l.id].from}`, LATER[l.id].paid);
+}
+// the pharmacy's bandages: are they working tonight?
+export const bandaged = () => LAT().some(l => l.id === 'pharmacy' && l.on && GS.wave + (GS.nightLive ? 0 : 1) <= l.w1);
+// the radio codes: owed at this weapon case? (the case calls laterCase once it holds three)
+export const codesDue = () => !!due('checkpoint');
+export function laterCase(n) {
+  const l = due('checkpoint');
+  if (l && n >= 3) pay(l);
+}
+// the jerrycan: the garage truck here needs one can less (paid as the truck is found)
+export function jerrycan() {
+  const l = due('tanker');
+  if (!l || stopNow() < l.at) return false;
+  pay(l);
+  return true;
+}
+// the coach's survivor: lived or not, the cache rides on it
+export function laterRescue(ok) {
+  const v = GS.RUN.viaN;
+  if (!v || v.id !== 'bus' || v.w !== GS.wave) return;
+  const l = LAT().find(x => x.id === 'bus' && !x.paid && x.cond === null);
+  if (l) l.cond = !!ok;
+}
+// arriving at a stop: what was waiting for this one pays
+export function laterArrive(S) {
+  for (const l of LAT()) {
+    if (l.paid || l.cond === false) continue;
+    if (l.id === 'pharmacy' && l.w1 < GS.wave + 1) l.paid = true; // its nights are over
+    if (l.at !== S) continue;
+    if (l.id === 'wrecks') {
+      giveTrapsQuiet({ board: 2 });
+      pay(l);
+    } else if (l.id === 'bus') {
+      if (l.cond) {
+        dropCrate(null, null, null, LATER.bus.paid);
+        l.paid = true;
+      } else l.cond = false; // they didn't make it: no cache
+    } else if (l.id === 'pharmacy' && !l.on) {
+      l.on = true;
+      showStreak(`From ${LATER.pharmacy.from}`, LATER.pharmacy.paid);
+    }
+  }
+}
+// at each night's start: the bandages run out after their third night
+export function laterNight() {
+  for (const l of LAT()) if (l.id === 'pharmacy' && l.on && !l.paid && GS.wave > l.w1) l.paid = true;
 }

@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { laterRescue } from './routes.js';
 import { GS } from '../core/gs.js';
 import { sfx } from '../audio/sfx.js';
 import { LV, S, addAmmo } from './state.js';
@@ -99,6 +100,7 @@ export function finishObjective(ok, why) {
   if (!GS.obj || GS.obj.done) return;
   GS.obj.done = true;
   GS.obj.failed = !ok;
+  if (GS.obj.type === 'rescue') laterRescue(ok); // the coach's survivor knows a cache, if they live (routes.js)
   if (GS.obj.job === 'relay') GS.RUN.relayOk = ok; // the pilot's way in depends on it
   if (GS.RUN && GS.RUN.metrics) {
     if (ok) GS.RUN.metrics.objectives++;

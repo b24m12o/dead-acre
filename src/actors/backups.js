@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { bandaged } from '../game/routes.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, d2, damp, lerp, pick, rand } from '../core/util.js';
 import { TS } from '../core/settings.js';
@@ -344,7 +345,8 @@ export function buddyHurt(s, p, dt) {
   s.down -= dt;
   const close = d2(p.x, p.y, s.x, s.y) < 70 * 70 && p.hp > 0 && !p.ride;
   const med = GS.buddies.some(b => b !== s && b.tr === 'medic' && !(b.down > 0) && d2(b.x, b.y, s.x, s.y) < 200 * 200);
-  s.rev = close ? s.rev + dt : med ? s.rev + dt * 0.5 : s.rev; // what you put in stays; a medic nearby works on them too
+  const bk = bandaged() ? 2 : 1; // the pharmacy's bandages (routes.js)
+  s.rev = close ? s.rev + dt * bk : med ? s.rev + dt * 0.5 * bk : s.rev; // what you put in stays; a medic nearby works on them too
   if (close && thr('revtick', 400)) tone(660 + s.rev * 200, 0.05, 'sine', 0.025);
   if (!close && (s.callT = (s.callT ?? 1.2) - dt) <= 0) {
     const urg = s.down < (s.downMax || 18) * 0.35;

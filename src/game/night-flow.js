@@ -38,7 +38,7 @@ import {
   stopNow,
   truckLive,
 } from './journey.js';
-import { applyVia, offerVia, viaPickSoon, viaSig } from './routes.js';
+import { applyVia, codesDue, laterArrive, laterCase, offerVia, viaPickSoon, viaSig } from './routes.js';
 import { radioDawn } from './radio-choice.js';
 import { BOSS_HORDE_J, STOPS } from './route.js';
 import { newRun } from './run.js';
@@ -95,10 +95,13 @@ function dawnDrops() {
     GS.later.push({
       t: 1.6,
       fn: () => {
-        const gs = nextGuns();
+        const gs = nextGuns(codesDue() ? 3 : 2); // the checkpoint's radio codes: a third gun in it
         if (GS.state === 'play' && gs.length) {
-          const c = dropCrate(gs[0], gs[1]);
-          if (c) c.dawn = true;
+          const c = dropCrate(gs[0], gs[1], null, undefined, gs[2]);
+          if (c) {
+            c.dawn = true;
+            laterCase(gs.length);
+          }
         }
       },
     });
@@ -371,6 +374,10 @@ function arrive(note = '') {
     note ? 4.5 : 2.2
   );
   if (GS.RUN.viaPick) viaPickSoon(); // the checkpoint's gear: after the banner has had its say
+  {
+    const at = stopNow();
+    GS.later.push({ t: 2.6, fn: () => GS.state === 'play' && stopNow() === at && laterArrive(at) });
+  } // what the road ahead was keeping for this place (routes.js)
   storyArrive(stopNow());
   planDawn();
   viaSig();
