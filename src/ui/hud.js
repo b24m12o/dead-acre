@@ -249,6 +249,45 @@ export function updateHud() {
   const left = GS.queue.length + GS.enemies.length,
     sg = GS.RUN.sg,
     quiet = sg && sg.lull > 0 && GS.enemies.filter(e => !e.dead && !e.dormant).length <= 3;
+  // the dawn countdown has its own line: the seconds big, Enter as a key, and what's coming on a line of its own
+  const dawnCd =
+    !!GS.wave &&
+    !(GS.evac && !GS.evac.leave) &&
+    !(GS.RUN.jobPend && GS.nightDone) &&
+    !(GS.P && GS.P.ride === 'truck') &&
+    !(GS.RUN.moveOut && GS.nightDone) &&
+    GS.nightDone &&
+    !left &&
+    GS.interT > 0 &&
+    !(GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14);
+  if (hc.dawnCd !== dawnCd) {
+    hc.dawnCd = dawnCd;
+    $('dawnLine').hidden = !dawnCd;
+    $('waveSub').hidden = dawnCd;
+  }
+  if (dawnCd) {
+    const sec = Math.ceil(GS.interT);
+    setT('dawnN', `Night ${GS.wave + 1} in`);
+    if (hc.dawnS !== sec) {
+      const el = $('dawnS');
+      el.textContent = sec;
+      el.classList.remove('tick');
+      void el.offsetWidth;
+      el.classList.add('tick'); // each second lands
+      el.classList.toggle('soon', sec <= 3);
+      hc.dawnS = sec;
+    }
+    setT(
+      'dawnWhat',
+      [
+        GS.RUN.nextSig ? SIG[GS.RUN.nextSig.s] : '',
+        viaTag(GS.wave + 1).replace(/^ · /, ''),
+        supplyHint() ? `${kn('supply')} supplies` : '',
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    );
+  }
   setT(
     'waveSub',
     !GS.wave

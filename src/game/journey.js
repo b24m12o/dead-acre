@@ -1156,6 +1156,7 @@ export function showRoute(onGo, ways, how) {
   const box = $('routeWays');
   box.innerHTML =
     `<p class="wq">${how === 'truck' ? `The driver asks: which way to ${S.short}?` : `Which way to ${S.short}?`}</p>` +
+    `<p class="wnote">You only pass through. What a way gives you is yours when you get there; its trouble follows you to ${S.short} for your first night.</p>` +
     (ways || [])
       .map(
         (id, i) =>

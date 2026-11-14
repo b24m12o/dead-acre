@@ -102,10 +102,10 @@ export const VIA = {
     why: 'the dead from the pile-up crawled after you',
   },
   bridge: {
-    name: 'Over the rail bridge',
-    what: 'The short way, along the tracks. The line crew left their hut unlocked.',
+    name: 'Along the railway',
+    what: 'The short way: along the tracks and over the river on the old rail bridge. The line crew left their hut unlocked.',
     gain: 'A trap kit from the hut: 2 mines and a gas drum',
-    cost: 'They wait below the line: an ambush the moment night falls',
+    cost: 'Some of them follow you off the tracks: an ambush the moment night falls',
     k: 1,
     risk: 2,
     ev: 'ambush',
@@ -231,7 +231,7 @@ export function applyVia(id, ways) {
     note = '+50 scrap from the pile-up';
   } else if (id === 'bridge') {
     giveTraps({ mine: 2, drum: 1 });
-    note = "a trap kit from the line crew's hut";
+    note = "along the railway: a trap kit from the line crew's hut";
   } else if (id === 'tanker') {
     giveTraps({ drum: 2 });
     GS.runSeeds += 30;
@@ -266,11 +266,11 @@ export function viaSig() {
     ['storm', 'fog', 'blackout', 'blood'].includes(s.s)
   )
     s.s = v.ev;
-  if (v && v.add && v.add.spore && s && s.w === w && s.s === 'siege') {
+  if (v && ((v.add && v.add.spore) || v.ev === 'rescue') && s && s.w === w && s.s === 'siege') {
     GS.RUN.sigUsed = (GS.RUN.sigUsed || []).concat('siege'); // planSig deals another
     const n = planSig(w);
     GS.RUN.nextSig = n && n !== 'siege' ? { w, s: n } : null;
-  } // a siege night has no spores in it, and the pharmacy's sick are coming
+  } // a siege night has no spores in it, and the pharmacy's sick are coming; nor room for the coach's survivor
 }
 // what the way you came brings on night w, for the dawn's countdown line
 export const viaTag = w => {
@@ -311,7 +311,7 @@ export function viaAmbush() {
   if (made) {
     sfx.groan(P.x, P.y);
     sfx.dig(P.x, P.y);
-    showStreak('Ambush', 'They were waiting under the line · back to back', true);
+    showStreak('Ambush', 'They followed you off the tracks · back to back', true);
   }
 }
 // ---- what some ways leave you for later ----
