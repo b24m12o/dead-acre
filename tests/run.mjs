@@ -21,6 +21,7 @@ const ALL = [
   'supply',
   'crowd',
   'world',
+  'remains',
   'summary',
   'campaign',
   'variants',

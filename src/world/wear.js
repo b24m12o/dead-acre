@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { resetPiles } from './piles.js';
 import { GS } from '../core/gs.js';
 import { TAU, clamp, rand, randi } from '../core/util.js';
 import { addLight, gfxPreset, quad, viewH, viewW } from '../render/sprites.js';
@@ -14,6 +15,7 @@ import { flame, hotSpots } from './fire.js';
 export let WHOLES = new Map(),
   WBURN = new Float32Array(1);
 export function resetWear() {
+  resetPiles();
   WHOLES = new Map();
   WBURN = new Float32Array(MW * MH);
   GS.TDMG = new Float32Array(MW * MH);

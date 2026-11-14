@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { pileSlow } from '../world/piles.js';
 import { showStreak } from '../ui/callouts.js';
 import { kn } from './binds.js';
 import { tickOwnBoards } from '../game/boards.js';
@@ -184,6 +185,7 @@ export function update(dt) {
     const dz2 =
         (p.held ? 0.06 : p.daze > 0 ? 0.55 : 1) *
         (1 - 0.38 * (p.spore || 0)) *
+        pileSlow(p.x, p.y, true) *
         (p.gun === 'lmg' && !S.evo.walkfire && GS.time - (p.lastShotT || -9) < 0.22 ? 0.6 : 1),
       tvx = mx * S.speed * dz2,
       tvy = my * S.speed * dz2,

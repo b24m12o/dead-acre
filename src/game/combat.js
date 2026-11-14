@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { remainsFull } from '../render/remains.js';
 import { stationCatch } from './station.js';
 import { boxCut } from '../world/lights.js';
 import { GS } from '../core/gs.js';
@@ -225,6 +226,18 @@ function breakShield(e, kx, ky) {
   if (thr('shieldDown', 900)) floatText(e.x, e.y - 40, 'Shield broken', '#ffd08a', 15);
 }
 // a round in the leg: it limps from now on, slower (a runner is down to a hobble), and leaves a trail of blood
+// a walker's feet go from under it (a pile of bodies, a body thrown into it): down on its face, then up again
+export function tripOver(e, a = Math.atan2(e.vy, e.vx)) {
+  if (e.crawl || e.half || e.down > 0 || !(e.hp > 0) || !HUMAN[e.type] || e.type === 'beetle') return false;
+  e.dT = DOWN_T * rand(0.95, 1.25);
+  e.down = e.dT;
+  e.fallA = lyAngle(e.x, e.y, a + rand(-0.3, 0.3), 100);
+  e.sup = false;
+  e.splay = rand(0.4, 1);
+  e.apose = randi(0, 3);
+  e.lyG = 0;
+  return true;
+}
 function legWound(e, slow) {
   if (e.legW) return;
   e.legW = true;
@@ -804,7 +817,10 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       e.vz = src === 'boom' || imp > 330 ? imp * 0.45 : 0;
     }
     GS.corpses.push(e);
-    if (GS.corpses.length > (GS.horde && !GS.horde.done ? 240 : 160)) GS.corpses.shift();
+    {
+      const cap = GS.horde && !GS.horde.done ? 240 : 160;
+      if (GS.corpses.length > cap && (!remainsFull() || GS.corpses.length > cap + 80)) GS.corpses.shift(); // over-full: the oldest is painted into the ground; only with nothing drawing does one just go
+    }
     if (!big) sfx.fall(e.x, e.y);
     if (HUMAN[e.type] && e.type !== 'mini' && crit && Math.random() < 0.55) {
       e.headless = true;

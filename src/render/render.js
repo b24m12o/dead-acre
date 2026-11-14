@@ -60,7 +60,7 @@ import { WCOL } from '../actors/bosses.js';
 import { shakeOff } from './camera.js';
 import { NIGHT, lampHot, lampK } from './draw-player.js';
 import { BILE, GIANT } from './draw-enemies.js';
-import { LYB, lyState } from './draw-bodies.js';
+import { bakeRemains, bodyAO } from './remains.js';
 import { atmosLights, drawAsh, drawAshGlow, lampShadows, shaftGlow } from '../world/wear.js';
 import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
 import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
@@ -106,6 +106,7 @@ export function render() {
   const [sx, sy] = shakeOff();
   GS.camX = cam.x + sx;
   GS.camY = cam.y + sy;
+  bakeRemains(); // old bodies and dried blood go into the ground picture before the frame is drawn
   // shadow pass: real silhouettes projected along the sun direction
   gl.bindFramebuffer(gl.FRAMEBUFFER, rtShadow.fb);
   gl.viewport(0, 0, rtShadow.w, rtShadow.h);
@@ -251,21 +252,7 @@ export function render() {
         if ((c.dep || 0) > 0.3) ao(g.cx, c.y + 6, (c.gun ? 62 : 52) * (1 + k * 0.4), 0.2 - k * 0.1);
       }
     for (const e of GS.corpses)
-      if (HUMAN[e.type] && !(e.z > 2)) {
-        const al = 0.26 * clamp(((e.keep || 0.55) - e.dying) / 1.5, 0, 1);
-        if (LYB[e.type]) {
-          const K = e.type === 'beetle' ? 1.9 : 1,
-            g = lyState(e).g;
-          ao(
-            e.x - Math.cos(e.fallA ?? 0) * 3 * K,
-            e.y - Math.sin(e.fallA ?? 0) * 3 * K,
-            18 * K,
-            al * 1.15,
-            e.fallA ?? 0,
-            1 + 2 * g
-          );
-        } else ao(e.x, e.y, e.r * 1.7, al, e.fallA ?? 0, 1.5);
-      } // a long soft shadow under the whole body
+      if (HUMAN[e.type] && !(e.z > 2)) bodyAO(e, 0.26 * clamp(((e.keep || 0.55) - e.dying) / 1.5, 0, 1)); // a long soft shadow under the whole body
   }
   for (const pl of GS.pools) {
     const f = Math.min(1, pl.life / 0.8, (pl.max - pl.life) / 0.25 + 0.2),

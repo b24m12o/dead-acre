@@ -8,6 +8,8 @@ import { R } from '../render/atlas.js';
 import { WH, WW, crystals } from './map.js';
 import { solidPt } from './nav.js';
 import { updateLegs } from '../actors/legs.js';
+import { pilesTick } from './piles.js';
+import { remainsTick } from '../render/remains.js';
 import { AC, MUS, ambG, musLP, playS, thr } from '../audio/audio.js';
 import { tickCrowd } from '../audio/crowd.js';
 import { S, cam } from '../game/state.js';
@@ -126,6 +128,7 @@ export function tickWorld(dt) {
       d.tint[1] = Math.min(d.tint[1] * (1 + dt * 0.004), 0.05);
     }
   }
+  remainsTick(dt);
   keepIf(GS.decals, d => d.life > 0);
   for (const t of GS.texts) {
     t.life -= dt;
@@ -171,6 +174,7 @@ export function tickWorld(dt) {
     }
     if (e.legs) updateLegs(e, dt);
   }
+  pilesTick();
   physTick(dt);
   GS.corpses = GS.corpses.filter(e => e.dying < (e.keep || 0.55));
   GS.whiteFlash = Math.max(0, GS.whiteFlash - dt * 1.6);

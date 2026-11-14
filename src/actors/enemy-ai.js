@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { PILE, pileAt } from '../world/piles.js';
 import { seenFrom } from '../world/lights.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, damp, rand, randi } from '../core/util.js';
@@ -27,7 +28,7 @@ import {
   shake,
   sparks,
 } from '../render/effects.js';
-import { SHIELD_TURN, hurtPlayer, killEnemy, releaseGrab, shieldUp } from '../game/combat.js';
+import { SHIELD_TURN, hurtPlayer, killEnemy, releaseGrab, shieldUp, tripOver } from '../game/combat.js';
 import { toWorld } from './projectiles.js';
 import { updateQueen } from './queen.js';
 import { BILE, BLOOD } from '../render/draw-enemies.js';
@@ -448,10 +449,11 @@ export function updateEnemy(e, dt, p) {
         break;
       }
       case 'wasp': {
-        const k = dist > 320 ? 1 : dist < 200 ? -0.8 : 0,
-          side = Math.sin(GS.time * 0.7 + e.id * 1.7) > 0 ? 1 : -1;
-        tvx = (ux * k - uy * side * 0.5) * e.sp;
-        tvy = (uy * k + ux * side * 0.5) * e.sp;
+        // with no sight of you it comes looking (along the way round) instead of pacing behind a wall it can't spit through
+        const k = !e.los ? (dist > 90 ? 1 : 0) : dist > 320 ? 1 : dist < 200 ? -0.8 : 0,
+          side = (Math.sin(GS.time * 0.7 + e.id * 1.7) > 0 ? 1 : -1) * (e.los ? 0.5 : 0.15);
+        tvx = (ux * k - uy * side) * e.sp;
+        tvy = (uy * k + ux * side) * e.sp;
         face = Math.atan2(p.y - e.y, p.x - e.x);
         e.fireT -= dt;
         if (em && e.fireT <= 0 && dist < 540 && e.los) {
@@ -683,6 +685,15 @@ export function updateEnemy(e, dt, p) {
       pool(e.x + rand(-5, 5), e.y + rand(-5, 5), rand(0.07, 0.13), bloodOf(e), 25);
     }
   } // a leg wound leaves a trail
+  if (HUMAN[e.type] && e.type !== 'beetle' && !e.crawl && !e.fly && !(e.down > 0) && !(e.z > 2) && (tvx || tvy)) {
+    const n = pileAt(e.x, e.y);
+    if (n) {
+      const k = PILE.dead[Math.min(3, n)];
+      tvx *= k;
+      tvy *= k;
+      if (n >= 3 && !e.lurk && e.vx * e.vx + e.vy * e.vy > 45 * 45 && Math.random() < PILE.trip * dt) tripOver(e);
+    }
+  } // wading through the dead (piles.js): slower, and over three or more a walker can go down
   if (e.wbT > 0 && !(e.down > 0) && (tvx || tvy)) {
     const al = Math.cos(angDiff(e.a, Math.atan2(tvy, tvx)));
     tvx *= clamp(al, 0.15, 1);
@@ -786,7 +797,8 @@ export function updateEnemy(e, dt, p) {
     if (e.progT >= 1) {
       e.progT = 0;
       const d = Math.sqrt(pd2);
-      e.noProg = d > 260 && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
+      const cut = !e.los && !e.lurk && !e.sg && GS.time - (e.boardT ?? -9) > 1; // near you, but out of sight and getting nowhere, counts too
+      e.noProg = (d > 260 || cut) && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
       e.lastPD = d;
       if (e.noProg >= 12 && !GS.queue.length && GS.nightLive) {
         // stuck where it can't reach you once the night's last wave is out: it comes round again near you, however many are left

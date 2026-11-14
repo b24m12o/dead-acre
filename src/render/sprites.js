@@ -9,7 +9,7 @@ import { R } from './atlas.js';
 export let P_SPRITE, P_SHADOW, P_LIGHT, P_COMP, P_DOWN, P_UP, P_FINAL;
 export let emptyVAO;
 
-function makeTex(w, h, hdr) {
+export function makeTex(w, h, hdr) {
   const t = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, t);
   if (hdr && hasCBF) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
@@ -20,7 +20,7 @@ function makeTex(w, h, hdr) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   return t;
 }
-function makeRT(w, h, texs) {
+export function makeRT(w, h, texs) {
   const fb = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
   texs.forEach((t, i) => gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, t, 0));
@@ -128,6 +128,14 @@ export function flush() {
   GS.qn = 0;
 }
 let CX, CY;
+let CULL = null; // a box of the world to draw into instead of the screen (painting remains into the ground): [x0, y0, x1, y1]
+export function cullBox(b) {
+  CULL = b;
+}
+let INK = false; // everything drawn comes out as its black silhouette (a shadow painted with the picture's own shapes)
+export function inkMode(on) {
+  INK = on;
+}
 export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
   if (GS.SHMODE === 2) {
     // flashlight shadows: smear each silhouette away from the light, longer the further it stands
@@ -164,6 +172,7 @@ export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
     ta *= GS.SHS;
   }
   ta *= GS.gA;
+  if (INK) tr = tg = tb = er = eg = eb = ef = 0;
   tr *= GS.gT * GS.gR;
   tg *= GS.gT * GS.gG;
   tb *= GS.gT * GS.gB;
@@ -171,7 +180,9 @@ export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
   const hw = r.w * sx * 0.5,
     hh = r.h * sy * 0.5,
     ext = Math.abs(hw) + Math.abs(hh);
-  if (x + ext < GS.camX || x - ext > GS.camX + viewW || y + ext < GS.camY || y - ext > GS.camY + viewH) return;
+  if (CULL) {
+    if (x + ext < CULL[0] || x - ext > CULL[2] || y + ext < CULL[1] || y - ext > CULL[3]) return;
+  } else if (x + ext < GS.camX || x - ext > GS.camX + viewW || y + ext < GS.camY || y - ext > GS.camY + viewH) return;
   if (GS.qn >= MAXQ) flush();
   const c = Math.cos(rot),
     s = Math.sin(rot),
