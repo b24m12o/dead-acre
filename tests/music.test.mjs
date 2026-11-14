@@ -46,11 +46,15 @@ export async function run(b) {
         try { for (let st = 0; st < 128; st++) playStep(st & 63, AC.currentTime + 0.3 + st * 0.02); } catch (e) { bad.push(id + ': ' + e.message); }
       }
     // the place's own sound
-    const nightAt = id => { for (let w = 1; w <= 15; w++) if (STOPS[stopAt(w)].id === id) return w; return 0; };
+    const fam = { main: 'town', bridge: 'highway', quarry: 'highway', motel: 'highway', hospital: 'cemetery' };
     out.beds = {};
-    for (const id of ['main', 'bridge', 'quarry', 'motel', 'hospital']) { GS.wave = nightAt(id); tickAmbience(0.1); out.beds[id] = GS.amb.bed; }
+    for (const id of Object.keys(fam)) {
+      GS.RUN.journey = true; GS.RUN.hm = false; GS.RUN.layout = id === 'main' ? '' : id; GS.RUN.district = fam[id]; GS.RUN.stop = STOPS.findIndex(s => s.id === id);
+      newRun(); GS.state = 'play'; GS.queue = []; GS.enemies.length = 0;
+      tickAmbience(0.1); out.beds[id] = GS.amb.bed; out['place_' + id] = placeId();
+    }
     // far-off sounds: on foot yes, with a boss up no
-    GS.wave = nightAt('main'); GS.RUN.district = 'town'; GS.boss = null;
+    GS.wave = 2; GS.RUN.district = 'town'; GS.boss = null;
     out.far = [];
     for (let i = 0; i < 6; i++) { GS.amb.nextT = GS.time - 0.5; tickAmbience(0.1); out.far.push(GS.amb.last); GS.time += 1; }
     out.farN = GS.amb.n;
@@ -94,6 +98,10 @@ export async function run(b) {
       o.beds.motel === 'motel' &&
       o.beds.hospital === 'hospital',
     `each place should have its own sound: ${JSON.stringify(o.beds)}`
+  );
+  check(
+    o.place_main === 'main' && o.place_motel === 'motel',
+    `the map should know which place it is: ${o.place_main}, ${o.place_motel}`
   );
   check(o.farN === 6 && new Set(o.far).size >= 2, `far-off sounds should come, and vary: ${o.far}`);
   check(

@@ -536,6 +536,8 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #route.leaving .ways,#route.leaving .btns{opacity:.5;transition:opacity .3s}
 #route.out{opacity:0;transition:opacity .35s}
 #shoveBar{flex:0 0 72px;min-width:60px;height:3px;margin-left:auto}#shoveBar i{background:rgba(242,234,216,.7)}
+body.pad :focus{outline:2px solid #ffd08a;outline-offset:3px}body.pad #route .way:focus,body.pad #radioAsk .way:focus,body.pad #supply .way:focus{outline:none;border-color:#ffd08a;background:rgba(36,32,24,.85)}body.pad .card:focus{outline:2px solid #ffd08a;outline-offset:3px}
+#braceBar{flex:0 0 72px;min-width:60px;height:3px;margin-left:auto}#braceBar i{background:rgba(242,234,216,.7)}#braceRow.ready{color:#ffd08a}#braceRow.ready #braceBar i{background:#ffd08a}
 #supply{background:rgba(8,10,12,.78)}
 #supply .panel{width:min(760px,100%)}
 #supply .shead{display:flex;align-items:baseline;gap:14px;margin:4px 0 14px}

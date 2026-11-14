@@ -8,7 +8,7 @@ import { GS } from '../core/gs.js';
 import { TAU, pick, rand, randi } from '../core/util.js';
 import { AC, noiseBuf, playS, sfxBus } from './audio.js';
 import { sfx } from './sfx.js';
-import { STOPS, stopAt } from '../game/route.js';
+import { placeId } from '../world/places.js';
 
 export const AMB = {
   gap: [20, 46], // seconds between far-off sounds
@@ -162,7 +162,7 @@ export const FAR_OFF = {
 export function tickAmbience(dt) {
   if (!AC || !sfxBus) return;
   const out = GS.state !== 'menu' && GS.state !== 'over' && GS.state !== 'won' && !!GS.P && !!GS.RUN,
-    id = out && GS.RUN.journey && !GS.P.ride && !GS.evac ? STOPS[stopAt(GS.wave)].id : null,
+    id = out && !GS.P.ride && !GS.evac ? placeId() : null,
     want = id && BEDS[id] ? id : null;
   if ((bed ? bed.id : null) !== want) {
     dropBed();

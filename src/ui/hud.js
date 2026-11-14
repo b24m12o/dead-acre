@@ -10,7 +10,7 @@ import { VH, VW, ZOOM } from '../render/sprites.js';
 import { S, hasAmmo, magSize } from '../game/state.js';
 import { placeStreak } from './callouts.js';
 import { underBoss } from '../game/waves.js';
-import { AB, SHOVE, abCd } from '../game/abilities.js';
+import { AB, abCd, shoveCd } from '../game/abilities.js';
 import { bossHint } from '../actors/bosses.js';
 import { FINAL_NIGHT } from '../game/districts.js';
 import { viaTag } from '../game/routes.js';
@@ -400,7 +400,16 @@ export function updateHud() {
     if (bank) setT('lvReady', bank > 1 ? `${bank} level-ups · Tab` : 'Level up · Tab');
   } // banked level-ups wait here until you open them, or a lull does
   setB('dashFill', 1 - GS.P.dashCd / S.dashCd);
-  setB('shoveFill', 1 - (GS.P.shoveCd || 0) / SHOVE.cd);
+  setB('shoveFill', 1 - (GS.P.shoveCd || 0) / shoveCd());
+  {
+    const sol = GS.RUN.hero === 'ranger' && !GS.P.ride,
+      br = $('braceRow');
+    if (br.hidden === sol) br.hidden = !sol;
+    if (sol) {
+      setB('braceFill', GS.P.brace || 0);
+      br.classList.toggle('ready', GS.P.brace >= 1);
+    }
+  } // the Soldier's brace: fills while he stands still, gold when every shot counts for more
   {
     const sl = 'Shove · ' + kn('shove');
     if (hc.shL !== sl) {

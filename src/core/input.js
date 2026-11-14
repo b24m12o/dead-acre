@@ -77,6 +77,10 @@ export function moveInput() {
   if (keys.has('s') || keys.has('arrowdown')) y += 1;
   if (keys.has('a') || keys.has('arrowleft')) x -= 1;
   if (keys.has('d') || keys.has('arrowright')) x += 1;
+  if (GS.pad && GS.pad.on) {
+    x += GS.pad.mx;
+    y += GS.pad.my;
+  } // a gamepad's left stick (gamepad.js): as far as it is pushed
   const l = Math.hypot(x, y);
   if (l > 1) {
     x /= l;
@@ -93,6 +97,7 @@ export function init() {
     const target = e.target;
     if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || ''))) return;
     const k = keyOf(e);
+    if (e.isTrusted && GS.pad && GS.pad.on) GS.pad.kick = true; // a real key: the gamepad lets go (its own Esc and Enter are not real keys)
     initAudio();
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) && GS.state !== 'menu') e.preventDefault();
     if (k === 'tab' && (GS.state === 'play' || GS.state === 'levelup')) e.preventDefault(); // Tab is the level-up key in a run
@@ -181,12 +186,17 @@ export function init() {
     if (keyOf(e) === 'q' && WHEEL.held === 'kbm') wheelRelease();
   });
   glc.addEventListener('mousemove', e => {
+    if (GS.pad && GS.pad.on) {
+      if (Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0) < 3) return; // a nudge of the desk doesn't take the crosshair off the pad
+      GS.pad.kick = true;
+    }
     mouse.x = e.clientX;
     mouse.y = e.clientY;
     mouse.seen = true;
   });
   glc.addEventListener('mousedown', e => {
     initAudio();
+    if (GS.pad && GS.pad.on) GS.pad.kick = true;
     if (e.button === 0) mouse.down = true;
     if (e.button === 2 && !(GS.P && GS.P.ride)) tryDash();
   });

@@ -15,7 +15,19 @@ import { MW, TILE, WH, WW, isWall } from '../world/map.js';
 import { N8, buildFlow, collide, flow, los, query, rebuildHash, solidPt } from '../world/nav.js';
 import { SBV, noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
-import { S, WHEEL, addAmmo, addAmmoType, ammoRoomFor, ammoRoomK, cam, gd, magSize, reloadTime } from '../game/state.js';
+import {
+  S,
+  WHEEL,
+  addAmmo,
+  addAmmoType,
+  ammoRoomFor,
+  ammoRoomK,
+  cam,
+  gd,
+  magSize,
+  reloadTime,
+  braceTick,
+} from '../game/state.js';
 import { lvCan, openLevel } from '../game/upgrades.js';
 import { makeElite, makeEnemy } from '../actors/enemies.js';
 import { siegeK } from '../game/siege.js';
@@ -233,6 +245,7 @@ export function update(dt) {
   p.bodyA += angDiff(p.bodyA, p.aimA) * damp(9, dt);
   if (p.swap > 0) p.swap -= dt;
   p.rk = lerp(p.rk || 0, p.reload > 0 ? 1 : p.rackT > 0 ? 0.4 : 0, damp(12, dt));
+  braceTick(p, dt);
   if (p.rackT > 0) p.rackT -= dt;
   if (p.pumpT > 0) p.pumpT -= dt;
   if (p.reload > 0) {

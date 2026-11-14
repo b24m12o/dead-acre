@@ -4,7 +4,7 @@
 // scrap you don't bank at the end of the run, so a buy is a bet on the night ahead.
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
-import { kn } from '../core/binds.js';
+import { kn, padOn } from '../core/binds.js';
 import { GUNS } from './arsenal.js';
 import { S, ammoMax, magSize } from './state.js';
 import { TRAP_MAX, have, giveTrapsQuiet } from './traps.js';
@@ -76,7 +76,9 @@ function render() {
     return `<button class="way sup" type="button" data-i="${i}"${why ? ' disabled' : ''}><span class="wk">${i + 1}</span><b>${it.name}</b><span class="wwhat">${it.desc}</span><span class="scost">${it.cost} scrap${why ? ` · ${why.toLowerCase()}` : ''}</span>${n}</button>`;
   }).join('');
   for (const b of el.querySelectorAll('.sup')) b.onclick = () => pick(+b.dataset.i);
-  el.querySelector('.shint').textContent = `1–6 to buy · ${kn('supply')}, Esc or Enter to close`;
+  el.querySelector('.shint').textContent = padOn()
+    ? 'A buys · B closes'
+    : `1–6 to buy · ${kn('supply')}, Esc or Enter to close`;
 }
 function pick(i) {
   if (!open || performance.now() < open.t0) return;

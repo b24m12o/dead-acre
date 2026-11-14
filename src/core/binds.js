@@ -28,6 +28,10 @@ export const FIXED_ROWS = [
   ['Start the night · call the horde', 'Enter'],
   ['Pause', 'Esc · P'],
   ['Mute · music', 'M · N'],
+  [
+    'Gamepad',
+    'Left stick move · right stick aim · RT fire · A roll · B shove · X reload · Y ability · RB next gun · LB wheel (tap: last gun) · LT trap · D-pad: cards up, supplies down, switch trap right · Back starts the night · Start pause',
+  ],
 ];
 const FIXED = new Set(['Escape', 'KeyP', 'KeyM', 'KeyN', 'Enter', 'NumpadEnter', 'Tab', 'MetaLeft', 'MetaRight']);
 for (let i = 1; i <= 9; i++) FIXED.add('Digit' + i).add('Numpad' + i);
@@ -100,7 +104,21 @@ export function codeName(code) {
   if (/^Numpad/.test(code)) return 'Num ' + code.slice(6);
   return code.replace(/([a-z])([A-Z])/g, '$1 $2');
 }
-export const kn = id => codeName(bindOf(id));
+// what each action is on a gamepad (gamepad.js): the hints name these while a pad is in use
+export const PAD_NAME = {
+  roll: 'A',
+  shove: 'B',
+  reload: 'X',
+  ability: 'Y',
+  wheel: 'LB',
+  trap: 'LT',
+  trapNext: 'D-pad right',
+  supply: 'D-pad down',
+};
+export const PAD_HINT =
+  'Left stick move · right stick aim · RT fire · X reload · A roll · B shove · Y ability · RB next gun · hold LB wheel';
+export const padOn = () => !!(GS.pad && GS.pad.on);
+export const kn = id => (padOn() && PAD_NAME[id]) || codeName(bindOf(id));
 // text with {action} in it, the bound key's name put in: 'Press {reload} to reload'
 export const keysIn = s => s.replace(/\{(\w+)\}/g, (m, id) => (BY_ID[id] ? kn(id) : m));
 export const moveKeys = () => {

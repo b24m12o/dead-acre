@@ -26,6 +26,7 @@ import { render } from '../render/render.js';
 import { updateHud } from '../ui/hud.js';
 import { tickWorld } from '../world/tick.js';
 import { menuInit, menuUpdate } from '../ui/menu.js';
+import { padTick } from './gamepad.js';
 let last = performance.now(),
   perfAcc = 0,
   perfN = 0,
@@ -48,6 +49,7 @@ function frame(now) {
     const ds = WHEEL.open ? 'wheel' : GS.state;
     if (document.body.dataset.st !== ds) document.body.dataset.st = ds;
   } // CSS hides the banner and callouts behind pause, cards and end screens
+  padTick(dt);
   wheelTick();
   const sdt = WHEEL.open ? dt * 0.1 : GS.slowmo > 0 ? dt * 0.3 : dt;
   if (GS.slowmo > 0 && !WHEEL.open) GS.slowmo -= dt;

@@ -2,7 +2,7 @@
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, rand } from '../core/util.js';
 import { TS, store } from '../core/settings.js';
-import { AMMO_BOX, AMMO_MAX, GUNS, GUN_ORDER, HEROES } from './arsenal.js';
+import { AMMO_BOX, AMMO_MAX, GUNS, GUN_ORDER, HEROES, HERO_TRAIT } from './arsenal.js';
 import { ui } from '../render/gl.js';
 import { VH, VW, ZOOM } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
@@ -137,13 +137,31 @@ export let magSize;
 export let ammoMax;
 export function heroGun(g) {
   const sp = (HEROES[GS.RUN.hero] || HEROES.ranger).spec,
-    f = GUNS[g].fam;
-  if (sp !== f) return { dmg: 1, rate: 1, pellets: 0, pierce: 0 };
-  return f === 'rifle'
-    ? { dmg: 1.2, rate: 1, pellets: 0, pierce: 0 }
-    : f === 'shotgun'
-      ? { dmg: 1.2, rate: 1, pellets: 1, pierce: 0 }
-      : { dmg: 1.25, rate: g === 'pistol' ? 1.4 : 1.15, pellets: 0, pierce: 1 };
+    f = GUNS[g].fam,
+    b =
+      sp !== f
+        ? { dmg: 1, rate: 1, pellets: 0, pierce: 0 }
+        : f === 'rifle'
+          ? { dmg: 1.2, rate: 1, pellets: 0, pierce: 0 }
+          : f === 'shotgun'
+            ? { dmg: 1.2, rate: 1, pellets: 1, pierce: 0 }
+            : { dmg: 1.25, rate: g === 'pistol' ? 1.4 : 1.15, pellets: 0, pierce: 1 };
+  b.spread = 1;
+  if (braced()) {
+    b.dmg *= HERO_TRAIT.brace.dmg + 0.1 * (LV.dugin || 0); // Dug In
+    b.pierce += HERO_TRAIT.brace.pierce;
+    b.spread = HERO_TRAIT.brace.spread;
+  } // the Soldier, standing still: any gun
+  if (sp === f && sp === 'pistol' && LV.rollhot && GS.P && GS.P.rollHot > 0) b.dmg *= 1 + 0.25 * LV.rollhot; // Out of the Roll
+  return b;
+}
+// the Soldier's brace: full once he has stood still for a moment, gone the moment he moves
+export const braced = () => !!GS.RUN && GS.RUN.hero === 'ranger' && !!GS.P && GS.P.brace >= 1 && !GS.P.ride;
+export function braceTick(p, dt) {
+  if (p.rollHot > 0) p.rollHot -= dt;
+  if (!GS.RUN || GS.RUN.hero !== 'ranger') return;
+  const still = Math.hypot(p.vx || 0, p.vy || 0) < HERO_TRAIT.brace.still && !(p.dashT > 0) && !p.held && !p.ride;
+  p.brace = still ? Math.min(1, (p.brace || 0) + dt / (HERO_TRAIT.brace.time * (LV.setfeet ? 0.5 : 1))) : 0; // Planted Feet
 }
 export function armGuns(p) {
   setSidearm(GS.RUN && GS.RUN.hero);
@@ -225,6 +243,11 @@ function wheelGeom() {
     cx: clamp(px, pad, VW - pad),
     cy: clamp(py, pad + 40 * k, VH - pad - 40 * k),
   }; /* clear of the night plate on top and the level bar below */
+}
+// where the open wheel sits on screen, and its scale: a gamepad's stick points from here (gamepad.js)
+export function wheelCentre() {
+  const W = wheelGeom();
+  return [W.cx, W.cy, W.k];
 }
 const slotA = i => -Math.PI / 2 + (i * TAU) / WHEEL_SLOTS.length;
 export function wheelTick() {

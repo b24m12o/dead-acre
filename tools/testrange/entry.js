@@ -12,7 +12,7 @@ import { pick } from '../../src/core/util.js';
 import { AMMO_MAX, GUNS, GUN_ORDER, HEROES } from '../../src/game/arsenal.js';
 import { DISTRICTS, FINAL_NIGHT } from '../../src/game/districts.js';
 import { LV, S, ammoMax, equip, magSize } from '../../src/game/state.js';
-import { need } from '../../src/game/run.js';
+import { need, newRun } from '../../src/game/run.js';
 import { EVOS, renderMods, upgradePool } from '../../src/game/upgrades.js';
 import { hideCallouts, showStreak } from '../../src/ui/callouts.js';
 import { begin } from '../../src/ui/hangar.js';
@@ -226,8 +226,17 @@ function boot() {
       crowd(0);
       if (!GS.RUN) return;
       GS.nightLive = false;
-      GS.RUN.journey = true; // a place on the road: only the campaign has them
-      GS.wave = STOPS[STOPS.findIndex(s => s.id === b.dataset.bed)].to;
+      const i = STOPS.findIndex(s => s.id === b.dataset.bed); // the place itself: its own map, as the campaign builds it
+      GS.RUN.journey = true;
+      GS.RUN.hm = false;
+      GS.RUN.layout = STOPS[i].id;
+      GS.RUN.district = STOPS[i].map;
+      GS.RUN.stop = i;
+      newRun();
+      GS.state = 'play';
+      GS.wave = STOPS[i].to;
+      GS.queue = [];
+      GS.nightLive = false;
       showStreak(b.textContent, 'An empty street · listen under the wind', true);
     };
   for (const b of q('trBand').querySelectorAll('[data-far]'))

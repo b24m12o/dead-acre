@@ -6,7 +6,7 @@ export const HEROES = {
     name: 'Soldier',
     weapon: 'rifles',
     spec: 'rifle',
-    desc: 'Guardsman cut off from the convoy. Every rifle hits 20% harder.',
+    desc: 'Guardsman cut off from the convoy. Every rifle hits 20% harder. Braced: stand still half a second and every shot hits 20% harder and goes through one more.',
     hp: 100,
     speed: 260,
     cost: 0,
@@ -16,7 +16,7 @@ export const HEROES = {
     name: 'Deputy',
     weapon: 'shotguns',
     spec: 'shotgun',
-    desc: "Precinct 9's last deputy, the toughest of the three. Shotguns fire an extra pellet and hit 20% harder.",
+    desc: "Precinct 9's last deputy, the toughest of the three. Shotguns fire an extra pellet and hit 20% harder. Riot training: the shove comes back 40% sooner and hits three times as hard.",
     hp: 135,
     speed: 245,
     cost: 250,
@@ -26,12 +26,19 @@ export const HEROES = {
     name: 'Gunslinger',
     weapon: 'revolver & SMG',
     spec: 'pistol',
-    desc: 'Drifter who rode in on Route 9 with a six-shot revolver, the fastest of the three. Revolver and SMG fire faster, hit 25% harder and pierce.',
+    desc: 'Drifter who rode in on Route 9 with a six-shot revolver, the fastest of the three. Revolver and SMG fire faster, hit 25% harder and pierce. A roll reloads them.',
     hp: 95,
     speed: 278,
     cost: 400,
     dot: '#c0392b',
   },
+};
+// what each of the three does that the others can't (beyond the guns they favour and the abilities they carry):
+// the Soldier braces, the Deputy shoves like a riot line, the Gunslinger reloads on the roll
+export const HERO_TRAIT = {
+  brace: { time: 0.5, still: 45, dmg: 1.2, pierce: 1, spread: 0.6 }, // Soldier: seconds standing still (under `still` px/s) to brace
+  riot: { cd: 0.6, dmg: 3 }, // Deputy: the shove's cooldown and damage, times these
+  rollLoad: true, // Gunslinger: a roll reloads the revolver and SMG
 };
 export const GUNS = {
   pistol: {

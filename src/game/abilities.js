@@ -1,13 +1,13 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, rand } from '../core/util.js';
-import { GUNS } from './arsenal.js';
+import { GUNS, HEROES, HERO_TRAIT } from './arsenal.js';
 import { ZOOM } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { los, query } from '../world/nav.js';
 import { noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
-import { S, cam } from './state.js';
+import { LV, S, cam, magSize } from './state.js';
 import { dust, floatText, shake } from '../render/effects.js';
 import { explode, quietKill, quietTarget, releaseGrab, shoveEnemy } from './combat.js';
 import { showStreak } from '../ui/callouts.js';
@@ -246,14 +246,32 @@ function fanShot(a0) {
 // without spoiling it, holds your fire a moment, and makes no more noise than a grunt. Not mid-roll, not on the
 // truck or in the chopper. Returns how many it caught
 export const SHOVE = { cd: 1.2, reach: 78, half: (55 * Math.PI) / 180, hold: 0.25 };
+export const shoveCd = () => SHOVE.cd * (GS.RUN && GS.RUN.hero === 'breacher' ? HERO_TRAIT.riot.cd : 1); // the Deputy's comes back sooner
+// the Gunslinger's roll: the revolver or the SMG in his hands comes out of it loaded
+function rollLoad(P) {
+  if (!HERO_TRAIT.rollLoad || !GS.RUN || GS.RUN.hero !== 'grenadier') return;
+  const g = P.gun,
+    G = GUNS[g],
+    n = magSize(g);
+  if (LV.rollhot) P.rollHot = 1.5; // Out of the Roll
+  if (!G || (G.fam !== HEROES.grenadier.spec && !LV.sleight) || P.mag[g] >= n) return; // Sleight of Hand: any gun
+  const take = G.ammo ? Math.min(n - P.mag[g], P.ammo[G.ammo] || 0) : n - P.mag[g];
+  if (take <= 0) return;
+  P.mag[g] += take;
+  if (G.ammo) P.ammo[G.ammo] -= take;
+  P.reload = 0;
+  GS.later.push({ t: 0.16, fn: () => GS.P === P && GS.state === 'play' && sfx.reloadEnd(P) }); // as he comes up out of it
+  if (GS.RUN.metrics) GS.RUN.metrics.rollLoads = (GS.RUN.metrics.rollLoads || 0) + 1;
+}
 export function tryShove() {
   const P = GS.P;
   if (GS.state !== 'play' || !P || P.ride || !(P.hp > 0) || P.dashT > 0 || (P.shoveCd || 0) > 0) return -1;
   if (P.held) releaseGrab(1.4); // a shove tears you free of a grab
-  P.shoveCd = SHOVE.cd;
+  P.shoveCd = shoveCd();
   P.shoveT = SHOVE.hold;
   const a = P.aimA,
-    hit = [];
+    hit = [],
+    rk = 1 + 0.2 * (LV.riotline || 0); // Riot Line
   let n = 0,
     fin = null,
     fd = 1e9;
@@ -262,7 +280,8 @@ export function tryShove() {
     const dx = e.x - P.x,
       dy = e.y - P.y,
       d = Math.hypot(dx, dy);
-    if (d > SHOVE.reach + (e.r || 14) || (d > 8 && Math.abs(angDiff(a, Math.atan2(dy, dx))) > SHOVE.half)) continue;
+    if (d > SHOVE.reach * rk + (e.r || 14) || (d > 8 && Math.abs(angDiff(a, Math.atan2(dy, dx))) > SHOVE.half * rk))
+      continue;
     hit.push([e, dx || Math.cos(a), dy || Math.sin(a)]);
     if (quietTarget(e) && d < fd) {
       fd = d;
@@ -283,6 +302,7 @@ export function tryShove() {
       }
     } else if (shoveEnemy(e, dx, dy)) n++;
   }
+  if (n && LV.grit) P.hp = Math.min(S.maxHp, P.hp + 2 * LV.grit * n); // Grit
   sfx.thump(P.x, P.y);
   sfx.grunt(P.x, P.y);
   shake(n ? 0.14 : 0.06);
@@ -316,6 +336,7 @@ export function tryDash() {
   GS.P.dashCd = S.dashCd;
   GS.P.inv = Math.max(GS.P.inv, 0.3);
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.rolls++;
+  rollLoad(GS.P);
   sfx.dash();
   shake(0.08);
   dust(GS.P.x, GS.P.y, 6, 50, 0.8, 0.8);

@@ -81,8 +81,8 @@ export function firePlayer(cwx, cwy, p, target) {
         dy0 = s * d0;
       } // a cursor on or behind the body: lob it the way the launcher points, not back over your shoulder
       const dl = clamp(d0, G.muzzle + 30, 560 + G.muzzle);
-      tx = p.x + (dx0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread;
-      ty = p.y + (dy0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread;
+      tx = p.x + (dx0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread * hb.spread;
+      ty = p.y + (dy0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread * hb.spread;
       GS.pbullets.push({
         shell: true,
         gl: true,

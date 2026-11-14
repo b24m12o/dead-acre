@@ -348,6 +348,71 @@ export const UP = [
       S.scav = 1;
     },
   },
+  // ---- each of the three has two picks of their own, building on what only they can do (arsenal.js HERO_TRAIT) ----
+  {
+    id: 'dugin',
+    hero: 'ranger',
+    short: 'Braced shots hit 10% harder again',
+    cat: 'Soldier',
+    name: 'Dug In',
+    desc: 'Braced (standing still), every shot hits a further 10% harder.',
+    have: () => `Braced shots hit +${20 + 10 * (LV.dugin || 0)}% in all.`,
+    max: 3,
+    apply() {},
+  },
+  {
+    id: 'setfeet',
+    hero: 'ranger',
+    short: 'Brace in half the time',
+    cat: 'Soldier',
+    name: 'Planted Feet',
+    desc: 'You are braced a quarter of a second after you stop, not half.',
+    max: 1,
+    apply() {},
+  },
+  {
+    id: 'riotline',
+    hero: 'breacher',
+    short: 'The shove reaches 20% further and wider',
+    cat: 'Deputy',
+    name: 'Riot Line',
+    desc: 'Your shove reaches 20% further and sweeps 20% wider.',
+    have: () => `The shove reaches +${20 * (LV.riotline || 0)}% further and wider.`,
+    max: 2,
+    apply() {},
+  },
+  {
+    id: 'grit',
+    hero: 'breacher',
+    short: 'Each zombie your shove hits gives back 2 health',
+    cat: 'Deputy',
+    name: 'Grit',
+    desc: 'Every zombie your shove hits gives you back 2 health.',
+    have: () => `Each zombie shoved gives back ${2 * (LV.grit || 0)} health.`,
+    max: 2,
+    apply() {},
+  },
+  {
+    id: 'rollhot',
+    hero: 'grenadier',
+    short: 'Revolver and SMG hit 25% harder just after a roll',
+    cat: 'Gunslinger',
+    name: 'Out of the Roll',
+    desc: 'For a second and a half after a roll, the revolver and the SMG hit 25% harder.',
+    have: () => `Revolver and SMG hit +${25 * (LV.rollhot || 0)}% for 1.5 s after a roll.`,
+    max: 2,
+    apply() {},
+  },
+  {
+    id: 'sleight',
+    hero: 'grenadier',
+    short: 'A roll reloads any gun in your hands',
+    cat: 'Gunslinger',
+    name: 'Sleight of Hand',
+    desc: 'A roll reloads whatever gun is in your hands, not only the revolver and the SMG.',
+    max: 1,
+    apply() {},
+  },
 ];
 export const EVOS = [
   {
@@ -507,6 +572,7 @@ export function upgradePool() {
       u =>
         (!u.lock || chalDone(u.lock)) &&
         (LV[u.id] || 0) < u.max &&
+        !(u.hero && !(GS.RUN && GS.RUN.hero === u.hero)) && // the three's own picks (below): nobody else is offered them
         !(u.not && u.not.includes(w)) &&
         !(u.only && !((GS.P && GS.P.owned) || [w]).some(g => u.only.includes(g)))
     );

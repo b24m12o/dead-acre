@@ -9,8 +9,10 @@ import {
   bindOf,
   bindable,
   codeName,
+  PAD_HINT,
   keysIn,
   moveKeys,
+  padOn,
   resetBinds,
   setBind,
 } from '../core/binds.js';
@@ -23,15 +25,19 @@ import { tutHint } from '../game/tutorial.js';
 import { DIFF_DESC, renderDistricts } from './menu.js';
 GS.hintTO = 0;
 export function updateHint() {
-  const ht = keysIn(
-    `${moveKeys()} move · hold click to fire · {reload} reload · {roll} roll · {shove} shove · {ability} ability · 1–9 swap · hold {wheel} wheel`
-  );
+  const pad = padOn(), // a gamepad is in use (gamepad.js): the hints name its buttons
+    ht = pad
+      ? PAD_HINT
+      : keysIn(
+          `${moveKeys()} move · hold click to fire · {reload} reload · {roll} roll · {shove} shove · {ability} ability · 1–9 swap · hold {wheel} wheel`
+        );
   if (typeof GS.RUN !== 'undefined' && GS.RUN && GS.RUN.tut && GS.RUN.tut.i >= 0) tutHint();
   else {
     $('hint').textContent = ht;
     $('hint').classList.remove('tut');
   }
-  $('pauseHint').textContent = ht + ' · Esc resume';
+  $('pauseHint').textContent = ht + (pad ? ' · Start resume' : ' · Esc resume');
+  if ($('dawnKey')) $('dawnKey').textContent = pad ? 'Back' : 'Enter';
   {
     const kl = $('keysLine');
     if (kl)
@@ -45,7 +51,13 @@ export function updateHint() {
     if (lk) {
       const rr = GS.rerolls > 0 && GS.pickSource !== 'weapon' && GS.pickSource !== 'job',
         nk = `Keys 1–${Math.max(1, GS.picks.length || 3)} pick`;
-      lk.textContent = rr ? nk + ' · R rerolls' : nk;
+      lk.textContent = pad
+        ? rr
+          ? 'A picks · X rerolls · B later'
+          : 'A picks · B later'
+        : rr
+          ? nk + ' · R rerolls'
+          : nk;
     }
   }
 }

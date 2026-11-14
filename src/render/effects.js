@@ -160,6 +160,7 @@ export function distort(x, y, s, sp, life) {
 GS.shakeLoad = 0; // how much the screen has been shaken lately: the more it has, the less each new jolt adds, so a run of blasts reads as a rumble, not a constant judder
 export function shake(v) {
   if (!opt.shake) return;
+  if (GS.pad && GS.pad.on && v >= 0.1) GS.pad.rumble = Math.max(GS.pad.rumble || 0, v); // and the gamepad's motors, for the hits that matter
   const k = 1 / (1 + GS.shakeLoad * 1.6);
   GS.trauma = Math.min(0.85, GS.trauma + v * k * (1 - GS.trauma * 0.5));
   GS.shakeLoad = Math.min(3, GS.shakeLoad + v);

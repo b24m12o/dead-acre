@@ -930,6 +930,94 @@ const P = {
       for (let x = 9; x < 19; x += 3) line(c, x, 18, x, 30);
     },
   },
+  // ---- the three's own picks ----
+  dugin: {
+    // Dug In: a sandbag wall, a rifle laid over it
+    shape: c => {
+      rr(c, 3, 30, 20, 11, 5);
+      rr(c, 24, 30, 21, 11, 5);
+      rr(c, 12, 19, 22, 11, 5);
+      poly(c, 4, 12, 40, 9, 46, 9, 46, 12, 40, 13, 14, 15, 6, 17, 4, 16); // the rifle
+    },
+    cut: c => {
+      line(c, 8, 35.5, 18, 35.5);
+      line(c, 29, 35.5, 40, 35.5);
+      line(c, 17, 24.5, 29, 24.5);
+    },
+  },
+  setfeet: {
+    // Planted Feet: two boot soles, square on
+    shape: c => {
+      rr(c, 7, 6, 14, 24, 6);
+      rr(c, 8, 32, 12, 10, 3);
+      rr(c, 27, 6, 14, 24, 6);
+      rr(c, 28, 32, 12, 10, 3);
+    },
+    cut: c => {
+      for (let y = 11; y < 28; y += 4) {
+        line(c, 10, y, 18, y);
+        line(c, 30, y, 38, y);
+      }
+      line(c, 10, 37, 18, 37);
+      line(c, 30, 37, 38, 37);
+    },
+  },
+  riotline: {
+    // Riot Line: a riot shield, its window and its rivets
+    shape: c => rr(c, 11, 3, 26, 42, 6),
+    hole: c => rr(c, 16, 9, 16, 7, 2),
+    cut: c => {
+      line(c, 24, 20, 24, 40);
+      rr(c, 14, 6, 20, 36, 4);
+    },
+    extra: c => {
+      for (const [x, y] of [
+        [16, 22],
+        [32, 22],
+        [16, 38],
+        [32, 38],
+      ])
+        ring(c, x, y, 1.4);
+    },
+  },
+  grit: {
+    // Grit: a heart, taped up
+    shape: c => heart(c, 24, 22, 17),
+    hole: c => poly(c, 8, 19, 40, 27, 39, 32, 7, 24),
+    cut: c => {
+      line(c, 17, 22.5, 18, 26.5);
+      line(c, 24, 24.2, 25, 28.2);
+      line(c, 31, 26, 32, 30);
+    },
+  },
+  rollhot: {
+    // Out of the Roll: the revolver's cylinder, spinning
+    shape: c => ring(c, 28, 24, 17),
+    hole: c => {
+      for (let i = 0; i < 6; i++) ring(c, 28 + Math.cos((i * TAU) / 6) * 10, 24 + Math.sin((i * TAU) / 6) * 10, 3.6);
+      ring(c, 28, 24, 2.2);
+    },
+    extra: c => {
+      for (const [y, l] of [
+        [12, 8],
+        [23, 6],
+        [34, 9],
+      ])
+        rect(c, 1, y, l, 1.8);
+    },
+  },
+  sleight: {
+    // Sleight of Hand: a magazine going in, the arrow round it
+    shape: c => {
+      poly(c, 17, 14, 31, 14, 33, 42, 19, 42);
+      arrowHead(c, 39, 9, 0.5, 6);
+    },
+    str: c => arcL(c, 24, 20, 17, -2.6, -0.45),
+    sw: 2.6,
+    cut: c => {
+      for (let y = 20; y < 40; y += 5) line(c, 19, y, 32, y);
+    },
+  },
 };
 // the badges on a character's two skill picks
 const BADGE = {

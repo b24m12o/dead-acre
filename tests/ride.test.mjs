@@ -13,6 +13,7 @@ const RIDE = String.raw`(() => {
   const fr0 = () => { fr(); if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } GS.P.hp = S.maxHp; }; // getting there: no cards, no harm
   initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null;
   GS.RUN.stop = 0; GS.wave = 2; leaveStop('foot'); travelStep(); { const t = performance.now(); while (performance.now() - t < 650); } document.querySelector('#route .way[data-i="0"]').click(); // walk into St. Mary's, the first place left by truck
+  GS.RUN.viaLater = []; // whichever way was on offer, nothing rides along from it (the tanker's jerrycan would make it two cans)
   GS.queue = []; GS.enemies.length = 0; GS.wave = 5; GS.nightLive = true; GS.nightDone = false; nightCleared();
   for (let i = 0; i < 60 * 8 && !GS.truck; i++) fr0();
   const T = GS.truck;

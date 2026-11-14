@@ -6,7 +6,7 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, rand, randi, pick } from '../core/util.js';
 import { opt, saveMeta } from '../core/settings.js';
-import { GUNS } from './arsenal.js';
+import { GUNS, HERO_TRAIT } from './arsenal.js';
 import { DIFF } from '../core/profile.js';
 import { R } from '../render/atlas.js';
 import { MH, MW, TILE, WH, WW, cars, crystals, grid, houses, isWall, ttype } from '../world/map.js';
@@ -605,9 +605,10 @@ export function shoveEnemy(e, kx, ky) {
     e.lyG = 0;
   } // knocked flat on its back, away from you
   else if (e.type !== 'queen') e.stag = Math.max(e.stag || 0, brute || front ? 0.25 : 0.45);
-  e.hp -= SHOVE_DMG;
-  if (GS.RUN && GS.RUN.metrics && GS.state === 'play') GS.RUN.metrics.damageDealt += SHOVE_DMG;
-  if (e.hp <= 0) killEnemy(e, SHOVE_DMG, 'shove', ux, uy);
+  const sd = SHOVE_DMG * (GS.RUN && GS.RUN.hero === 'breacher' ? HERO_TRAIT.riot.dmg : 1); // the Deputy's lands like a riot line
+  e.hp -= sd;
+  if (GS.RUN && GS.RUN.metrics && GS.state === 'play') GS.RUN.metrics.damageDealt += sd;
+  if (e.hp <= 0) killEnemy(e, sd, 'shove', ux, uy);
   return true;
 }
 // a quiet kill: one shove finishes a walker that has not noticed you (from behind, or busy with a noise), or one that

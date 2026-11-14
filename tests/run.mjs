@@ -24,6 +24,8 @@ const ALL = [
   'remains',
   'quiet',
   'music',
+  'heroes',
+  'gamepad',
   'summary',
   'campaign',
   'variants',

@@ -7,6 +7,7 @@ import { VH, VW, quad, setH, viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { AC, noise } from '../audio/audio.js';
 import { ring } from '../render/effects.js';
+import { placeLook } from './places.js';
 import { NIGHT } from '../render/draw-player.js';
 let DAWNV = 0;
 export const WXV = [0, 0, 0, 1];
@@ -49,8 +50,9 @@ export function updateWeather(dt) {
   }
   GS.lightning = Math.max(0, GS.lightning - dt * 5);
   const base = { sun: [0.29, 0.345, 0.52], sky: [0.225, 0.252, 0.37] }; // moonlight: cold and low, enough to read the ground by
-  let sun = base.sun.slice(),
-    sky = base.sky.slice();
+  const look = placeLook(); // each stop on the road tints the night its own way (places.js)
+  let sun = base.sun.map((v, i) => v * look.sun[i]),
+    sky = base.sky.map((v, i) => v * look.sky[i]);
   if (GS.ev === 'blood') {
     sun = [0.42, 0.2, 0.21];
     sky = [0.25, 0.18, 0.21];
