@@ -82,7 +82,7 @@ export async function run(b) {
     for (; t < 60 * 60; t++) {
       update(1 / 60); tickWorld(1 / 60); P.hp = S.maxHp; P.x = gx + gap.nx * 80; P.y = gy + gap.ny * 80;
       if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; }
-      if (B.broken && brokeAt < 0) brokeAt = t / 60;
+      if (B.broken && brokeAt < 0) { brokeAt = t / 60; out.outside = zs.filter(e => !e.dead && along(e) < 0).length; } // who was still outside it when it gave
       if (past() && passAt < 0) { passAt = t / 60; break; }
       for (const e of zs) mouth(e);
     }
@@ -122,8 +122,8 @@ export async function run(b) {
     `the board should hold six of them at least 8 s: it broke at ${o.brokeAt} s; through at ${o.passAt} s, ${Math.round(o.hpLeft)} hp left, the six at ${JSON.stringify(o.zs)}`
   );
   check(
-    o.brokeAt < 0 || (o.passAt > 0 && o.passAt >= o.brokeAt),
-    `once it gives they should come through: through at ${o.passAt} s, broke at ${o.brokeAt} s`
+    o.brokeAt < 0 || !o.outside || (o.passAt > 0 && o.passAt >= o.brokeAt), // nobody left outside it: nobody to come through
+    `once it gives they should come through: through at ${o.passAt} s, broke at ${o.brokeAt} s with ${o.outside} outside`
   );
   check(o.walked, 'you should walk through your own board');
   check(
