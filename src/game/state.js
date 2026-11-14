@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { heroSay } from '../audio/barks.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, rand } from '../core/util.js';
 import { TS, store } from '../core/settings.js';
@@ -495,6 +496,7 @@ export function startReload() {
       tip('dry');
       floatText(p.x, p.y - 40, 'Out of ammo', '#ffb08a', 16);
       sfx.dry();
+      heroSay('empty', 0.2);
       GS.later.push({
         t: 0.25,
         fn: () => {
@@ -553,6 +555,7 @@ export function startReload() {
       c: [1, 1, 1],
     });
   }
+  if (GS.enemies.length > 2 && GS.nightLive) heroSay('reload', 0.15); // now and then you say so
 }
 export function ammoRoomK() {
   const ts = new Set(GS.P.owned.map(g => GUNS[g].ammo).filter(Boolean));

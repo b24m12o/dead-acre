@@ -9,6 +9,7 @@
 //  · Listener: ashen, upright, blind. It stands with its head turning until something makes a noise: a shot, a blast,
 //    running feet close by, a clock. Then it runs at the noise, faster than you, and hits hard. It goes where the
 //    sound was, not where you are: stand still and it passes you; fire again and it has you. Quiet answers it.
+import { heroSay } from '../audio/barks.js';
 import { GS } from '../core/gs.js';
 import { TAU, d2, rand } from '../core/util.js';
 import { MH, MW, TILE, grid } from '../world/map.js';
@@ -335,6 +336,7 @@ function dragTick(e, dt, p) {
         d2(e.x, e.y, p.x, p.y) < (e.r + p.r + 6) ** 2
       ) {
         p.held = e;
+        heroSay('grab', 0.2);
         e.grip = 1;
         e.gT = 0.3;
         e.grabCd = GS.time + 4;

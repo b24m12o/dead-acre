@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { heroSay } from '../audio/barks.js';
 import { pileSlow } from '../world/piles.js';
 import { showStreak } from '../ui/callouts.js';
 import { kn } from './binds.js';
@@ -853,6 +854,7 @@ export function update(dt) {
         else addAmmo(k.v);
       } else {
         const hv = Math.round(k.v * (PK().medic ? 1.5 : 1));
+        if (p.hp < S.maxHp * 0.5) heroSay('heal', 0.3);
         p.hp = Math.min(S.maxHp, p.hp + hv);
         sfx.heal();
         floatText(p.x, p.y - 34, `+${hv} health`, '#8ef0b8', 18);

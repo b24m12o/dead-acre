@@ -596,7 +596,7 @@ export function drawMarkersUI(toS) {
       ui.fillRect(bx - 29, by + 26 * ZOOM + 1, (58 * GS.obj.hp) / GS.obj.max, 4);
     }
   }
-  for (const s of GS.buddies) {
+  for (const s of GS.P && GS.P.say ? [GS.P, ...GS.buddies] : GS.buddies) {
     if (s.say && GS.time >= s.say.t && GS.time < s.say.end) {
       const [qx, qy] = toS(s.x, s.y);
       if (qx > 0 && qy > 0 && qx < VW && qy < VH) {
@@ -614,7 +614,8 @@ export function drawMarkersUI(toS) {
         ui.fillText(t, x, y);
         ui.globalAlpha = 1;
       }
-    } // what they just said, over their head for a moment
+    } // what they just said, over their head for a moment (and what you did, over yours)
+    if (s === GS.P) continue;
     if (!(s.hp < s.max) && !(s.down > 0)) continue;
     const [bx, by] = toS(s.x, s.y);
     if (bx < 0 || by < 0 || bx > VW || by > VH) continue; // your people: a bar only once they are hurt; down, a bleed-out ring

@@ -18,7 +18,7 @@ import { flashLight, shake } from '../render/effects.js';
 import { TW } from './districts.js';
 import { dropCrate } from './combat.js';
 import { bump } from './challenges.js';
-import { bark } from '../audio/barks.js';
+import { bark, heroSay } from '../audio/barks.js';
 import { viaNight } from './routes.js';
 import { choiceNight } from './radio-choice.js';
 
@@ -163,6 +163,7 @@ function arrive(H) {
   hordeBox(true);
 }
 function alertAll(H) {
+  if (!H.alert) heroSay('horde', 0.6);
   H.alert = true;
   for (const e of GS.enemies)
     if (e.horde && !e.dead) {

@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { heroSay } from '../audio/barks.js';
 import { PILE, pileAt } from '../world/piles.js';
 import { seenFrom } from '../world/lights.js';
 import { GS } from '../core/gs.js';
@@ -268,6 +269,7 @@ export function updateEnemy(e, dt, p) {
               e.gT = 0;
               e.tickT = 0.5;
               p.held = e;
+              heroSay('grab', 0.2);
               hurtPlayer(5 + GS.wave * 0.5, e.x, e.y, 'a lurker');
               sfx.growl(e.x, e.y);
               shake(0.12);

@@ -56,7 +56,7 @@ import { bossDown, bossName } from './boss-flow.js';
 import { hordeBlast, hordeKilled } from './horde.js';
 import { TRAP, giveTraps } from './traps.js';
 import { dropCarried, sporeBurst } from '../actors/specials.js';
-import { bark, nearestUp } from '../audio/barks.js';
+import { bark, heroSay, nearestUp } from '../audio/barks.js';
 GS.HITB = null; // the player's bullet being resolved right now (gun family for boss armour)
 const CHOKE_W = { hunter: 4, lever: 3, pistol: 1.6 }; // so every gun can choke Patient Zero in a 1.3 s inhale
 const BOSS_DEF = {
@@ -710,6 +710,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   if (STREAKS[GS.combo]) {
     showStreak(STREAKS[GS.combo], `${GS.combo} chain`);
     sfx.streak();
+    heroSay('streak', 0.5);
   }
   if (e.mark && GS.obj && GS.obj.type === 'hunt' && !GS.obj.done) {
     GS.obj.got++;
@@ -1042,6 +1043,10 @@ export function hurtPlayer(dmg, sx, sy, why) {
   if (GS.P.stains.length < 22)
     GS.P.stains.push({ u: rand(-9, 9), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.9, 1.6) });
   GS.P.hp -= dmg;
+  if (GS.P.hp > 0) {
+    if (GS.P.hp < S.maxHp * 0.3) heroSay('low', 0.3);
+    else if (dmg >= 10) heroSay('hurt', 0.1);
+  } // you say so (hero-lines.js)
   if (S.wind && GS.P.hp < S.maxHp * 0.25 && GS.RUN.windN !== GS.wave) {
     GS.RUN.windN = GS.wave;
     GS.P.hp = Math.max(GS.P.hp, 30);

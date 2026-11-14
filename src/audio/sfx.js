@@ -469,6 +469,17 @@ export const sfx = {
     const b = spat(x, y),
       k = rand(0.9, 1.1);
     duck(); // each boss has its own voice
+    // and a real throat under it: a recorded take, slowed until it is the size of the thing (asset pack only)
+    if (x !== undefined) {
+      if (bt === 'roadkill') playR('zgrowl', 0.26, x, y, 0.5);
+      else if (bt === 'grave') playR('zgroan', 0.2, x, y, 0.55);
+      else if (bt === 'chief') playR('zgrowl', 0.2, x, y, 0.72);
+      else if (bt === 'pz') playR('zscream', 0.24, x, y, 0.7);
+      else if (bt) {
+        playR('zretch', 0.2, x, y, 0.5);
+        playR('zgrowl', 0.2, x, y, 0.6, 0.15);
+      }
+    }
     if (bt === 'roadkill') {
       tone(42 * k, 1.0, 'sawtooth', 0.11, 2.4, 0, 420, b);
       tone(44 * k, 1.0, 'square', 0.05, 2.2, 0.02, 300, b);

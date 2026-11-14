@@ -23,7 +23,7 @@ import { practiceReport } from './practice.js';
 import { endHorde } from './horde.js';
 import { giveTraps, trapKitStreak } from './traps.js';
 import { freeSpot } from '../actors/backups.js';
-import { bark } from '../audio/barks.js';
+import { bark, heroSay } from '../audio/barks.js';
 import {
   callTruck,
   truckPlan,
@@ -38,7 +38,7 @@ import {
   stopNow,
   truckLive,
 } from './journey.js';
-import { applyVia, codesDue, laterArrive, laterCase, offerVia, viaPickSoon, viaSig } from './routes.js';
+import { applyVia, codesDue, laterArrive, laterCase, offerVia, viaPickSoon, viaRadio, viaSig } from './routes.js';
 import { radioDawn } from './radio-choice.js';
 import { BOSS_HORDE_J, STOPS } from './route.js';
 import { newRun } from './run.js';
@@ -153,6 +153,7 @@ export function nightCleared() {
   GS.nightDone = true;
   {
     const up = GS.buddies.filter(b => !(b.down > 0));
+    if (!up.length || Math.random() < 0.4) GS.later.push({ t: 1.2, fn: () => heroSay('clear') }); // alone, or first to say it
     if (up.length) {
       const a = pick(up),
         b = pick(up);
@@ -305,6 +306,7 @@ export function leaveStop(how) {
   if (MUS.level === 'fight') MUS.clear = true; // the ride's fight ends on the band's own ending, not a cut
   $('hud').hidden = true;
   for (const b of GS.buddies) b.say = null;
+  if (GS.P) GS.P.say = null;
   travelHow = how;
   fade(true);
   setTimeout(travelStep, 480); // the fade, then the new place behind it
@@ -381,6 +383,7 @@ function arrive(note = '') {
   storyArrive(stopNow());
   planDawn();
   viaSig();
+  viaRadio();
   saveRun(); // the new place is the checkpoint now
 }
 // Continue: the saved run comes back at the dawn it was saved at, the night's drops and the dawn job on their way again

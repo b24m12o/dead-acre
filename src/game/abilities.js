@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { heroSay } from '../audio/barks.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, rand } from '../core/util.js';
 import { GUNS, HEROES, HERO_TRAIT } from './arsenal.js';
@@ -293,7 +294,10 @@ export function tryShove() {
       const l = Math.hypot(dx, dy) || 1,
         how = quietKill(e, dx / l, dy / l); // the nearest one that never saw it coming, or is down: finished
       n++;
-      if (how === 'quiet') floatText(e.x, e.y - 30, 'Quiet kill', '#cfd6d9', 13);
+      if (how === 'quiet') {
+        floatText(e.x, e.y - 30, 'Quiet kill', '#cfd6d9', 13);
+        heroSay('quiet', 0.35);
+      }
       if (!(GS.meta.tips && GS.meta.tips.quiet)) {
         GS.meta.tips = GS.meta.tips || {};
         GS.meta.tips.quiet = 1;

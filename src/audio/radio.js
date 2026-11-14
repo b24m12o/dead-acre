@@ -23,8 +23,28 @@ export const RADIO = {
     'We can hear the shooting from here. Give them hell.',
     'Patrol saw a big group heading your way. Hold tight.',
     'Still here, nine. So are you. Keep it that way.',
+    'Lights out on our side. If you can hear this, you are doing better than most.',
+    'Wind is carrying the smell of them our way. That means they are between us. Stay sharp.',
+    'Somebody out there is still shooting besides you, nine. Good. Let them hear you too.',
+    'Do not chase them into the dark. Let them come to your guns.',
+    'Doc says nobody sleeps tonight. I say nobody was going to. Hold on, nine.',
+    'They get bolder past midnight. Keep a wall at your back.',
   ],
   boss: 'Something big is moving through your district. Do not let it pin you.',
+  // the way you came here (routes.js): what it gave you is yours already; this is the word on what followed you in
+  via: {
+    road: 'You kept to the main road. Smart. You are ahead of them tonight, nine. Use the head start.',
+    pharmacy:
+      'You are patched up, but the sick ones followed you out of that pharmacy. Watch for the bloated ones, and do not breathe the spores.',
+    gunshop: 'That shooting at the gun shop carried, nine. A dog pack is on your trail, and runners behind it.',
+    hideout: 'The crowd from round that farmhouse is still walking. They will reach you about the middle of the night.',
+    checkpoint: 'The checkpoint could not hold its own dead. They followed you: big ones, and police in armor.',
+    wrecks: 'Not everything in that pile-up was lying still. Look under the cars tonight, nine.',
+    bridge: 'You came in along the tracks, and you did not come alone. They are right behind you. Backs together.',
+    tanker: 'Everyone for miles saw that tanker burn. The moon is red tonight, and more of them are coming.',
+    bus: 'About that coach in the ditch. Somebody in it may still be breathing. Get to them before the dead do.',
+    river: 'Fog came up the river behind you. You will not see far tonight. Listen for them.',
+  },
   get last() {
     return atSign()
       ? 'Last night, nine. Hawk has your painted sign marked on his map. Make it to sunrise and the bird comes for you.'
@@ -55,7 +75,7 @@ export const RADIO = {
     scouts: 'All three. For the scouts. Thank you.',
     gen: 'Lights held all night. Nice work, nine.',
     rescue: 'Good. They are with you now. Look after each other.',
-    siege: 'Good. They are with you now. Look after each other.',
+    siege: 'That house stood because you stood in the door. Bring them with you, nine.',
     fuel: 'Fuel is ours. The trucks thank you.',
     meds: 'Every case accounted for. Doc says thank you, nine.',
     hunt: 'All three tags are off our board. Good hunting.',

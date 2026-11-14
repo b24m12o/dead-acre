@@ -5,7 +5,7 @@
 // browser storage in memory only, so nothing is saved and no profile is touched.
 // Any night, kind of night, character and district straight away; every gun, invulnerable, a trap kit; K clears the
 // night; and a sound board with every gun's shot and reload.
-/* global document, setInterval, clearInterval, setTimeout, addEventListener */
+/* global document, setInterval, clearInterval, setTimeout, addEventListener, atob */
 import '../../src/index.js';
 import { GS } from '../../src/core/gs.js';
 import { pick } from '../../src/core/util.js';
@@ -24,7 +24,8 @@ import { freeSpot } from '../../src/actors/backups.js';
 import { makeEnemy } from '../../src/actors/enemies.js';
 import { blockPt } from '../../src/world/nav.js';
 import { RSTEP, sfx } from '../../src/audio/sfx.js';
-import { initAudio, playS } from '../../src/audio/audio.js';
+import { AC, initAudio, playS } from '../../src/audio/audio.js';
+import { HERO_LINES } from '../../src/audio/hero-lines.js';
 import { soundWait } from '../../src/ui/loading.js';
 import { FAR_OFF } from '../../src/audio/ambience.js';
 import { STOPS } from '../../src/game/route.js';
@@ -99,6 +100,8 @@ function boot() {
     <div class="perks" id="trBoard"></div>
     <div class="sec">Listen: the special infected, and the crowd</div>
     <div class="perks" id="trListen"></div>
+    <div class="sec">Listen: your own voice, each of the three, every line of each kind</div>
+    <div class="perks" id="trHero"></div>
     <div class="sec">Listen: the band on each ground and each kind of night, each place, and far off</div>
     <div class="perks" id="trBand"></div>
 
@@ -174,6 +177,37 @@ function boot() {
       for (let i = 0; i < 3; i++) setTimeout(() => sfx[b.dataset.tell](), i * 2200);
     }; // three times, two seconds apart: long enough to tell each apart with your eyes shut
   for (const b of q('trListen').querySelectorAll('[data-crowd]')) b.onclick = () => crowd(+b.dataset.crowd);
+  // each hero's lines, said one after another straight from the voice bundle (no rules, no cooldowns: this is for the ear)
+  q('trHero').innerHTML = Object.keys(HERO_LINES)
+    .map(
+      h =>
+        `<div class="perk"><span class="nm">${HEROES[h].name}</span><span class="seg">${Object.keys(HERO_LINES[h])
+          .map(k => `<button type="button" data-hv="${h}" data-kind="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`)
+          .join('')}</span></div>`
+    )
+    .join('');
+  for (const b of q('trHero').querySelectorAll('[data-hv]'))
+    b.onclick = async () => {
+      initAudio();
+      let t = AC.currentTime + 0.05;
+      for (const text of HERO_LINES[b.dataset.hv][b.dataset.kind]) {
+        const v = GS.VOX.find(r => r[4] === 'P' + b.dataset.hv && r[1] === text);
+        if (!v) continue;
+        const bytes =
+          typeof v[3] === 'string' ? Uint8Array.from(atob(v[3]), c => c.charCodeAt(0)).buffer : v[3].slice(0);
+        const buf = await AC.decodeAudioData(bytes).catch(() => null);
+        if (!buf) continue;
+        const src = AC.createBufferSource(),
+          g = AC.createGain();
+        src.buffer = buf;
+        g.gain.value = 0.5;
+        src.connect(g);
+        g.connect(AC.destination);
+        t = Math.max(t, AC.currentTime + 0.05);
+        src.start(t);
+        t += buf.duration + 0.5;
+      }
+    };
   const NIGHTS = [
       ['', 'Plain'],
       ['fog', 'Fog'],

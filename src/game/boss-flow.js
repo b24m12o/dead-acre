@@ -25,7 +25,7 @@ import { radio, tip } from '../audio/radio.js';
 import { PRACTICE_SET } from './practice.js';
 import { nightCleared } from './night-flow.js';
 import { startEvac } from './evac.js';
-import { bark, nearestUp } from '../audio/barks.js';
+import { bark, heroSay, nearestUp } from '../audio/barks.js';
 import { BOSS_J } from './route.js';
 import { endHorde } from './horde.js';
 GS.FOGB = 0;
@@ -265,6 +265,7 @@ function bossArrive(x, y, walk) {
   shake(0.3);
   {
     const b = nearestUp(x, y);
+    if (!b || Math.random() < 0.5) heroSay('boss', 1.2); // you, or one of your people: whoever speaks first, the other holds their tongue
     if (b) bark(b, 'boss', 1.4);
   }
   if (!GS.enemies.some(o => o !== e && o.type === 'queen' && !o.dead)) {

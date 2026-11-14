@@ -6,6 +6,7 @@ import { GS } from '../core/gs.js';
 import { pick, rand } from '../core/util.js';
 import { AC, BUD_F, spat } from './audio.js';
 import { BARK_LINES, BARK_VOICES } from './bark-lines.js';
+import { HERO_LINES, HERO_RULE } from './hero-lines.js';
 
 // per line kind: [seconds before the same survivor says it again, seconds before anyone does, chance it is said,
 // priority]. Priority 2 talks over a recent line. Nobody talks while Channel 9 is on the air: a line due then is
@@ -101,6 +102,58 @@ export function bark(s, kind, delay = 0) {
     src.buffer = b;
     src.playbackRate.value = rand(0.98, 1.03);
     g.gain.value = 0.26; // about the level of the old recorded call-outs, a touch more present
+    src.connect(g);
+    g.connect(out);
+    src.start(AC.currentTime + delay);
+    talking.push({ src, g });
+    src.onended = () => {
+      const i = talking.findIndex(q => q.src === src);
+      if (i >= 0) talking.splice(i, 1);
+    };
+  });
+  return true;
+}
+// You talk too (hero-lines.js): a few words now and then, in your own voice, never over Channel 9 or over one of
+// your people. The words show over your head for a moment, as theirs do. Returns true if it was said
+let heroAt = -99;
+export function heroSay(kind, delay = 0) {
+  const P = GS.P,
+    id = GS.RUN && GS.RUN.hero,
+    L = HERO_LINES[id] && HERO_LINES[id][kind],
+    R = HERO_RULE[kind];
+  if (!P || !L || !R || GS.state !== 'play' || !(P.hp > 0) || P.ride || GS.RUN.practice) return false;
+  const code = 'P' + id;
+  if (!have[code]) {
+    if (!GS.VOX.some(r => r[4] === code)) return false; // the voice bundle hasn't arrived (or can't)
+    have[code] = true;
+  }
+  const t = GS.time,
+    [own, ch, pri] = R;
+  P.hk = P.hk || {};
+  if (t - (P.hk[kind] ?? -99) < own || onAir()) return false;
+  if (pri < 2 && (t < lastEnd + 0.5 || t - heroAt < 6)) return false;
+  if (Math.random() > ch) {
+    P.hk[kind] = t - own * 0.5; // not this time: and not again straight away
+    return false;
+  }
+  const last = P.hk[kind + '#'],
+    text = pick(L.length > 1 ? L.filter(x => x !== last) : L),
+    c = clip(code, text);
+  if (!c) return false;
+  P.hk[kind] = heroAt = t;
+  P.hk[kind + '#'] = text;
+  lastEnd = t + delay + c.dur;
+  P.say = { txt: text, t: GS.time + delay, end: GS.time + delay + c.dur + 1.1 };
+  if (GS.RUN.metrics) GS.RUN.metrics.heroLines = (GS.RUN.metrics.heroLines || 0) + 1;
+  c.p.then(b => {
+    if (!b || !AC || GS.state === 'menu' || onAir()) return;
+    const src = AC.createBufferSource(),
+      g = AC.createGain(),
+      out = spat(P.x, P.y);
+    if (!out) return;
+    src.buffer = b;
+    src.playbackRate.value = rand(0.99, 1.02);
+    g.gain.value = 0.3; // you are nearer your own mouth than anyone else's
     src.connect(g);
     g.connect(out);
     src.start(AC.currentTime + delay);

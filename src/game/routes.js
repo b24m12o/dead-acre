@@ -3,6 +3,7 @@
 // where the road puts them; the way you take decides what you pick up on it and what follows you in. Each way
 // gives something when you get there and asks for it back on your first night at the new place: the dead you
 // stirred up on it come after you (more of them), or, the main road, fewer, since you got there ahead of them.
+import { RADIO, radio } from '../audio/radio.js';
 import { GS } from '../core/gs.js';
 import { TAU, pick, rand } from '../core/util.js';
 import { LV, S, ammoMax } from './state.js';
@@ -279,6 +280,16 @@ export const viaTag = w => {
   return t && !(GS.RUN.nextSig && GS.RUN.nextSig.w === w && SIGN[GS.RUN.nextSig.s] === v.ev) ? ' · ' + t : '';
 };
 const SIGN = { pack: 'pack', brute: 'brute', fog: 'fog', blood: 'blood' };
+// Channel 9 on the way you came, a few seconds after you arrive: the warning about what followed you in
+export function viaRadio() {
+  const v = GS.RUN.viaN,
+    at = stopNow();
+  if (!v || v.w !== GS.wave + 1 || !RADIO.via[v.id] || GS.RUN.practice) return;
+  GS.later.push({
+    t: 9,
+    fn: () => GS.state === 'play' && stopNow() === at && GS.wave + 1 === v.w && radio(RADIO.via[v.id]),
+  });
+}
 export const viaNight = w => (GS.RUN && GS.RUN.viaN && GS.RUN.viaN.w === w ? GS.RUN.viaN : null);
 // the bridge's ambush: as night falls they come up out of the ground round you, taken from the night's own dead
 export function viaAmbush() {
