@@ -156,6 +156,7 @@ function boot() {
       ['scrabble', 'Climber'],
       ['wheeze', 'Spore'],
       ['scrape', 'Dragger'],
+      ['rattle', 'Listener'],
     ]
       .map(
         ([id, nm]) =>
