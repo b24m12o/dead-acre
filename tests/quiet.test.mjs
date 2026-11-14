@@ -20,10 +20,13 @@ export async function run(b) {
     const shove = a => { P.shoveCd = 0; P.aimA = a; return tryShove(); };
     // open ground: nothing in the way for a long way round
     let spot = null;
-    for (let t = 0; t < 6000 && !spot; t++) {
+    const LOOK = [[150, -40], [150, 40], [260, 0], [60, 170], [330, 0], [120, 0], [200, 0], [70, 0], [-66, 0]]; // every place the test stands something
+    for (let t = 0; t < 30000 && !spot; t++) {
       const x = 500 + Math.random() * (WW - 1000), y = 500 + Math.random() * (WH - 1000);
       let ok = true;
-      for (let dx = -360; dx <= 360 && ok; dx += 40) for (let dy = -200; dy <= 200 && ok; dy += 40) if (blockPt(x + dx, y + dy)) ok = false;
+      for (let dx = -80; dx <= 360 && ok; dx += 20) for (let dy = -60; dy <= 200 && ok; dy += 20) if (blockPt(x + dx, y + dy)) ok = false;
+      for (const [dx, dy] of LOOK) if (ok && !los(x, y, x + dx, y + dy)) ok = false; // and nothing thin in the way of a look
+      if (ok && !los(x + 260, y, x + 60, y + 170)) ok = false;
       if (ok) spot = [x, y];
     }
     if (!spot) return { err: 'no open ground' };
@@ -36,10 +39,12 @@ export async function run(b) {
     const h1 = still(toward), h2 = still(away);
     fr(60, () => { h1(); h2(); });
     out.seenFront = toward.aw > 0; out.seenBack = away.aw > 0;
+    out.dbg1 = { state: GS.state, los: toward.los, aw: toward.aw, d: Math.hypot(toward.x - P.x, toward.y - P.y), em: toward.emerge, sr: seenFrom(), lure: !!toward.lure, n: GS.enemies.length, q: GS.queue.length, time: GS.time, hp: P.hp, ride: !!P.ride, unaw: toward.unaw };
     // ...until you are right at its back
     away.x = P.x + 50; away.y = P.y; const h3 = still(away);
     fr(30, h3);
     out.seenClose = away.aw > 0;
+    out.dbg = { los: away.los, aw: away.aw, d: Math.hypot(away.x - P.x, away.y - P.y), a: away.a, down: away.down, dead: away.dead, em: away.emerge, sr: seenFrom(), lure: !!away.lure, kind: away.kind, st: away.st };
     clear(); home();
     // 2. a quiet kill: behind one that hasn't noticed, one shove, and no noise goes out
     const v = mk(70, 0, 0), hv = still(v);
@@ -106,9 +111,9 @@ export async function run(b) {
   check(!o.err, o.err);
   check(
     o.seenFront && !o.seenBack,
-    `the one facing you should see you and the one facing away should not: ${o.seenFront} / ${o.seenBack}`
+    `the one facing you should see you and the one facing away should not: ${o.seenFront} / ${o.seenBack} ${JSON.stringify(o.dbg1)}`
   );
-  check(o.seenClose, 'right at its back, it should notice you');
+  check(o.seenClose, 'right at its back, it should notice you: ' + JSON.stringify(o.dbg));
   check(
     o.unaw && o.shove1 === 1 && o.killed,
     `a shove should finish one that has not noticed you: unaware ${o.unaw}, caught ${o.shove1}, dead ${o.killed}`

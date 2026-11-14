@@ -12,6 +12,7 @@ import { pilesTick } from './piles.js';
 import { remainsTick } from '../render/remains.js';
 import { AC, MUS, ambG, musLP, playS, thr } from '../audio/audio.js';
 import { tickCrowd } from '../audio/crowd.js';
+import { tickAmbience } from '../audio/ambience.js';
 import { S, cam } from '../game/state.js';
 import { showStreak } from '../ui/callouts.js';
 import { HUMAN, decal, part, ring, shake } from '../render/effects.js';
@@ -28,6 +29,7 @@ import { updateWeather } from './weather.js';
 export function tickWorld(dt) {
   sightTick(dt);
   tickCrowd(dt); // the moan of the many (crowd.js)
+  tickAmbience(dt); // each place's own sound, and things happening far off (ambience.js)
   updateJets(dt);
   updateAsh(dt);
   updateFire(dt);
@@ -294,6 +296,8 @@ export function tickWorld(dt) {
       ambG.gain.setTargetAtTime(on ? 0.025 : 0, AC.currentTime, on ? 1.2 : 0.15);
     }
   } // the wind fades in once you are out there, and is gone the moment you are back at the menu
+  MUS.dist = GS.RUN ? GS.RUN.district : null; // the ground you are on picks the fight song
+  MUS.sig = GS.RUN && GS.nightLive ? GS.RUN.sig : null; // and tonight's signature, how it is played
   MUS.want =
     GS.state === 'menu'
       ? 'none'

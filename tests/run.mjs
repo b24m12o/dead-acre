@@ -23,6 +23,7 @@ const ALL = [
   'world',
   'remains',
   'quiet',
+  'music',
   'summary',
   'campaign',
   'variants',

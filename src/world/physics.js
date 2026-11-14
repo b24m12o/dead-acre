@@ -44,7 +44,7 @@ export function ragKick(e, ux, uy, imp, pop) {
     }
 }
 export const KNOCK = {
-  v: 240, // a body moving faster than this (px/s) knocks down what it hits: a shotgun, a heavy rifle, a blast
+  v: 200, // a body moving faster than this (px/s) knocks down what it hits: buckshot up close, a heavy rifle, a blast
   reach: 30,
   max: 2, // how many one body can bowl over
   time: 1.1, // only in the moment after the kill
@@ -110,7 +110,7 @@ function corpsePhys(e, dt) {
     HUMAN[e.type] &&
     (e.bowl || 0) < KNOCK.max &&
     e.dying < KNOCK.time &&
-    e.z < 16 &&
+    e.z < 30 &&
     e.rvx * e.rvx + e.rvy * e.rvy > KNOCK.v * KNOCK.v
   )
     query(e.x, e.y, KNOCK.reach, o => {

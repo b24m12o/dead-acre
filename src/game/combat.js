@@ -824,8 +824,10 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       const ul = Math.hypot(dx, dy) || 1,
         ux = dx / ul,
         uy = dy / ul,
+        buck =
+          src === 'bolt' && GS.HITB && GS.HITB.gun === 'shotgun' && GS.P && d2(e.x, e.y, GS.P.x, GS.P.y) < 160 * 160, // buckshot up close throws the body, whichever pellet was the last
         imp =
-          (src === 'boom' ? 440 : 100 + Math.min(300, dmg * 3.2)) *
+          (src === 'boom' ? 440 : buck ? 360 : 100 + Math.min(300, dmg * 3.2)) *
           rand(0.8, 1.2) *
           (e.type === 'beetle' ? 0.35 : big ? 0 : 1) *
           (fallK ? 0.25 : 1),

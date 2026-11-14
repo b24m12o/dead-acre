@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { resetAmbience } from '../audio/ambience.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, rand } from '../core/util.js';
@@ -113,6 +114,7 @@ export function newRun(forMenu = false) {
   resetTraps();
   resetBoards();
   resetSpecials();
+  resetAmbience();
   GS.whiteFlash = 0;
   GS.enemies = [];
   GS.corpses = [];

@@ -26,6 +26,8 @@ import { blockPt } from '../../src/world/nav.js';
 import { RSTEP, sfx } from '../../src/audio/sfx.js';
 import { initAudio, playS } from '../../src/audio/audio.js';
 import { soundWait } from '../../src/ui/loading.js';
+import { FAR_OFF } from '../../src/audio/ambience.js';
+import { STOPS } from '../../src/game/route.js';
 
 function boot() {
   const TYPES = [
@@ -97,6 +99,8 @@ function boot() {
     <div class="perks" id="trBoard"></div>
     <div class="sec">Listen: the special infected, and the crowd</div>
     <div class="perks" id="trListen"></div>
+    <div class="sec">Listen: the band on each ground and each kind of night, each place, and far off</div>
+    <div class="perks" id="trBand"></div>
 
     <div class="btns"><button class="btn" id="trStart" type="button">Start</button
       ><button class="btn ghost" id="trBack" type="button">Back</button></div></div>`;
@@ -170,6 +174,70 @@ function boot() {
       for (let i = 0; i < 3; i++) setTimeout(() => sfx[b.dataset.tell](), i * 2200);
     }; // three times, two seconds apart: long enough to tell each apart with your eyes shut
   for (const b of q('trListen').querySelectorAll('[data-crowd]')) b.onclick = () => crowd(+b.dataset.crowd);
+  const NIGHTS = [
+      ['', 'Plain'],
+      ['fog', 'Fog'],
+      ['blackout', 'Blackout'],
+      ['blood', 'Blood moon'],
+      ['siege', 'Siege'],
+    ],
+    bandRow = (nm, btns) => `<div class="perk"><span class="nm">${nm}</span><span class="seg">${btns}</span></div>`;
+  q('trBand').innerHTML =
+    [
+      ['town', 'Town song'],
+      ['highway', 'Highway song'],
+      ['cemetery', 'Cemetery song'],
+    ]
+      .map(([d, nm]) =>
+        bandRow(
+          nm,
+          NIGHTS.map(([s, sn]) => `<button type="button" data-band="${d}" data-sig="${s}">${sn}</button>`).join('')
+        )
+      )
+      .join('') +
+    bandRow(
+      'Place',
+      [
+        ['bridge', 'River'],
+        ['quarry', 'Quarry wind'],
+        ['motel', 'Neon'],
+        ['hospital', 'Mains hum'],
+      ]
+        .map(([id, nm]) => `<button type="button" data-bed="${id}">${nm}</button>`)
+        .join('')
+    ) +
+    bandRow(
+      'Far off',
+      Object.keys(FAR_OFF)
+        .map(k => `<button type="button" data-far="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`)
+        .join('')
+    );
+  for (const b of q('trBand').querySelectorAll('[data-band]'))
+    b.onclick = () => {
+      crowd(60);
+      if (!GS.RUN) return;
+      GS.RUN.district = b.dataset.band; // the ground picks the song (the street you see stays the town's)
+      GS.RUN.sig = b.dataset.sig || null; // and the night, how it is played
+      showStreak(b.textContent + ' · ' + b.dataset.band, 'Invulnerable · the band plays while the dead are near', true);
+    };
+  // an empty street at that place: only its own sound under the wind
+  for (const b of q('trBand').querySelectorAll('[data-bed]'))
+    b.onclick = () => {
+      crowd(0);
+      if (!GS.RUN) return;
+      GS.nightLive = false;
+      GS.RUN.journey = true; // a place on the road: only the campaign has them
+      GS.wave = STOPS[STOPS.findIndex(s => s.id === b.dataset.bed)].to;
+      showStreak(b.textContent, 'An empty street · listen under the wind', true);
+    };
+  for (const b of q('trBand').querySelectorAll('[data-far]'))
+    b.onclick = () => {
+      if (!GS.P || GS.state !== 'play') crowd(0);
+      if (!GS.RUN) return;
+      GS.nightLive = false;
+      ov.hidden = true;
+      FAR_OFF[b.dataset.far]();
+    };
   // a night with only a crowd of n in it, round you at 300 to 850 px and coming in; you can't be hurt
   function crowd(n) {
     if (soundWait()) return;

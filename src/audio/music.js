@@ -8,7 +8,23 @@ import { syncOpts } from '../ui/settings-ui.js';
 export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const TEMPO = { none: 70, menu: 70, calm: 84, fight: 160, boss: 172 };
 const BOSS_TEMPO = { abom: 1, roadkill: 1.1, grave: 0.74, chief: 0.94, pz: 0.88 }; // each boss gets its own take on the boss theme: Roadkill gallops, the Gravekeeper drags
+// each kind of ground has its own fight song (below) at its own pace, and a night with a signature plays it its own way
+const DIST_TEMPO = { highway: 1.05, cemetery: 0.88 };
+export const NIGHT_ARR = {
+  fog: {
+    tempo: 0.92,
+    drums: { rock: 'half', drive: 'half', std: 'half', open: 'half', gallop: 'std', thrash: 'std' },
+    lead: 'bells', // the band held back, bells where the guitars would sing
+    gtr: 0.8,
+  },
+  blackout: { tempo: 0.94, all: 'heart', lead: null, gtr: 0.85 }, // a heartbeat under the riff, nobody out front
+  blood: { tempo: 1.06, key: 1, drums: { rock: 'drive', std: 'gallop', half: 'std' }, lead: 'solo', always: true }, // faster, a step up, a solo every time round
+  siege: { tempo: 0.96, drums: { rock: 'march', std: 'march', drive: 'march' } }, // a march while they beat on the boards
+  horde: { tempo: 1.03 },
+};
+const arrOf = L => (L === 'fight' && !MUS.ride && MUS.sig && NIGHT_ARR[MUS.sig]) || null;
 function tempoOf(L) {
+  if (L === 'fight') return TEMPO.fight * ((!MUS.ride && DIST_TEMPO[MUS.dist]) || 1) * ((arrOf(L) || {}).tempo || 1);
   if (L !== 'boss') return TEMPO[L];
   return TEMPO.boss * (BOSS_TEMPO[MUS.bt] || 1) * (1 + 0.04 * (MUS.bph || 0));
 }
@@ -820,7 +836,7 @@ function mPluck(m, t, vol) {
   o.stop(t + 1.5);
 }
 function nextSection(L) {
-  const P = L === 'fight' && MUS.ride ? 'ride' : L,
+  const P = L === 'fight' && MUS.ride ? 'ride' : L === 'fight' && SONGS['fight_' + MUS.dist] ? 'fight_' + MUS.dist : L,
     song = (L === 'boss' && SONGS['boss_' + MUS.bt]) || SONGS[P];
   if (!song) {
     MUS.sec = null;
@@ -838,7 +854,22 @@ function nextSection(L) {
   if (!rep && lead && lead !== 'bells' && lead !== 'arp' && L !== 'boss') lead = null;
   if (rep && !lead && L === 'fight' && Math.random() < 0.4) lead = Math.random() < 0.6 ? 'rock' : 'solo';
   key += [0, 2, -2, 3][cyc % 4];
-  MUS.sec = { L, riff: RIFFS[riff], drums, key, first: k === 0, rock: riff[0] === 'r' };
+  const A = arrOf(L);
+  if (A) {
+    if (drums !== 'none' && drums !== 'stop') drums = A.all || (A.drums && A.drums[drums]) || drums;
+    if (A.key) key += A.key;
+    if (A.lead === null) lead = null;
+    else if (A.lead && (lead || (rep && A.always))) lead = A.lead;
+  } // tonight's own way of playing it (NIGHT_ARR)
+  MUS.sec = {
+    L,
+    riff: RIFFS[riff],
+    drums,
+    key,
+    first: k === 0,
+    rock: riff[0] === 'r' || riff[0] === 'h',
+    gtr: (A && A.gtr) || 1,
+  };
   MUS.lead = lead ? makeLead(lead) : null;
   MUS.leadKind = lead;
 }
@@ -900,7 +931,7 @@ function playStep(st, t) {
       t,
       palm ? spb * 0.85 : spb * n * 0.97,
       palm,
-      L === 'calm' ? 0.75 : S2.rock ? 1.15 : 1,
+      (L === 'calm' ? 0.75 : S2.rock ? 1.15 : 1) * (S2.gtr || 1),
       S2.rock && !palm && D !== 'stop' ? spb * 1.7 : 0
     ); // in hard rock the bass takes the chord as eighths (below) instead of holding it
     if (L === 'fight' && !sparse && (MUS.heat || 0) > (S2.rock ? (D === 'drive' ? 0.35 : 0.55) : 0.7))
@@ -1114,6 +1145,38 @@ export function init() {
     r_run: RF(
       `p0 p0 p0 p0 o3 . p0 p0 o5 . p0 p0 o6 . o5 .  p0 p0 p0 p0 o3 . p0 p0 o5 . p0 p0 o3 . o0 .  p0 p0 p0 p0 o3 . p0 p0 o5 . p0 p0 o6 . o5 .  o10 . o10 . o7 . o7 . o5 . o5 . o3 . o2 .`
     ),
+    // the highway: road rock, eighths on the low string and big open chords
+    h_cruise: RF(
+      `p0 . p0 . o0 . p0 . p0 . p0 . o3 . o5 .  p0 . p0 . o0 . p0 . p0 . p0 . o10 . o7 .  p0 . p0 . o0 . p0 . p0 . p0 . o3 . o5 .  o5 . . . o5 . o3 . o3 . . . o0 . o2 .`
+    ),
+    h_gallop: RF(
+      `p0 . p0 p0 p0 . p0 p0 o5 . p0 p0 o3 . p0 p0  p0 . p0 p0 p0 . p0 p0 o7 . p0 p0 o5 . o3 .  p0 . p0 p0 p0 . p0 p0 o5 . p0 p0 o3 . p0 p0  o10 . . . o7 . . . o5 . o5 . o3 . o5 .`
+    ),
+    h_open: RF(
+      `o0 . . . . . o0 . . . o0 . . . . .  o8 . . . . . o8 . . . o8 . . . . .  o10 . . . . . o10 . . . o10 . . . . .  o5 . . . . . o5 . o7 . . . o7 . o10 .`
+    ),
+    h_break: RF(
+      `o0 . . . . . . . o0 . o0 . . . . .  o3 . . . . . . . o5 . o5 . . . . .  o0 . . . . . . . o0 . o0 . . . . .  o7 . o7 . . . o5 . o5 . . . o3 . o2 .`
+    ),
+    h_run: RF(
+      `p0 p0 o7 . p0 p0 o5 . p0 p0 o3 . p0 p0 o5 .  p0 p0 o7 . p0 p0 o10 . p0 p0 o7 . p0 p0 o5 .  p0 p0 o7 . p0 p0 o5 . p0 p0 o3 . p0 p0 o5 .  o12 . o10 . o7 . o5 . o3 . o5 . o7 . . .`
+    ),
+    // the cemetery: slow and heavy, the flat second in it, bells over the top
+    g_toll: RF(
+      `o0 . . . . . . . o0 . . . . . o1 .  o0 . . . . . . . o8 . . . . . o7 .  o0 . . . . . . . o0 . . . . . o1 .  o5 . . . . . . . o3 . . . o1 . . .`
+    ),
+    g_creep: RF(
+      `p0 . p0 . p1 . p0 . p0 . p0 . p3 . p1 .  p0 . p0 . p1 . p0 . p0 . p0 . o8 . o7 .  p0 . p0 . p1 . p0 . p0 . p0 . p3 . p1 .  o5 . . . o3 . . . o1 . . . o0 . . .`
+    ),
+    g_rise: RF(
+      `o0 . . . o0 . . . o3 . . . o3 . . .  o5 . . . o5 . . . o7 . . . o7 . . .  o8 . . . o8 . . . o7 . . . o7 . . .  o5 . . . o3 . . . o1 . . . o0 . . .`
+    ),
+    g_march: RF(
+      `o0 . . o0 o0 . . . o0 . . o0 o0 . . .  o1 . . o1 o1 . . . o0 . . . . . . .  o0 . . o0 o0 . . . o0 . . o0 o0 . . .  o8 . . . o7 . . . o5 . . . o7 . . .`
+    ),
+    g_rage: RF(
+      `p0 p0 p0 . p0 p0 p0 . o1 . p0 p0 o3 . p0 p0  p0 p0 p0 . p0 p0 p0 . o8 . p0 p0 o7 . p0 p0  p0 p0 p0 . p0 p0 p0 . o1 . p0 p0 o3 . p0 p0  o5 . o5 . o3 . o3 . o1 . o1 . o0 . . .`
+    ),
     // boss
     b_main: RF(
       `p0 p0 p0 p0 p1 p1 p1 p1 p0 p0 p0 p0 p4 p4 p3 p3  p0 p0 p0 p0 p1 p1 p1 p1 p0 p0 p0 p0 p6 p6 p5 p5  o0 . . . o1 . . . o6 . . . o5 . . .  o0 . . . o1 . . . o3 . o4 . o6 . o7 .`
@@ -1163,6 +1226,36 @@ export function init() {
       ['f_solo', 'std', 0, 'rock'],
       ['r_stomp', 'drive', 0, 'hook'],
       ['r_drive', 'rock', -2, 'rock'],
+    ],
+    fight_highway: [
+      ['h_cruise', 'rock', 0],
+      ['h_cruise', 'drive', 0, 'rock'],
+      ['h_gallop', 'gallop', 0, 'hook'],
+      ['h_open', 'open', 0, 'hook'],
+      ['h_break', 'stop', 0],
+      ['h_run', 'drive', 0, 'rock'],
+      ['h_gallop', 'gallop', 5, 'hook'],
+      ['f_thrash', 'thrash', 0],
+      ['h_open', 'open', 5, 'solo'],
+      ['h_break', 'stop', 5],
+      ['h_run', 'drive', 5, 'rock'],
+      ['f_break', 'half', 0, 'build'],
+      ['h_cruise', 'drive', -2, 'solo'],
+      ['h_open', 'open', 0, 'hook'],
+    ],
+    fight_cemetery: [
+      ['g_toll', 'doom', 0, 'bells'],
+      ['g_creep', 'half', 0],
+      ['g_march', 'march', 0, 'hook'],
+      ['g_rise', 'open', 0, 'hook'],
+      ['g_creep', 'std', 0, 'build'],
+      ['g_rage', 'gallop', 0],
+      ['g_rise', 'open', 5, 'solo'],
+      ['g_toll', 'doom', -2, 'bells'],
+      ['g_rage', 'thrash', 0, 'solo'],
+      ['g_march', 'march', 0, 'hook'],
+      ['f_break', 'half', 0, 'build'],
+      ['g_rise', 'drive', 0, 'hook'],
     ],
     ride: [
       ['r_stomp', 'drive', 0, 'hook'],
@@ -1222,6 +1315,7 @@ export function init() {
     ],
   };
   MUS.pos = { fight: 0, boss: 0, calm: 0, ride: 0 };
+  GS.musDbg = { RIFFS, SONGS }; // for the tests
   MUS.sec = null;
   MUS.lead = null;
   SCALE = [0, 2, 3, 5, 7, 8, 10];

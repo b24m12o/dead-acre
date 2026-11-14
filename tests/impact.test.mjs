@@ -32,9 +32,15 @@ export async function run(b) {
     for (let i = 0; i < 60 * 8; i++) tickWorld(1 / 60);
     out.goneLater = !GS.corpses.includes(e);
     // a heavy round throws the body into the ones behind it: they go down too. A pistol's doesn't
+    for (let t = 0; t < 30000; t++) {
+      const x = 400 + Math.random() * (WW - 800), y = 400 + Math.random() * (WH - 800);
+      let ok = true;
+      for (let dx = -40; dx <= 260 && ok; dx += 20) for (let dy = -60; dy <= 60 && ok; dy += 20) if (blockPt(x + dx, y + dy)) ok = false;
+      if (ok) { GS.P.x = x; GS.P.y = y; break; }
+    } // clear ground for the row to stand on and the body to fly across
     const row = (gun, dmg) => {
       for (const o of GS.enemies) o.dead = true; GS.enemies.length = 0; GS.corpses = []; GS.time += 5;
-      const v = makeEnemy('skitter', P.x + 120, P.y); v.emerge = 1; v.hp = 1; v.maxHp = 400;
+      const v = makeEnemy('skitter', P.x + 120, P.y); v.emerge = 1; v.hp = 1; v.maxHp = 200; v.vx = v.vy = 0; v.crawl = v.half = false;
       const behind = [-14, 0, 14].map(dy => { const o = makeEnemy('skitter', P.x + 150, P.y + dy); o.emerge = 1; o.hp = o.maxHp = 400; o.run = false; return o; });
       GS.HITB = { gun };
       try { killEnemy(v, dmg, 'bolt', 1, 0, false); } finally { GS.HITB = null; }
