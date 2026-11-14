@@ -13,7 +13,6 @@ import { los } from '../world/nav.js';
 import { WHEEL, cam, cycleGun, startReload, wheelCentre, wheelRelease } from '../game/state.js';
 import { doReroll, openLevel, pickLater } from '../game/upgrades.js';
 import { tryDash, tryShove, useAbility } from '../game/abilities.js';
-import { openSupply } from '../game/supply.js';
 import { setPause } from '../ui/screens.js';
 import { cycleTrap, trapDown } from '../game/traps.js';
 import { updateHint } from '../ui/settings-ui.js';
@@ -239,7 +238,6 @@ function fight(g, dn, up, dt) {
   if (dn(B.LT)) trapDown();
   if (dn(B.RIGHT) || dn(B.LEFT)) cycleTrap();
   if (dn(B.UP)) openLevel();
-  if (dn(B.DOWN)) openSupply();
   if (dn(B.BACK)) key('Enter', 'Enter'); // start the night now, call the horde, skip the lesson
 }
 

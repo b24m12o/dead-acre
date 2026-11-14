@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { roofStop } from '../world/roofs.js';
 import { heroSay } from '../audio/barks.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, rand } from '../core/util.js';
@@ -84,10 +85,15 @@ export const abOwned = h => !!(GS.meta.abOwn && GS.meta.abOwn[h]);
 export const abPickB = h => abOwned(h) && !!(GS.meta.abSel && GS.meta.abSel[h] === 'b');
 export const AB = () => (GS.RUN.abB ? AB_B[GS.RUN.hero] : AB_DEF[GS.RUN.hero]) || AB_DEF[GS.RUN.hero] || AB_DEF.ranger,
   abCd = () => AB().cd * S.abCd;
+// under a roof a throw only leaves by a doorway (roofs.js): against the wall it drops there, and you are told why
+const underRoof = (tx, ty) => {
+  const st = roofStop(GS.P.x, GS.P.y, tx, ty);
+  if (st && thr('roofway', 1500)) floatText(GS.P.x, GS.P.y - 44, 'The roof is in the way', '#cfd6d9', 13);
+  return st || [tx, ty];
+};
 const lob = (a, dl, max, extra) => {
   const d = Math.min(dl, max),
-    tx = GS.P.x + Math.cos(a) * d,
-    ty = GS.P.y + Math.sin(a) * d;
+    [tx, ty] = underRoof(GS.P.x + Math.cos(a) * d, GS.P.y + Math.sin(a) * d);
   GS.bangs.push(
     Object.assign(
       {
@@ -136,8 +142,7 @@ export function useAbility() {
   }
   if (h === 'breacher') {
     const d = Math.min(dl, 420),
-      tx = GS.P.x + Math.cos(a) * d,
-      ty = GS.P.y + Math.sin(a) * d;
+      [tx, ty] = underRoof(GS.P.x + Math.cos(a) * d, GS.P.y + Math.sin(a) * d);
     GS.bangs.push({
       x0: GS.P.x,
       y0: GS.P.y,

@@ -10,6 +10,7 @@ import {
   bindable,
   codeName,
   PAD_HINT,
+  PAD_KEYS,
   keysIn,
   moveKeys,
   padOn,
@@ -42,7 +43,7 @@ export function updateHint() {
     const kl = $('keysLine');
     if (kl)
       kl.textContent = keysIn(
-        `${moveKeys()} move · Mouse aim · Hold click to fire · {roll}, Shift or right-click roll · {shove} shove · {ability} ability · 1–9 or mouse wheel swap guns · {wheel} last gun, hold {wheel} for the gun wheel · {reload} reload · {trap} traps, {trapNext} switch · Esc pause · M sound · N music`
+        `${moveKeys()} move · Mouse aim · Hold click to fire · {roll} or right-click roll · {shove} shove · {ability} ability · 1–9 or mouse wheel swap guns · {wheel} last gun, hold {wheel} for the gun wheel · {reload} reload · {trap} traps, {trapNext} switch · Esc pause · M sound · N music`
       );
   }
   keyCard($('keyCard'), false);
@@ -76,6 +77,7 @@ function keyCard(el, edit) {
     }`;
   }
   for (const [l, k] of FIXED_ROWS) h += `<span class="kl">${esc(l)}</span><kbd class="kc fixed">${esc(k)}</kbd>`;
+  h += `<span class="kpad">${esc(PAD_KEYS)}</span>`;
   el.innerHTML = h;
 }
 function keyNote(t, warn) {

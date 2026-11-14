@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { roofStop } from '../world/roofs.js';
 import { camKick } from '../render/camera.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp, rand, randi } from '../core/util.js';
@@ -83,6 +84,10 @@ export function firePlayer(cwx, cwy, p, target) {
       const dl = clamp(d0, G.muzzle + 30, 560 + G.muzzle);
       tx = p.x + (dx0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread * hb.spread;
       ty = p.y + (dy0 / d0) * dl + rand(-1, 1) * (dl - G.muzzle) * G.spread * hb.spread;
+      {
+        const st = roofStop(p.x, p.y, tx, ty);
+        if (st) [tx, ty] = st;
+      } // fired under a roof, or at one: it bursts against the wall (roofs.js)
       GS.pbullets.push({
         shell: true,
         gl: true,

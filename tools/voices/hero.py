@@ -1,7 +1,7 @@
 # Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE.
 # Records what you say (src/audio/hero-lines.js), each of the three in their own voice, with Kokoro TTS, and puts
 # the clips in the voice bundle next to Channel 9's and your backups': assets/vox.<hash>.bin, listed in
-# assets/pack.json with speaker codes Pranger, Pbreacher, Pgrenadier. Each voice is a blend of two of the model's
+# assets/pack.json with speaker codes Pranger, Pbreacher, Pgrenadier, and Pdriver for the driver in the garage. Each voice is a blend of two of the model's
 # voices (HERO_VOICES), so it is nobody else's. Clips from an earlier run are replaced; everything else in the bundle
 # is kept as it is. Run from the repo root:
 #   python3 tools/voices/hero.py
@@ -17,7 +17,7 @@ SR_OUT = 22050
 
 src = subprocess.check_output(
     ['node', '--input-type=module', '-e',
-     "import('./src/audio/hero-lines.js').then(m=>console.log(JSON.stringify({L:m.HERO_LINES,V:m.HERO_VOICES})))"],
+     "import('./src/audio/hero-lines.js').then(m=>console.log(JSON.stringify({L:m.HERO_LINES,V:m.HERO_VOICES,D:m.DRIVER})))"],
     cwd=ROOT).decode()
 cfg = json.loads(src)
 k = Kokoro(os.path.join(KOK, 'kokoro-v1.0.int8.onnx'), os.path.join(KOK, 'voices-v1.0.bin'))
@@ -64,6 +64,12 @@ for hero, V in cfg['V'].items():
         rows.append([code + hashlib.sha1(t.encode()).hexdigest()[:7], t, dur, len(blob), len(b), code])
         blob += b
         made += 1
+st = style(cfg['D']['voice']['mix'])  # the driver in the garage
+for t in sorted({t for ts in cfg['D']['lines'].values() for t in ts}):
+    b, dur = make(t, st, cfg['D']['voice']['speed'])
+    rows.append(['Pdriver' + hashlib.sha1(t.encode()).hexdigest()[:7], t, dur, len(blob), len(b), 'Pdriver'])
+    blob += b
+    made += 1
 h8 = lambda b: hashlib.sha256(b).hexdigest()[:8]
 fn = f'vox.{h8(bytes(blob))}.bin'
 if fn != pk['vox']['file']:

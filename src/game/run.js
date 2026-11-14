@@ -13,7 +13,6 @@ import { HUDF } from '../ui/hud.js';
 import { stopHeli } from './evac.js';
 import { resetGadgets } from './gadgets.js';
 import { endHorde } from './horde.js';
-import { resetBoards } from './boards.js';
 import { stationReset } from './station.js';
 import { resetTraps } from './traps.js';
 import { resetSpecials } from '../actors/specials.js';
@@ -113,7 +112,6 @@ export function newRun(forMenu = false) {
   resetGadgets();
   endHorde();
   resetTraps();
-  resetBoards();
   buildDoors(); // a door in each doorway of every house still standing (doors.js)
   resetSpecials();
   resetAmbience();

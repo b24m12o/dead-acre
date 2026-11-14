@@ -51,12 +51,12 @@ export async function run(b) {
     callTruck(); out.cans = GS.truck && GS.truck.cans.length; out.jerryAgain = jerrycan();
     drawRoad(div, stopNow() + 1, null); out.pipsAfter = div.querySelectorAll('.rpip').length;
     out.saidTanker = said.filter(x => /^From the tanker/.test(x)).length;
-    // the pile-up: two boards at the stop after next, once
+    // the pile-up: a land mine and a gas drum at the stop after next, once
     GS.RUN.viaLater = []; GS.RUN.stop = 2; GS.RUN.traps = {};
     applyVia('wrecks', ['wrecks', 'road']);
-    laterArrive(2); const b0 = GS.RUN.traps.board || 0;
-    laterArrive(3); const b1 = GS.RUN.traps.board || 0;
-    laterArrive(3); const b2 = GS.RUN.traps.board || 0;
+    laterArrive(2); const b0 = (GS.RUN.traps.mine || 0) + (GS.RUN.traps.drum || 0);
+    laterArrive(3); const b1 = (GS.RUN.traps.mine || 0) + (GS.RUN.traps.drum || 0);
+    laterArrive(3); const b2 = (GS.RUN.traps.mine || 0) + (GS.RUN.traps.drum || 0);
     out.wrecks = [b0, b1, b2].join();
     // the coach: a crate at the stop after next if they lived; nothing if they didn't
     const crates = () => GS.crates.filter(c => !c.gun && !c.open).length;
@@ -117,13 +117,13 @@ export async function run(b) {
   want('bus', out.bus.obj === 'rescue', 'a survivor to get out');
   want('river', out.river.ev === 'fog', 'fog');
   const lw = (ok, what) => ok || bad.push(`later: ${what} ${JSON.stringify(L)}`);
-  lw(/jerrycan/i.test(L.lines[0]) && /timber/i.test(L.lines[1]), 'both cards should carry their Later line');
+  lw(/jerrycan/i.test(L.lines[0]) && /road crew/i.test(L.lines[1]), 'both cards should carry their Later line');
   lw(L.pend === 'tanker@1' && L.pips === 1, "the tanker should wait at St. Mary's, marked on the map");
   lw(
     L.cans === 2 && !L.jerryAgain && L.pipsAfter === 0 && L.saidTanker === 1,
     'the garage truck should want two cans, once, and the mark go'
   );
-  lw(L.wrecks === '0,2,2', 'the pile-up should give two boards at the stop after next, once');
+  lw(L.wrecks === '0,2,2', 'the pile-up should give a mine and a gas drum at the stop after next, once');
   lw(L.busLived === 1 && L.busDied === 0 && L.busPend === 0, 'the coach cache only if they lived');
   lw(
     !L.bandBefore && L.bandAt && L.bandLast && !L.bandAfter && L.bandPend === 0,

@@ -9,29 +9,24 @@ export const ACTIONS = [
   { id: 'left', label: 'Move left', def: 'KeyA', key: 'a' },
   { id: 'down', label: 'Move down', def: 'KeyS', key: 's' },
   { id: 'right', label: 'Move right', def: 'KeyD', key: 'd' },
-  { id: 'roll', label: 'Roll', def: 'Space', key: ' ' },
+  { id: 'roll', label: 'Roll', def: 'ShiftLeft', key: ' ' },
   { id: 'reload', label: 'Reload', def: 'KeyR', key: 'r' },
   { id: 'ability', label: 'Ability', def: 'KeyE', key: 'e' },
   { id: 'wheel', label: 'Gun wheel (hold) · last gun (tap)', def: 'KeyQ', key: 'q' },
   { id: 'trap', label: 'Use trap', def: 'KeyF', key: 'f' },
   { id: 'trapNext', label: 'Switch trap', def: 'KeyG', key: 'g' },
-  { id: 'shove', label: 'Shove', def: 'KeyV', key: 'v' },
-  { id: 'supply', label: 'Supplies (dawn)', def: 'KeyB', key: 'b' },
+  { id: 'shove', label: 'Shove', def: 'Space', key: 'v' },
 ];
 // what can't be moved, shown under the bindable rows
 export const FIXED_ROWS = [
   ['Fire', 'Left mouse'],
-  ['Roll (also)', 'Right mouse · Shift'],
+  ['Roll (also)', 'Right mouse · Right Shift'],
   ['Swap gun', '1–9 · mouse wheel'],
   ['Move (also)', 'Arrow keys'],
   ['Level-up cards (open · later)', 'Tab'],
   ['Start the night · call the horde', 'Enter'],
   ['Pause', 'Esc · P'],
   ['Mute · music', 'M · N'],
-  [
-    'Gamepad',
-    'Left stick move · right stick aim · RT fire · A roll · B shove · X reload · Y ability · RB next gun · LB wheel (tap: last gun) · LT trap · D-pad: cards up, supplies down, switch trap right · Back starts the night · Start pause',
-  ],
 ];
 const FIXED = new Set(['Escape', 'KeyP', 'KeyM', 'KeyN', 'Enter', 'NumpadEnter', 'Tab', 'MetaLeft', 'MetaRight']);
 for (let i = 1; i <= 9; i++) FIXED.add('Digit' + i).add('Numpad' + i);
@@ -113,12 +108,15 @@ export const PAD_NAME = {
   wheel: 'LB',
   trap: 'LT',
   trapNext: 'D-pad right',
-  supply: 'D-pad down',
 };
+// the whole pad, for the Controls card: one line of its own under the keys (it is far too long for a key cap)
+export const PAD_KEYS =
+  'Gamepad · left stick move · right stick aim · RT fire · A roll · B shove · X reload · Y ability · RB next gun · LB wheel (tap: last gun) · LT trap · D-pad up: cards · D-pad right: switch trap · Back starts the night · Start pause';
 export const PAD_HINT =
   'Left stick move · right stick aim · RT fire · X reload · A roll · B shove · Y ability · RB next gun · hold LB wheel';
 export const padOn = () => !!(GS.pad && GS.pad.on);
-export const kn = id => (padOn() && PAD_NAME[id]) || codeName(bindOf(id));
+export const kn = id =>
+  (padOn() && PAD_NAME[id]) || (id === 'roll' && bindOf(id) === 'ShiftLeft' ? 'Shift' : codeName(bindOf(id))); // either Shift rolls
 // text with {action} in it, the bound key's name put in: 'Press {reload} to reload'
 export const keysIn = s => s.replace(/\{(\w+)\}/g, (m, id) => (BY_ID[id] ? kn(id) : m));
 export const moveKeys = () => {

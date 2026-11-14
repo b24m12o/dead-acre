@@ -20,7 +20,9 @@ import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
 import { chips, flashLight, floatText, shake, sparks } from '../render/effects.js';
 import { makeEnemy } from '../actors/enemies.js';
-import { freeSpot } from '../actors/backups.js';
+import { freeSpot, makeSurvivor } from '../actors/backups.js';
+import { npcSay } from '../audio/barks.js';
+import { DRIVER } from '../audio/hero-lines.js';
 import { mouse } from '../core/input.js';
 import { opt } from '../core/settings.js';
 import { S, cam } from './state.js';
@@ -187,12 +189,62 @@ function garageTruck() {
     fill: 0,
     cans: fuelCans(G, jerrycan() ? FUEL_N - 1 : FUEL_N), // the tanker's jerrycan: one can less (routes.js)
   };
+  {
+    const [dx, dy] = driverSpot(GS.truck);
+    GS.truck.driver = Object.assign(makeSurvivor(dx, dy), {
+      driver: true,
+      said: {},
+      bodyA: Math.PI / 2,
+      aimA: Math.PI / 2,
+    });
+  } // whoever is holed up in there with it: by the cab door, out of sight until the roller door goes up
   showStreak(
     'A truck, and no fuel',
     `Someone is holed up in the garage with a box truck and a dry tank · get to the garage, and find ${GS.truck.cans.length} cans of fuel`,
     true,
     () => GS.truck && GS.truck.dry && !GS.truck.garage.open // once you're at the door, it's old news
   );
+}
+// ---- the driver: the one holed up in the garage. He raises the door for you, tells you what the truck needs, and
+// when it has it he gets in the cab and drives. You never drive: you are on the gun in the back ----
+const driverSpot = T => {
+  const c = Math.cos(T.a),
+    s = Math.sin(T.a),
+    f = TL / 2 - 28, // by the cab door,
+    l = TW_ / 2 + 17; // on the driver's side (the left, the way the truck faces)
+  return [T.x + c * f + s * l, T.y + s * f - c * l];
+};
+function driverSay(T, kind) {
+  const D = T.driver,
+    L = DRIVER.lines[kind];
+  if (!D || D.in || D.said[kind] || !L) return;
+  D.said[kind] = true;
+  npcSay(D, 'Pdriver', L[Math.floor(Math.random() * L.length)], 0.3);
+}
+function driverTick(T, P, dt) {
+  const D = T.driver;
+  if (!D || D.in || !T.garage || !T.garage.open) return;
+  if (D.inT > 0) {
+    // into the cab: a step to the door, and it shuts behind him
+    D.inT -= dt;
+    const c = Math.cos(T.a),
+      s = Math.sin(T.a);
+    D.x -= s * 12 * dt;
+    D.y += c * 12 * dt;
+    D.bodyA = D.aimA = D.moveA = Math.atan2(c, -s);
+    D.strideAmp = 1;
+    D.stride = (D.stride + dt * 2.4) % 1;
+    if (D.inT <= 0) {
+      D.in = true;
+      D.say = null;
+      noise(0.07, 0.1, 380, 120, 'lowpass'); // the cab door
+    }
+    return;
+  }
+  D.strideAmp = 0;
+  const a = Math.atan2(P.y - D.y, P.x - D.x); // he watches you
+  D.bodyA += angDiff(D.bodyA, a) * damp(6, dt);
+  D.aimA = D.bodyA;
 }
 // where the cans are: by the wrecks first (the one in a trunk, what's left in a tank), spread round the place, well
 // away from the garage and from each other, somewhere you can walk to
@@ -265,6 +317,7 @@ function fuelRun(T, P, dt) {
     const [dx, dy] = doorSpot(G);
     if (P.hp > 0 && d2(P.x, P.y, dx, dy) < 70 * 70) {
       openGarage(G);
+      driverSay(T, T.fuel >= T.cans.length ? 'doorFull' : 'door');
       showStreak(
         'The door goes up',
         T.fuel >= T.cans.length
@@ -279,12 +332,17 @@ function fuelRun(T, P, dt) {
   const [cx, cy] = capOf(T, P),
     near = d2(P.x, P.y, cx, cy) < 40 * 40 && P.hp > 0 && !(P.dashT > 0);
   T.fill = near ? T.fill + dt : Math.max(0, T.fill - dt * 2);
+  if (T.fill > 0.4) driverSay(T, 'pour');
   if (T.fill >= FILL) {
     T.dry = false;
     T.fill = 0;
     floatText(cx, cy - 40, 'Fuelled', '#8ef0b8', 16);
     T.crank = 1.5;
     T.lights = true;
+    if (T.driver && !T.driver.in) {
+      driverSay(T, 'go');
+      T.driver.inT = 0.9; // he is in the cab before it moves
+    }
     for (let k = 0; k < 3; k++) tone(52, 0.22, 'sawtooth', 0.05, 1.25, 0.25 + k * 0.3, 380); // the starter, turning it over
   }
 }
@@ -320,6 +378,7 @@ function tickTruck(dt) {
   const T = GS.truck,
     P = GS.P;
   T.t += dt;
+  driverTick(T, P, dt);
   if (T.dry) fuelRun(T, P, dt);
   else if (T.crank > 0) {
     T.crank -= dt;

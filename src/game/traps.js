@@ -9,9 +9,8 @@
 //    ones that hear it at you again: it bunches them up for one big blast, or buys you quiet time.
 //  · Car rig: a charge for a parked car. Pick it like the others, stand by a car and the trap key rigs it; the next
 //    hit blows it half again as wide. It only ever rigs when it is the trap you hold.
-//  · Boards: bought at dawn. Face a doorway or an alley up to three tiles wide and the trap key nails them across it
-//    (boards.js).
 // You carry three of each at most. They come in supply crates, and the dawn before a horde brings a full kit.
+import { roofStop } from '../world/roofs.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, rand } from '../core/util.js';
@@ -28,17 +27,15 @@ import { kn } from '../core/binds.js';
 import { mouse } from '../core/input.js';
 import { ZOOM } from '../render/sprites.js';
 import { iconURL } from '../ui/icons.js';
-import { boardSpot, putBoard } from './boards.js';
 
 export const TRAP = {
   mine: { name: 'Land mine', short: 'Mine', desc: 'Thrown. Blows when they step near it.' },
   drum: { name: 'Gas drum', short: 'Gas drum', desc: 'Set down. Shoot it for a wide pool of fire.' },
   noise: { name: 'Noise maker', short: 'Noise maker', desc: 'Thrown. Pulls them to it for 10 s, a horde too.' },
   rig: { name: 'Car rig', short: 'Car rig', desc: 'Stand by a parked car. The next hit blows it big.' },
-  board: { name: 'Boards', short: 'Boards', desc: 'Face a doorway or an alley. The dead stop and pound on it.' },
 };
-export const TRAP_ORDER = ['mine', 'drum', 'noise', 'rig', 'board']; // what the wheel and the switch key cycle through
-export const TRAP_MAX = { mine: 3, drum: 3, noise: 3, rig: 2, board: 3 };
+export const TRAP_ORDER = ['mine', 'drum', 'noise', 'rig']; // what the wheel and the switch key cycle through
+export const TRAP_MAX = { mine: 3, drum: 3, noise: 3, rig: 2 };
 GS.lmines = [];
 GS.tthrows = [];
 export function resetTraps() {
@@ -46,7 +43,14 @@ export function resetTraps() {
   GS.tthrows = [];
 }
 let pill = '';
-export const have = () => (GS.RUN && GS.RUN.traps) || {};
+export const have = () => {
+  const t = (GS.RUN && GS.RUN.traps) || {};
+  if (t.board !== undefined) {
+    delete t.board; // a run saved when you could still carry boards
+    if (GS.RUN.trapSel === 'board') GS.RUN.trapSel = TRAP_ORDER.find(k => t[k] > 0);
+  }
+  return t;
+};
 export const anyTraps = () => TRAP_ORDER.some(t => have()[t] > 0);
 export function giveTraps(kit) {
   GS.RUN.traps = { ...have() };
@@ -66,7 +70,7 @@ export function giveTraps(kit) {
     });
   } // the first ever: how they work
 }
-// into your pack without a word (the supply panel says what you bought)
+// into your pack without a word (the road pays what it promised: routes.js says so itself)
 export function giveTrapsQuiet(kit) {
   GS.RUN.traps = { ...have() };
   for (const [t, n] of Object.entries(kit)) GS.RUN.traps[t] = Math.min(TRAP_MAX[t] || 3, (GS.RUN.traps[t] || 0) + n);
@@ -117,6 +121,13 @@ function throwTo(kind, maxD) {
     tx -= Math.cos(a) * 24;
     ty -= Math.sin(a) * 24;
   } // short of a wall, never inside it
+  {
+    const st = roofStop(P.x, P.y, tx, ty);
+    if (st) {
+      [tx, ty] = st;
+      floatText(P.x, P.y - 44, 'The roof is in the way', '#cfd6d9', 13);
+    }
+  } // and not through a roof (roofs.js)
   GS.tthrows.push({
     kind,
     x0: P.x,
@@ -159,11 +170,6 @@ function useTrap() {
     rigCar(c);
     if (!(have().rig > 0)) GS.RUN.trapSel = TRAP_ORDER.find(k => have()[k] > 0) || t;
     return;
-  } else if (t === 'board') {
-    const sp = boardSpot(P.x, P.y, P.aimA);
-    if (!sp) return floatText(P.x, P.y - 44, 'Face a doorway or an alley · one or two wide', '#cfd6d9', 13);
-    putBoard(sp);
-    floatText(sp.x, sp.y - 30, 'Boarded up', '#c8e6a0', 13);
   } else if (t === 'mine') throwTo('mine', 330);
   else if (t === 'noise') throwTo('noise', 420);
   else if (t === 'drum') {

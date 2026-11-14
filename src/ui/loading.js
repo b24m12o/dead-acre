@@ -16,7 +16,7 @@ const TIPS = [
   'The convoy airdrops heavier guns as the nights go on.',
   'Hold {wheel} for the gun wheel. Tap {wheel} for your last gun.',
   'Hit a runner hard in full stride and it can go down on its face.',
-  'Roll through a gap with {roll}, Shift or right-click. Never into a corner.',
+  'Roll through a gap with {roll} or right-click. Never into a corner.',
   'Barrels go up when you shoot them. Wait for a crowd.',
 ];
 const WAIT_MAX = 20000; // ms at the menu before Start stops waiting for the sounds

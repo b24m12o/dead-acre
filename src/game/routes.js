@@ -351,9 +351,9 @@ export const LATER = {
     paid: 'The cache they told you about · a supply crate',
   },
   wrecks: {
-    text: 'Spare timber · 2 boards for free at the stop after next',
+    text: 'A road crew’s van in the pile-up · a land mine and a gas drum at the stop after next',
     from: 'the pile-up',
-    paid: 'Spare timber · 2 boards in your pack',
+    paid: 'From the road crew’s van · a land mine and a gas drum in your pack',
   },
 };
 const LAT = () => (GS.RUN.viaLater = GS.RUN.viaLater || []);
@@ -422,7 +422,7 @@ export function laterArrive(S) {
     if (l.id === 'pharmacy' && l.w1 < GS.wave + 1) l.paid = true; // its nights are over
     if (l.at !== S) continue;
     if (l.id === 'wrecks') {
-      giveTrapsQuiet({ board: 2 });
+      giveTrapsQuiet({ mine: 1, drum: 1 });
       pay(l);
     } else if (l.id === 'bus') {
       if (l.cond) {

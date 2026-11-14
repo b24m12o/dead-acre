@@ -56,7 +56,24 @@ export async function run(b) {
     out.armK = Math.hypot(arm.kx, arm.ky) / Math.max(1, Math.hypot(plain.kx, plain.ky));
     return out;
   })()`);
+  // the keys: Space shoves, Shift rolls, and the hint line says so
+  await ev(
+    `(() => { const P = GS.P; P.shoveCd = 0; P.dashCd = 0; P.dashT = 0; P.held = null; GS.enemies.length = 0; GS.state = 'play'; updateHint(); return 1; })()`
+  );
+  await pg.keyboard.press('Space');
+  const k1 = await ev(`({ shove: GS.P.shoveCd > 0, roll: GS.P.dashCd > 0 })`);
+  await ev(`(() => { GS.P.shoveCd = 0; GS.P.shoveT = 0; GS.P.dashCd = 0; return 1; })()`);
+  await pg.keyboard.press('ShiftLeft');
+  const k2 = await ev(`({ shove: GS.P.shoveCd > 0, roll: GS.P.dashCd > 0, hint: $('hint').textContent })`);
+  // the Controls card on the pause screen: every row inside the panel (a long row once pushed the keys off it)
+  const over = await ev(
+    `(() => { setPause(true); const p = $('keyCard').closest('.panel').getBoundingClientRect(); return [...$('keyCard').children].filter(k => { const r = k.getBoundingClientRect(); return r.width < 2 || r.right > p.right + 1 || r.left < p.left - 1; }).length; })()`
+  );
   await pg.close();
+  check(over === 0, `every row of the Controls card should sit inside the pause panel: ${over} stick out`);
+  check(k1.shove && !k1.roll, `Space should shove and not roll: ${JSON.stringify(k1)}`);
+  check(k2.roll && !k2.shove, `Shift should roll and not shove: ${JSON.stringify(k2)}`);
+  check(/Shift roll/.test(k2.hint) && /Space shove/.test(k2.hint), 'the hint line should name the keys: ' + k2.hint);
   check(o.caught === 5, `all five in front should be caught: ${o.caught}`);
   check(
     o.gained >= 60,

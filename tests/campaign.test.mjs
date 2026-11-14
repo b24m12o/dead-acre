@@ -52,7 +52,7 @@ export async function campaign(b, { setup = '', hook = '', skills = false } = {}
     `(() => { initAudio(); GS.meta.chal = Object.assign(GS.meta.chal || {}, { night10: true, evac1: true }); GS.meta.district = 'town'; GS.meta.hero = 'ranger'; ${setup}; begin(false); ${hook ? `window.__hook = ${hook};` : ''} return 1; })()`
   );
   await ev(readFileSync(join(ROOT, 'tests/bot/bot.js'), 'utf8') + ';0');
-  if (skills) await ev('window.__skills = true; 1'); // shove, traps, boards and the dawn supplies
+  if (skills) await ev('window.__skills = true; 1'); // the shove and the traps
   const r = JSON.parse(await ev(RUN.replace('%s', 'true').replace('%s', '"random"')));
   r.extra = await ev('JSON.stringify(window.__extra || null)');
   r.sk = JSON.parse(await ev('JSON.stringify(window.__sk || null)'));

@@ -9,7 +9,6 @@ import { setMusic, setMuted } from '../audio/music.js';
 import { WHEEL, cycleGun, startReload, switchGun, wheelRelease } from '../game/state.js';
 import { choose, doReroll, openLevel, pickLater } from '../game/upgrades.js';
 import { tryDash, tryShove, useAbility } from '../game/abilities.js';
-import { openSupply } from '../game/supply.js';
 import { begin } from '../ui/hangar.js';
 import { setPause } from '../ui/screens.js';
 import { openPractice } from '../game/practice.js';
@@ -99,7 +98,11 @@ export function init() {
     const k = keyOf(e);
     if (e.isTrusted && GS.pad && GS.pad.on) GS.pad.kick = true; // a real key: the gamepad lets go (its own Esc and Enter are not real keys)
     initAudio();
-    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) && GS.state !== 'menu') e.preventDefault();
+    if (
+      (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) || e.code === 'Space') &&
+      GS.state !== 'menu'
+    )
+      e.preventDefault(); // Space is the shove now: it must not scroll the page either
     if (k === 'tab' && (GS.state === 'play' || GS.state === 'levelup')) e.preventDefault(); // Tab is the level-up key in a run
     if (GS.state === 'play' && document.activeElement && document.activeElement !== document.body)
       document.activeElement.blur();
@@ -138,7 +141,6 @@ export function init() {
       if (k === 'f' && !e.repeat) trapDown();
       if (k === 'g' && !e.repeat) cycleTrap();
       if (k === 'v' && !e.repeat) tryShove();
-      if (k === 'b' && !e.repeat) openSupply();
     } else if (GS.state === 'pause' && k === 'escape' && !$('settings').hidden) $('settingsBack').click();
     else if (GS.state === 'pause' && (k === 'escape' || k === 'p')) setPause(false);
     else if (GS.state === 'levelup' && !e.repeat && ['1', '2', '3'].includes(k)) choose(+k - 1);

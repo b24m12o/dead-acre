@@ -14,7 +14,6 @@ import { AB, abCd, shoveCd } from '../game/abilities.js';
 import { bossHint } from '../actors/bosses.js';
 import { FINAL_NIGHT } from '../game/districts.js';
 import { viaTag } from '../game/routes.js';
-import { supplyHint } from '../game/supply.js';
 import { GARAGE } from '../world/map.js';
 import { TRAITS } from '../actors/backups.js';
 import { EV_NAME } from '../audio/radio.js';
@@ -279,13 +278,7 @@ export function updateHud() {
     }
     setT(
       'dawnWhat',
-      [
-        GS.RUN.nextSig ? SIG[GS.RUN.nextSig.s] : '',
-        viaTag(GS.wave + 1).replace(/^ · /, ''),
-        supplyHint() ? `${kn('supply')} supplies` : '',
-      ]
-        .filter(Boolean)
-        .join(' · ')
+      [GS.RUN.nextSig ? SIG[GS.RUN.nextSig.s] : '', viaTag(GS.wave + 1).replace(/^ · /, '')].filter(Boolean).join(' · ')
     );
   }
   setT(
@@ -321,7 +314,7 @@ export function updateHud() {
               : GS.nightDone && !left && GS.interT > 0
                 ? GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14
                   ? `Drop unopened · Enter starts night ${GS.wave + 1}`
-                  : `Night ${GS.wave + 1} in ${Math.ceil(GS.interT)}${GS.RUN.nextSig ? ' · ' + SIG[GS.RUN.nextSig.s] : ''}${viaTag(GS.wave + 1)}${supplyHint() ? ` · ${kn('supply')} supplies` : ''} · Enter to start now`
+                  : `Night ${GS.wave + 1} in ${Math.ceil(GS.interT)}${GS.RUN.nextSig ? ' · ' + SIG[GS.RUN.nextSig.s] : ''}${viaTag(GS.wave + 1)} · Enter to start now`
                 : GS.horde && !GS.horde.done && !GS.horde.finale && GS.horde.startT > 1 && GS.nightLive
                   ? `Horde in ${Math.ceil(GS.horde.startT)} s · Enter to call it now`
                   : quiet

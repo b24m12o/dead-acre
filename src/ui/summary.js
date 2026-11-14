@@ -59,7 +59,6 @@ export function summaryData(won) {
     jobs: `${m.objectives || 0} of ${(m.objectives || 0) + (m.objectivesFailed || 0)}`,
     time: clock(m.elapsed),
     scrap: GS.runSeeds,
-    spent: m.scrapSpent || 0,
   };
 }
 export function summaryText(D) {
@@ -67,7 +66,7 @@ export function summaryText(D) {
     `Dead Acre · ${D.won ? 'made it out' : `eaten on night ${D.night} of ${D.of}`}${D.at ? ` at ${D.at}` : ''}`,
     `${D.hero}${D.ability ? ` · ${D.ability}` : ''}`,
     `Nights ${D.won ? D.of : D.night} · kills ${D.kills} · score ${D.score} · best chain ×${D.chain} · time ${D.time}`,
-    `Damage dealt ${D.dealt} · taken ${D.taken} · jobs done ${D.jobs} · scrap ${D.scrap} earned, ${D.spent} spent`,
+    `Damage dealt ${D.dealt} · taken ${D.taken} · jobs done ${D.jobs} · scrap ${D.scrap} earned`,
   ];
   if (D.ways.length) L.push('The road: ' + D.ways.map(w => `${w.name} to ${w.stop}`).join(' · '));
   if (D.guns.length)

@@ -1,10 +1,10 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { roofStop } from '../world/roofs.js';
 import { tickDoors } from '../game/doors.js';
 import { heroSay } from '../audio/barks.js';
 import { pileSlow } from '../world/piles.js';
 import { showStreak } from '../ui/callouts.js';
 import { kn } from './binds.js';
-import { tickOwnBoards } from '../game/boards.js';
 import { tickStation } from '../game/station.js';
 import { saveMeta } from './settings.js';
 import { GS } from './gs.js';
@@ -302,7 +302,7 @@ export function update(dt) {
     if (p.dartT <= 0) {
       const tg = [];
       query(p.x, p.y, 430, e => {
-        if (!e.dead && e.emerge >= 1 && d2(e.x, e.y, p.x, p.y) > 70 * 70) tg.push(e);
+        if (!e.dead && e.emerge >= 1 && d2(e.x, e.y, p.x, p.y) > 70 * 70 && !roofStop(p.x, p.y, e.x, e.y)) tg.push(e); // not through a roof (roofs.js)
       });
       if (tg.length) {
         p.dartT = S.dartCd;
@@ -346,6 +346,7 @@ export function update(dt) {
           best = e;
         }
       });
+      if (best && roofStop(p.x, p.y, best.x, best.y)) best = null; // a roof in the way: it waits
       if (best) {
         p.pulseT = S.pulseCd;
         const tx = best.x + best.vx * 0.3,
@@ -373,7 +374,6 @@ export function update(dt) {
   tickGadgets(dt);
   tickHorde(dt);
   tickTraps(dt);
-  tickOwnBoards(dt);
   tickDoors(dt);
   tickStation(dt); // the gas station's tanks, once a pump has blown
   tickHatches(dt);

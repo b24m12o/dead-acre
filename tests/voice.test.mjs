@@ -15,6 +15,7 @@ export async function run(b) {
     let n = 0;
     for (const h of Object.keys(HERO_LINES)) for (const k of Object.keys(HERO_LINES[h])) for (const t of HERO_LINES[h][k]) { n++; if (!GS.VOX.some(r => r[4] === 'P' + h && r[1] === t)) out.miss.push(h + ': ' + t); }
     out.n = n;
+    for (const t of Object.values(DRIVER.lines).flat()) if (!GS.VOX.some(r => r[4] === 'Pdriver' && r[1] === t)) out.miss.push('driver: ' + t);
     out.kinds = Object.keys(HERO_LINES).every(h => Object.keys(HERO_RULE).every(k => (HERO_LINES[h][k] || []).length >= 2));
     const start = h => {
       GS.meta.unlocked[h] = true; GS.meta.hero = h; begin(); GS.RUN.tut = null; GS.RUN.jobN = []; GS.state = 'play';

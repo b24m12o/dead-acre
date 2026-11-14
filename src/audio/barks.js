@@ -165,6 +165,33 @@ export function heroSay(kind, delay = 0) {
   });
   return true;
 }
+// somebody who is not one of yours says one given line (the driver in the garage: journey.js). The words always
+// show over their head; the voice plays unless Channel 9 is on the air
+export function npcSay(s, code, text, delay = 0) {
+  if (!s || !text) return;
+  const c = clip(code, text),
+    dur = c ? c.dur : 1.2 + text.length * 0.05;
+  s.say = { txt: text, t: GS.time + delay, end: GS.time + delay + dur + 1.3 };
+  lastEnd = Math.max(lastEnd, GS.time + delay + dur);
+  if (!c) return;
+  c.p.then(b => {
+    if (!b || !AC || GS.state === 'menu' || onAir()) return;
+    const src = AC.createBufferSource(),
+      g = AC.createGain(),
+      out = spat(s.x, s.y);
+    if (!out) return;
+    src.buffer = b;
+    g.gain.value = 0.3;
+    src.connect(g);
+    g.connect(out);
+    src.start(AC.currentTime + delay);
+    talking.push({ src, g });
+    src.onended = () => {
+      const i = talking.findIndex(q => q.src === src);
+      if (i >= 0) talking.splice(i, 1);
+    };
+  });
+}
 // one of your people on their feet, nearest to a point (for things they would see first)
 export function nearestUp(x, y, max = 1e9) {
   let best = null,

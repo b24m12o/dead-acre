@@ -28,11 +28,14 @@ const RIDE = String.raw`(() => {
   for (let i = 0; i < 10; i++) fr0();
   g.open = G.open && G.door.every(i => !grid[i]); // at the door, it goes up
   g.still = T.dry; // and the truck is still dry: the fuel goes in at its side, not at the door
+  { const D = T.driver; g.drv = !!D && !D.in && !!(D.said.door || D.said.doorFull) && !!D.say && Object.values(DRIVER.lines).flat().includes(D.say.txt) && Math.hypot(D.x - T.x, D.y - T.y) < 90; g.drvVoiced = Object.values(DRIVER.lines).flat().every(t => GS.VOX.some(r => r[4] === 'Pdriver' && r[1] === t)); } // whoever is in there raised it, and says what the truck needs
   { const W = wayOut(); GS.P.x = W.x; GS.P.y = W.y; g.label2 = W.label; }
   for (let i = 0; i < 60 * 4 && T.dry; i++) { GS.enemies.length = 0; fr0(); }
   g.fuelled = !T.dry;
   g.block = !!(GS.blockade && GS.blockade.cars); // the roadblock has stood on its road since the place was laid out
-  for (let i = 0; i < 60 * 8 && !T.parked; i++) { GS.enemies.length = 0; fr0(); }
+  g.drvIn = true;
+  for (let i = 0; i < 60 * 8 && !T.parked; i++) { GS.enemies.length = 0; fr0(); if (T.drive && !T.driver.in) g.drvIn = false; }
+  g.drvGo = !!T.driver.said.go && T.driver.in; // he said so, and was in the cab before it moved
   if (!T.parked) return { err: 'it never pulled out', g };
   GS.P.x = T.x - Math.cos(T.a) * 90; GS.P.y = T.y - Math.sin(T.a) * 90; GS.enemies.length = 0;
   for (let i = 0; i < 300 && !GS.P.ride; i++) fr();
@@ -66,6 +69,10 @@ export async function run(b) {
   const o = await ev(RIDE);
   await pg.close();
   check(!o.err, o.err);
+  check(
+    o.g.drv && o.g.drvVoiced && o.g.drvGo && o.g.drvIn,
+    `the driver should be there when the door goes up, say what the truck needs in his own voice, and be in the cab before it moves: ${JSON.stringify(o.g)}`
+  );
   check(o.g.gx < 26 && o.g.shut, `the garage should stand shut on the west side: ${JSON.stringify(o.g)}`);
   check(
     o.g.label === 'GARAGE' && o.g.open && o.g.still,

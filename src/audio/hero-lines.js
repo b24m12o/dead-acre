@@ -65,3 +65,20 @@ export const HERO_RULE = {
   horde: [60, 1, 1],
   grab: [12, 0.8, 2],
 };
+// Whoever is holed up in the garage with the truck (journey.js): the one who raises the door for you, and drives.
+// Recorded by the same tool, speaker code Pdriver
+export const DRIVER = {
+  voice: { mix: { am_adam: 0.5, am_echo: 0.5 }, speed: 1.06 },
+  lines: {
+    door: [
+      "Get in here, quick! Tank's bone dry. Find me fuel and I'll drive us both out.",
+      "You're alive! Good. She's got no fuel. Bring me some and we both get out of here.",
+    ],
+    doorFull: ["Is that fuel? Pour it in, there at the side. I'll get her started."],
+    pour: ["That's it. Keep pouring.", 'Every drop, now.'],
+    go: [
+      "She's running! Get in the back. The gun up there is yours.",
+      "That's her! Climb in the back and keep them off us.",
+    ],
+  },
+};

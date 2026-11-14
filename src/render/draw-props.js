@@ -13,8 +13,6 @@ import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawT
 import { drawPile } from '../game/objectives.js';
 import { HATCHES } from '../world/sewers.js';
 import { truckCans } from '../game/journey.js';
-import { boardSpot, postsOf } from '../game/boards.js';
-import { have } from '../game/traps.js';
 const DQ = [];
 const MOON_CAP = 90; // past this many zombies on screen, the furthest throw a simple shadow
 const FL_CAP = 48; // zombies whose shadows the flashlight throws, nearest first: each costs three smeared copies of the body
@@ -253,16 +251,6 @@ function drawDoor(b) {
       quad(R.pixel, x0 + c * (len - 6), y0 + sn * (len - 6) - H * 0.45, 0, 0.6, 0.6, 0.7, 0.64, 0.46, thin, 0, 0, 0, 0); // the handle
   }
 }
-function drawGhost(g) {
-  const hz = g.side === 0 || g.side === 2,
-    rot = hz ? 0 : Math.PI / 2,
-    pulse = 0.38 + 0.1 * Math.sin(GS.time * 5),
-    [r, gg, b] = g.ok ? [0.55, 0.95, 0.55] : [1, 0.42, 0.36];
-  for (let i = 0; i < 3; i++) {
-    const off = (i - 1) * 11;
-    quad(R.pixel, g.x + (hz ? 0 : off), g.y + (hz ? off - 8 : -8), rot, 11.5, 2, r, gg, b, pulse, 0, 0, 0, 0);
-  }
-}
 function drawGen() {
   if (GS.SHMODE && propShadow('o_gen', GS.obj.x, GS.obj.y)) return;
   if (GS.SHMODE) {
@@ -335,6 +323,8 @@ export function drawCasters() {
   const vis = (x, y, m = 130) =>
     x > GS.camX - m && x < GS.camX + viewW + m && y > GS.camY - m && y < GS.camY + viewH + m * 1.4;
   for (const c of cars) if (!c.dead && vis(c.x, c.y)) push(carKey(c), drawCar, c);
+  if (GS.truck && GS.truck.driver && !GS.truck.driver.in && GS.truck.garage && GS.truck.garage.open && !GS.NOHERO)
+    push(GS.truck.driver.y, drawRanger, GS.truck.driver); // the driver, by his cab, once the door is up
   if (GS.truck && !GS.truck.gone && vis(GS.truck.x, GS.truck.y, 200)) push(carKey(GS.truck), drawCar, GS.truck); // the convoy truck come for you
   for (const w of GS.wrecks) if (vis(w.x, w.y)) push(w.y + 20, drawWreck, w);
   for (const d of GS.decor) if (vis(d.x, d.y)) push(decorKey(d), drawDecor, d);
@@ -392,27 +382,6 @@ export function drawCasters() {
     if (!GS.NOHERO || GS.SHMODE === 1) for (const s of GS.obj.civ) push(s.y, drawRanger, s);
   }
   for (const b of GS.doors || []) if (!b.off && vis(b.x, b.y)) push(b.y + 18, drawDoor, b);
-  for (const b of GS.boards || [])
-    for (const [px, py] of postsOf(b)) if (vis(px, py)) push(py + 18, drawBoards, b.pts ? { ...b, x: px, y: py } : b); // yours
-  if (
-    !GS.SHMODE &&
-    GS.state === 'play' &&
-    GS.P &&
-    GS.RUN &&
-    GS.RUN.trapSel === 'board' &&
-    have().board > 0 &&
-    !GS.P.ride
-  ) {
-    const sp = boardSpot(GS.P.x, GS.P.y, GS.P.aimA);
-    if (sp) for (const [px, py] of sp.pts) push(py + 18, drawGhost, { x: px, y: py, side: sp.side, ok: true });
-    else
-      push(GS.P.y + 40, drawGhost, {
-        x: GS.P.x + Math.cos(GS.P.aimA) * 52,
-        y: GS.P.y + Math.sin(GS.P.aimA) * 52,
-        side: Math.abs(Math.cos(GS.P.aimA)) > Math.abs(Math.sin(GS.P.aimA)) ? 1 : 0,
-        ok: false,
-      });
-  } // the boards in your hands: where they'd go, green; red where there's nothing to nail them to
   if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && !GS.obj.joined) push(GS.obj.s.y, drawRanger, GS.obj.s);
   if (GS.obj && GS.obj.type === 'fuel') for (const c of GS.obj.cans) if (!c.got) push(c.y, drawCan, c);
   for (const c of truckCans()) push(c.y, drawCan, c); // fuel for the truck in the garage
