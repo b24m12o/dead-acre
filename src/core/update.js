@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { tickDoors } from '../game/doors.js';
 import { heroSay } from '../audio/barks.js';
 import { pileSlow } from '../world/piles.js';
 import { showStreak } from '../ui/callouts.js';
@@ -373,6 +374,7 @@ export function update(dt) {
   tickHorde(dt);
   tickTraps(dt);
   tickOwnBoards(dt);
+  tickDoors(dt);
   tickStation(dt); // the gas station's tanks, once a pump has blown
   tickHatches(dt);
   tickSpores(dt);

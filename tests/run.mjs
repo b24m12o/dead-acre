@@ -27,6 +27,7 @@ const ALL = [
   'heroes',
   'gamepad',
   'voice',
+  'doors',
   'summary',
   'campaign',
   'variants',

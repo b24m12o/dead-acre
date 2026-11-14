@@ -68,7 +68,7 @@ export function tickBoards(
       shake(0.05);
       if (onBreak) onBreak(b);
     }
-    nailBack(b, dt);
+    if (!b.door) nailBack(b, dt); // a door (doors.js) is not nailed back: broken, it is gone
   }
 }
 // nailing it back: you, standing still beside it, with nothing of theirs in the way

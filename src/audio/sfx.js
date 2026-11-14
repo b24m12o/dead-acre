@@ -464,6 +464,27 @@ export const sfx = {
     if (playR('fstep', 0.045, undefined, undefined, rand(0.9, 1.1))) return;
     noise(0.05, 0.03, 900, 300, 'bandpass');
   },
+  // a door (doors.js): the latch and the swing, the thud as it shuts, the frame giving way
+  doorOpen(x, y) {
+    if (!thr('dopen', 160)) return;
+    const b = spat(x, y);
+    noise(0.03, 0.05, 2600, 1200, 'bandpass', 0, b);
+    tone(190, 0.16, 'triangle', 0.02, 1.25, 0.02, 700, b);
+  },
+  doorShut(x, y) {
+    if (!thr('dshut', 160)) return;
+    const b = spat(x, y);
+    noise(0.07, 0.12, 420, 140, 'lowpass', 0, b);
+    tone(92, 0.09, 'sine', 0.05, 0.7, 0, 0, b);
+    noise(0.02, 0.04, 3000, 1500, 'bandpass', 0.05, b);
+  },
+  doorBreak(x, y) {
+    if (!thr('dbreak', 120)) return;
+    const b = spat(x, y);
+    if (!playR('fbody', 0.2, x, y, 0.8)) noise(0.22, 0.22, 700, 150, 'lowpass', 0, b);
+    noise(0.16, 0.12, 2400, 900, 'bandpass', 0.02, b);
+    for (let i = 0; i < 3; i++) noise(0.03, 0.06, 1800 + i * 500, 800, 'bandpass', 0.06 + i * 0.05, b);
+  },
   roar(x, y, bt = x === undefined ? null : (GS.curBoss && GS.curBoss.btype) || (GS.boss && GS.boss.btype)) {
     if (!thr('roar', 400)) return;
     const b = spat(x, y),

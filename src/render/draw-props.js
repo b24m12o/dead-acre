@@ -1,7 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { gunPose, rideCiv } from '../game/evac-ride.js';
 import { GS } from '../core/gs.js';
-import { TAU, clamp, d2, lerp } from '../core/util.js';
+import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, setH, viewH, viewW } from './sprites.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
@@ -199,6 +199,60 @@ function drawBoards(b) {
         quad(R.pixel, x, y, 0, 0.5, 0.5, 0.15, 0.15, 0.16, 1, 0, 0, 0, 0);
       } // nail heads
 }
+// a door (doors.js): one leaf, or two for a wide doorway, hinged at the jambs and swung in as it opens. It stands
+// as walls do: a face you see from the south, a top edge, drawn in upright strips so it reads at any swing.
+// Broken: a splintered stub on each jamb
+const DOOR_H = 24,
+  DOOR_PAINT = [
+    [0.66, 0.62, 0.5], // cream
+    [0.42, 0.52, 0.42], // sage
+    [0.4, 0.48, 0.58], // faded blue
+    [0.58, 0.3, 0.24], // barn red
+    [0.52, 0.4, 0.27], // bare wood
+  ];
+function drawDoor(b) {
+  const hz = b.side === 0 || b.side === 2,
+    L = b.w * TILE, // the doorway
+    n = b.w > 1 ? 2 : 1,
+    leaf = L / n - 2,
+    sh = b.hitT > 0 ? Math.sin(GS.time * 60) * 1.5 : 0,
+    wear = 0.7 + 0.3 * (b.hp / b.max),
+    P = GS.P,
+    thin = !GS.SHMODE && P && Math.abs(P.x - b.x) < L / 2 + 26 && P.y < b.y + 4 && P.y > b.y - DOOR_H - 34 ? 0.45 : 1; // you, behind it: seen through, as through a wall
+  for (let k = 0; k < n; k++) {
+    const s = n === 1 ? -1 : k ? 1 : -1, // which jamb it hangs on
+      hx = b.x + (hz ? (s * L) / 2 : 0),
+      hy = b.y + (hz ? 0 : (s * L) / 2),
+      // shut, it lies along the doorway from its hinge; open, it has swung in (against the way out)
+      base = hz ? (s < 0 ? 0 : Math.PI) : s < 0 ? Math.PI / 2 : -Math.PI / 2,
+      inA = Math.atan2(-b.ny, -b.nx),
+      a = base + angDiff(base, inA) * 0.88 * (b.open || 0),
+      c = Math.cos(a),
+      sn = Math.sin(a),
+      len = b.broken ? 7 : leaf,
+      H = b.broken ? 11 : DOOR_H,
+      x0 = hx + (hz ? 0 : sh),
+      y0 = hy + (hz ? sh : 0),
+      x1 = x0 + c * len,
+      y1 = y0 + sn * len;
+    if (GS.SHMODE) {
+      setH(H);
+      lineQ(x0, y0, x1, y1, 5, 1, 1, 1, 1, 0, 0, 0, 0, R.pixel);
+      continue;
+    }
+    const f = (0.72 + 0.28 * Math.abs(c)) * wear, // side on it catches less light
+      [pr, pg, pb] = DOOR_PAINT[(((b.x / TILE) | 0) * 7 + ((b.y / TILE) | 0) * 13) % DOOR_PAINT.length]; // each door its own old paint
+    for (let t = 2; t < len; t += 4) {
+      const px = x0 + c * t,
+        py = y0 + sn * t,
+        plank = 0.92 + 0.08 * ((((t / 4) | 0) * 7) % 3);
+      lineQ(px, py + 2, px, py - H, 4.6, pr * f * plank, pg * f * plank, pb * f * plank, thin, 0, 0, 0, 0, R.pixel);
+    }
+    lineQ(x0, y0 - H, x1, y1 - H, 4.5, pr * 1.25 * wear, pg * 1.25 * wear, pb * 1.25 * wear, thin, 0, 0, 0, 0, R.pixel); // its top edge
+    if (!b.broken)
+      quad(R.pixel, x0 + c * (len - 6), y0 + sn * (len - 6) - H * 0.45, 0, 0.6, 0.6, 0.7, 0.64, 0.46, thin, 0, 0, 0, 0); // the handle
+  }
+}
 function drawGhost(g) {
   const hz = g.side === 0 || g.side === 2,
     rot = hz ? 0 : Math.PI / 2,
@@ -337,6 +391,7 @@ export function drawCasters() {
     if (!GS.obj.done) for (const b of GS.obj.bars) if (vis(b.x, b.y)) push(b.y + 18, drawBoards, b); // at dawn the boards come down
     if (!GS.NOHERO || GS.SHMODE === 1) for (const s of GS.obj.civ) push(s.y, drawRanger, s);
   }
+  for (const b of GS.doors || []) if (!b.off && vis(b.x, b.y)) push(b.y + 18, drawDoor, b);
   for (const b of GS.boards || [])
     for (const [px, py] of postsOf(b)) if (vis(px, py)) push(py + 18, drawBoards, b.pts ? { ...b, x: px, y: py } : b); // yours
   if (

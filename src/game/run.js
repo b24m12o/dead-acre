@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { buildDoors } from './doors.js';
 import { resetAmbience } from '../audio/ambience.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
@@ -113,6 +114,7 @@ export function newRun(forMenu = false) {
   endHorde();
   resetTraps();
   resetBoards();
+  buildDoors(); // a door in each doorway of every house still standing (doors.js)
   resetSpecials();
   resetAmbience();
   GS.whiteFlash = 0;
