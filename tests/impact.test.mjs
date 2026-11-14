@@ -31,6 +31,18 @@ export async function run(b) {
     out.stillDown = GS.corpses.includes(e);
     for (let i = 0; i < 60 * 8; i++) tickWorld(1 / 60);
     out.goneLater = !GS.corpses.includes(e);
+    // a heavy round throws the body into the ones behind it: they go down too. A pistol's doesn't
+    const row = (gun, dmg) => {
+      for (const o of GS.enemies) o.dead = true; GS.enemies.length = 0; GS.corpses = []; GS.time += 5;
+      const v = makeEnemy('skitter', P.x + 120, P.y); v.emerge = 1; v.hp = 1; v.maxHp = 400;
+      const behind = [-14, 0, 14].map(dy => { const o = makeEnemy('skitter', P.x + 150, P.y + dy); o.emerge = 1; o.hp = o.maxHp = 400; o.run = false; return o; });
+      GS.HITB = { gun };
+      try { killEnemy(v, dmg, 'bolt', 1, 0, false); } finally { GS.HITB = null; }
+      let down = 0;
+      for (let i = 0; i < 40; i++) { update(1 / 60); tickWorld(1 / 60); for (const o of behind) { o.x = P.x + 150; if (o.down > 0 && !o.cnt) { o.cnt = 1; down++; } } }
+      return down;
+    };
+    out.heavy = row('hunter', 90); out.light = row('pistol', 12);
     return out;
   })()`);
   await pg.close();
@@ -44,6 +56,10 @@ export async function run(b) {
   check(o.noShake === 0, `with screen shake off nothing should freeze: ${o.noShake}`);
   check(o.stillDown, 'a body should still be on the ground 40 s after it fell');
   check(o.goneLater, 'a body should be cleared away in the end');
+  check(
+    o.heavy >= 1 && o.light === 0,
+    `a heavy kill should knock down the ones behind it and a pistol kill none: ${o.heavy} / ${o.light}`
+  );
   check(!errs.length, 'page errors: ' + errs.join(' | '));
-  return `rifle ${o.hunter} s, buckshot ${o.shotClose} s up close, SMG none; bodies stay past 40 s`;
+  return `rifle ${o.hunter} s, buckshot ${o.shotClose} s up close, SMG none; bodies stay past 40 s; a heavy kill bowls over ${o.heavy}`;
 }

@@ -55,7 +55,8 @@ export function buildWave(w) {
     sp('climb', 3, 3);
     sp('spore', 5, 4);
     sp('drag', 6, 4);
-  } // the special infected: climbers from night 3, spores from 5, draggers from 6, a few more as the nights go
+    sp('blind', 4, 4);
+  } // the special infected: climbers from night 3, listeners from 4, spores from 5, draggers from 6, a few more as the nights go
   const tw = T.reduce((s, t) => s + t[1], 0);
   for (let i = 0; i < n; i++) {
     let r = Math.random() * tw;

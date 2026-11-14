@@ -610,6 +610,28 @@ export function shoveEnemy(e, kx, ky) {
   if (e.hp <= 0) killEnemy(e, SHOVE_DMG, 'shove', ux, uy);
   return true;
 }
+// a quiet kill: one shove finishes a walker that has not noticed you (from behind, or busy with a noise), or one that
+// is down. No shot, no sound that carries. Not the big ones, the armoured, or one behind a shield.
+export const quietTarget = e =>
+  !e.dead &&
+  e.emerge >= 1 &&
+  HUMAN[e.type] &&
+  e.type !== 'beetle' &&
+  !e.big &&
+  !e.shield &&
+  e.trait !== 'armored' &&
+  !e.lurk &&
+  (e.down > 0 || e.unaw === true);
+export function quietKill(e, ux, uy) {
+  const down = e.down > 0;
+  e.hp = 0;
+  e.flash = 0.05;
+  sfx.crunch(e.x, e.y);
+  if (down) sfx.squelch(e.x, e.y);
+  killEnemy(e, SHOVE_DMG, 'shove', ux, uy);
+  if (GS.RUN && GS.RUN.metrics && GS.state === 'play') GS.RUN.metrics.quiet = (GS.RUN.metrics.quiet || 0) + 1;
+  return down ? 'down' : 'quiet';
+}
 export const SHOVE_KB = 2.6,
   SHOVE_DMG = 6;
 function gibAll(e, dx, dy, col) {

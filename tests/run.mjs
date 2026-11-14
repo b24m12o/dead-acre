@@ -22,6 +22,7 @@ const ALL = [
   'crowd',
   'world',
   'remains',
+  'quiet',
   'summary',
   'campaign',
   'variants',

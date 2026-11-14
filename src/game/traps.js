@@ -9,7 +9,7 @@
 //    ones that hear it at you again: it bunches them up for one big blast, or buys you quiet time.
 //  · Car rig: a charge for a parked car. Pick it like the others, stand by a car and the trap key rigs it; the next
 //    hit blows it half again as wide. It only ever rigs when it is the trap you hold.
-//  · Boards: bought at dawn. Face a doorway or an alley one or two tiles wide and the trap key nails them across it
+//  · Boards: bought at dawn. Face a doorway or an alley up to three tiles wide and the trap key nails them across it
 //    (boards.js).
 // You carry three of each at most. They come in supply crates, and the dawn before a horde brings a full kit.
 import { GS } from '../core/gs.js';

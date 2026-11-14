@@ -68,6 +68,8 @@ function giantWedge(e, dt) {
         return;
       }
 }
+// what the dead see: a wide cone ahead of them, and anything right at their back
+export const SIGHT = { half: 1.92, behind: 60 };
 export function updateEnemy(e, dt, p) {
   if (e.dead) return;
   e.flash = Math.max(0, e.flash - dt);
@@ -94,12 +96,19 @@ export function updateEnemy(e, dt, p) {
       !!GS.evac ||
       (!GS.queue.length && GS.enemies.length <= 5);
   const sr = seenFrom(); // further when you stand in lamplight (lights.js)
-  if (e.los && pd2 < sr * sr) {
+  // they see what is in front of them: behind one that hasn't noticed you, you can come almost within arm's reach
+  const sees =
+    e.los &&
+    e.kind !== 'blind' &&
+    (pd2 < SIGHT.behind * SIGHT.behind ||
+      e.aw > 0 ||
+      Math.abs(angDiff(e.a, Math.atan2(p.y - e.y, p.x - e.x))) < SIGHT.half);
+  if (sees && pd2 < sr * sr) {
     if (!(e.aw > 0)) e.wokeT = GS.time;
     e.aw = Math.max(e.aw || 0, 4);
   }
   e.aw = (e.aw || 0) - dt;
-  if (!(e.aw > 0) && !e.lure) {
+  if (!(e.aw > 0) && !e.lure && e.kind !== 'blind') {
     e.idleT = (e.idleT || 0) + dt;
     if (e.idleT > 22) {
       e.idleT = 0;
@@ -109,7 +118,7 @@ export function updateEnemy(e, dt, p) {
   if (e.kind && specialTick(e, dt, p)) return; // the special infected move themselves (see actors/specials.js)
   let lure = e.lure;
   if (lure && (lure.dead || !(lure.alarm > 0))) lure = e.lure = null;
-  if (lure && e.los && pd2 < (lure.flare ? 110 : 200) ** 2) {
+  if (lure && sees && pd2 < (lure.flare ? 110 : 200) ** 2) {
     lure = e.lure = null;
     e.aw = 4;
   }
@@ -134,6 +143,7 @@ export function updateEnemy(e, dt, p) {
     }
   }
   const aware = allAw || e.aw > 0;
+  e.unaw = !aware; // for a quiet kill (combat.js): it has not noticed you
   const ot = objTarget(e) || budTarget(e, pd2);
   if (ot) {
     e.loT = (e.loT || 0) - dt;

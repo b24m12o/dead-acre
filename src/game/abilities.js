@@ -9,7 +9,9 @@ import { noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, cam } from './state.js';
 import { dust, floatText, shake } from '../render/effects.js';
-import { explode, releaseGrab, shoveEnemy } from './combat.js';
+import { explode, quietKill, quietTarget, releaseGrab, shoveEnemy } from './combat.js';
+import { showStreak } from '../ui/callouts.js';
+import { saveMeta } from '../core/settings.js';
 import { mouse, moveInput } from '../core/input.js';
 import { makeNoise } from './noise.js';
 export const AB_DEF = {
@@ -250,15 +252,36 @@ export function tryShove() {
   if (P.held) releaseGrab(1.4); // a shove tears you free of a grab
   P.shoveCd = SHOVE.cd;
   P.shoveT = SHOVE.hold;
-  const a = P.aimA;
-  let n = 0;
+  const a = P.aimA,
+    hit = [];
+  let n = 0,
+    fin = null,
+    fd = 1e9;
   for (const e of GS.enemies) {
     if (e.dead) continue;
     const dx = e.x - P.x,
       dy = e.y - P.y,
       d = Math.hypot(dx, dy);
     if (d > SHOVE.reach + (e.r || 14) || (d > 8 && Math.abs(angDiff(a, Math.atan2(dy, dx))) > SHOVE.half)) continue;
-    if (shoveEnemy(e, dx || Math.cos(a), dy || Math.sin(a))) n++;
+    hit.push([e, dx || Math.cos(a), dy || Math.sin(a)]);
+    if (quietTarget(e) && d < fd) {
+      fd = d;
+      fin = e;
+    }
+  }
+  for (const [e, dx, dy] of hit) {
+    if (e === fin) {
+      const l = Math.hypot(dx, dy) || 1,
+        how = quietKill(e, dx / l, dy / l); // the nearest one that never saw it coming, or is down: finished
+      n++;
+      if (how === 'quiet') floatText(e.x, e.y - 30, 'Quiet kill', '#cfd6d9', 13);
+      if (!(GS.meta.tips && GS.meta.tips.quiet)) {
+        GS.meta.tips = GS.meta.tips || {};
+        GS.meta.tips.quiet = 1;
+        saveMeta();
+        showStreak('Quiet kill', 'A shove finishes one that hasn’t noticed you, or one that is down', true);
+      }
+    } else if (shoveEnemy(e, dx, dy)) n++;
   }
   sfx.thump(P.x, P.y);
   sfx.grunt(P.x, P.y);

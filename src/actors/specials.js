@@ -6,10 +6,14 @@
 //    you can hardly see, you move slower and your aim swims. Kill it far away.
 //  · Dragger: big, hunched, long in the arm. It goes for one of your people, knocks them down and drags them off into
 //    the dark. Kill it before it gets away with them, or they are gone. With nobody to take, it takes you.
+//  · Listener: ashen, upright, blind. It stands with its head turning until something makes a noise: a shot, a blast,
+//    running feet close by, a clock. Then it runs at the noise, faster than you, and hits hard. It goes where the
+//    sound was, not where you are: stand still and it passes you; fire again and it has you. Quiet answers it.
 import { GS } from '../core/gs.js';
 import { TAU, d2, rand } from '../core/util.js';
 import { MH, MW, TILE, grid } from '../world/map.js';
-import { collide, flow, los, steer } from '../world/nav.js';
+import { collide, dijk, flow, los, steer } from '../world/nav.js';
+import { NOISE } from '../game/noise.js';
 import { sfx } from '../audio/sfx.js';
 import { part, shake } from '../render/effects.js';
 import { showStreak } from '../ui/callouts.js';
@@ -21,6 +25,17 @@ export const SPECIAL = {
   climb: { name: 'Climber', tip: 'Walls and houses don’t stop it · it comes straight over them' },
   spore: { name: 'Spore', tip: 'It bursts into a blinding cloud when it dies · kill it far away' },
   drag: { name: 'Dragger', tip: 'It drags your people off into the dark · kill it before it gets away' },
+  blind: { name: 'Listener', tip: 'Blind · it runs at whatever makes a noise: a shot, running feet, a clock' },
+};
+export const BLIND = {
+  feet: 170, // it hears you moving within this many px
+  roll: 300, // and a roll from further
+  still: 55, // moving slower than this (px/s) is silent
+  hot: 6, // seconds it stays on a noise
+  listen: 1.6, // seconds it stands at the spot, head up, before it loses interest
+  touch: 64, // within this of you it has you, noise or no noise
+  run: 2.35, // its run, in walker speeds
+  walk: 0.3,
 };
 GS.spores = [];
 export function resetSpecials() {
@@ -40,6 +55,18 @@ export function makeSpecial(kind, x, y) {
     e.sp *= 0.7;
     e.hp *= 1.6;
     e.r *= 1.15;
+  } else if (kind === 'blind') {
+    e.shape = null;
+    e.v = 16; // bare to the waist
+    e.hv = 1;
+    e.tc = [0.6, 0.62, 0.68]; // ashen
+    e.run = false;
+    e.hp *= 2.6;
+    e.dmg *= 2;
+    e.sc = 1.1;
+    e.r *= 1.05;
+    e.sp0 = e.sp;
+    e.hot = 0;
   } else if (kind === 'drag') {
     e.hp *= 3.2;
     e.sp *= 1.25;
@@ -118,8 +145,13 @@ function kin(e, dt) {
 }
 // runs before the ordinary AI; returns true when it has moved the zombie itself this frame
 // its tell, every few seconds while it is up and within earshot: you hear what it is before you see it
-const TELL = { climb: ['scrabble', 2.2, 3.5], spore: ['wheeze', 3, 4], drag: ['scrape', 3, 4.5] };
-GS.tells = { climb: 0, spore: 0, drag: 0 };
+const TELL = {
+  climb: ['scrabble', 2.2, 3.5],
+  spore: ['wheeze', 3, 4],
+  drag: ['scrape', 3, 4.5],
+  blind: ['rattle', 2.6, 4.2],
+};
+GS.tells = { climb: 0, spore: 0, drag: 0, blind: 0 };
 function tell(e, p) {
   const T = TELL[e.kind];
   if (!T || !(e.emerge >= 1) || e.dead) return;
@@ -181,7 +213,93 @@ export function specialTick(e, dt, p) {
     return true; // close enough: it splits open on you
   }
   if (e.kind === 'drag') return dragTick(e, dt, p);
+  if (e.kind === 'blind') return blindTick(e, dt, p);
   return false;
+}
+// the way to the last noise, shared by every listener that heard it
+let spotFlow = null,
+  spotT = -9;
+function flowTo(x, y, t) {
+  if (!spotFlow || spotFlow.length !== MW * MH) spotFlow = new Uint16Array(MW * MH);
+  if (spotT === t) return spotFlow;
+  spotT = t;
+  const seeds = [],
+    cx = Math.floor(x / TILE),
+    cy = Math.floor(y / TILE);
+  for (let j = -1; j <= 1; j++)
+    for (let i = -1; i <= 1; i++) {
+      const tx = cx + i,
+        ty = cy + j;
+      if (tx >= 0 && ty >= 0 && tx < MW && ty < MH && !grid[ty * MW + tx]) seeds.push(ty * MW + tx);
+    }
+  dijk(spotFlow, seeds, false);
+  return spotFlow;
+}
+function blindTick(e, dt, p) {
+  if (!(e.emerge >= 1)) return false;
+  const d = Math.hypot(p.x - e.x, p.y - e.y),
+    play = GS.state === 'play' && !p.ride,
+    last = !!GS.evac || (!GS.queue.length && GS.enemies.length <= 5); // the last few find you by scent, so a night always ends
+  e.hot = Math.max(0, (e.hot || 0) - dt);
+  // what it hears: the last loud noise, if it was in earshot
+  if (NOISE.t > (e.hnT ?? -9)) {
+    e.hnT = NOISE.t;
+    if (d2(e.x, e.y, NOISE.x, NOISE.y) < (NOISE.r || 0) ** 2) {
+      if (!(e.hot > 0)) sfx.growl(e.x, e.y);
+      e.hx = NOISE.x;
+      e.hy = NOISE.y;
+      e.hT = NOISE.t;
+      e.hot = BLIND.hot;
+    }
+  }
+  // your feet, close by (not while it is already running at something: its own feet drown yours)
+  const pv = Math.hypot(p.vx || 0, p.vy || 0),
+    ear = p.dashT > 0 ? BLIND.roll : BLIND.feet;
+  if (play && pv > BLIND.still && d < ear && (!(e.hot > 0) || e.own) && !e.lure) {
+    if (!(e.hot > 0)) sfx.growl(e.x, e.y);
+    e.hx = p.x;
+    e.hy = p.y;
+    e.hT = GS.time;
+    e.own = true; // it is following your steps: each one it hears moves the spot
+    e.hot = Math.max(e.hot, 2.5);
+  } else if (!(e.hot > 0)) e.own = false;
+  if (e.hp < (e.hpL ?? e.hp) && play) {
+    e.hx = p.x;
+    e.hy = p.y;
+    e.hT = GS.time;
+    e.hot = BLIND.hot;
+  } // hurt: it knows where from
+  e.hpL = e.hp;
+  e.aw = 0;
+  e.sp = e.sp0 * BLIND.run;
+  if (e.lure) return false; // a clock, an alarm, a flare: it goes to it like the rest (and has its back to you)
+  if (last || (play && d < BLIND.touch) || (e.hot > 0 && play && d < 150 && d2(e.hx, e.hy, p.x, p.y) < 70 * 70)) {
+    e.aw = 1.5;
+    return false; // it has you: the ordinary fight
+  }
+  const ks = kin(e, dt);
+  if (e.hot > 0 && e.hx !== undefined) {
+    const direct = !(GS.time < (e.bLosT || 0))
+        ? ((e.bLosT = GS.time + 0.3), (e.bLos = los(e.x, e.y, e.hx, e.hy)))
+        : e.bLos,
+      [ux, uy, dist] = direct ? steer(e, e.hx, e.hy, null, true) : steer(e, e.hx, e.hy, flowTo(e.hx, e.hy, e.hT));
+    if (dist > 26) {
+      e.vx = ux * e.sp * ks;
+      e.vy = uy * e.sp * ks;
+      e.a = Math.atan2(uy, ux);
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
+      e.anim = (e.anim || 0) + dt * 9;
+      collide(e);
+      return true;
+    }
+    e.hot = Math.min(e.hot, BLIND.listen); // there, and nothing: it stands and listens a moment longer
+  }
+  // nothing to hear: it stands, head turning slowly from side to side
+  e.vx = e.vy = 0;
+  e.a += Math.sin(GS.time * 0.55 + e.id * 2.1) * 0.9 * dt;
+  collide(e);
+  return true;
 }
 function dragTick(e, dt, p) {
   if (p.held === e) {

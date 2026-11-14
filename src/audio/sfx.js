@@ -558,6 +558,16 @@ export const sfx = {
     tone(rand(2300, 2600), 0.12, 'triangle', 0.02, 0.98, 0.58, 0, b);
     tone(rand(3500, 3800), 0.07, 'sine', 0.01, 1, 0.6, 0, b);
   }, // the dragger: something heavy hauled along the road, then one clink of metal
+  rattle(x, y) {
+    const b = spat(x, y),
+      n = randi(7, 11);
+    let t = 0;
+    for (let i = 0; i < n; i++) {
+      noise(0.014, 0.06, rand(1100, 1700), 900, 'bandpass', t, b);
+      t += 0.078 - i * 0.004;
+    }
+    tone(rand(95, 110), 0.3, 'sine', 0.012, 0.9, 0.7, 0, b);
+  }, // the listener: a dry rattle in the throat, head cocked
   rumble(x, y) {
     const b = spat(x, y);
     tone(48, 0.7, 'sawtooth', 0.05, 1.3, 0, 260, b);

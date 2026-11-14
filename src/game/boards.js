@@ -89,7 +89,7 @@ function nailBack(b, dt) {
     }
   } else b.fix = Math.max(0, (b.fix || 0) - dt);
 }
-// where a board would go: the gap just in front of you, one or two tiles wide, with something solid at both ends.
+// where a board would go: the gap just in front of you, up to three tiles wide, with something solid at both ends.
 // Returns a board (not yet up) or null. a: the way you face
 export function boardSpot(x, y, a) {
   const c = Math.cos(a),
@@ -106,11 +106,11 @@ export function boardSpot(x, y, a) {
       const [ax, ay] = along; // the board runs along this; its faces point across it
       let lo = 0,
         hi = 0;
-      while (lo < 2 && !isWallT(tx - ax * (lo + 1), ty - ay * (lo + 1))) lo++;
-      while (hi < 2 && !isWallT(tx + ax * (hi + 1), ty + ay * (hi + 1))) hi++;
+      while (lo < 3 && !isWallT(tx - ax * (lo + 1), ty - ay * (lo + 1))) lo++;
+      while (hi < 3 && !isWallT(tx + ax * (hi + 1), ty + ay * (hi + 1))) hi++;
       const w = lo + hi + 1;
-      if (w > 2 || !isWallT(tx - ax * (lo + 1), ty - ay * (lo + 1)) || !isWallT(tx + ax * (hi + 1), ty + ay * (hi + 1)))
-        continue; // more than two tiles, or open at an end: nothing to nail it to
+      if (w > 3 || !isWallT(tx - ax * (lo + 1), ty - ay * (lo + 1)) || !isWallT(tx + ax * (hi + 1), ty + ay * (hi + 1)))
+        continue; // more than three tiles (the widest way into a house), or open at an end: nothing to nail it to
       const tiles = [];
       for (let k = -lo; k <= hi; k++) tiles.push([tx + ax * k, ty + ay * k]);
       const pts = tiles.map(([i, j]) => [(i + 0.5) * TILE, (j + 0.5) * TILE]),

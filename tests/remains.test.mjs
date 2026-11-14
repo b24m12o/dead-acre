@@ -106,4 +106,5 @@ export async function run(b) {
   check(o.drift === 0, `ground with nothing on it must not change when its patch is repainted: ${o.drift} px drifted`);
   check(o.oldWay, 'with no frame drawn, a body should run out as it always did');
   check(!errs.length, 'page errors: ' + errs.join(' | '));
+  return `${o.baked.bodies} bodies and ${o.baked.marks} marks painted in, ${o.here} px changed, 0 drift; a walker ${o.on.toFixed(0)} px/s on the pile, ${o.off.toFixed(0)} off`;
 }

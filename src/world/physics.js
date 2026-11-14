@@ -10,7 +10,7 @@ import { playS, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { cam } from '../game/state.js';
 import { HUMAN, bleed, bloodOf, chips, decal, dust, flashLight, part, shake, sparks } from '../render/effects.js';
-import { hurtPlayer } from '../game/combat.js';
+import { hurtPlayer, tripOver } from '../game/combat.js';
 import { BILE } from '../render/draw-enemies.js';
 import { LYB } from '../render/draw-bodies.js';
 import { WHOLES } from './wear.js';
@@ -43,6 +43,12 @@ export function ragKick(e, ux, uy, imp, pop) {
       L.vy += uy * imp * rand(0.6, 1.6) + rand(-1, 1) * imp * 0.5;
     }
 }
+export const KNOCK = {
+  v: 240, // a body moving faster than this (px/s) knocks down what it hits: a shotgun, a heavy rifle, a blast
+  reach: 30,
+  max: 2, // how many one body can bowl over
+  time: 1.1, // only in the moment after the kill
+};
 export function corpseMass(e) {
   return e.big || e.type === 'queen' || e.r >= 40 ? Infinity : e.type === 'beetle' ? 5 : e.type === 'hopper' ? 2 : 1;
 }
@@ -98,6 +104,28 @@ function corpsePhys(e, dt) {
     e.y = ny;
   }
   e.fallA = (e.fallA ?? e.a + Math.PI) + e.rw * dt;
+  // a body thrown hard takes the legs from under whoever it lands among: a heavy round or a blast knocks down the
+  // one it kills and the ones behind it. Each one it bowls over costs it half its speed.
+  if (
+    HUMAN[e.type] &&
+    (e.bowl || 0) < KNOCK.max &&
+    e.dying < KNOCK.time &&
+    e.z < 16 &&
+    e.rvx * e.rvx + e.rvy * e.rvy > KNOCK.v * KNOCK.v
+  )
+    query(e.x, e.y, KNOCK.reach, o => {
+      if ((e.bowl || 0) >= KNOCK.max || o.dead || o.emerge < 1) return;
+      if (d2(o.x, o.y, e.x, e.y) > (KNOCK.reach + (o.r || 14)) ** 2) return;
+      if (!tripOver(o, Math.atan2(e.rvy, e.rvx))) return;
+      e.bowl = (e.bowl || 0) + 1;
+      o.kx = (o.kx || 0) + e.rvx * 0.45;
+      o.ky = (o.ky || 0) + e.rvy * 0.45;
+      o.aw = Math.max(o.aw || 0, 4);
+      e.rvx *= 0.5;
+      e.rvy *= 0.5;
+      GS.bowled = (GS.bowled || 0) + 1;
+      if (thr('bowl', 90)) sfx.thump(o.x, o.y);
+    });
   if (Math.hypot(e.rvx, e.rvy) > 140 && HUMAN[e.type] && Math.random() < dt * 14)
     decal(
       R['splat' + randi(0, 3)],
