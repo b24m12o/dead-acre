@@ -807,8 +807,7 @@ export function updateEnemy(e, dt, p) {
     if (e.progT >= 1) {
       e.progT = 0;
       const d = Math.sqrt(pd2);
-      const cut = !e.los && !e.lurk && !e.sg && GS.time - (e.boardT ?? -9) > 1; // near you, but out of sight and getting nowhere, counts too
-      e.noProg = (d > 260 || cut) && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
+      e.noProg = d > 260 && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
       e.lastPD = d;
       if (e.noProg >= 12 && !GS.queue.length && GS.nightLive) {
         // stuck where it can't reach you once the night's last wave is out: it comes round again near you, however many are left
