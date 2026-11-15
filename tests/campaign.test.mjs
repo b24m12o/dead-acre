@@ -39,7 +39,7 @@ export const RUN = String.raw`(()=>{
     if (GOD) GS.P.hp = S.maxHp; lastHp = GS.P.hp;
     if (GS.evac && GS.evac.down) { const inn = Math.hypot(GS.P.x - GS.evac.x, GS.P.y - GS.evac.y) < 80; N.evIn = (N.evIn || 0) + (inn ? 1 : 0); N.evOut = (N.evOut || 0) + (inn ? 0 : 1); N.holdMax = Math.max(N.holdMax || 0, GS.evac.hold || 0); N.near = Math.max(N.near || 0, GS.enemies.filter(z => !z.dead && Math.hypot(z.x - GS.P.x, z.y - GS.P.y) < 90).length); N.waiting = GS.evac.waiting || N.waiting; }
     if (GS.evac && GS.evac.t > 200) { N.evacStuck = { P: [Math.round(GS.P.x), Math.round(GS.P.y)], E: [Math.round(GS.evac.x), Math.round(GS.evac.y)], d: Math.round(Math.hypot(GS.P.x - GS.evac.x, GS.P.y - GS.evac.y)), hold: +(GS.evac.hold || 0).toFixed(2), down: !!GS.evac.down, leave: GS.evac.leave, held: !!GS.P.held, st: GS.state, inv: GS.P.inv, daze: GS.P.daze, solidP: solidPt(GS.P.x, GS.P.y), flowP: flow[Math.floor(GS.P.y / TILE) * MW + Math.floor(GS.P.x / TILE)], flowE: flow[Math.floor(GS.evac.y / TILE) * MW + Math.floor(GS.evac.x / TILE)], vx: Math.round(GS.P.vx), vy: Math.round(GS.P.vy), pad: [__pad.lx, __pad.ly], keys: [...(typeof keys !== 'undefined' ? keys : [])] }; break; }
-    if (T - N.t0 > 420 && !GS.evac) { N.stuck = { en: GS.enemies.map(e => ({ t: e.type, x: Math.round(e.x), y: Math.round(e.y), hp: Math.round(e.hp), st: e.st, dorm: !!e.dormant, em: e.emerge, d: Math.round(Math.hypot(e.x - GS.P.x, e.y - GS.P.y)), solid: solidPt(e.x, e.y), noProg: e.noProg, z: e.z, fly: !!e.fly, dying: e.dying })), q: GS.queue.length, obj: GS.obj && { type: GS.obj.type, done: GS.obj.done, grace: GS.obj.grace, hold: GS.obj.hold }, bossDue: GS.bossDue, nightDone: GS.nightDone, P: [Math.round(GS.P.x), Math.round(GS.P.y)] }; break; }
+    if (T - N.t0 > 420 && !GS.evac) { N.stuck = { en: GS.enemies.map(e => ({ t: e.type, x: Math.round(e.x), y: Math.round(e.y), hp: Math.round(e.hp), st: e.st, dorm: !!e.dormant, em: e.emerge, d: Math.round(Math.hypot(e.x - GS.P.x, e.y - GS.P.y)), solid: solidPt(e.x, e.y), noProg: e.noProg, aw: +(e.aw || 0).toFixed(1), sg: e.sg ? 1 : 0, kind: e.kind || '', lurk: e.lurk ? 1 : 0, hz: e.horde ? 1 : 0, bT: e.boardT ? +(GS.time - e.boardT).toFixed(1) : -1, los: e.los ? 1 : 0, z: e.z, fly: !!e.fly, dying: e.dying })), q: GS.queue.length, live: GS.nightLive, ev: GS.ev, sig: GS.RUN.sig || '', doors: (GS.doors || []).filter(d => !d.broken && !d.off).length, obj: GS.obj && { type: GS.obj.type, done: GS.obj.done, grace: GS.obj.grace, hold: GS.obj.hold }, bossDue: GS.bossDue, nightDone: GS.nightDone, P: [Math.round(GS.P.x), Math.round(GS.P.y)] }; break; }
   }
   close(); N.partial = true;
   for (const k in nights) { const n = nights[k]; n.dmg = Math.round(n.dmg); n.hpSpawned = Math.round(n.hpSpawned); n.dry = Math.round(n.dry); n.minHp = +n.minHp.toFixed(2); n.healed = Math.round(n.healed); if (n.ammoMin !== undefined) { n.ammoMin = +n.ammoMin.toFixed(2); n.ammoAvg = +(n.ammoAvgS / Math.max(1, n.t)).toFixed(2); delete n.ammoAvgS; } delete n.t0; delete n.kills0; }
@@ -75,8 +75,8 @@ export async function run(b) {
         holdMax: n.holdMax,
         near: n.near,
         waiting: n.waiting,
-        ...(n.evacStuck || n.stuck),
-      }).slice(0, 700)
+        ...(({ en, ...rest }) => ({ ...rest, en: en && en.slice(0, 8) }))(n.evacStuck || n.stuck), // what the night was, then the first few of whoever is left
+      }).slice(0, 2600)
     );
   check(!stuck.length, 'stalled on night(s) ' + stuck.join(', ') + ': ' + detail.join(' | '));
   check(r.end === 'won', `run ended "${r.end}" on night ${r.wave}`);

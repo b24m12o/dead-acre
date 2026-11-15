@@ -22,10 +22,12 @@ export async function run(b) {
     const P = GS.P;
     // open ground
     let spot = null;
-    for (let t = 0; t < 4000 && !spot; t++) {
+    for (let t = 0; t < 20000 && !spot; t++) {
       const x = 500 + Math.random() * (WW - 1000), y = 500 + Math.random() * (WH - 1000);
       let ok = true;
       for (let dx = -160; dx <= 400 && ok; dx += 40) for (let dy = -160; dy <= 160 && ok; dy += 40) if (grid[Math.floor((y + dy) / TILE) * MW + Math.floor((x + dx) / TILE)]) ok = false;
+      // and a clear look at where the test stands its zombies (a fence or a wreck is not in the grid, and hides one from the crosshair)
+      for (const [ang, far] of [[0.1, 300], [0.5, 300], [0, 200]]) if (ok && (!los(x, y, x + Math.cos(ang) * far, y + Math.sin(ang) * far) || !los(x + 160, y, x + 160 + Math.cos(ang) * far, y + Math.sin(ang) * far))) ok = false;
       if (ok) spot = [x, y];
     }
     if (spot) { P.x = spot[0]; P.y = spot[1]; }

@@ -40,7 +40,7 @@ import { poundCar, screamAt } from '../game/noise.js';
 import { tip } from '../audio/radio.js';
 import { finishObjective } from '../game/objective-flow.js';
 import { budTarget, objTarget } from '../game/objective-update.js';
-import { specialTick } from './specials.js';
+import { lastFew, specialTick } from './specials.js';
 // a giant that has stopped getting anywhere while it walks, pressed into a building or caught inside one, is walked out
 // to the nearest open street it can move on from (a tile clear of buildings that its own path map can reach)
 function giantWedge(e, dt) {
@@ -89,13 +89,7 @@ export function updateEnemy(e, dt, p) {
   }
   // awareness: they see you, hear you, or get hit; otherwise they amble
   const pd2 = d2(e.x, e.y, p.x, p.y),
-    allAw =
-      e.big ||
-      e.fly ||
-      e.type === 'wasp' ||
-      e.type === 'flower' ||
-      !!GS.evac ||
-      (!GS.queue.length && GS.enemies.length <= 5);
+    allAw = e.big || e.fly || e.type === 'wasp' || e.type === 'flower' || !!GS.evac || lastFew();
   const sr = seenFrom(); // further when you stand in lamplight (lights.js)
   // they see what is in front of them: behind one that hasn't noticed you, you can come almost within arm's reach
   const sees =
@@ -324,7 +318,8 @@ export function updateEnemy(e, dt, p) {
             tvx = ux * e.sp * lurch;
             tvy = uy * e.sp * lurch;
             face = e.los ? Math.atan2(p.y - e.y, p.x - e.x) : Math.atan2(uy, ux);
-            if (em && e.los && dist < 78 && e.stT <= 0 && e.shield) {
+            if (em && e.los && dist < 78 && e.stT <= 0 && e.shield && !ot) {
+              // the shove is for you: at a generator or a wall it just leans in (it used to shove at the air beside one all night)
               e.st = 'bashW';
               e.stT = 0.42;
               sfx.groan(e.x, e.y);
@@ -809,7 +804,8 @@ export function updateEnemy(e, dt, p) {
     if (e.progT >= 1) {
       e.progT = 0;
       const d = Math.sqrt(pd2);
-      e.noProg = d > 260 && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
+      const busy = e.sg || GS.time - (e.boardT ?? -9) < 2; // at the siege house, or pounding on a door or a board: where it means to be
+      e.noProg = !busy && d > 260 && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
       e.lastPD = d;
       if (e.noProg >= 12 && !GS.queue.length && GS.nightLive) {
         // stuck where it can't reach you once the night's last wave is out: it comes round again near you, however many are left
@@ -819,6 +815,11 @@ export function updateEnemy(e, dt, p) {
         e.vx = e.vy = e.kx = e.ky = 0;
         e.emerge = 0;
         e.aw = 9;
+        e.lure = null; // and it comes for you this time, not back to whatever noise it was standing at
+        if (e.st !== 'move') {
+          e.st = 'move';
+          e.stT = 0.6;
+        }
         e.noProg = 0;
         e.lastPD = 1e9;
       }

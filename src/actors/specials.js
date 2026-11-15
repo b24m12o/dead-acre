@@ -236,11 +236,24 @@ function flowTo(x, y, t) {
   dijk(spotFlow, seeds, false);
   return spotFlow;
 }
+// the night is down to its last few: they find you by scent, so a night always ends. The ones playing dead don't count:
+// they lie until the rest are gone, and five of them must not keep a sixth that can't see standing out in the dark for good
+let fewT = -1,
+  fewV = false;
+export function lastFew() {
+  if (fewT !== GS.time) {
+    fewT = GS.time;
+    let n = 0;
+    if (!GS.queue.length) for (const o of GS.enemies) if (!o.dead && !o.lurk) n++;
+    fewV = !GS.queue.length && n <= 5;
+  }
+  return fewV;
+}
 function blindTick(e, dt, p) {
   if (!(e.emerge >= 1)) return false;
   const d = Math.hypot(p.x - e.x, p.y - e.y),
     play = GS.state === 'play' && !p.ride,
-    last = !!GS.evac || (!GS.queue.length && GS.enemies.length <= 5); // the last few find you by scent, so a night always ends
+    last = !!GS.evac || lastFew();
   e.hot = Math.max(0, (e.hot || 0) - dt);
   // what it hears: the last loud noise, if it was in earshot
   if (NOISE.t > (e.hnT ?? -9)) {

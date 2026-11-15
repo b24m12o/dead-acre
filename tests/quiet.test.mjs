@@ -97,7 +97,7 @@ export async function run(b) {
     clear(); home();
     // 6. a clock pulls it like the rest, back turned, and then one shove does it
     const L2 = makeSpecial('blind', P.x + 200, P.y); L2.emerge = 1;
-    const fl = startFlare(P.x + 330, P.y, true);
+    startFlare(P.x + 330, P.y, true);
     fr(150);
     out.lured = !!L2.lure && Math.hypot(L2.x - (P.x + 330), L2.y - P.y) < 110;
     P.x = L2.x - 66; P.y = L2.y; P.aimA = 0; P.vx = P.vy = 0;
@@ -105,6 +105,22 @@ export async function run(b) {
     out.lureUnaw = L2.unaw === true;
     shove(Math.atan2(L2.y - P.y, L2.x - P.x));
     out.lureKill = L2.dead === true || !(L2.hp > 0);
+    // 7. the last of a night: five playing dead and one that can't see. The five don't count, so it comes for you by scent
+    for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; home(); P.hp = S.maxHp;
+    for (let i = 0; i < 5; i++) makeLurker(P.x + 60 + i * 40, P.y + 170);
+    for (const f of GS.flares) f.alarm = 0; // the clock from the step before is done
+    const L3 = makeSpecial('blind', P.x + 330, P.y); L3.emerge = 1; L3.hnT = NOISE.t;
+    fr(300);
+    out.lastBlind = P.hp < S.maxHp || Math.hypot(L3.x - P.x, L3.y - P.y) < 110;
+    out.lastAt = Math.round(Math.hypot(L3.x - P.x, L3.y - P.y));
+    // 8. a riot cop at the generator leans on it like the rest: the shove is kept for you
+    clear(); home();
+    GS.obj = { type: 'gen', x: P.x + 330, y: P.y, hp: 9000, max: 9000 };
+    const cop = makeShield(makeEnemy('skitter', P.x + 250, P.y)); cop.emerge = 1; cop.a = Math.PI; cop.aw = 9;
+    let bashed = 0;
+    fr(900, () => { cop.aw = 9; if (cop.st === 'bashW' || cop.st === 'bash') bashed++; });
+    out.copBashed = bashed; out.copGen = Math.round(9000 - GS.obj.hp); out.copAt = Math.round(Math.hypot(cop.x - GS.obj.x, cop.y - GS.obj.y));
+    GS.obj = null;
     return out;
   })()`);
   await pg.close();
@@ -137,6 +153,14 @@ export async function run(b) {
   );
   check(o.lostIt, 'with nothing more to hear it should lose interest');
   check(o.heardFeet, 'running close to it should bring it onto you');
+  check(
+    o.lastBlind,
+    `with only the ones playing dead left beside it, the Listener should come for you: ${o.lastAt} px away`
+  );
+  check(
+    o.copBashed === 0 && o.copGen > 20,
+    `a riot cop at the generator should lean on it, not shove at the air: ${o.copBashed} frames shoving, ${o.copGen} damage, ${o.copAt} px off`
+  );
   check(
     o.lured && o.lureUnaw && o.lureKill,
     `a clock should pull it, back turned, for a quiet kill: lured ${o.lured}, unaware ${o.lureUnaw}, killed ${o.lureKill}`
