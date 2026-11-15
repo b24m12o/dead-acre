@@ -27,6 +27,7 @@ const ALL = [
   'gamepad',
   'voice',
   'doors',
+  'lighting',
   'roof',
   'summary',
   'campaign',

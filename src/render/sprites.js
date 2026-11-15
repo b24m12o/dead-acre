@@ -4,9 +4,9 @@ import { SOFT3, clamp } from '../core/util.js';
 import { TS, TSH } from '../core/settings.js';
 import { LIGHT_FS, LIGHT_VS, SHADOW_FS, SPRITE_FS, SPRITE_VS, gl, glc, hasCBF, program, uic } from './gl.js';
 import { FS_VS } from './bake.js';
-import { COMP_FS, DOWN_FS, FINAL_FS, UP_FS } from './post.js';
+import { COMP_FS, DOWN_FS, FINAL_FS, LSH_FS, UP_FS } from './post.js';
 import { R } from './atlas.js';
-export let P_SPRITE, P_SHADOW, P_LIGHT, P_COMP, P_DOWN, P_UP, P_FINAL;
+export let P_SPRITE, P_SHADOW, P_LIGHT, P_COMP, P_DOWN, P_UP, P_FINAL, P_LSH;
 export let emptyVAO;
 
 export function makeTex(w, h, hdr) {
@@ -34,7 +34,7 @@ function freeRT(rt) {
 }
 
 export let VW, VH, RW, RH, ZOOM, viewW, viewH;
-export let rtScene, rtShadow, rtLight, rtComp, bloomRTs, rtFlash;
+export let rtScene, rtShadow, rtLight, rtComp, bloomRTs, rtFlash, rtLampSh;
 let GFX; // Ultra: the full shading; Balanced: no edge shading or sharpening, fewer pixels, for weaker laptops
 export let gfxPreset;
 export let DEVICE_RENDER_CAP; // render at the screen's own pixel density (no forced supersampling on ordinary monitors); the pixel budget bounds GPU memory
@@ -63,12 +63,13 @@ export function resize() {
     return;
   }
   resize.key = gk; // nothing would change: keep the render targets instead of rebuilding them all
-  [rtScene, rtShadow, rtFlash, rtLight, rtComp, ...bloomRTs].forEach(freeRT);
+  [rtScene, rtShadow, rtFlash, rtLampSh, rtLight, rtComp, ...bloomRTs].forEach(freeRT);
   rtScene = makeRT(RW, RH, [makeTex(RW, RH, false), makeTex(RW, RH, true), makeTex(RW, RH, false)]);
   const hw = Math.max(2, RW >> 1),
     hh = Math.max(2, RH >> 1);
   rtShadow = makeRT(hw, hh, [makeTex(hw, hh, false)]);
   rtFlash = makeRT(hw, hh, [makeTex(hw, hh, true)]);
+  rtLampSh = makeRT(hw, hh, [makeTex(hw, hh, false)]); // what the street lamps' light is kept off: the shadows of whoever stands under them
   const lightDiv = gp.lightDiv,
     lw = Math.max(2, Math.ceil(RW / lightDiv)),
     lh = Math.max(2, Math.ceil(RH / lightDiv));
@@ -128,6 +129,16 @@ export function flush() {
   GS.qn = 0;
 }
 let CX, CY;
+let LSX = 0,
+  LSY = 0,
+  LSH = 120;
+const LSMAX = 120; // no lamp shadow runs longer than this
+// the lamp the next shadows are thrown from (SHMODE 4): where its head is, and how high
+export function lampFrom(x, y, h) {
+  LSX = x;
+  LSY = y;
+  LSH = h;
+}
 let CULL = null; // a box of the world to draw into instead of the screen (painting remains into the ground): [x0, y0, x1, y1]
 export function cullBox(b) {
   CULL = b;
@@ -163,6 +174,40 @@ export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
         ef
       );
     GS.SHMODE = 2;
+    return;
+  }
+  if (GS.SHMODE === 4) {
+    // a street lamp's shadow: each part of a figure smeared away from the lamp, as far as its height throws it. The
+    // head goes furthest and is narrowest, the body less far and wider: a shadow with shoulders, thinning to its tip
+    if (SHH < 1) return;
+    const dx = x - LSX,
+      dy = y - LSY,
+      d = Math.hypot(dx, dy) || 1,
+      off = Math.min(LSMAX, (SHH * d) / Math.max(34, LSH - SHH)),
+      n = Math.min(10, Math.ceil(off / 8));
+    if (off < 6) return; // right under the lamp: nothing to throw
+    GS.SHMODE = 3;
+    for (let i = 1; i <= n; i++) {
+      const k = i / n;
+      if (off * k < 9 && i < n) continue; // not on top of the figure itself: its shadow starts where it stops
+      quad(
+        r,
+        x + (dx / d) * off * k,
+        y + (dy / d) * off * k,
+        rot,
+        sx,
+        sy,
+        tr,
+        tg,
+        tb,
+        ta * (1.15 - 0.35 * k),
+        er,
+        eg,
+        eb,
+        ef
+      );
+    }
+    GS.SHMODE = 4;
     return;
   }
   if (GS.SHMODE === 3) ta *= GS.SHS;
@@ -239,6 +284,22 @@ export let MAXL, ldata;
 export let lVAO;
 let cornerBuf;
 export let lVBO;
+// a street lamp's light: kept at the front of the list, so the lamps are lit first, their shadows taken out of
+// them, and every other light (your torch, muzzle flashes, fire) added after, untouched
+export function addLampLight(x, y, r, cr, cg, cb, occ = 0) {
+  const n = GS.ln;
+  addLight(x, y, r, cr, cg, cb, occ); // occ: its row in the wall table, plus one (lampocc.js). A lamp has no beam, so the direction slot is free
+  if (GS.ln === n) return;
+  const a = (GS.lnL || 0) * 8,
+    b = n * 8;
+  if (a !== b)
+    for (let i = 0; i < 8; i++) {
+      const t = ldata[a + i];
+      ldata[a + i] = ldata[b + i];
+      ldata[b + i] = t;
+    }
+  GS.lnL = (GS.lnL || 0) + 1;
+}
 export function addLight(x, y, r, cr, cg, cb, dir = 0, cw = 0) {
   if (GS.ln >= MAXL || x + r < GS.camX || x - r > GS.camX + viewW || y + r < GS.camY || y - r > GS.camY + viewH) return;
   let o = GS.ln * 8;
@@ -262,6 +323,7 @@ export function init() {
   P_DOWN = program(FS_VS, DOWN_FS);
   P_UP = program(FS_VS, UP_FS);
   P_FINAL = program(FS_VS, FINAL_FS);
+  P_LSH = program(FS_VS, LSH_FS);
   emptyVAO = gl.createVertexArray();
   VW = 1;
   VH = 1;
@@ -276,9 +338,10 @@ export function init() {
   rtComp = undefined;
   bloomRTs = [];
   rtFlash = null;
+  rtLampSh = null;
   GFX = {
-    ultra: { dpr: 1.5, pixels: 3.7e6, lightDiv: 4, bloomLevels: 6, bloom: 0.6, sharpen: 0.1, ash: 90, cav: 1 },
-    balanced: { dpr: 1, pixels: 2.1e6, lightDiv: 4, bloomLevels: 5, bloom: 0.56, sharpen: 0, ash: 45, cav: 0 },
+    ultra: { dpr: 1.5, pixels: 3.7e6, lightDiv: 4, bloomLevels: 6, bloom: 0.6, sharpen: 0.1, ash: 90, cav: 1, lsh: 16 },
+    balanced: { dpr: 1, pixels: 2.1e6, lightDiv: 4, bloomLevels: 5, bloom: 0.56, sharpen: 0, ash: 45, cav: 0, lsh: 6 },
   };
   gfxPreset = () =>
     GFX[

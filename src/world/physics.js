@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { occDirty } from '../render/lampocc.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, d2, rand, randi } from '../core/util.js';
 import { gl } from '../render/gl.js';
@@ -373,6 +374,7 @@ export function breakTile(i, quiet = false) {
 GS.mipDirty = false;
 GS.mipT = 0;
 function repaintGround(tx, ty, t) {
+  occDirty(); // a wall gone: lamp light gets through where it stood (lampocc.js)
   // the baked ground still showed the wall's footprint: paint it over with the surrounding ground and refresh the minimap
   try {
     const kA = mapA.width / WW,

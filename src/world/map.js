@@ -1708,6 +1708,32 @@ function bakeMap() {
   a.strokeStyle = 'rgba(30,26,22,0.9)';
   a.lineWidth = 3;
   a.strokeRect(2 * TILE, 2 * TILE, WW - 4 * TILE, WH - 4 * TILE);
+  // where a wall meets the ground: a soft dark band along its foot, on the three sides you see (the north side is
+  // behind the wall as it is drawn). Without it a wall sits on the ground like a sticker
+  {
+    const W = (i, j) => {
+      if (i < 0 || j < 0 || i >= MW || j >= MH) return true;
+      const t = ttype[j * MW + i];
+      return t === 1 || t === 5;
+    };
+    const band = (x0, y0, x1, y1, rx, ry, rw, rh, k) => {
+      const g = a.createLinearGradient(x0, y0, x1, y1);
+      g.addColorStop(0, `rgba(10,12,18,${k})`);
+      g.addColorStop(0.45, `rgba(10,12,18,${k * 0.42})`);
+      g.addColorStop(1, 'rgba(10,12,18,0)');
+      a.fillStyle = g;
+      a.fillRect(rx, ry, rw, rh);
+    };
+    for (let ty = 0; ty < MH; ty++)
+      for (let tx = 0; tx < MW; tx++) {
+        if (!W(tx, ty)) continue;
+        const x = tx * TILE,
+          y = ty * TILE;
+        if (!W(tx, ty + 1)) band(0, y + TILE, 0, y + TILE + 16, x, y + TILE, TILE, 16, 0.46);
+        if (!W(tx + 1, ty)) band(x + TILE, 0, x + TILE + 12, 0, x + TILE, y, 12, TILE, 0.34);
+        if (!W(tx - 1, ty)) band(x, 0, x - 12, 0, x - 12, y, 12, TILE, 0.34);
+      }
+  }
   // baked contact shadows
   for (let ty = 0; ty < MH; ty++)
     for (let tx = 0; tx < MW; tx++) {

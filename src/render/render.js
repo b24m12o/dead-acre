@@ -8,6 +8,7 @@ import {
   P_DOWN,
   P_FINAL,
   P_LIGHT,
+  P_LSH,
   P_SHADOW,
   P_SPRITE,
   P_UP,
@@ -15,6 +16,7 @@ import {
   RW,
   VH,
   VW,
+  addLampLight,
   addLight,
   bloomRTs,
   bset,
@@ -28,6 +30,7 @@ import {
   quad,
   rtComp,
   rtFlash,
+  rtLampSh,
   rtLight,
   rtScene,
   rtShadow,
@@ -61,7 +64,9 @@ import { shakeOff } from './camera.js';
 import { NIGHT, lampHot, lampK } from './draw-player.js';
 import { BILE, GIANT } from './draw-enemies.js';
 import { bakeRemains, bodyAO } from './remains.js';
-import { atmosLights, drawAsh, drawAshGlow, lampShadows, shaftGlow } from '../world/wear.js';
+import { atmosLights, drawAsh, drawAshGlow, shaftGlow } from '../world/wear.js';
+import { lampShadowPass } from './lampshadows.js';
+import { occTex } from './lampocc.js';
 import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
 import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
 import { drawUI } from '../ui/draw-ui.js';
@@ -163,6 +168,15 @@ export function render() {
   }
   GS.SHS = 0.7;
   drawCasters();
+  flush();
+  GS.SHMODE = false;
+  setH(0);
+  // the street lamps' shadows: the shapes of whoever stands under them, thrown away from each lamp (lampshadows.js)
+  gl.bindFramebuffer(gl.FRAMEBUFFER, rtLampSh.fb);
+  gl.viewport(0, 0, rtLampSh.w, rtLampSh.h);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  GS.lampSh = lampShadowPass();
   flush();
   GS.SHMODE = false;
   setH(0);
@@ -411,7 +425,6 @@ export function render() {
         0
       );
     }
-  lampShadows();
   drawFog(0.8);
   drawCasters();
   for (const q of GS.parts)
@@ -605,6 +618,29 @@ export function render() {
         0
       );
   }
+  if (GS.ev === 'storm')
+    for (const L of lamps) {
+      // rain in the lamplight: under each lit lamp the drops show, falling through its cone
+      const k = lampK(L);
+      if (
+        k < 0.3 ||
+        Math.abs(L.hx - GS.camX - viewW / 2) > viewW * 0.5 + 140 ||
+        Math.abs(L.hy - GS.camY - viewH / 2) > viewH * 0.5 + 140
+      )
+        continue;
+      const by = L.hy - LAMPV(L),
+        n = L.lantern ? 9 : 18,
+        R0 = L.lantern ? 80 : 125;
+      for (let i = 0; i < n; i++) {
+        const a = ((i * 0.618 + L.ph) % 1) * Math.PI * 6.2,
+          r = 18 + ((i * 37 + Math.floor(L.ph * 9)) % (R0 - 20)),
+          t = (GS.time * 2.3 + i * 0.37 + L.ph) % 1,
+          x = L.hx + Math.cos(a) * r * 0.9,
+          y = by + 16 + Math.sin(a) * r * 0.5 + t * 48,
+          f = (1 - r / R0) * k * (1 - Math.abs(t - 0.5) * 1.5);
+        if (f > 0.02) lineQ(x, y, x - 3, y + 13, 1.3, 0, 0, 0, 1, 0.8 * f, 0.68 * f, 0.46 * f, 0, R.pixel);
+      }
+    }
   for (const f of fires) {
     const fk = 0.75 + Math.sin(GS.time * 17 + f.ph) * 0.15 + Math.sin(GS.time * 7.3 + f.ph) * 0.1;
     quad(R.glow, f.x, f.y - 26, 0, 0.7 * fk, 0.9 * fk, 0, 0, 0, 1, 0.55 * fk, 0.25 * fk, 0.07, 0);
@@ -958,6 +994,7 @@ export function render() {
   flush();
   // point lights (accents)
   GS.ln = 0;
+  GS.lnL = 0;
   for (const l of GS.dlights) {
     const f = l.life / l.max;
     addLight(l.x, l.y, l.r * (0.6 + 0.4 * f), l.col[0] * f, l.col[1] * f, l.col[2] * f);
@@ -965,8 +1002,8 @@ export function render() {
   for (const L of lamps) {
     const k = lampK(L);
     if (k > 0.05) {
-      if (L.lantern) addLight(L.hx, L.hy, 210, 1.0 * k, 0.66 * k, 0.32 * k);
-      else addLight(L.hx, L.hy, 330, 1.05 * k, 0.8 * k, 0.5 * k);
+      if (L.lantern) addLampLight(L.hx, L.hy, 210, 1.0 * k, 0.66 * k, 0.32 * k, L.occ || 0);
+      else addLampLight(L.hx, L.hy, 330, 1.05 * k, 0.8 * k, 0.5 * k, L.occ || 0);
     }
   }
   for (const r of roofs) if (GS.ev !== 'blackout') addLight(r.x, r.y, 380, 0.9, 0.92, 0.95);
@@ -1062,11 +1099,37 @@ export function render() {
   gl.bindTexture(gl.TEXTURE_2D, visTex || rtFlash.texs[0]);
   gl.uniform1i(P_LIGHT.u.uVisM, 3);
   gl.uniform1f(P_LIGHT.u.uFlOcc, visNeed && visTex ? 1 : 0);
+  {
+    const ot = occTex(); // where each lamp's light meets a wall
+    gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, ot || rtFlash.texs[0]);
+    gl.uniform1i(P_LIGHT.u.uOcc, 4);
+    gl.uniform1f(P_LIGHT.u.uOccOn, ot ? 1 : 0);
+  }
   gl.activeTexture(gl.TEXTURE0);
   gl.bindVertexArray(lVAO);
   gl.bindBuffer(gl.ARRAY_BUFFER, lVBO);
-  gl.bufferSubData(gl.ARRAY_BUFFER, 0, ldata, 0, GS.ln * 8);
-  gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, GS.ln);
+  // the lamps first; their shadows taken out of them; then every other light, which the shadows don't touch
+  if (GS.lnL) {
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, ldata, 0, GS.lnL * 8);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, GS.lnL);
+    gl.bindVertexArray(emptyVAO);
+    gl.useProgram(P_LSH.p);
+    gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_COLOR);
+    gl.bindTexture(gl.TEXTURE_2D, rtLampSh.texs[0]);
+    gl.uniform1i(P_LSH.u.uSrc, 0);
+    gl.uniform2f(P_LSH.u.uTexel, 1.4 / rtLampSh.w, 1.4 / rtLampSh.h);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.useProgram(P_LIGHT.p);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.bindTexture(gl.TEXTURE_2D, rtScene.texs[2]);
+    gl.bindVertexArray(lVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, lVBO);
+  }
+  if (GS.ln > GS.lnL) {
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, ldata, GS.lnL * 8, (GS.ln - GS.lnL) * 8);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, GS.ln - GS.lnL);
+  }
   gl.bindVertexArray(emptyVAO);
   gl.disable(gl.BLEND);
   // composite: sun + sky + shadows + specular

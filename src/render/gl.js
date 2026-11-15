@@ -87,10 +87,14 @@ export function init() {
   void main(){ vec2 w=aL0.xy+aCorner*aL0.z; vW=w; L0=aL0; L1=aL1; vec2 p=(w-uCam.xy)/uCam.zw; gl_Position=vec4(p.x*2.0-1.0,1.0-p.y*2.0,0.0,1.0); }`;
   LIGHT_FS = `#version 300 es
   precision highp float;
-  uniform sampler2D uNrm; uniform sampler2D uFsh; uniform vec2 uRes; uniform vec2 uFL; uniform float uWet; uniform sampler2D uVisM; uniform float uFlOcc;
+  uniform sampler2D uNrm; uniform sampler2D uFsh; uniform vec2 uRes; uniform vec2 uFL; uniform float uWet; uniform sampler2D uVisM; uniform float uFlOcc; uniform highp sampler2D uOcc; uniform float uOccOn;
   in vec2 vW; flat in vec4 L0; flat in vec4 L1; out vec4 o;
   void main(){ float d=length(vW-L0.xy)/L0.z; float att=clamp(1.0-d,0.0,1.0); att*= L1.w>0.0 ? 1.0 : att;
     if(L1.w>0.0){ vec2 dv=vW-L0.xy; float dl=length(dv); float cd=dot(dv/max(dl,0.001),vec2(cos(L0.w),sin(L0.w))); att*=smoothstep(L1.w,L1.w+0.1,cd)*smoothstep(0.0,40.0,dl); if(length(L0.xy-uFL)<3.0){ att*=1.0-texture(uFsh,gl_FragCoord.xy/uRes).r*0.92; att*=mix(1.0,textureLod(uVisM,gl_FragCoord.xy/uRes,1.2).g,uFlOcc); } }
+    if(L1.w<=0.0 && L0.w>0.5 && uOccOn>0.5){ // a street lamp: its light stops at walls (lampocc.js). The wall is lit; the ground behind it is dark for as far as the wall shades it
+      vec2 dv=vW-L0.xy; float dl=length(dv); float an=fract(atan(dv.y,dv.x)/6.2831853+1.0)*256.0; int i0=int(floor(an)); float f=fract(an); int row=int(L0.w+0.5)-1;
+      float b0=texelFetch(uOcc,ivec2(i0&255,row),0).r, b1=texelFetch(uOcc,ivec2((i0+1)&255,row),0).r;
+      if(min(b0,b1)<0.999){ float dw=mix(b0,b1,f)*400.0; att*=1.0-0.93*smoothstep(dw+36.0,dw+52.0,dl)*(1.0-smoothstep(dw*1.62+40.0,dw*1.62+70.0,dl)); } }
     if(att<0.002) discard;
     vec4 nb=texture(uNrm,gl_FragCoord.xy/uRes); vec2 n2=nb.a>0.004?(nb.rg/nb.a)*2.0-1.0:vec2(0.0);
     vec3 N=vec3(n2,sqrt(max(0.0,1.0-dot(n2,n2)))); vec3 Ld=normalize(vec3(L0.xy-vW,70.0));

@@ -29,6 +29,17 @@ void main(){
   c+=uSky*moon*0.9; // the moon behind: a cold edge on whatever stands up off the ground, so a dark figure still has an outline
   o=vec4(c,1.0);
 }`;
+// the street lamps' shadows, taken out of the lamps' light: drawn over the light buffer once the lamps are in it and
+// before any other light is, multiplying what is there by (1 - shadow). Softened on the way: nine taps, a little wider
+// than the half-size buffer's own grain
+export const LSH_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uSrc; uniform vec2 uTexel;
+in vec2 vUv; out vec4 o;
+void main(){ float s=texture(uSrc,vUv).r*4.0;
+  s+=(texture(uSrc,vUv+vec2(uTexel.x,0.0)).r+texture(uSrc,vUv-vec2(uTexel.x,0.0)).r+texture(uSrc,vUv+vec2(0.0,uTexel.y)).r+texture(uSrc,vUv-vec2(0.0,uTexel.y)).r)*2.0;
+  s+=texture(uSrc,vUv+uTexel).r+texture(uSrc,vUv-uTexel).r+texture(uSrc,vUv+vec2(uTexel.x,-uTexel.y)).r+texture(uSrc,vUv+vec2(-uTexel.x,uTexel.y)).r;
+  s=clamp(s/16.0,0.0,0.93); o=vec4(s,s,s,s); }`;
 export const DOWN_FS = `#version 300 es
 precision highp float;
 uniform sampler2D uSrc; uniform vec2 uTexel; uniform float uThresh;
@@ -74,8 +85,9 @@ void main(){
   float l=dot(c,vec3(0.299,0.587,0.114)); c=mix(vec3(l),c,0.88); // a touch less saturated: closer to a photographed night than a comic
   // horror grade: cold teal shadows, warm sodium highlights, gentle S-curve
   c=mix(c*vec3(0.82,0.96,1.10), c*vec3(1.10,1.00,0.84), smoothstep(0.07,0.62,l));
-  c=c*c*(3.0-2.0*c)*0.26+c*0.74;
+  c=c*c*(3.0-2.0*c)*0.2+c*0.8;
   c=pow(max(c,vec3(0.0)),vec3(0.97));
+  c=mix(pow(c,vec3(0.9)),c,smoothstep(0.0,0.3,l)); // a toe: the darkest parts of the street keep their detail instead of closing up to black
   float gr=fract(sin(dot(gl_FragCoord.xy+fract(uTime*7.13)*vec2(311.7,183.3),vec2(12.9898,78.233)))*43758.5453);
   c+=(gr-0.5)*uGrain*(1.2-l);
   // A cinematic lens falloff keeps attention in the lit play area without crushing the centre.

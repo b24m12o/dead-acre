@@ -78,57 +78,6 @@ export function scorchWalls(x, y, R0) {
     }
 }
 /* ---------- lamp-cast character shadows ---------- */
-export function lampShadows() {
-  const who = [];
-  if (GS.P && GS.state !== 'menu') who.push(GS.P);
-  for (const e of GS.enemies)
-    if (
-      !e.dead &&
-      !e.fly &&
-      e.z < 10 &&
-      e.emerge > 0.5 &&
-      Math.abs(e.x - GS.camX - viewW / 2) < viewW * 0.6 + 80 &&
-      Math.abs(e.y - GS.camY - viewH / 2) < viewH * 0.6 + 80
-    )
-      who.push(e);
-  for (const L of lamps) {
-    if (
-      Math.abs(L.hx - GS.camX - viewW / 2) > viewW * 0.5 + 360 ||
-      Math.abs(L.hy - GS.camY - viewH / 2) > viewH * 0.5 + 360
-    )
-      continue;
-    const k = lampK(L);
-    if (k < 0.3) continue;
-    const RR = L.lantern ? 200 : 320;
-    for (const o of who) {
-      const dx = o.x - L.hx,
-        dy = o.y - L.hy,
-        d = Math.hypot(dx, dy);
-      if (d > RR || d < 4) continue;
-      const ux = dx / d,
-        uy = dy / d,
-        rr = o.r || 16,
-        len = (clamp(d * (L.lantern ? 0.7 : 0.42), 10, 90) * rr) / 16,
-        al = 0.8 * (1 - (d / RR) * (d / RR)) * k;
-      quad(
-        R.blob,
-        o.x + ux * (len * 0.5 + rr * 0.3),
-        o.y + uy * (len * 0.5 + rr * 0.3),
-        Math.atan2(uy, ux),
-        (len + rr) / 22,
-        rr / 13,
-        0,
-        0,
-        0,
-        al,
-        0,
-        0,
-        0,
-        0
-      );
-    }
-  }
-}
 /* ---------- atmosphere: ash & embers, burning buildings, the city beyond ---------- */
 const ash = [];
 export function updateAsh(dt) {

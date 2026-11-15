@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { lampHid } from './lampocc.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
 import { GUNS, HEROES } from '../game/arsenal.js';
@@ -19,7 +20,7 @@ export function lampHot(x, y) {
     const k = lampK(L);
     if (k < 0.05) continue;
     const f = 1 - Math.sqrt(dd) / R0;
-    h = Math.max(h, f * f * k);
+    h = Math.max(h, f * f * k * (1 - lampHid(L, x, y))); // behind a wall from it, you are not in its light (lampocc.js)
   }
   return h;
 }
