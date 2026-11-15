@@ -84,6 +84,7 @@ export function makeEnemy(type, x, y) {
   e.pose = Math.random() < 0.5 ? 0 : randi(1, 3);
   e.limp = Math.random() < 0.5 ? 0 : 1;
   e.stride = rand(0, 1);
+  e.bs = type === 'skitter' || type === 'mini' ? rand(0.93, 1.08) : 1; // people come in sizes: drawn only, the body you hit is the same
   e.lost = [false, false];
   if (type === 'skitter' || type === 'mini') {
     // who the dead were: police, medics, firefighters and road crews everywhere; truckers and bikers on Route 9; mourners, the buried and the groundskeepers at Hollow Hill

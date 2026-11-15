@@ -4,6 +4,7 @@ import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, lerp, rand } from '../core/util.js';
 import { quad, viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
+import { thrown } from '../render/draw-player.js';
 import { MH, MW, TILE, cars, fires, houses, ttype } from './map.js';
 import { query } from './nav.js';
 import { AC, noise, noiseBuf, sfxBus, spat } from '../audio/audio.js';
@@ -432,6 +433,7 @@ export function throwMolotov(p) {
   });
   if (!best || roofStop(p.x, p.y, best.x, best.y)) return false; // a roof between you and them: not this time (roofs.js)
   const d = Math.hypot(best.x - p.x, best.y - p.y);
+  thrown(p, Math.atan2(best.y - p.y, best.x - p.x));
   GS.molos.push({
     x0: p.x,
     y0: p.y,

@@ -599,25 +599,33 @@ export function drawMarkersUI(toS) {
   const talk = GS.P && GS.P.say ? [GS.P, ...GS.buddies] : GS.buddies.slice(),
     drv = GS.truck && GS.truck.driver;
   if (drv && drv.say && !drv.in) talk.push(drv); // the driver in the garage talks too
+  // what they just said, over their head for a moment (and what you did, over yours). Two people side by side talking
+  // at once: the one who spoke first keeps its place, the later line sits above it rather than printed over it
+  ui.font = `italic 600 ${12 * TS()}px "JetBrains Mono", monospace`;
+  ui.textAlign = 'center';
+  ui.lineWidth = 3;
+  ui.strokeStyle = 'rgba(20,24,29,0.85)';
+  const lh = 16 * TS(),
+    placed = [];
+  for (const s of talk
+    .filter(s => s.say && GS.time >= s.say.t && GS.time < s.say.end)
+    .sort((a, b) => a.say.t - b.say.t)) {
+    const [qx, qy] = toS(s.x, s.y);
+    if (!(qx > 0 && qy > 0 && qx < VW && qy < VH)) continue;
+    const t = s.say.txt,
+      hw = ui.measureText(t).width / 2 + 8,
+      x = clamp(qx, hw, VW - hw); // never cut off at the screen's edge
+    let y = qy - 40 * ZOOM;
+    for (let k = 0; k < 6 && placed.some(q => Math.abs(q.x - x) < q.hw + hw && Math.abs(q.y - y) < lh); k++)
+      y = Math.min(...placed.filter(q => Math.abs(q.x - x) < q.hw + hw && Math.abs(q.y - y) < lh).map(q => q.y)) - lh;
+    placed.push({ x, y, hw });
+    ui.globalAlpha = clamp((s.say.end - GS.time) / 0.4, 0, 1) * clamp((GS.time - s.say.t) / 0.12, 0, 1);
+    ui.strokeText(t, x, y);
+    ui.fillStyle = '#e8eef0';
+    ui.fillText(t, x, y);
+    ui.globalAlpha = 1;
+  }
   for (const s of talk) {
-    if (s.say && GS.time >= s.say.t && GS.time < s.say.end) {
-      const [qx, qy] = toS(s.x, s.y);
-      if (qx > 0 && qy > 0 && qx < VW && qy < VH) {
-        ui.globalAlpha = clamp((s.say.end - GS.time) / 0.4, 0, 1) * clamp((GS.time - s.say.t) / 0.12, 0, 1);
-        ui.font = `italic 600 ${12 * TS()}px "JetBrains Mono", monospace`;
-        ui.textAlign = 'center';
-        ui.lineWidth = 3;
-        ui.strokeStyle = 'rgba(20,24,29,0.85)';
-        const t = s.say.txt,
-          y = qy - 40 * ZOOM,
-          hw = ui.measureText(t).width / 2 + 8,
-          x = clamp(qx, hw, VW - hw); // never cut off at the screen's edge
-        ui.strokeText(t, x, y);
-        ui.fillStyle = '#e8eef0';
-        ui.fillText(t, x, y);
-        ui.globalAlpha = 1;
-      }
-    } // what they just said, over their head for a moment (and what you did, over yours)
     if (s === GS.P || s.driver) continue;
     if (!(s.hp < s.max) && !(s.down > 0)) continue;
     const [bx, by] = toS(s.x, s.y);

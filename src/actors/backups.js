@@ -14,7 +14,7 @@ import { LV, S, ammoFill, ammoTypes, cam, gd } from '../game/state.js';
 import { renderMods } from '../game/upgrades.js';
 import { showStreak } from '../ui/callouts.js';
 import { bleed, floatText, pool } from '../render/effects.js';
-import { HLOOK } from '../render/draw-player.js';
+import { HLOOK, blow } from '../render/draw-player.js';
 import { BLOOD } from '../render/draw-enemies.js';
 import { makeNoise } from '../game/noise.js';
 import { TW } from '../game/districts.js';
@@ -314,6 +314,7 @@ export function buddyHurt(s, p, dt) {
           s.hp -= e.dmg * (e.type === 'queen' ? 0.8 : 0.35);
           s.inv = 0.6;
           s.hurt = 0.15;
+          blow(s, e.x, e.y, 12);
           bleed(s.x, s.y, 16, s.x - e.x, s.y - e.y, 5, BLOOD, 200);
           if (s.hp > 0) bark(s, 'hurt');
         }

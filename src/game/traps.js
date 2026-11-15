@@ -26,6 +26,7 @@ import { showStreak } from '../ui/callouts.js';
 import { kn } from '../core/binds.js';
 import { mouse } from '../core/input.js';
 import { ZOOM } from '../render/sprites.js';
+import { thrown } from '../render/draw-player.js';
 import { iconURL } from '../ui/icons.js';
 
 export const TRAP = {
@@ -128,6 +129,7 @@ function throwTo(kind, maxD) {
       floatText(P.x, P.y - 44, 'The roof is in the way', '#cfd6d9', 13);
     }
   } // and not through a roof (roofs.js)
+  thrown(P, a);
   GS.tthrows.push({
     kind,
     x0: P.x,

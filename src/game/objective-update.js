@@ -13,6 +13,7 @@ import { spawnPoint } from './waves.js';
 import { bleed, floatText, gib, pool, sparks } from '../render/effects.js';
 import { explode } from './combat.js';
 import { BLOOD } from '../render/draw-enemies.js';
+import { blow } from '../render/draw-player.js';
 import { buddySlot } from '../actors/backups.js';
 import { updateBox } from './objectives.js';
 import { finishObjective } from './objective-flow.js';
@@ -234,6 +235,7 @@ export function updateObjective(dt) {
           s.hp -= e.dmg * 0.8;
           s.inv = 0.6;
           s.hurt = 0.15;
+          blow(s, e.x, e.y, 12);
           bleed(s.x, s.y, 16, s.x - e.x, s.y - e.y, 5, BLOOD, 200);
           break;
         }

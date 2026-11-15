@@ -41,6 +41,7 @@ import { gameOver } from '../ui/screens.js';
 import { hitSign, signKnocked, toWorld } from '../actors/projectiles.js';
 import { STAGGERABLE, breakLantern, interruptBoss, tankHit } from '../actors/bosses.js';
 import { BILE, BLOOD, ZSKIN } from '../render/draw-enemies.js';
+import { blow } from '../render/draw-player.js';
 import { DOWN_T, lyAngle, pantsOf, supOK } from '../render/draw-bodies.js';
 import { scorchWalls, wallHit } from '../world/wear.js';
 import { WINDX, blastWorld } from '../world/physics.js';
@@ -1039,9 +1040,12 @@ export function hurtPlayer(dmg, sx, sy, why) {
     GS.hitDirs.push({ a: Math.atan2(sy - GS.P.y, sx - GS.P.x), life: 0.8 });
     if (GS.hitDirs.length > 6) GS.hitDirs.shift();
   }
-  GS.P.stains = GS.P.stains || [];
-  if (GS.P.stains.length < 22)
-    GS.P.stains.push({ u: rand(-9, 9), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.9, 1.6) });
+  if (sx !== undefined) blow(GS.P, sx, sy);
+  else {
+    GS.P.stains = GS.P.stains || [];
+    if (GS.P.stains.length < 22)
+      GS.P.stains.push({ u: rand(-9, 9), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.9, 1.6) });
+  }
   GS.P.hp -= dmg;
   if (GS.P.hp > 0) {
     if (GS.P.hp < S.maxHp * 0.3) heroSay('low', 0.3);

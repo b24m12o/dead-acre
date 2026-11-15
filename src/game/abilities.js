@@ -5,6 +5,7 @@ import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, rand } from '../core/util.js';
 import { GUNS, HEROES, HERO_TRAIT } from './arsenal.js';
 import { ZOOM } from '../render/sprites.js';
+import { thrown } from '../render/draw-player.js';
 import { R } from '../render/atlas.js';
 import { los, query } from '../world/nav.js';
 import { noise, playS, spat, thr } from '../audio/audio.js';
@@ -92,6 +93,7 @@ const underRoof = (tx, ty) => {
   return st || [tx, ty];
 };
 const lob = (a, dl, max, extra) => {
+  thrown(GS.P, a);
   const d = Math.min(dl, max),
     [tx, ty] = underRoof(GS.P.x + Math.cos(a) * d, GS.P.y + Math.sin(a) * d);
   GS.bangs.push(
@@ -143,6 +145,7 @@ export function useAbility() {
   if (h === 'breacher') {
     const d = Math.min(dl, 420),
       [tx, ty] = underRoof(GS.P.x + Math.cos(a) * d, GS.P.y + Math.sin(a) * d);
+    thrown(GS.P, a);
     GS.bangs.push({
       x0: GS.P.x,
       y0: GS.P.y,

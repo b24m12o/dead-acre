@@ -28,6 +28,7 @@ const ALL = [
   'voice',
   'doors',
   'lighting',
+  'characters',
   'roof',
   'summary',
   'campaign',

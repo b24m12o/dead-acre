@@ -1,7 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { lampHid } from './lampocc.js';
 import { GS } from '../core/gs.js';
-import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
+import { TAU, angDiff, clamp, d2, lerp, rand } from '../core/util.js';
+import { S } from '../game/state.js';
 import { GUNS, HEROES } from '../game/arsenal.js';
 import { lineQ, quad, setH } from './sprites.js';
 import { R } from './atlas.js';
@@ -33,6 +34,17 @@ export function lampK(L) {
   return n > 0.1 ? 1 : n > -0.2 ? 0.4 : 0.06;
 }
 
+// what the body does for a moment after a blow or a throw: the game only notes when, and which way
+export function blow(p, sx, sy, cap = 22) {
+  p.blowT = GS.time;
+  p.blowA = Math.atan2(sy - p.y, sx - p.x);
+  p.stains = p.stains || [];
+  if (p.stains.length < cap) p.stains.push({ u: rand(-9, 9), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.9, 1.6) });
+} // and the blood stays on you (and on your people) through the night
+export function thrown(p, a) {
+  p.throwT = GS.time;
+  p.throwA = a;
+}
 export const HLOOK = { ranger: 0, breacher: 1, grenadier: 2 };
 const HSTYLE = [
   { sleeve: [0.31, 0.31, 0.28], pants: [0.25, 0.25, 0.23], hand: 'h_glove', pack: 'h_pack' }, // a worn field jacket: greys and browns, so lamplight doesn't turn it lime
@@ -158,16 +170,32 @@ export function drawRanger(p) {
     ph = p.stride * TAU,
     c = Math.cos(dn ? p.bodyA : p.moveA),
     s = Math.sin(dn ? p.bodyA : p.moveA); // down: sitting on the ground, legs out in front
+  const T = GS.time,
+    rp = p.dashT > 0 ? Math.sin(clamp(1 - p.dashT / 0.17, 0, 1) * Math.PI) : 0, // the roll: tucked in, turned the way you go
+    bt = T - (p.blowT ?? -9),
+    hk = bt < 0 || bt > 0.32 ? 0 : bt < 0.05 ? bt / 0.05 : ((0.32 - bt) / 0.27) ** 2, // a blow: the body jolts away from it and comes back
+    tt = T - (p.throwT ?? -9),
+    tk = tt >= 0 && tt < 0.36 && !dn ? tt / 0.36 : -1, // a throw: 0 to 1 over the whole swing, -1 when there is none
+    hpF = p.hp > 0 ? p.hp / ((p.npc ? p.max : S.maxHp) || 100) : 1,
+    low = dn || p.ride ? 0 : clamp(1 - hpF / 0.35, 0, 1); // badly hurt: the breath comes hard and the shoulders drop
   const bob = Math.abs(Math.sin(ph)) * amp * 1.2,
-    breathe = 1 + Math.sin(GS.time * 2.4) * 0.012;
+    breathe = 1 + Math.sin(T * (2.4 + low * 2.2)) * (0.012 + low * 0.026);
   const roll = p.dashT > 0 ? 1 : 0;
   GS.gA = blink * (GS.xray || 1);
-  const ba = p.bodyA,
+  let tw = 0;
+  if (tk >= 0)
+    tw =
+      tk < 0.08 ? (0.35 * tk) / 0.08 : tk < 0.3 ? lerp(0.35, -0.3, (tk - 0.08) / 0.22) : -0.3 * (1 - (tk - 0.3) / 0.7); // the throwing shoulder goes back, then through
+  if (hk) tw -= Math.sign(angDiff(p.bodyA, p.blowA) || 1) * 0.2 * hk;
+  const ba = p.bodyA + tw + (rp ? angDiff(p.bodyA, p.dashA ?? p.bodyA) * rp * 0.85 : 0),
     bc = Math.cos(ba),
     bs = Math.sin(ba),
-    lean = dn ? -7 : 3 * amp + roll * 4,
-    lx = p.x + c * lean,
-    ly = p.y + s * lean - bob;
+    lean = dn ? -7 : 3 * amp + roll * 4 + low * 2,
+    kick = (p.recoil || 0) * 0.3, // the gun's kick goes into the shoulders
+    jx = hk ? -Math.cos(p.blowA) * 3.5 * hk : 0,
+    jy = hk ? -Math.sin(p.blowA) * 3.5 * hk : 0,
+    lx = p.x + c * lean + jx - Math.cos(p.aimA) * kick,
+    ly = p.y + s * lean - bob + jy - Math.sin(p.aimA) * kick;
   // During a dodge, two light afterimages trail the body opposite its travel vector.
   // Render-only (and disabled in shadow passes), so it adds feel without changing gameplay timing.
   if (!GS.SHMODE && p.dashT > 0.025 && !dn && !p.npc) {
@@ -204,8 +232,8 @@ export function drawRanger(p) {
   // legs + boots
   for (const side of [-1, 1]) {
     const k = ph + (side > 0 ? Math.PI : 0),
-      fwd = dn ? 17 : Math.sin(k) * 13 * amp,
-      lat = side * (dn ? 6 : 7.5),
+      fwd = dn ? 17 : Math.sin(k) * 13 * amp * (1 - 0.7 * rp),
+      lat = side * (dn ? 6 : 7.5) * (1 - 0.3 * rp),
       lift = Math.max(0, Math.cos(k)) * amp;
     const fx = p.x + c * fwd - s * lat,
       fy = p.y + s * fwd + c * lat,
@@ -252,10 +280,26 @@ export function drawRanger(p) {
     shv = p.shoveT > 0 ? Math.sin(Math.PI * clamp(1 - p.shoveT / 0.25, 0, 1)) : 0, // the shove: the gun goes out butt-first and back
     pis = gid === 'pistol';
   const idle = Math.max(0, 1 - amp * 3),
-    ga = p.aimA + swap * 0.9 + rk * (pis ? -0.42 : 0.5) + shv * 0.35 + Math.sin(GS.time * 1.1 + 0.5) * 0.022 * idle,
+    tg = tk >= 0 ? Math.sin(tk * Math.PI) : 0, // one hand on the gun while the other throws: it dips
+    ga =
+      p.aimA +
+      swap * 0.9 +
+      rk * (pis ? -0.42 : 0.5) +
+      shv * 0.35 +
+      tg * 0.3 +
+      Math.sin(GS.time * 1.1 + 0.5) * (0.022 + low * 0.03) * idle,
     gc = Math.cos(ga),
     gs = Math.sin(ga),
-    GO = pose.go - p.recoil - swap * 8 - rk * (pis ? 7 : 4) + shv * 13 + Math.sin(GS.time * 2.4) * 0.7 * idle;
+    GO =
+      pose.go -
+      p.recoil -
+      swap * 8 -
+      rk * (pis ? 7 : 4) +
+      shv * 13 -
+      rp * 9 -
+      tg * 4 -
+      low * 2 +
+      Math.sin(GS.time * 2.4) * 0.7 * idle;
   const gx = lx + Math.cos(p.aimA) * GO,
     gy = ly + Math.sin(p.aimA) * GO;
   const ghw = GHW[gid] || 3.4,
@@ -326,6 +370,23 @@ export function drawRanger(p) {
     const k = Math.sin((1 - p.pumpT / 0.24) * Math.PI);
     hands[1] = G2W(pose.hands[1][0] - 10 * k, pose.hands[1][1]);
   }
+  if (tk >= 0 && !(p.reload > 0)) {
+    // the throw: the free hand comes off the gun, back past the shoulder, and through the way it is thrown
+    const shx = lx + bc - bs * 14.5,
+      shy = ly + bs + bc * 14.5,
+      tc = Math.cos(p.throwA),
+      ts = Math.sin(p.throwA),
+      back = [shx - tc * 13 - bs * 4, shy - ts * 13 + bc * 4],
+      out = [shx + tc * 27, shy + ts * 27],
+      grip = hands[1];
+    hands[1] =
+      tk < 0.08
+        ? mix(grip, back, tk / 0.08)
+        : tk < 0.3
+          ? mix(back, out, (tk - 0.08) / 0.22)
+          : mix(out, grip, (tk - 0.3) / 0.7);
+  }
+  p.__th = hands[1]; // where the free hand is (the tests read it)
   setH(25);
   for (let i = 0; i < 2; i++) {
     const side = i ? 1 : -1,
@@ -389,8 +450,8 @@ export function drawRanger(p) {
     lx,
     ly,
     ba,
-    (1 + roll * 0.06) * breathe * bs2,
-    (1 - roll * 0.06) * breathe * bs2,
+    (1 - rp * 0.08) * breathe * bs2,
+    (1 - rp * 0.1) * breathe * bs2,
     ot[0],
     ot[1],
     ot[2],
@@ -400,7 +461,7 @@ export function drawRanger(p) {
     1,
     fl
   );
-  if (p.stains && !p.npc)
+  if (p.stains)
     for (const st2 of p.stains)
       quad(
         R.drop,
@@ -472,9 +533,11 @@ export function drawRanger(p) {
     if (carry[0] === 'mag') quad(R.mag, cx, cy, ga + 0.3, magSc, magSc, 1, 1, 1, 1, 0, 0, 0, fl);
     else quad(R.shell, cx, cy, ga, 1.5, 1.5, 1, 1, 1, 1, 0, 0, 0, fl);
   }
-  const ha = ba + angDiff(ba, p.aimA) * 0.6 + (p.rk || 0) * 0.32;
+  const ha = ba + angDiff(ba, p.aimA) * 0.6 + (p.rk || 0) * 0.32 + tw * 0.6 + (hk ? Math.sin(T * 31) * 0.05 * hk : 0),
+    hf = 2 + rp * 3 + low * 1.5, // the head goes forward in a roll, and droops when you are badly hurt
+    hsc = 0.9 * (1 - rp * 0.06);
   setH(32);
-  quad(R['hh' + look], lx + bc * 2, ly + bs * 2 - 1, ha, 0.9, 0.9, 1, 1, 1, 1, 1, 1, 1, fl);
+  quad(R['hh' + look], lx + bc * hf + jx * 0.5, ly + bs * hf - 1 + jy * 0.5, ha, hsc, hsc, 1, 1, 1, 1, 1, 1, 1, fl);
   if (p.npc && !GS.SHMODE && !dn) {
     const sx = lx - bs * 8.5 - bc * 1.5,
       sy = ly + bc * 8.5 - bs * 1.5,
