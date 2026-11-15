@@ -8,7 +8,10 @@ export async function run(b) {
   const { pg, errs, ev } = await openGame(b, { noFrames: true });
   const o = await ev(`(() => {
     const out = {};
-    initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null; GS.RUN.jobN = []; GS.state = 'play';
+    initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null; GS.RUN.jobN = [];
+    // the motel: its rooms always stand whole (Dead Acre's own houses are ruins, and a town of them can have no door at all)
+    GS.RUN.journey = true; GS.RUN.layout = 'motel'; GS.RUN.district = 'highway'; GS.RUN.stop = STOPS.findIndex(s => s.id === 'motel');
+    newRun(); GS.state = 'play';
     const quiet = () => { GS.queue = []; for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.nightLive = false; GS.interT = 999; GS.obj = null; };
     quiet();
     const P = GS.P;
@@ -55,14 +58,14 @@ export async function run(b) {
       out.unjammed = d2_.open;
     }
     // a new place: new doors, all whole
-    GS.RUN.journey = true; GS.RUN.layout = 'motel'; GS.RUN.district = 'highway'; GS.RUN.stop = STOPS.findIndex(s => s.id === 'motel');
+    GS.RUN.journey = true; GS.RUN.layout = 'clinic'; GS.RUN.district = 'town'; GS.RUN.stop = STOPS.findIndex(s => s.id === 'clinic');
     newRun(); out.motel = [GS.doors.length, GS.doors.filter(q => q.broken).length];
     return out;
   })()`);
   await pg.close();
   check(
     o.n >= 3 && o.bad === 0,
-    `the town should have doors, each in a proper doorway: ${o.n} doors, ${o.bad} misplaced`
+    `the motel should have doors, each in a proper doorway: ${o.n} doors, ${o.bad} misplaced`
   );
   check(o.opened > 0.9 && o.shut === 0, `a door should open for you and shut behind you: ${o.opened} then ${o.shut}`);
   check(
@@ -76,5 +79,5 @@ export async function run(b) {
   );
   check(o.motel[0] >= 3 && o.motel[1] === 0, `a new place should have its own doors, all whole: ${o.motel}`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));
-  return `${o.n} doors in town; one walker held ${o.held.toFixed(1)} s, through at ${o.inAt.toFixed(1)} s`;
+  return `${o.n} doors at the motel; one walker held ${o.held.toFixed(1)} s, through at ${o.inAt.toFixed(1)} s`;
 }
