@@ -39,7 +39,7 @@ export async function run(b) {
     out.hint = $('hint').textContent;
     fr(30);
     // the right stick aims
-    g.axes[3] = -1; fr(20); out.aimUp = P.aimA; g.axes[3] = 0; g.axes[2] = 1; fr(20); out.aimRight = P.aimA;
+    g.axes[3] = -1; fr(20); out.aimUp = angDiff(0, P.aimA); g.axes[3] = 0; g.axes[2] = 1; fr(20); out.aimRight = angDiff(0, P.aimA); // an angle, however many turns round
     // the crosshair leans onto one near the line
     const e = makeEnemy('skitter', P.x + Math.cos(0.1) * 300, P.y + Math.sin(0.1) * 300); e.emerge = 1; e.hp = e.maxHp = 9999; e.aw = 0; e.sp = 0; GS.enemies.push(e);
     fr(3);
