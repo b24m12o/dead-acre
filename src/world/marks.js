@@ -5,14 +5,14 @@
 import { TAU, pick, rand, randi } from '../core/util.js';
 
 export const MARKS = {
-  main: ['WE WENT NORTH', 'NO FOOD HERE', 'BUSES TO ST MARYS', 'DONT DRINK THE WATER'],
-  clinic: ['EVAC POINT', 'ALL KIDS ON BUS 3', 'NO MORE BEDS', 'PICK UP HERE 6AM'],
+  main: ['WE WENT NORTH', 'TURN BACK', 'BUSES TO ST MARYS', 'SOS'],
+  clinic: ['EVAC POINT', 'ALL KIDS ON BUS 3', 'WAIT HERE', 'PICK UP HERE 6AM'],
   gas: ['NO GAS', 'RT 9 CLOSED', 'ARMY WENT NORTH', 'DONT STOP'],
-  motel: ['ROOM 12 OK', 'DONT OPEN', 'BITTEN = OUT'],
+  motel: ['3 ALIVE ROOM 12', 'HONK IF ALIVE', 'NOT THIS WAY'],
   quarry: ['CONVOY LEFT', 'WAIT FOR US', 'NOT IN THE PIT'],
   bridge: ['BRIDGE HOLDS', 'THEY SWIM', 'CROSS BY DAY'],
   hill: ['DONT GO UP', 'THEY RISE AT NIGHT', 'PRAY'],
-  hospital: ['NO ROOM', 'HELIPAD THIS WAY', 'GOD HELP US'],
+  hospital: ['FULL GO EAST', 'HELIPAD THIS WAY', 'GOD HELP US'],
 };
 const INK = ['#b23a2c', '#ded6c2', '#1c1c1e', '#cf7a2a']; // red, white, black and orange cans
 // one message, sprayed by hand: a soft edge of overspray, a second pass that doesn't quite line up, specks round it

@@ -35,12 +35,27 @@ export function soundProgress() {
 }
 // where assets/ is: next to dist/game.js, which records its own address in window.__DA_BASE. Empty in the one-file version
 const ASSET_URL = window.__DA_BASE ? window.__DA_BASE.replace(/dist\/$/, 'assets/') : '';
-// a download that counts its bytes as they come in
+// a heavy file at the commit that first had it (tools/at.mjs), when the game is served from jsDelivr by commit: the
+// same bytes every release since, at an address the CDN and the browser already hold. Anything else: next to the game
+const AT = window.__DA_AT || {},
+  BY_SHA = /(cdn\.jsdelivr\.net\/gh\/[^/@]+\/[^/@]+@)([0-9a-f]{40})\//;
+export const assetUrl = (f, base = ASSET_URL, at = AT) =>
+  at[f] && BY_SHA.test(base) ? base.replace(BY_SHA, `$1${at[f]}/`) + f : base + f;
+// a download that counts its bytes as they come in (from the commit that first had it; failing that, next to the game)
 async function get(f, how, ms, part) {
   const c = new AbortController(),
     t = setTimeout(() => c.abort(), ms);
   try {
-    const r = await fetch(ASSET_URL + f, { signal: c.signal, mode: 'cors' });
+    let r = null;
+    if (assetUrl(f) !== ASSET_URL + f)
+      try {
+        r = await fetch(assetUrl(f), { signal: c.signal, mode: 'cors' });
+        if (!r.ok) r = null;
+      } catch (e) {
+        if (c.signal.aborted) throw e;
+        r = null;
+      }
+    if (!r) r = await fetch(ASSET_URL + f, { signal: c.signal, mode: 'cors' });
     if (!r.ok) throw new Error(f + ' ' + r.status);
     if (how === 'json' || !part || !r.body || !r.body.getReader) return await r[how]();
     const rd = r.body.getReader(),
@@ -83,8 +98,8 @@ export async function assetsPrep(step) {
           0.05 + 0.7 * (g / n)
         );
       }, 120);
-    let a = ASSET_URL + j.bake.a,
-      h = ASSET_URL + j.bake.h;
+    let a = assetUrl(j.bake.a),
+      h = assetUrl(j.bake.h);
     try {
       const [ab, hb] = await Promise.all([
         get(j.bake.a, 'arrayBuffer', 60000, A),

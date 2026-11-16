@@ -6,7 +6,7 @@
 //   index.html            a page that plays dist/game.js (GitHub Pages)
 //   build/dead-acre.html  everything in one file, assets embedded (the claude.ai version)
 // Run: npm install, then npm run build
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { minify as cssMin } from 'csso';
 import { ROOT, rd, strip, bundle } from './lib/source.mjs';
@@ -50,10 +50,13 @@ wr(
   `${head}\n<style>${cssFull}</style>\n\n${markup}\n<script>window.__DA_DATA = ${JSON.stringify(data)};</script>\n<script>\n${full}</script>\n`
 );
 
-// dist: the game finds its assets next to its own address (window.__DA_BASE)
+// dist: the game finds its assets next to its own address (window.__DA_BASE), and the heavy ones at the commit that
+// first had them (window.__DA_AT, from assets/at.json: tools/at.mjs)
 const min = await bundle({ lean: true, minify: true });
+const atF = join(ROOT, 'assets/at.json'),
+  AT = existsSync(atF) ? JSON.parse(readFileSync(atF, 'utf8')) : {};
 const boot =
-  `(function(){var s=document.currentScript,b=s&&s.src?s.src.replace(/[^\\/?#]*([?#].*)?$/,''):'';window.__DA_BASE=b;` +
+  `(function(){var s=document.currentScript,b=s&&s.src?s.src.replace(/[^\\/?#]*([?#].*)?$/,''):'';window.__DA_BASE=b;window.__DA_AT=${JSON.stringify(AT)};` +
   `var M=${JSON.stringify(markup)};function go(){if(go.d)return;go.d=1;document.body.insertAdjacentHTML('afterbegin',M);run();}` +
   `var l=document.createElement('link');l.rel='stylesheet';l.href=b+'style.css';l.onload=l.onerror=go;document.head.appendChild(l);setTimeout(go,8000);` +
   `function run(){${min.trim()}}})();`;

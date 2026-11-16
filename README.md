@@ -58,6 +58,11 @@ npm run build
 This writes `dist/game.js`, `dist/style.css`, `index.html`, and `build/dead-acre.html`
 (everything in one file, assets embedded).
 
+The heavy asset files have their content's hash in their names, so the game loads each one from the
+commit that first added it and the CDN keeps serving it from cache across releases. After pushing a
+change to those files, run `node tools/at.mjs` before the next build to record where they now live
+(`assets/at.json`).
+
 ## Check
 
 ```sh
