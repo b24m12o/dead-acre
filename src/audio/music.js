@@ -3,7 +3,7 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { clamp, pick, randi } from '../core/util.js';
 import { opt, store } from '../core/settings.js';
-import { AC, MUS, MUSK, dlyIn, master, musBus, musGate, noise, radBus, revIn, sfxBus } from './audio.js';
+import { AC, MUS, MUSK, dlyIn, master, musBus, musGate, noise, radBus, revIn, sfxBus, stopAllRun } from './audio.js';
 import { syncOpts } from '../ui/settings-ui.js';
 export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const TEMPO = { none: 70, menu: 70, calm: 84, fight: 160, boss: 172 };
@@ -138,31 +138,17 @@ function sp(
     }
   src.start(t, s.o + off);
   src.stop(end + 0.05);
-  if (end - t > 1) hold(g, src, end);
   return g;
 }
-// the notes that ring on for a while (pads, held strings), so a quit can stop them where they are
-let HELD = [];
-function hold(g, src, end) {
-  const now = AC.currentTime;
-  if (HELD.length > 40) HELD = HELD.filter(h => h.end > now);
-  HELD.push({ g, src, end });
-}
 // Quitting a run from the pause: the mix was frozen mid-flight (a bar of music, a pad, the beds, a scream's tail), and
-// the next click on the menu would wake it up to play out. So the band stops where it stands (held notes and all), and
-// everything stays quiet until the short tails are gone; the next run starts its music from the top.
+// the next click on the menu would wake it up to play out. So every sound the run started is stopped where it stands (the
+// radio mid-sentence too), the echo and reverb tails get a quiet moment to die, and the next run's music starts from the top.
 export function cutRun() {
   if (!AC || !master) return;
   const t = AC.currentTime,
     g = master.gain,
     v = GS.muted ? 0 : GS.meta.vol.master;
-  for (const h of HELD.splice(0))
-    if (h.end > t)
-      try {
-        h.g.gain.cancelScheduledValues(t);
-        h.g.gain.setValueAtTime(0, t);
-        h.src.stop(t + 0.05);
-      } catch (e) {}
+  stopAllRun();
   if (musGate) {
     musGate.gain.cancelScheduledValues(t);
     musGate.gain.setValueAtTime(0, t);
@@ -307,7 +293,6 @@ function mPad(notes, t, dur, vol) {
       g.connect(revIn);
       o.start(t);
       o.stop(t + dur + 1.6);
-      hold(g, o, t + dur + 1.6);
     }
 }
 function mBell(m, t, vol) {

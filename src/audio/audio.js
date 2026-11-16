@@ -15,6 +15,40 @@ export let AC, master, sfxBus, sfxDuck, radBus, musBus, musLP, musDuck, musGate,
 let lastPlay;
 export let MUSK;
 export let MUS;
+// Every sound is noted as it starts, so leaving a run can stop them all where they stand: the radio mid-sentence, a voice,
+// a gunshot's tail, a held chord, the notes the band has already queued. Only the loops that run for good are left (the
+// wind, the fire's crackle, the moan of the crowd, the chopper): they never call stop, and each fades by its own gain
+const LIVE = new Set();
+function track(n) {
+  const go = n.start,
+    end = n.stop;
+  n.start = (...a) => {
+    LIVE.add(n);
+    return go.apply(n, a);
+  };
+  n.stop = (...a) => {
+    n.fin = true;
+    return end.apply(n, a);
+  };
+  n.addEventListener('ended', () => LIVE.delete(n));
+  return n;
+}
+export function stopAllRun() {
+  if (!AC) return 0;
+  const t = AC.currentTime;
+  let k = 0;
+  for (const n of LIVE)
+    if (n.fin || (n instanceof AudioBufferSourceNode && !n.loop)) {
+      try {
+        n.stop(t);
+        k++;
+      } catch (e) {
+        /* already over */
+      }
+      LIVE.delete(n);
+    }
+  return k;
+}
 export function initAudio() {
   if (AC) {
     if (AC.state === 'suspended' && GS.state !== 'pause' && !document.hidden) AC.resume();
@@ -22,6 +56,11 @@ export function initAudio() {
   }
   try {
     AC = new (window.AudioContext || window.webkitAudioContext)();
+    for (const k of ['createBufferSource', 'createOscillator', 'createConstantSource'])
+      if (AC[k]) {
+        const make = AC[k].bind(AC);
+        AC[k] = (...a) => track(make(...a));
+      }
     const comp = AC.createDynamicsCompressor();
     comp.threshold.value = -15;
     comp.knee.value = 8;

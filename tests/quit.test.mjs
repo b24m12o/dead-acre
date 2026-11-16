@@ -12,9 +12,15 @@ export async function run(b) {
   );
   // a few seconds of the run, with a long pad ringing to be sure there is something held
   await pg.waitForTimeout(2500);
-  const run0 = await ev(
-    `(() => { mPad([40, 47, 52], AC.currentTime + 0.05, 20, 0.05); return { st: AC.state, t: AC.currentTime, lv: MUS.level }; })()`
-  );
+  // a long pad ringing and a long voice clip going, as the radio's would be mid-sentence when you pause
+  const run0 = await ev(`(() => {
+    mPad([40, 47, 52], AC.currentTime + 0.05, 20, 0.05);
+    const b = AC.createBuffer(1, AC.sampleRate * 8, AC.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.sin(i * 0.05) * 0.2;
+    const src = AC.createBufferSource(); src.buffer = b; src.connect(radBus); src.start();
+    window.__long = { at: null }; src.addEventListener('ended', () => (window.__long.at = AC.currentTime));
+    return { st: AC.state, t: AC.currentTime, lv: MUS.level };
+  })()`);
   await pg.waitForTimeout(300);
   await ev(`(() => { setPause(true); 1 })()`);
   await pg.waitForTimeout(200);
@@ -40,7 +46,8 @@ export async function run(b) {
       )
     );
   }
-  const vol = await ev(`GS.muted ? 0 : GS.meta.vol.master`);
+  const vol = await ev(`GS.muted ? 0 : GS.meta.vol.master`),
+    longAt = await ev(`window.__long.at`); // 8 s long: on its own it would end some 7 s after the quit
   await pg.close();
   // the clock stood still from the pause until that click: from then, silence for 1.2 s and a 0.8 s fade back up. A sample
   // may land late on a busy machine, so each one is held to where the fade should be by then, not to a fixed window
@@ -56,6 +63,10 @@ export async function run(b) {
   check(
     Math.abs(late[1] - vol) < 0.02 && late[2] < 0.01 && late[3] === 'none',
     `then the volume should come back, with the run's band still stopped: ${JSON.stringify(late)} (volume ${vol})`
+  );
+  check(
+    longAt !== null && longAt < q.t + 1,
+    `a voice still talking when you quit should be stopped there, not turned down for a moment: it ended at ${longAt}, the quit at ${q.t}`
   );
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   return `${early.length} quiet samples, then volume ${late[1]}, band stopped (${Math.round((Date.now() - t0) / 100) / 10} s)`;
