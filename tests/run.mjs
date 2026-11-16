@@ -30,6 +30,7 @@ const ALL = [
   'lighting',
   'characters',
   'quit',
+  'director',
   'roof',
   'summary',
   'campaign',

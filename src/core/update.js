@@ -60,6 +60,7 @@ import { radioTick } from '../audio/radio.js';
 import { nightCleared } from '../game/night-flow.js';
 import { tutTick } from '../game/tutorial.js';
 import { hordeSpot, startWave, surgeLull } from '../game/surges.js';
+import { dirHold, dirRate, dirTick } from '../game/director.js';
 import { objHold, updateObjective } from '../game/objective-update.js';
 import { heliVolume, startEvac, updateEvac } from '../game/evac.js';
 import { tickGadgets } from '../game/gadgets.js';
@@ -598,9 +599,10 @@ export function update(dt) {
     budLook(s, p, dt, spd);
   });
   const SG = GS.RUN.sg;
+  dirTick(dt, SG); // the director: how hard the night is on you, and so when the rest come (director.js)
   if (GS.queue.length && SG && SG.lull > 0)
     surgeLull(SG, dt); // between surges: finish off what is out, then a breath before the next lot
-  else if (GS.queue.length) {
+  else if (GS.queue.length && !dirHold(SG)) {
     GS.spawnT -= dt;
     if (GS.spawnT <= 0 && sewerPack(SG)) GS.spawnT = 1.4;
     if (GS.spawnT <= 0) {
@@ -611,6 +613,7 @@ export function update(dt) {
         (1 + clamp((GS.press || 0) - 0.25, 0, 0.6)) *
         ((GS.press || 0) < 0.03 ? 0.88 : 1) *
         (bossNight(GS.wave) ? 1.7 : 1) *
+        dirRate() *
         siegeK(); // spawns quicken toward each boss; a surge comes faster, a horde faster still. They ease off while you are being hurt and press on while you are not, and a boss's company arrives in its own time
       let t = GS.queue.shift();
       const mark = t === 'hunt';

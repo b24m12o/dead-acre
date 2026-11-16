@@ -41,6 +41,7 @@ import { tip } from '../audio/radio.js';
 import { finishObjective } from '../game/objective-flow.js';
 import { budTarget, objTarget } from '../game/objective-update.js';
 import { lastFew, specialTick } from './specials.js';
+import { dirPace, dirRelax } from '../game/director.js';
 // a giant that has stopped getting anywhere while it walks, pressed into a building or caught inside one, is walked out
 // to the nearest open street it can move on from (a tile clear of buildings that its own path map can reach)
 function giantWedge(e, dt) {
@@ -715,6 +716,11 @@ export function updateEnemy(e, dt, p) {
     tvx = nx * 1.3;
     tvy = ny * 1.3;
   }
+  if ((tvx || tvy) && !e.big && !e.sg && e.type !== 'queen' && e.type !== 'egg' && !e.lure) {
+    const k = dirPace(e, pd2);
+    tvx *= k;
+    tvy *= k;
+  } // the director's pace for the far crowd (director.js)
   if (rate) {
     const k = damp(rate, dt);
     e.vx += (tvx - e.vx) * k;
@@ -805,7 +811,7 @@ export function updateEnemy(e, dt, p) {
       e.progT = 0;
       const d = Math.sqrt(pd2);
       const busy = e.sg || GS.time - (e.boardT ?? -9) < 2; // at the siege house, or pounding on a door or a board: where it means to be
-      e.noProg = !busy && d > 260 && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
+      e.noProg = !busy && !dirRelax() && d > 260 && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
       e.lastPD = d;
       if (e.noProg >= 12 && !GS.queue.length && GS.nightLive) {
         // stuck where it can't reach you once the night's last wave is out: it comes round again near you, however many are left

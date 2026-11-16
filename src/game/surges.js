@@ -23,6 +23,7 @@ import { BOSS_PRE, bossEntrance, bossName, bossType } from './boss-flow.js';
 import { tutStart, tutWanted } from './tutorial.js';
 import { choiceLights, choiceNight } from './radio-choice.js';
 import { laterNight, viaAmbush, viaNight } from './routes.js';
+import { dirReset } from './director.js';
 function surgePlan(w) {
   if (bossNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice || GS.horde) return null; // a horde night has no surges: the horde is the night
   const n = GS.queue.length;
@@ -136,6 +137,7 @@ export function startWave() {
   viaAmbush(); // the way you came: waiting for you as night falls
   choiceLights(); // the streetlights, if you had a say in them this morning
   GS.RUN.sg = surgePlan(GS.wave);
+  dirReset(); // the director starts each night fresh
   const evTxt = GS.ev ? EV_NAME[GS.ev] + ' · ' : '',
     why = [viaNight(GS.wave), choiceNight(GS.wave)]
       .filter(c => c && c.why)
