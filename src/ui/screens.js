@@ -7,7 +7,8 @@ import { $ } from '../core/errors.js';
 import { saveMeta, store } from '../core/settings.js';
 import { DIFF } from '../core/profile.js';
 import { AC, initAudio } from '../audio/audio.js';
-import { setMuted } from '../audio/music.js';
+import { hushBarks } from '../audio/barks.js';
+import { cutRun, setMuted } from '../audio/music.js';
 import { S, rec } from '../game/state.js';
 import { BLOOD } from '../render/draw-enemies.js';
 import { bleed, pool, shake } from '../render/effects.js';
@@ -248,6 +249,8 @@ export function init() {
     }
     qb.dataset.sure = '';
     qb.textContent = 'Quit run';
+    hushBarks();
+    cutRun(); // what the run had playing when you paused must not play out on your next click in the menu
     clearSave();
     $('pause').hidden = true;
     $('hint').classList.remove('show');

@@ -138,7 +138,41 @@ function sp(
     }
   src.start(t, s.o + off);
   src.stop(end + 0.05);
+  if (end - t > 1) hold(g, src, end);
   return g;
+}
+// the notes that ring on for a while (pads, held strings), so a quit can stop them where they are
+let HELD = [];
+function hold(g, src, end) {
+  const now = AC.currentTime;
+  if (HELD.length > 40) HELD = HELD.filter(h => h.end > now);
+  HELD.push({ g, src, end });
+}
+// Quitting a run from the pause: the mix was frozen mid-flight (a bar of music, a pad, the beds, a scream's tail), and
+// the next click on the menu would wake it up to play out. So the band stops where it stands (held notes and all), and
+// everything stays quiet until the short tails are gone; the next run starts its music from the top.
+export function cutRun() {
+  if (!AC || !master) return;
+  const t = AC.currentTime,
+    g = master.gain,
+    v = GS.muted ? 0 : GS.meta.vol.master;
+  for (const h of HELD.splice(0))
+    if (h.end > t)
+      try {
+        h.g.gain.cancelScheduledValues(t);
+        h.g.gain.setValueAtTime(0, t);
+        h.src.stop(t + 0.05);
+      } catch (e) {}
+  if (musGate) {
+    musGate.gain.cancelScheduledValues(t);
+    musGate.gain.setValueAtTime(0, t);
+  }
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(0, t);
+  g.setValueAtTime(0, t + 1.2);
+  g.linearRampToValueAtTime(v, t + 2);
+  MUS.level = 'none'; // the next run's music opens the gate again from its first beat, with no ending or sting from this one
+  MUS.win = MUS.clear = MUS.sting = false;
 }
 // a pitched sample: the nearest recorded note, played faster or slower to land on m
 function spN(pre, m, t, vol, o = {}) {
@@ -273,6 +307,7 @@ function mPad(notes, t, dur, vol) {
       g.connect(revIn);
       o.start(t);
       o.stop(t + dur + 1.6);
+      hold(g, o, t + dur + 1.6);
     }
 }
 function mBell(m, t, vol) {
