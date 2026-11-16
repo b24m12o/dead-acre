@@ -22,8 +22,19 @@ export async function run(b) {
     return { st: AC.state, t: AC.currentTime, lv: MUS.level };
   })()`);
   await pg.waitForTimeout(300);
+  // a pause and back: the sound slides out before it freezes (a cut mid-sound clicks, and the end of the chain would keep
+  // that last scrap to pop out on waking), and slides back in after
+  const frozen = async () => {
+    for (let i = 0; i < 40 && (await ev(`AC.state`)) !== 'suspended'; i++) await pg.waitForTimeout(100);
+  }; // the freeze comes once the slide is done, on a timer that runs late on a busy page
   await ev(`(() => { setPause(true); 1 })()`);
-  await pg.waitForTimeout(200);
+  await frozen();
+  const p1 = await ev(`[AC.state, +master.gain.value.toFixed(3)]`);
+  await ev(`(() => { setPause(false); 1 })()`);
+  await pg.waitForTimeout(400);
+  const p2 = await ev(`[AC.state, +master.gain.value.toFixed(3)]`);
+  await ev(`(() => { setPause(true); 1 })()`);
+  await frozen();
   await ev(`(() => { $('quitBtn').click(); $('quitBtn').click(); 1 })()`); // asked once, then sure
   await pg.waitForTimeout(100);
   const q = await ev(
@@ -56,6 +67,10 @@ export async function run(b) {
     late = trace[trace.length - 1];
   check(run0.st === 'running', `the run's sound should be running before the pause: ${JSON.stringify(run0)}`);
   check(q.menu && q.gs === 'menu', `quitting should land on the menu: ${JSON.stringify(q)}`);
+  check(
+    p1[0] === 'suspended' && p1[1] < 0.01 && p2[0] === 'running' && Math.abs(p2[1] - vol) < 0.02,
+    `a pause should slide the sound out before freezing it, and back in after: paused ${p1}, back ${p2} (volume ${vol})`
+  );
   check(
     q.st === 'suspended' && early.length > 0 && early.every(r => r[1] <= fade(r[0]) + 0.03),
     `the first second after the click in the menu should be silent, then fade up: quit at ${JSON.stringify(q)}, then ${JSON.stringify(trace.slice(0, 5))}`

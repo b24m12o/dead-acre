@@ -6,7 +6,7 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { saveMeta, store } from '../core/settings.js';
 import { DIFF } from '../core/profile.js';
-import { AC, initAudio } from '../audio/audio.js';
+import { initAudio, sleepAudio, wakeAudio } from '../audio/audio.js';
 import { hushBarks } from '../audio/barks.js';
 import { cutRun, setMuted } from '../audio/music.js';
 import { S, rec } from '../game/state.js';
@@ -30,12 +30,12 @@ export function setPause(p) {
     renderPauseGuns();
     $('pause').hidden = false;
     $('resumeBtn').focus({ preventScroll: true });
-    if (AC && AC.state === 'running') AC.suspend();
+    sleepAudio();
   } else if (!p && GS.state === 'pause') {
     GS.state = 'play';
     $('pause').hidden = true;
     $('settings').hidden = true;
-    if (AC && AC.state === 'suspended' && !document.hidden) AC.resume();
+    if (!document.hidden) wakeAudio();
   }
 } // the whole mix freezes with the game, so a paused tab doesn't stutter music in the background
 export function gameOver() {

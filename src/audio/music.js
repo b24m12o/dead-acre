@@ -3,7 +3,21 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { clamp, pick, randi } from '../core/util.js';
 import { opt, store } from '../core/settings.js';
-import { AC, MUS, MUSK, dlyIn, master, musBus, musGate, noise, radBus, revIn, sfxBus, stopAllRun } from './audio.js';
+import {
+  AC,
+  MUS,
+  MUSK,
+  dlyIn,
+  master,
+  musBus,
+  musGate,
+  noise,
+  quietUntil,
+  radBus,
+  revIn,
+  sfxBus,
+  stopAllRun,
+} from './audio.js';
 import { syncOpts } from '../ui/settings-ui.js';
 export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const TEMPO = { none: 70, menu: 70, calm: 84, fight: 160, boss: 172 };
@@ -154,9 +168,10 @@ export function cutRun() {
     musGate.gain.setValueAtTime(0, t);
   }
   g.cancelScheduledValues(t);
-  g.setValueAtTime(0, t);
+  g.setValueAtTime(0, t); // already at nothing when paused (see sleepAudio): this only holds it there
   g.setValueAtTime(0, t + 1.2);
   g.linearRampToValueAtTime(v, t + 2);
+  quietUntil(t + 2);
   MUS.level = 'none'; // the next run's music opens the gate again from its first beat, with no ending or sting from this one
   MUS.win = MUS.clear = MUS.sting = false;
 }

@@ -49,9 +49,39 @@ export function stopAllRun() {
     }
   return k;
 }
+// Freezing the sound (the pause, a hidden tab) and waking it. A cut mid-sound clicks, and the compressors at the end of the
+// chain hold the last few milliseconds of what was playing, which come out as a pop the moment it wakes. So the volume
+// slides to nothing first and the freeze comes after; on waking it slides back up. A quit's own quiet (see cutRun) is left
+// to run its course.
+let asleep = false,
+  quietTo = 0;
+export const quietUntil = t => (quietTo = t);
+export function sleepAudio() {
+  if (!AC || !master || AC.state !== 'running') return;
+  const t = AC.currentTime,
+    g = master.gain;
+  asleep = true;
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(g.value, t);
+  g.linearRampToValueAtTime(0, t + 0.03);
+  setTimeout(() => {
+    if (asleep && AC.state === 'running') AC.suspend();
+  }, 60);
+}
+export function wakeAudio() {
+  asleep = false;
+  if (!AC || !master) return;
+  if (AC.state === 'suspended') AC.resume();
+  const t = AC.currentTime;
+  if (t < quietTo) return;
+  const g = master.gain;
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(g.value, t);
+  g.linearRampToValueAtTime(GS.muted ? 0 : GS.meta.vol.master, t + 0.06);
+}
 export function initAudio() {
   if (AC) {
-    if (AC.state === 'suspended' && GS.state !== 'pause' && !document.hidden) AC.resume();
+    if (AC.state === 'suspended' && GS.state !== 'pause' && !document.hidden) wakeAudio();
     return;
   }
   try {

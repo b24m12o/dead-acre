@@ -4,7 +4,7 @@ import { $ } from './errors.js';
 import { opt } from './settings.js';
 import { boundKey } from './binds.js';
 import { glc } from '../render/gl.js';
-import { AC, initAudio } from '../audio/audio.js';
+import { AC, initAudio, sleepAudio, wakeAudio } from '../audio/audio.js';
 import { setMusic, setMuted } from '../audio/music.js';
 import { WHEEL, cycleGun, startReload, switchGun, wheelRelease } from '../game/state.js';
 import { choose, doReroll, openLevel, pickLater } from '../game/upgrades.js';
@@ -227,7 +227,7 @@ export function init() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       if (GS.state === 'play') setPause(true);
-      if (AC && AC.state === 'running') AC.suspend();
-    } else if (AC && AC.state === 'suspended' && GS.state !== 'pause') AC.resume();
+      sleepAudio();
+    } else if (AC && AC.state === 'suspended' && GS.state !== 'pause') wakeAudio();
   });
 }
