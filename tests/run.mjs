@@ -32,6 +32,7 @@ const ALL = [
   'quit',
   'director',
   'threads',
+  'marks',
   'roof',
   'summary',
   'campaign',

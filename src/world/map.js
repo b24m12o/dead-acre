@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
+import { paintMarks, paintSchool } from './marks.js';
 import { TAU, clamp, pick, rand, randi } from '../core/util.js';
 import { DLOOK } from '../core/profile.js';
 import { gl } from '../render/gl.js';
@@ -38,7 +39,9 @@ let SUN;
 export let lamps, cars, houses, fires, roofs;
 export let ROAD;
 export let RX, RY;
-export let LAYOUT = ''; // which place's layout this map is, in the campaign (layouts.js); '' for a district's own
+export let LAYOUT = '';
+export let MARKS_AT = [], // where each place's messages were sprayed, and what was dropped at the school (marks.js)
+  SCHOOL_AT = []; // which place's layout this map is, in the campaign (layouts.js); '' for a district's own
 export let HELIPAD = null; // the helipad, where a layout has one: the evac lands there
 // at a place you leave by truck, the garage it waits in: shut, its roller door on the street side, until the dawn
 // you have the fuel for it. { x, y, w, h } in tiles, door: the door's tile indices, tx/ty: where the truck stands
@@ -1680,6 +1683,23 @@ function bakeMap() {
     a.lineCap = 'butt';
     a.lineJoin = 'miter';
     a.restore();
+  }
+  {
+    const id = GS.RUN && GS.RUN.journey ? LAYOUT || 'main' : null; // a stop on the road: what its people left behind
+    MARKS_AT = id
+      ? paintMarks(a, {
+          id,
+          sc: MAPS,
+          ROAD,
+          at: (x, y) => y * MW + x,
+          MW,
+          MH,
+          TILE,
+          isWall,
+          avoid: (x, y) => id === 'main' && Math.hypot(x - cx, y - cy) < 300, // clear of the HELP at the crossroads
+        })
+      : [];
+    SCHOOL_AT = id === 'clinic' ? paintSchool(a, 21 * TILE, 33 * TILE, 54 * TILE, 35 * TILE) : []; // the school's front walk (layouts.js)
   }
   // boundary: concrete barricade
   for (let ty = 0; ty < MH; ty++)

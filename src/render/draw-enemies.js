@@ -443,7 +443,9 @@ export function drawEnemy(e) {
       // elite traits read by shape before colour: the runner is stripped lean and long-armed, the screamer gaunt with a
       // big skull, the armored one broad in a plate carrier and helmet
       const tr = !brute && !bloat ? e.shape || (e.elite ? e.trait : null) : null,
-        tW = tr === 'runner' ? 0.84 : tr === 'screamer' ? 0.88 : tr === 'armored' ? 1.08 : tr === 'drag' ? 1.14 : 1,
+        tW =
+          (tr === 'runner' ? 0.84 : tr === 'screamer' ? 0.88 : tr === 'armored' ? 1.08 : tr === 'drag' ? 1.14 : 1) *
+          (e.bw || 1), // and each one's own build: stocky or slight
         tL = tr === 'runner' ? 1.18 : tr === 'screamer' ? 1.1 : tr === 'drag' ? 1.4 : 1,
         tA = tr === 'runner' || tr === 'screamer' ? 0.78 : tr === 'armored' ? 1.12 : tr === 'drag' ? 1.15 : 1;
       const sh = (brute ? 23 : bloat ? 20 : 12.5) * tW,

@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { placeId } from '../world/places.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, d2, pick, rand, randi } from '../core/util.js';
@@ -85,6 +86,7 @@ export function makeEnemy(type, x, y) {
   e.limp = Math.random() < 0.5 ? 0 : 1;
   e.stride = rand(0, 1);
   e.bs = type === 'skitter' || type === 'mini' ? rand(0.93, 1.08) : 1; // people come in sizes: drawn only, the body you hit is the same
+  e.bw = type === 'skitter' || type === 'mini' ? rand(0.88, 1.14) : 1; // and builds: stocky or slight, across the shoulders
   e.lost = [false, false];
   if (type === 'skitter' || type === 'mini') {
     // who the dead were: police, medics, firefighters and road crews everywhere; truckers and bikers on Route 9; mourners, the buried and the groundskeepers at Hollow Hill
@@ -116,8 +118,9 @@ export function makeEnemy(type, x, y) {
                 [6, 0.06],
               ];
     let acc = 0;
+    const ward = placeId() === 'clinic' || placeId() === 'hospital'; // the staff who stayed with the sick
     for (const [v, p] of w) {
-      acc += p;
+      acc += p + (ward && v === 4 ? 0.2 : 0);
       if (r < acc) {
         e.v = e.hv = v;
         break;

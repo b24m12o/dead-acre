@@ -111,6 +111,8 @@ export const RADIO = {
     'Dawn. Reload, patch up, check the crates.',
     'You made it through. Same time tomorrow.',
     'Another night down. We are still on the air.',
+    "The school buses got out of St. Mary's that first morning, nine. Every one of them. Hold on to that.",
+    'Half the county was told to make for St. Mary’s. The other half was told to stay home. Nobody knows who got it right.',
   ],
   evac: 'Bird is inbound. Pop smoke, hold the landing zone and do not stop shooting.',
   evacGun: 'Nine, the door gunner is hot. Stay close to the smoke and he will cover you.',
