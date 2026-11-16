@@ -16,10 +16,10 @@ export async function run(b) {
     const fr = (s, draw = true) => { for (let i = 0; i < s * 60; i++) { update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60); if (draw && i % 6 === 0) bakeRemains(); if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } } };
     // open ground with room to the east
     let spot = null;
-    for (let t = 0; t < 4000 && !spot; t++) {
-      const x = 400 + Math.random() * (WW - 1000), y = 400 + Math.random() * (WH - 800);
+    for (let t = 0; t < 30000 && !spot; t++) {
+      const x = 400 + Math.random() * (WW - 1000), y = 400 + Math.random() * (WH - 800), room = t < 20000 ? 480 : 360; // a crowded map: a little less room
       let ok = true;
-      for (let dx = -80; dx <= 480 && ok; dx += 40) for (let dy = -120; dy <= 120 && ok; dy += 40) if (grid[Math.floor((y + dy) / TILE) * MW + Math.floor((x + dx) / TILE)]) ok = false;
+      for (let dx = -80; dx <= room && ok; dx += 40) for (let dy = -120; dy <= 120 && ok; dy += 40) if (grid[Math.floor((y + dy) / TILE) * MW + Math.floor((x + dx) / TILE)]) ok = false;
       if (ok) spot = [x, y];
     }
     P.x = spot[0]; P.y = spot[1]; P.vx = P.vy = 0; fr(0.2);
