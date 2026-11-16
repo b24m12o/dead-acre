@@ -99,6 +99,7 @@ function openAsk(q) {
   const C = RCH[q.id],
     el = $('radioAsk');
   if (!el) return;
+  el.querySelector('.eyebrow').textContent = 'Channel 9 · your call'; // the same card one of your people asks on (threads.js)
   el.querySelector('.rq').textContent = `“${C.line}”`;
   const box = el.querySelector('.ways');
   box.innerHTML = ['a', 'b']

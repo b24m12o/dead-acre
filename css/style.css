@@ -505,6 +505,8 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #route .way .wgain::before{content:'+ ';font-weight:600}
 #route .way .wcost{color:#e8a27a}
 #route .way .wcost::before{content:'− ';font-weight:600}
+#route .way .wbud{color:#ffd08a}
+#route .way .wbud::before{content:'★ ';font-weight:600}
 #route .way .wstay{display:grid;gap:4px;margin-top:3px;padding-top:7px;border-top:1px dashed rgba(207,214,217,.16);font-size:13px;color:#9aa3a8}
 #route .way .wstay i{font:600 10.5px "JetBrains Mono",monospace;font-style:normal;letter-spacing:.07em;text-transform:uppercase;color:#7d878d}
 #route .ways .wq{grid-column:1/-1;margin:0 0 -2px;font:600 11px "JetBrains Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:#ffd08a}

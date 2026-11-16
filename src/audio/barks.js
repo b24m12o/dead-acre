@@ -167,6 +167,8 @@ export function heroSay(kind, delay = 0) {
 }
 // somebody who is not one of yours says one given line (the driver in the garage: journey.js). The words always
 // show over their head; the voice plays unless Channel 9 is on the air
+// one of your people, in their own voice, saying a line that isn't a bark (threads.js)
+export const budSay = (s, text, delay = 0) => s && text && npcSay(s, voiceOf(s), text, delay);
 export function npcSay(s, code, text, delay = 0) {
   if (!s || !text) return;
   const c = clip(code, text),

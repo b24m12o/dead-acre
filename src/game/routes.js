@@ -24,6 +24,7 @@ import { reachPt } from '../world/nav.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { chips, dust } from '../render/effects.js';
 import { showStreak } from '../ui/callouts.js';
+import { wayBudApply } from './threads.js';
 
 // k: the first night's dead at the new place, times this. risk: 0 calm, 1 rough, 2 bad (the road map's colour).
 // ev: what the first night brings (fog / blood: the weather; pack / brute: a pack or a knot of brutes in the
@@ -362,6 +363,10 @@ export function applyVia(id, ways) {
     trait: V.trait || null,
     why: V.why,
   };
+  {
+    const wb = wayBudApply(id, GS.RUN.viaN); // one of yours who knows this way (threads.js)
+    if (wb) GS.later.push({ t: 5.5, fn: () => GS.state === 'play' && showStreak('On the way', wb) });
+  }
   {
     const at = stopNow();
     GS.RUN.viaA = STAY[id] ? { id, w0: GS.wave + 1, w1: areaEnd(at), paid: GS.wave + 1 } : null; // and on through its country

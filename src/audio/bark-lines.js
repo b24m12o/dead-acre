@@ -3,6 +3,32 @@
 // in every voice into the voice bundle, so a line here must match its recording word for word: change one, run the
 // tool again. Each survivor gets one of the two voices that fit their name and keeps it.
 export const BARK_VOICES = { M: ['am_fenrir', 'am_puck'], F: ['af_bella', 'af_sarah'] };
+// your people's own threads (threads.js): what each asks at their own place, says coming back, says if you keep them,
+// and what the others say the morning after one of you is lost. Never a name: the same clip for whoever says it
+export const THREAD_LINES = {
+  medic: {
+    ask: "I worked here, on the second floor. The supply room still has what we need. Let me go tonight. I'll be back by dawn.",
+    back: "Told you I'd be back. Everything they had upstairs.",
+  },
+  scav: {
+    ask: "I hid a bag in the freezer here, back before it all went bad. Give me tonight and I'll bring it back.",
+    back: 'Still there, every bit of it. Told you.',
+  },
+  cop: {
+    ask: 'The county impound lot is up the quarry road. Everything we ever took off people is in there. Let me go tonight.',
+    back: "Got the gate open. You're going to like this.",
+  },
+  marksman: {
+    ask: 'I hunted these woods along the river for years. My old blind still has my gear in it. Give me tonight.',
+    back: "Got my old rifle back. Now we're talking.",
+  },
+  stay: ['Okay. We stick together.', "Your call. I'm with you.", 'Fine. Another time, maybe.'],
+  mourn: [
+    "They'd want us to keep moving.",
+    'I keep looking for them out there.',
+    'We should have stayed closer. All of us.',
+  ],
+};
 export const BARK_LINES = {
   contact: ['Contact!', 'Here they come.', 'Movement, out there!', "Eyes up, they're coming."],
   big: ['Big one!', 'Big one, coming in!', 'Watch the big one!'],

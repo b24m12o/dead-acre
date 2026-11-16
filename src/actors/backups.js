@@ -180,7 +180,7 @@ export function buddyShoot(s, dt, slow) {
         vx: c * 1500,
         vy: sn * 1500,
         life: 0.5,
-        dmg: gd() * 1.6,
+        dmg: gd() * 1.6 * (s.dk || 1),
         pierce: 1,
         bounce: 0,
         hits: [],
@@ -383,6 +383,7 @@ export function buddyHurt(s, p, dt) {
       s.nm ? `${s.nm} the ${TRAITS[s.tr].name.toLowerCase()} is gone` : 'You lost one of your backup'
     );
     if (s.nm) (GS.RUN.lost = GS.RUN.lost || []).push(s.nm);
+    GS.RUN.lostW = GS.wave; // the others say so at dawn (threads.js mournDawn)
     renderMods();
     return true;
   }

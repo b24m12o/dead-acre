@@ -49,6 +49,7 @@ import {
   viaRadio,
   viaSig,
 } from './routes.js';
+import { mournDawn, threadBack, threadDawn } from './threads.js';
 import { radioDawn } from './radio-choice.js';
 import { BOSS_HORDE_J, STOPS, borderAt } from './route.js';
 import { newRun } from './run.js';
@@ -219,6 +220,8 @@ export function nightCleared() {
       }
       b.max = Math.max(b.max, budMax(b));
     } // at dawn the downed are patched up, and your people toughen with every night
+    threadBack(); // one of yours back from their night away, with what they went for (threads.js)
+    mournDawn(); // and one of yours lost in the night: someone says so
     GS.FOGBT = 0;
     for (const L of lamps) {
       if (L.bflick) L.broken = L.bflick = false;
@@ -290,6 +293,7 @@ function planDawn() {
   } // what tonight holds is known at dawn
   dawnDrops();
   viaDawn(); // what the way you came keeps giving, at each dawn in its country
+  threadDawn(); // one of your people at their own place, with something to ask you
   if (jobNight(GS.wave + 1)) {
     GS.RUN.jobPend = true;
     GS.later.push({ t: 2.4, fn: openJobs });

@@ -30,6 +30,7 @@ import { hurtEnemy, hurtPlayer } from './combat.js';
 import { flow, query } from '../world/nav.js';
 import { STOPS, stopAt } from './route.js';
 import { STAY, VIA, jerrycan, laterLine, viaGain } from './routes.js';
+import { wayBud } from './threads.js';
 import { RISK, drawRoad, driveVan, glyphSvg, hotWay } from '../ui/roadmap.js';
 
 export const journeyOn = () => !!(GS.RUN && GS.RUN.journey && !GS.RUN.hm && !GS.RUN.practice);
@@ -1223,7 +1224,7 @@ export function showRoute(onGo, ways, how) {
     (ways || [])
       .map(
         (id, i) =>
-          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><span class="wtag r${VIA[id].risk || 0}">${glyphSvg(id)}${RISK[VIA[id].risk || 0]}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span>${STAY[id] ? `<span class="wstay"><i>The rest of ${S.area}</i><span class="wgain">${STAY[id].boon}</span><span class="wcost">${STAY[id].trouble}</span></span>` : `<span class="wstay"><i>The rest of ${S.area}</i><span>Nothing either way</span></span>`}${laterLine(id, to) ? `<span class="wlater">Later · ${laterLine(id, to)}</span>` : ''}</button>`
+          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><span class="wtag r${VIA[id].risk || 0}">${glyphSvg(id)}${RISK[VIA[id].risk || 0]}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span>${wayBud(id) ? `<span class="wbud">${wayBud(id).text}</span>` : ''}${STAY[id] ? `<span class="wstay"><i>The rest of ${S.area}</i><span class="wgain">${STAY[id].boon}</span><span class="wcost">${STAY[id].trouble}</span></span>` : `<span class="wstay"><i>The rest of ${S.area}</i><span>Nothing either way</span></span>`}${laterLine(id, to) ? `<span class="wlater">Later · ${laterLine(id, to)}</span>` : ''}</button>`
       )
       .join('');
   box.hidden = !(ways && ways.length);

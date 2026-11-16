@@ -47,7 +47,16 @@ export function runData() {
     rerolls: GS.rerolls,
     held: GS.heldPicks ? GS.heldPicks.map(u => u.id) : null, // level-up cards put off with Later come back as they were
     runSeeds: GS.runSeeds,
-    bud: GS.buddies.map(b => ({ nm: b.nm, tr: b.tr, look: b.look, tint: b.tint, hp: b.hp, max: b.max, vo: b.vo })),
+    bud: GS.buddies.map(b => ({
+      nm: b.nm,
+      tr: b.tr,
+      look: b.look,
+      tint: b.tint,
+      hp: b.hp,
+      max: b.max,
+      vo: b.vo,
+      dk: b.dk,
+    })),
   };
   return d;
 }
@@ -100,6 +109,7 @@ export function restoreRun(d) {
     b.max = Math.max(b.max, s.max || 0);
     b.hp = Math.min(b.max, s.hp > 0 ? s.hp : b.max * 0.5); // one carried aboard down comes round on the road, not fresh
     if (typeof s.vo === 'string') b.vo = s.vo; // the same voice they had
+    if (s.dk > 1) b.dk = s.dk; // the marksman's own rifle, if they went back for it (threads.js)
     GS.buddies.push(b);
   }
 }

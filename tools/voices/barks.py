@@ -17,10 +17,11 @@ STRETCH = {'Aaaaaaaaaaaaaaah!': (0.55, 1.1)}
 
 src = subprocess.check_output(
     ['node', '--input-type=module', '-e',
-     "import('./src/audio/bark-lines.js').then(m=>console.log(JSON.stringify({L:m.BARK_LINES,V:m.BARK_VOICES})))"],
+     "import('./src/audio/bark-lines.js').then(m=>console.log(JSON.stringify({L:m.BARK_LINES,V:m.BARK_VOICES,T:m.THREAD_LINES})))"],
     cwd=ROOT).decode()
 cfg = json.loads(src)
-lines = sorted({t for ts in cfg['L'].values() for t in ts})
+lines = sorted({t for ts in cfg['L'].values() for t in ts}
+               | {t for v in cfg['T'].values() for t in (v if isinstance(v, list) else v.values())})  # and their own threads' lines
 k = Kokoro(os.path.join(KOK, 'kokoro-v1.0.int8.onnx'), os.path.join(KOK, 'voices-v1.0.bin'))
 
 
