@@ -1008,6 +1008,7 @@ const BOSS_THE = {
 export function bossOf(e) {
   return BOSS_THE[e.btype] || bossName();
 }
+const aOr = w => (/^[aeiou]/.test(w) ? 'an ' : 'a ') + w; // an armored, a bloated
 function killerAt(sx, sy) {
   // who most likely did it: the nearest of the dead to where the hit came from
   if (sx === undefined) return 'the dead';
@@ -1026,7 +1027,7 @@ function killerAt(sx, sy) {
       ? bossOf(best)
       : best.type === 'skitter' && best.run
         ? 'a runner'
-        : (best.trait && TRAIT[best.trait] ? 'a ' + TRAIT[best.trait].name.toLowerCase() : FOE_NAME[best.type]) ||
+        : (best.trait && TRAIT[best.trait] ? aOr(TRAIT[best.trait].name.toLowerCase()) : FOE_NAME[best.type]) ||
           'the dead';
   return GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead';
 }

@@ -884,8 +884,10 @@ export function bossChief(dist, dt, e, lead, ph) {
   if ((e.rushT -= dt) <= 0 && e.los && dist > 170 && dist < 520) {
     e.rushT = [4.2, 3.2, 2.4][ph];
     e.st = 'brace';
-    e.stT = [0.45, 0.4, 0.35][ph];
+    e.stT = [0.65, 0.55, 0.5][ph];
     e.busyT = e.stT + 0.55 + 0.5;
+    e.ra = Math.atan2(GS.P.y - e.y, GS.P.x - e.x); // it picks its line as it braces, and the line shows on the ground: its most
+    bossWarn({ lane: true, x: e.x, y: e.y, a: e.ra, len: 360, w: e.r * 1.8, dur: e.stT, k: 'slam' }); // frequent attack can be read and side-stepped (it used to lead you, unmarked)
     sfx.breath(e.x, e.y, true);
     return;
   }

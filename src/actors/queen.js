@@ -265,11 +265,10 @@ export function updateQueen(e, dt, ux, uy, dist) {
   // ---- the Fire Chief's overhead chop: the axe goes back over the helmet, then down along a line; it sticks in the ground for a moment
   if (e.st === 'brace') {
     e.stT -= dt;
+    if (e.ra !== undefined) e.face = e.ra; // squared up to the line it showed
     if (Math.random() < 0.4) dust(e.x - Math.cos(e.face) * 40, e.y - Math.sin(e.face) * 40, 1, 40, 1, 0.6);
     if (e.stT <= 0) {
-      const tx = GS.P.x + GS.P.vx * 0.25,
-        ty = GS.P.y + GS.P.vy * 0.25,
-        a = Math.atan2(ty - e.y, tx - e.x);
+      const a = e.ra ?? Math.atan2(GS.P.y - e.y, GS.P.x - e.x); // down the line it showed
       e.lx = Math.cos(a);
       e.ly = Math.sin(a);
       e.st = 'rush';

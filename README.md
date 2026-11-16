@@ -63,6 +63,18 @@ commit that first added it and the CDN keeps serving it from cache across releas
 change to those files, run `node tools/at.mjs` before the next build to record where they now live
 (`assets/at.json`).
 
+## Balance simulation
+
+`tools/sim/sim.mjs` has the test bot play whole campaigns with random heroes, cards and roads, getting back up
+when it is eaten so every night is measured, and writes one line per run. `tools/sim/report.mjs` reads them:
+which nights end runs, what does the damage, how the heroes compare, and two files side by side. It is separate
+from the game and the tests. One run takes about two and a half minutes (run them one at a time).
+
+```sh
+node tools/sim/sim.mjs --runs 40 --out /tmp/sim/base.jsonl
+node tools/sim/report.mjs /tmp/sim/base.jsonl
+```
+
 ## Check
 
 ```sh

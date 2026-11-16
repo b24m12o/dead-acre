@@ -65,7 +65,7 @@ const BOSS_RADIO = {
     p1: 'It is calling Engine 4 on the fire channel. Its crew is still answering.',
     p2: 'Main Street is burning end to end. Keep moving, nine.',
     kill: 'Engine 4, stand down. Rest easy, Chief.',
-    dawn: 'Smoke is still going up from Main Street. Five nights to go, nine.',
+    dawn: 'Smoke is still going up from Main Street. The road is open again, nine.', // no count: the Chief is night 8 on the road, 10 elsewhere
   },
   pz: {
     pre: [

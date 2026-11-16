@@ -12,8 +12,8 @@ export async function run(b) {
     const P = GS.P, out = {};
     const fr = (n, each) => { for (let i = 0; i < n; i++) { if (each) each(); update(1 / 60); tickWorld(1 / 60); if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } P.hp = S.maxHp; P.inv = 9; } };
     let spot = null;
-    for (let t = 0; t < 30000 && !spot; t++) { const x = 500 + Math.random() * (WW - 1000), y = 500 + Math.random() * (WH - 1000); let ok = true;
-      for (let dx = -200; dx <= 200 && ok; dx += 20) for (let dy = -200; dy <= 200 && ok; dy += 20) if (blockPt(x + dx, y + dy)) ok = false; if (ok) spot = [x, y]; }
+    for (let t = 0; t < 40000 && !spot; t++) { const x = 500 + Math.random() * (WW - 1000), y = 500 + Math.random() * (WH - 1000), R = t < 25000 ? 200 : 140; let ok = true; // a crowded map: a little less room
+      for (let dx = -R; dx <= R && ok; dx += 20) for (let dy = -R; dy <= R && ok; dy += 20) if (blockPt(x + dx, y + dy)) ok = false; if (ok) spot = [x, y]; }
     if (!spot) return { err: 'no open ground' };
     P.x = spot[0]; P.y = spot[1];
     // a night with surges: night 6

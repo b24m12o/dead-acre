@@ -418,10 +418,12 @@ export function updateFire(dt) {
   GS.molos = GS.molos.filter(m => !m.done);
 }
 export function throwMolotov(p) {
+  const r = 62 + 16 * S.molo,
+    clear = r + p.r + 40; // never where its own fire would reach you: it used to land on crowds 90 px out, led toward you
   let best = null,
     bn = 0;
   query(p.x, p.y, 470, e => {
-    if (e.dead || e.emerge < 1 || d2(e.x, e.y, p.x, p.y) < 90 * 90) return;
+    if (e.dead || e.emerge < 1 || d2(e.x + e.vx * 0.3, e.y + e.vy * 0.3, p.x, p.y) < clear * clear) return;
     let n = 0;
     query(e.x, e.y, 95, o => {
       if (!o.dead && d2(o.x, o.y, e.x, e.y) < 95 * 95) n++;
@@ -445,7 +447,7 @@ export function throwMolotov(p) {
     dur: clamp(d / 520, 0.35, 0.9),
     z: 0,
     spin: 0,
-    r: 62 + 16 * S.molo,
+    r,
   });
   sfx.swap();
   return true;
