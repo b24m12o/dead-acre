@@ -213,7 +213,7 @@ function drawDoor(b) {
     L = b.w * TILE, // the doorway
     n = b.w > 1 ? 2 : 1,
     leaf = L / n - 2,
-    sh = b.hitT > 0 ? Math.sin(GS.time * 60) * 1.5 : 0,
+    sh = b.hitT > 0 && !b.broken ? Math.sin(GS.time * 60) * 1.5 : 0, // shaking while they pound it; once down, still
     wear = 0.7 + 0.3 * (b.hp / b.max),
     P = GS.P,
     thin = !GS.SHMODE && P && Math.abs(P.x - b.x) < L / 2 + 26 && P.y < b.y + 4 && P.y > b.y - DOOR_H - 34 ? 0.45 : 1; // you, behind it: seen through, as through a wall

@@ -45,6 +45,7 @@ export async function run(b) {
     }
     out.held = held / 60; out.brokeAt = brokeAt; out.inAt = inAt; out.minSide = minSide === 1e9 ? null : Math.round(minSide);
     out.staysBroken = (fr(60), d.broken);
+    out.still = !(d.hitT > 0); // and still: nothing left of it shakes (it once kept shaking for good)
     w.dead = true; GS.enemies.length = 0;
     // it can't shut on one of them standing in it
     const d2_ = GS.doors.find(q => q !== d && !q.broken && q.w === 1 && !wallAt(q.x - q.nx * 100, q.y - q.ny * 100) && !wallAt(q.x + q.nx * 40, q.y + q.ny * 40));
@@ -73,6 +74,7 @@ export async function run(b) {
     `the dead should be held at a door until they break it: held ${o.held.toFixed(1)} s, broke at ${o.brokeAt.toFixed?.(1)}, in at ${o.inAt.toFixed?.(1)}, nearest it got while the door stood ${o.minSide}`
   );
   check(o.staysBroken, 'a broken door should stay broken');
+  check(o.still, 'a broken door should be still, not keep shaking');
   check(
     o.jammed === undefined || (o.jammed > 0.9 && o.unjammed === 0),
     `a door should not shut on one standing in it, and shut once it is clear: ${o.jammed} then ${o.unjammed}`

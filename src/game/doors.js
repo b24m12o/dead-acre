@@ -124,6 +124,7 @@ export function tickDoors(dt) {
     heavy: true,
     rate: DOOR.rate,
     onBreak: b => {
+      b.hitT = 0; // a broken door isn't updated any more: nothing left to shake
       chips(b.x, b.y, 14, [0.36, 0.25, 0.15], 4, 240);
       sfx.doorBreak(b.x, b.y);
       if (P && d2(P.x, P.y, b.x, b.y) < 320 * 320) floatText(b.x, b.y - 30, 'Door down', '#ff9a6a', 13);

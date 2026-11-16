@@ -13,10 +13,12 @@ export async function run(b) {
     const P = GS.P, out = {};
     const fr = n => { for (let i = 0; i < n; i++) { update(1 / 60); tickWorld(1 / 60); P.hp = S.maxHp; if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } } };
     // somewhere open: ten metres of clear ground on every side
-    for (let t = 0; t < 400; t++) {
+    for (let t = 0; t < 6000; t++) {
       const x = 400 + Math.random() * (WW - 800), y = 400 + Math.random() * (WH - 800);
       let ok = true;
       for (let a = 0; a < 6.28 && ok; a += 0.4) for (const d of [40, 90, 160]) if (blockPt(x + Math.cos(a) * d, y + Math.sin(a) * d)) { ok = false; break; }
+      // and nothing the shove could throw them into: a wreck or a fence isn't in the wall grid, but it blocks the view
+      for (let a = -0.7; a <= 0.7 && ok; a += 0.1) if (!los(x, y, x + Math.cos(a) * 260, y + Math.sin(a) * 260)) ok = false;
       if (ok) { P.x = x; P.y = y; break; }
     }
     P.vx = P.vy = 0; P.aimA = 0; P.dashT = 0; P.shoveCd = 0;
