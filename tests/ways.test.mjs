@@ -28,6 +28,26 @@ export async function run(b) {
     { const t = performance.now(); while (performance.now() - t < 650); }
     out.inside = document.querySelectorAll('#routeWays .way').length;
     $('routeGo').click(); out.insideOn = GS.state === 'play' && stopNow() === 1 && !GS.RUN.viaN;
+    // what a way leaves on the rest of its country: how long it holds, from each border
+    out.hold = [[2, 5], [5, 10], [6, 12]].map(([S, w]) => { GS.RUN.stop = S; GS.wave = w; applyVia('wrecks', ['wrecks', 'road']); const A = GS.RUN.viaA; return [A.w0, A.w1]; }).join(' ');
+    GS.RUN.stop = 2; GS.wave = 5; applyVia('checkpoint', ['checkpoint', 'road']);
+    out.on = [6, 7, 9, 10, 11].map(w => !!viaStay(w)).join();
+    // a night in it: its trouble among the dead (the checkpoint: a riot cop more), and none after the main road
+    const shields = () => buildWave(7).filter(t => t === 'shield').length;
+    const withIt = shields(); GS.RUN.viaA = null; const without = shields();
+    out.trouble = withIt - without;
+    GS.RUN.stop = 2; GS.wave = 5; applyVia('road', ['road', 'wrecks']); out.roadNone = !GS.RUN.viaA;
+    // each dawn in it: what it keeps giving, once a dawn, and not past its country
+    GS.RUN.stop = 2; GS.wave = 5; applyVia('wrecks', ['wrecks', 'road']);
+    const s0 = GS.runSeeds; GS.wave = 5; viaDawn(); const sArr = GS.runSeeds - s0; // the arrival dawn: the way's own gain was it
+    GS.wave = 6; viaDawn(); viaDawn(); const sDawn = GS.runSeeds - s0; // the dawn before night 7, twice (a Continue)
+    GS.wave = 10; viaDawn(); const sOut = GS.runSeeds - s0; // the dawn before night 11: Mill River, past it
+    out.dawn = [sArr, sDawn, sOut].join();
+    GS.RUN.stop = 2; GS.wave = 5; applyVia('gunshop', ['gunshop', 'road']);
+    for (const t of Object.keys(GS.P.ammo)) GS.P.ammo[t] = 0; GS.wave = 7; viaDawn();
+    out.ammo = Object.keys(GS.P.ammo).every(t => GS.P.ammo[t] >= Math.round(ammoMax(t) * 0.5));
+    out.tag = viaTag(8);
+    GS.RUN.viaA = null;
     return out;
   })()`);
   const out = {};
@@ -66,6 +86,7 @@ export async function run(b) {
     { const t = performance.now(); while (performance.now() - t < 650); }
     out.lines = [...document.querySelectorAll('#routeWays .way')].map(w => (w.querySelector('.wlater') || {}).textContent || '');
     out.forks3 = document.querySelectorAll('#route .rmap .rleg.fork').length;
+    out.stayLines = [...document.querySelectorAll('#routeWays .way .wstay')].map(w => w.textContent);
     out.wide = $('routeWays').classList.contains('n3') && $('route').querySelector('.panel').classList.contains('wide');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true })); // too soon: a beat first
     { const t = performance.now(); while (performance.now() - t < 650); }
@@ -166,6 +187,12 @@ export async function run(b) {
   const lw = (ok, what) => ok || bad.push(`later: ${what} ${JSON.stringify(L)}`);
   lw(/jerrycan/i.test(L.lines[0]) && /road crew/i.test(L.lines[1]), 'both cards should carry their Later line');
   lw(
+    L.stayLines.length === 3 &&
+      /rest of Route 9.*jerrycan|rest of Route 9/i.test(L.stayLines[0]) &&
+      /Nothing either way/.test(L.stayLines[2]),
+    'each way card should say what it leaves on the rest of Route 9 (the main road: nothing)'
+  );
+  lw(
     L.forks3 === 3 && L.wide && L.key3 === 'road' && /"n":3/.test(L.log3),
     'three ways: three forks, the card three across, and the 3 key takes the third'
   );
@@ -198,6 +225,20 @@ export async function run(b) {
     'Hollow Hill has its own ways'
   );
   cw(C.inside === 0 && C.insideOn, 'inside one country there is no choice: on to the next place');
+  cw(
+    C.hold === '6,10 11,12 13,15',
+    'a way should hold to the end of its country: Route 9 to night 10, Mill River 12, Hollow Hill 15'
+  );
+  cw(C.on === 'false,true,true,true,false', 'its hold: the nights after its first, not past its country');
+  cw(
+    C.trouble === 1 && C.roadNone,
+    'a night in it carries its trouble (the checkpoint: a riot cop more); the main road leaves nothing'
+  );
+  cw(C.dawn === '0,25,25', 'each dawn in it pays once (not on arrival, not twice on a Continue, not past its country)');
+  cw(
+    C.ammo && /dogs/i.test(C.tag),
+    "the gun shop's dawns fill the spare ammo halfway, and the dawn line says the dogs are still on you"
+  );
   check(!bad.length, bad.join('\n        '));
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   return `${ids.length} ways: ambush ${out.bridge.near} round you, horde, rescue, fog, blood moon, packs and brutes`;

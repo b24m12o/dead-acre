@@ -29,7 +29,7 @@ import { S, cam } from './state.js';
 import { hurtEnemy, hurtPlayer } from './combat.js';
 import { flow, query } from '../world/nav.js';
 import { STOPS, stopAt } from './route.js';
-import { VIA, jerrycan, laterLine, viaGain } from './routes.js';
+import { STAY, VIA, jerrycan, laterLine, viaGain } from './routes.js';
 import { RISK, drawRoad, driveVan, glyphSvg, hotWay } from '../ui/roadmap.js';
 
 export const journeyOn = () => !!(GS.RUN && GS.RUN.journey && !GS.RUN.hm && !GS.RUN.practice);
@@ -1215,11 +1215,15 @@ export function showRoute(onGo, ways, how) {
   const box = $('routeWays');
   box.innerHTML =
     `<p class="wq">${how === 'truck' ? `The driver asks: which way to ${S.short}?` : `Which way to ${S.short}?`}</p>` +
-    `<p class="wnote">You only pass through. What a way gives you is yours when you get there; its trouble follows you to ${S.short} for your first night.</p>` +
+    `<p class="wnote">${
+      ways && ways.length >= 3
+        ? `Yours when you get there; its trouble follows you in for the first night. A little of both lasts through ${S.area}.`
+        : `You only pass through. What a way gives you is yours when you get there; its trouble follows you to ${S.short} for your first night.`
+    }</p>` +
     (ways || [])
       .map(
         (id, i) =>
-          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><span class="wtag r${VIA[id].risk || 0}">${glyphSvg(id)}${RISK[VIA[id].risk || 0]}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span>${laterLine(id, to) ? `<span class="wlater">Later · ${laterLine(id, to)}</span>` : ''}</button>`
+          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><span class="wtag r${VIA[id].risk || 0}">${glyphSvg(id)}${RISK[VIA[id].risk || 0]}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span>${STAY[id] ? `<span class="wstay"><i>The rest of ${S.area}</i><span class="wgain">${STAY[id].boon}</span><span class="wcost">${STAY[id].trouble}</span></span>` : `<span class="wstay"><i>The rest of ${S.area}</i><span>Nothing either way</span></span>`}${laterLine(id, to) ? `<span class="wlater">Later · ${laterLine(id, to)}</span>` : ''}</button>`
       )
       .join('');
   box.hidden = !(ways && ways.length);

@@ -10,7 +10,7 @@ import { TILE, WH, WW, isWall } from '../world/map.js';
 import { cam } from './state.js';
 import { FINAL_NIGHT, INF, TW } from './districts.js';
 import { BOSS_J } from './route.js';
-import { viaNight } from './routes.js';
+import { viaNight, viaStay } from './routes.js';
 import { choiceNight } from './radio-choice.js';
 export const bossNight = w =>
   !(GS.RUN && GS.RUN.hm) && (GS.RUN && GS.RUN.journey && !GS.RUN.practice ? !!BOSS_J[w] : w % 5 === 0); // Horde Mode has no bosses: the hordes are the bosses; the campaign has one at most of its stops (route.js)
@@ -39,6 +39,10 @@ export function buildWave(w) {
   if (via && via.mix) for (const m of via.mix) T.push(m.slice()); // what followed you in by the way you came
   if (via && via.add && !bossNight(w))
     for (const [t, c] of Object.entries(via.add)) for (let i = 0; i < (w < 5 ? Math.ceil(c / 2) : c); i++) q.push(t);
+  const stay = viaStay(w); // and on the nights after it, a little of the same, to the end of that country
+  if (stay && stay.mix) for (const m of stay.mix) T.push(m.slice());
+  if (stay && stay.add && !bossNight(w))
+    for (const [t, c] of Object.entries(stay.add)) for (let i = 0; i < c; i++) q.push(t);
   if (bossNight(w)) n = Math.floor(n * (w >= 10 ? 0.3 : 0.38)); // the boss is staged by bossEntrance, not spawned from the queue
   if (w >= 3 && !bossNight(w))
     for (let i = 0; i < (1 + Math.floor(w / 5) + (INF(8) ? 1 : 0) + (Dn === 'cemetery' ? 1 : 0)) * 1; i++)
@@ -73,7 +77,7 @@ export function buildWave(w) {
     [q[i], q[j]] = [q[j], q[i]];
   }
   {
-    const k = ((via && via.k) || 1) * ((ch && ch.k) || 1),
+    const k = ((via && via.k) || 1) * ((ch && ch.k) || 1) * ((stay && stay.k) || 1),
       want = Math.round(q.length * k); // both of them: the whole night, specials and all, not only the ordinary dead
     while (q.length > want) q.splice(Math.floor(Math.random() * q.length), 1);
     while (q.length < want && q.length)

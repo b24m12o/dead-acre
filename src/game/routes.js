@@ -175,6 +175,137 @@ export const VIA = {
     why: 'the dead from the open graves followed you',
   },
 };
+// What a way leaves on the rest of its country, once the first night there is over: a little help at each dawn there,
+// and a little of its trouble in each night there, until the road crosses into the next country. The main road leaves
+// nothing either way. (dawn: heal you so much, people: your people back to full, ammo: every gun's spare at least this
+// full, scrap, traps, crate: a supply crate. k, mix, add: the night's dead, as for the first night)
+export const STAY = {
+  pharmacy: {
+    from: 'the pharmacy',
+    boon: 'Each dawn you heal 30, and your people get back to full',
+    trouble: 'A spore or two among them every night',
+    tag: 'Spores',
+    add: { spore: 1 },
+    mix: [['flower', 0.5]],
+    dawn: { heal: 30, people: true },
+  },
+  gunshop: {
+    from: 'the gun shop',
+    boon: "Each dawn every gun's spare ammo is at least half full",
+    trouble: 'The dogs keep hunting you every night',
+    tag: 'The dogs still on you',
+    mix: [['hound', 0.6]],
+    dawn: { ammo: 0.5 },
+  },
+  hideout: {
+    from: 'the farmhouse',
+    boon: 'Each dawn they leave a supply crate out for you',
+    trouble: 'The crowd keeps growing: more of them every night',
+    tag: 'The crowd still growing',
+    k: 1.1,
+    dawn: { crate: true },
+  },
+  checkpoint: {
+    from: 'the checkpoint',
+    boon: 'Each dawn a land mine from the army stores',
+    trouble: 'A riot cop and brutes every night',
+    tag: 'Riot police',
+    add: { shield: 1 },
+    mix: [['beetle', 0.4]],
+    dawn: { traps: { mine: 1 } },
+  },
+  wrecks: {
+    from: 'the pile-up',
+    boon: 'Each dawn +25 scrap from the cars',
+    trouble: 'Lurkers under the cars every night',
+    tag: 'Lurkers',
+    add: { lurker: 2 },
+    dawn: { scrap: 25 },
+  },
+  bridge: {
+    from: "the line crew's store",
+    boon: 'Each dawn a gas drum from the line crew',
+    trouble: 'Climbers off the embankment every night',
+    tag: 'Climbers',
+    add: { climb: 2 },
+    dawn: { traps: { drum: 1 } },
+  },
+  tanker: {
+    from: 'the tanker',
+    boon: 'Each dawn +15 scrap and a noise maker',
+    trouble: 'The smoke still draws them: more flyers, and more of them',
+    tag: 'Drawn by the smoke',
+    mix: [['wasp', 0.8]],
+    k: 1.05,
+    dawn: { scrap: 15, traps: { noise: 1 } },
+  },
+  bus: {
+    from: 'the coach',
+    boon: 'Each dawn your people are patched up to full',
+    trouble: 'A Listener drawn by the crash every night',
+    tag: 'A Listener',
+    add: { blind: 1 },
+    dawn: { people: true },
+  },
+  river: {
+    from: 'the river',
+    boon: 'The fog keeps hiding you: fewer of them every night',
+    trouble: 'The quiet ones follow the water: a Listener and a lurker every night',
+    tag: 'The quiet ones',
+    add: { blind: 1, lurker: 1 },
+    k: 0.9,
+  },
+  chapel: {
+    from: 'the chapel',
+    boon: 'Each dawn you heal 20, and your people get back to full',
+    trouble: 'The congregation keeps coming: lurkers and a spore every night',
+    tag: 'The congregation',
+    add: { lurker: 2, spore: 1 },
+    dawn: { heal: 20, people: true },
+  },
+  yard: {
+    from: "the groundskeeper's shed",
+    boon: 'Each dawn a land mine from the shed',
+    trouble: 'More come up out of the graves: brutes and a dragger every night',
+    tag: 'Up out of the graves',
+    add: { drag: 1 },
+    mix: [['beetle', 0.5]],
+    dawn: { traps: { mine: 1 } },
+  },
+};
+// the last night in the country of stop S: where the road crosses out of it
+const areaEnd = S => {
+  let w = STOPS[S] ? STOPS[S].to : 0;
+  for (let k = S + 1; k < STOPS.length && STOPS[k].area === STOPS[S].area; k++) w = STOPS[k].to;
+  return w;
+};
+// the way's hold on night w: after its first night, to the end of its country (null when none)
+export const viaStay = w => {
+  const A = GS.RUN && GS.RUN.viaA;
+  return A && STAY[A.id] && w > A.w0 && w <= A.w1 ? STAY[A.id] : null;
+};
+// at each dawn in its country: what the way keeps giving you (paid once a dawn: a Continue doesn't pay it again)
+export function viaDawn() {
+  const w = GS.wave + 1,
+    st = viaStay(w),
+    A = GS.RUN.viaA;
+  if (!st || !st.dawn || (A.paid || 0) >= w) return;
+  A.paid = w;
+  const d = st.dawn,
+    P = GS.P;
+  if (d.heal) P.hp = Math.min(S.maxHp, P.hp + d.heal);
+  if (d.people)
+    for (const b of GS.buddies) {
+      b.down = 0;
+      b.hp = b.max;
+    }
+  if (d.ammo)
+    for (const t of Object.keys(AMMO_MAX)) P.ammo[t] = Math.max(P.ammo[t] || 0, Math.round(ammoMax(t) * d.ammo));
+  if (d.scrap) GS.runSeeds += d.scrap;
+  if (d.traps) giveTrapsQuiet(d.traps);
+  if (d.crate) GS.later.push({ t: 2, fn: () => GS.state === 'play' && dropCrate(null, null, null, `From ${st.from}`) });
+  GS.later.push({ t: 5, fn: () => GS.nightDone && showStreak(`From ${st.from}`, st.boon) });
+}
 // the ways that belong to each country, for the choice on the way into it
 export const POOLS = {
   'Route 9': ['road', 'gunshop', 'tanker', 'wrecks', 'checkpoint', 'pharmacy'],
@@ -231,6 +362,10 @@ export function applyVia(id, ways) {
     trait: V.trait || null,
     why: V.why,
   };
+  {
+    const at = stopNow();
+    GS.RUN.viaA = STAY[id] ? { id, w0: GS.wave + 1, w1: areaEnd(at), paid: GS.wave + 1 } : null; // and on through its country
+  }
   GS.RUN.viaTaken = (GS.RUN.viaTaken || []).concat(id);
   GS.RUN.viaLog = (GS.RUN.viaLog || []).concat({
     s: stopNow(),
@@ -330,8 +465,9 @@ export function viaSig() {
 // what the way you came brings on night w, for the dawn's countdown line
 export const viaTag = w => {
   const v = viaNight(w),
-    t = v && VIA[v.id] && VIA[v.id].tag;
-  return t && !(GS.RUN.nextSig && GS.RUN.nextSig.w === w && SIGN[GS.RUN.nextSig.s] === v.ev) ? ' · ' + t : '';
+    st = viaStay(w),
+    t = (v && VIA[v.id] && VIA[v.id].tag) || (st && st.tag);
+  return t && !(v && GS.RUN.nextSig && GS.RUN.nextSig.w === w && SIGN[GS.RUN.nextSig.s] === v.ev) ? ' · ' + t : '';
 };
 const SIGN = { pack: 'pack', brute: 'brute', fog: 'fog', blood: 'blood' };
 // Channel 9 on the way you came, a few seconds after you arrive: the warning about what followed you in

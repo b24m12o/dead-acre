@@ -38,7 +38,17 @@ import {
   stopNow,
   truckLive,
 } from './journey.js';
-import { applyVia, codesDue, laterArrive, laterCase, offerVia, viaPickSoon, viaRadio, viaSig } from './routes.js';
+import {
+  applyVia,
+  codesDue,
+  laterArrive,
+  laterCase,
+  offerVia,
+  viaDawn,
+  viaPickSoon,
+  viaRadio,
+  viaSig,
+} from './routes.js';
 import { radioDawn } from './radio-choice.js';
 import { BOSS_HORDE_J, STOPS, borderAt } from './route.js';
 import { newRun } from './run.js';
@@ -279,6 +289,7 @@ function planDawn() {
     } // a horde tonight: the convoy drops a trap kit, and the day is yours to set them
   } // what tonight holds is known at dawn
   dawnDrops();
+  viaDawn(); // what the way you came keeps giving, at each dawn in its country
   if (jobNight(GS.wave + 1)) {
     GS.RUN.jobPend = true;
     GS.later.push({ t: 2.4, fn: openJobs });

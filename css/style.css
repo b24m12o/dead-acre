@@ -489,6 +489,12 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #route .ways[hidden]{display:none}
 #route .ways.n3{grid-template-columns:1fr 1fr 1fr}
 #route .panel.narrow.wide{width:min(840px,100%)}
+#route .panel.narrow.wide .road{width:min(540px,100%);margin:4px auto 0}
+#route .panel.wide .ways{margin-top:6px}
+#route .panel.narrow.wide{padding-top:20px;padding-bottom:18px}
+#route .panel.wide .way{line-height:1.36}
+#route .panel.wide .way .wlater{font-size:12px}
+#route .panel.wide .way{padding:12px 13px 11px;gap:5px}
 #route .way{position:relative;display:grid;align-content:start;gap:6px;text-align:left;padding:14px 14px 13px;border-radius:10px;border:1px solid rgba(207,214,217,.16);background:rgba(20,24,29,.7);color:#c9cfd1;font:400 13.5px/1.35 var(--font-body,inherit);cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
 #route .way:disabled{opacity:.45;cursor:default}
 #route .way:not(:disabled):hover,#route .way:not(:disabled):focus-visible{border-color:#ffd08a;background:rgba(36,32,24,.85);transform:translateY(-1px);outline:none}
@@ -499,6 +505,8 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 #route .way .wgain::before{content:'+ ';font-weight:600}
 #route .way .wcost{color:#e8a27a}
 #route .way .wcost::before{content:'− ';font-weight:600}
+#route .way .wstay{display:grid;gap:4px;margin-top:3px;padding-top:7px;border-top:1px dashed rgba(207,214,217,.16);font-size:13px;color:#9aa3a8}
+#route .way .wstay i{font:600 10.5px "JetBrains Mono",monospace;font-style:normal;letter-spacing:.07em;text-transform:uppercase;color:#7d878d}
 #route .ways .wq{grid-column:1/-1;margin:0 0 -2px;font:600 11px "JetBrains Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:#ffd08a}
 #radioAsk{background:rgba(8,10,12,.78)}
 #radioAsk .panel.narrow{width:min(620px,100%)}
