@@ -1,11 +1,12 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// Which way: every time you leave a place, two ways to the next one. The places, the nights and the bosses stay
-// where the road puts them; the way you take decides what you pick up on it and what follows you in. Each way
+// Which way: three times a run, where the road crosses into new country (Route 9, Mill River, Hollow Hill), three ways
+// in, drawn from the ones that belong there. The places, the nights and the bosses stay where the road puts them; the
+// way you take decides what you pick up on it and what follows you in. Each way
 // gives something when you get there and asks for it back on your first night at the new place: the dead you
 // stirred up on it come after you (more of them), or, the main road, fewer, since you got there ahead of them.
 import { RADIO, radio } from '../audio/radio.js';
 import { GS } from '../core/gs.js';
-import { TAU, pick, rand } from '../core/util.js';
+import { TAU, rand } from '../core/util.js';
 import { LV, S, ammoMax } from './state.js';
 import { AMMO_MAX, WEAPON_NIGHTS } from './arsenal.js';
 import { UP, offerUpgrades, renderMods } from './upgrades.js';
@@ -93,7 +94,7 @@ export const VIA = {
   wrecks: {
     name: 'Through the pile-up',
     what: 'Forty cars, nose to tail, doors open. Nobody took the valuables.',
-    gain: '+50 scrap',
+    gain: '+80 scrap',
     cost: 'Some in the cars were only playing dead: lurkers and draggers come after you',
     k: 1.1,
     risk: 1,
@@ -105,7 +106,7 @@ export const VIA = {
   bridge: {
     name: 'Along the railway',
     what: 'The short way: along the tracks and over the river on the old rail bridge. The line crew left their hut unlocked.',
-    gain: 'A trap kit from the hut: 2 mines and a gas drum',
+    gain: 'A trap kit from the hut: 3 mines and a gas drum',
     cost: 'Some of them follow you off the tracks: an ambush the moment night falls',
     k: 1,
     risk: 2,
@@ -116,7 +117,7 @@ export const VIA = {
   tanker: {
     name: 'Past the burning tanker',
     what: 'A fuel tanker on its side, still burning. Its pumps still work.',
-    gain: 'Siphon its fuel: 2 gas drums and 30 scrap',
+    gain: 'Siphon its fuel: 2 gas drums and 50 scrap',
     cost: 'The smoke is seen for miles: a blood moon and more of them',
     k: 1,
     risk: 2,
@@ -146,6 +147,39 @@ export const VIA = {
     tag: 'Fog',
     why: 'the river fog came with you',
   },
+  chapel: {
+    name: 'Up past the chapel',
+    what: 'The bell still rings when the wind gets up. The pastor stocked the cellar for whoever came.',
+    gain: 'You and your people patched up to full, and every gun topped up',
+    cost: 'The congregation never left: they follow you up in the fog, and some lie down to wait',
+    k: 1.1,
+    risk: 2,
+    ev: 'fog',
+    mix: [['mini', 1.2]],
+    add: { lurker: 4, spore: 2 },
+    tag: 'Fog and the congregation',
+    why: 'the congregation followed you up from the chapel',
+  },
+  yard: {
+    name: "Through the groundskeeper's yard",
+    what: 'His shed is padlocked and the graves round it are open. Nobody dug them from above.',
+    gain: 'His shed: 2 mines, 2 gas drums and 40 scrap',
+    cost: 'What came up out of the graves follows you: brutes, and draggers in the grass',
+    k: 1.15,
+    risk: 2,
+    ev: 'brute',
+    mix: [['beetle', 1.0]],
+    add: { drag: 2 },
+    trait: 'armored',
+    tag: 'Brutes and draggers',
+    why: 'the dead from the open graves followed you',
+  },
+};
+// the ways that belong to each country, for the choice on the way into it
+export const POOLS = {
+  'Route 9': ['road', 'gunshop', 'tanker', 'wrecks', 'checkpoint', 'pharmacy'],
+  'Mill River': ['road', 'river', 'bridge', 'hideout', 'bus', 'checkpoint', 'wrecks'],
+  'Hollow Hill': ['road', 'chapel', 'yard', 'hideout', 'bus', 'pharmacy'],
 };
 // can this way's first night happen on night w? the last night's sky and its flood are the story's, a boss or a
 // job night has its own work, and a horde night has its horde already
@@ -157,23 +191,26 @@ const fits = (id, w) => {
   if (ev === 'rescue') return !last && !bossNight(w) && !HORDE_J[w] && !jobNight(w);
   return true;
 };
-// the two on offer: often the main road against one detour, sometimes two detours; never the same pair twice running
+// the three on offer, from the ways of the country ahead that its first night can take: half the time the main road
+// and two detours, otherwise three detours
 export function offerVia() {
   const w = GS.wave + 1,
-    det = Object.keys(VIA).filter(k => k !== 'road' && fits(k, w));
-  let a, b;
-  for (let n = 0; n < 6; n++) {
-    a = Math.random() < 0.4 ? 'road' : pick(det);
-    b = pick(det.filter(k => k !== a));
-    if (!GS.RUN.viaLast || GS.RUN.viaLast !== [a, b].sort().join()) break;
-  }
-  GS.RUN.viaLast = [a, b].sort().join();
-  return [a, b];
+    S = STOPS[stopNow()],
+    pool = (POOLS[S && S.area] || Object.keys(VIA)).filter(k => VIA[k] && fits(k, w)),
+    det = pool.filter(k => k !== 'road');
+  const ways = [];
+  if (pool.includes('road') && (Math.random() < 0.5 || det.length < 3)) ways.push('road');
+  while (ways.length < 3 && det.length) ways.push(det.splice(Math.floor(Math.random() * det.length), 1)[0]);
+  for (let i = ways.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ways[i], ways[j]] = [ways[j], ways[i]];
+  } // the main road isn't always first
+  return ways;
 }
 // the hideout's survivor, said up front: does anyone join, or is the team full?
 export const viaGain = id =>
   id === 'hideout' && GS.buddies.length >= 3
-    ? 'Your team is full: they share their ammo, a medkit and 30 scrap'
+    ? 'Your team is full: they share their ammo, a medkit and 50 scrap'
     : VIA[id].gain;
 function topUpAmmo() {
   for (const t of Object.keys(AMMO_MAX)) GS.P.ammo[t] = Math.max(GS.P.ammo[t] || 0, ammoMax(t));
@@ -195,7 +232,12 @@ export function applyVia(id, ways) {
     why: V.why,
   };
   GS.RUN.viaTaken = (GS.RUN.viaTaken || []).concat(id);
-  GS.RUN.viaLog = (GS.RUN.viaLog || []).concat({ s: stopNow(), id, i: Math.max(0, (ways || []).indexOf(id)) }); // the road map draws the way you took
+  GS.RUN.viaLog = (GS.RUN.viaLog || []).concat({
+    s: stopNow(),
+    id,
+    i: Math.max(0, (ways || []).indexOf(id)),
+    n: (ways || []).length || 2,
+  }); // the road map draws the way you took, on its side of the fork
   laterTake(id, stopNow()); // what it leaves you for later down the road
   const P = GS.P;
   let note = '';
@@ -210,6 +252,18 @@ export function applyVia(id, ways) {
   } else if (id === 'gunshop') {
     topUpAmmo();
     note = 'every gun topped up at the gun shop';
+  } else if (id === 'chapel') {
+    P.hp = S.maxHp;
+    for (const b of GS.buddies) {
+      b.down = 0;
+      b.hp = b.max;
+    }
+    topUpAmmo();
+    note = "patched up and topped up from the chapel's cellar";
+  } else if (id === 'yard') {
+    giveTraps({ mine: 2, drum: 2 });
+    GS.runSeeds += 40;
+    note = "2 mines, 2 gas drums and 40 scrap from the groundskeeper's shed";
   } else if (id === 'hideout') {
     if (GS.buddies.length < 3) {
       if ((LV.buddy || 0) < 3) LV.buddy = (LV.buddy || 0) + 1;
@@ -221,22 +275,22 @@ export function applyVia(id, ways) {
     } else {
       topUpAmmo();
       P.hp = Math.min(S.maxHp, P.hp + 40);
-      GS.runSeeds += 30;
-      note = 'the farmhouse shared their ammo, a medkit and 30 scrap';
+      GS.runSeeds += 50;
+      note = 'the farmhouse shared their ammo, a medkit and 50 scrap';
     }
   } else if (id === 'checkpoint') {
     GS.RUN.viaPick = true; // saved with the arrival: a closed tab doesn't lose it (night-flow.js arrive/resumeDawn)
     note = 'kit from the army checkpoint · pick yours';
   } else if (id === 'wrecks') {
-    GS.runSeeds += 50;
-    note = '+50 scrap from the pile-up';
+    GS.runSeeds += 80;
+    note = '+80 scrap from the pile-up';
   } else if (id === 'bridge') {
-    giveTraps({ mine: 2, drum: 1 });
+    giveTraps({ mine: 3, drum: 1 });
     note = "along the railway: a trap kit from the line crew's hut";
   } else if (id === 'tanker') {
     giveTraps({ drum: 2 });
-    GS.runSeeds += 30;
-    note = '2 gas drums and 30 scrap from the tanker';
+    GS.runSeeds += 50;
+    note = '2 gas drums and 50 scrap from the tanker';
   } else if (id === 'bus') note = 'someone is still in the coach: they are out there tonight';
   else if (id === 'river') note = 'the river fog follows you in tonight';
   if (id !== 'road' && id !== 'bus' && id !== 'river') sfx.ammo();

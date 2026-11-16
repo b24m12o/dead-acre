@@ -1223,6 +1223,8 @@ export function showRoute(onGo, ways, how) {
       )
       .join('');
   box.hidden = !(ways && ways.length);
+  box.classList.toggle('n3', !!ways && ways.length >= 3);
+  el.querySelector('.panel').classList.toggle('wide', !!ways && ways.length >= 3); // three across need the room
   clearTimeout(routeOutT);
   el.classList.remove('leaving', 'out');
   el.hidden = false;
@@ -1250,7 +1252,7 @@ export function showRoute(onGo, ways, how) {
   };
   const key = e => {
     if (ways && ways.length) {
-      const i = e.key === '1' ? 0 : e.key === '2' ? 1 : -1;
+      const i = ['1', '2', '3'].indexOf(e.key) < ways.length ? ['1', '2', '3'].indexOf(e.key) : -1;
       if (i >= 0 || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         e.stopPropagation();

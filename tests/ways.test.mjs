@@ -2,13 +2,34 @@
 // Every way to the next place does what its card says: what it gives you when you get there, and on the first
 // night there its own trouble (fog, a blood moon, a dog pack, brutes, a horde mid-night, an ambush at nightfall,
 // a survivor to get out) and its own dead among the usual ones. The road map draws the way you took, and the
-// dawn's countdown says what is coming. Then a minute of each first night runs without a page error.
+// dawn's countdown says what is coming. Then a minute of each first night runs without a page error. And the choice
+// itself: three ways, only where the road crosses into new country (three times a run), from the ways that belong there.
 import { openGame, check } from './lib/harness.mjs';
 
 export const name = 'ways: every way to the next place brings its own first night';
 export async function run(b) {
   const { pg, errs, ev } = await openGame(b, { noFrames: true });
   const ids = await ev('Object.keys(VIA)');
+  // where the choices are, and what each border offers
+  const C = await ev(`(() => {
+    initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null; GS.RUN.jobN = [];
+    const out = { borders: STOPS.map((s, i) => (borderAt(i) ? i : -1)).filter(i => i >= 0), offers: {} };
+    for (const [S, w] of [[2, 5], [5, 10], [6, 12]]) {
+      const seen = new Set(); let three = true, area = true;
+      for (let n = 0; n < 60; n++) {
+        GS.RUN.stop = S; GS.wave = w; const o = offerVia();
+        if (o.length !== 3 || new Set(o).size !== 3) three = false;
+        for (const id of o) { seen.add(id); if (!POOLS[STOPS[S].area].includes(id)) area = false; }
+      }
+      out.offers[STOPS[S].area] = { three, area, seen: [...seen].sort().join() };
+    }
+    // inside one country: the card has no ways, only the way on
+    GS.RUN.stop = 0; GS.wave = 2; leaveStop('foot'); travelStep();
+    { const t = performance.now(); while (performance.now() - t < 650); }
+    out.inside = document.querySelectorAll('#routeWays .way').length;
+    $('routeGo').click(); out.insideOn = GS.state === 'play' && stopNow() === 1 && !GS.RUN.viaN;
+    return out;
+  })()`);
   const out = {};
   for (const id of ids) {
     out[id] = await ev(`(() => {
@@ -39,14 +60,27 @@ export async function run(b) {
     const out = {}, said = [], ss = showStreak;
     showStreak = (a, b, ...r) => { said.push(a + ' / ' + b); return ss(a, b, ...r); };
     initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null; GS.RUN.jobN = []; GS.RUN.traps = {};
-    GS.RUN.stop = 0; GS.wave = 2;
-    offerVia = () => ['tanker', 'wrecks'];
+    GS.RUN.stop = 1; GS.wave = 5;
+    offerVia = () => ['tanker', 'wrecks', 'road'];
     leaveStop('foot'); travelStep();
     { const t = performance.now(); while (performance.now() - t < 650); }
     out.lines = [...document.querySelectorAll('#routeWays .way')].map(w => (w.querySelector('.wlater') || {}).textContent || '');
-    document.querySelector('#routeWays .way[data-i="0"]').click(); // the tanker, into St. Mary's: left by truck
+    out.forks3 = document.querySelectorAll('#route .rmap .rleg.fork').length;
+    out.wide = $('routeWays').classList.contains('n3') && $('route').querySelector('.panel').classList.contains('wide');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true })); // too soon: a beat first
+    { const t = performance.now(); while (performance.now() - t < 650); }
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true }));
+    out.key3 = GS.RUN.viaN && GS.RUN.viaN.id;
+    out.log3 = JSON.stringify(GS.RUN.viaLog);
     const div = document.createElement('div');
-    out.pend = laterPending().map(l => l.id + '@' + l.at).join();
+    out.pend = 'tanker@' + laterAt('tanker', 2); // had it been the tanker into Route 9
+    // the tanker's jerrycan where a garage truck waits: St. Mary's, with the tanker taken on the way in
+    begin(); GS.RUN.tut = null; GS.RUN.jobN = []; GS.RUN.traps = {};
+    GS.RUN.stop = 0; GS.wave = 2; leaveStop('foot'); travelStep();
+    { const t = performance.now(); while (performance.now() - t < 650); }
+    $('routeGo').click();
+    applyVia('tanker', ['tanker', 'road']);
+    out.pendT = laterPending().map(l => l.id + '@' + l.at).join();
     drawRoad(div, stopNow() + 1, null); out.pips = div.querySelectorAll('.rpip').length;
     callTruck(); out.cans = GS.truck && GS.truck.cans.length; out.jerryAgain = jerrycan();
     drawRoad(div, stopNow() + 1, null); out.pipsAfter = div.querySelectorAll('.rpip').length;
@@ -92,7 +126,7 @@ export async function run(b) {
   for (const id of ids) {
     const o = out[id];
     want(id, o.state === 'play' && o.via === id, 'did not arrive by it');
-    want(id, o.forks === 2, 'the map should fork in two');
+    want(id, o.forks === 2, 'the map should fork in two (two on offer here)');
     want(
       id,
       JSON.parse(o.log || '[]').some(l => l.s === 2 && l.id === id),
@@ -111,14 +145,32 @@ export async function run(b) {
     (out.checkpoint.q.beetle || 0) >= 3 && (out.checkpoint.q.shield || 0) >= 2,
     'brutes and riot police'
   );
-  want('wrecks', out.wrecks.seeds >= 50 && out.wrecks.q.lurker >= 3, 'scrap, and lurkers');
-  want('bridge', /"mine":2/.test(out.bridge.traps) && out.bridge.near >= 5, 'a trap kit, and an ambush round you');
+  want('wrecks', out.wrecks.seeds >= 80 && out.wrecks.q.lurker >= 3, 'scrap, and lurkers');
+  want('bridge', /"mine":3/.test(out.bridge.traps) && out.bridge.near >= 5, 'a trap kit, and an ambush round you');
+  want(
+    'chapel',
+    out.chapel.hp === out.chapel.max && out.chapel.ammo && out.chapel.ev === 'fog' && out.chapel.q.lurker >= 4,
+    'patched up and topped up, then fog and lurkers'
+  );
+  want(
+    'yard',
+    /"mine":2/.test(out.yard.traps) &&
+      /"drum":2/.test(out.yard.traps) &&
+      out.yard.seeds >= 40 &&
+      (out.yard.q.beetle || 0) >= 3,
+    'a trap kit and scrap, then brutes'
+  );
   want('tanker', /"drum":2/.test(out.tanker.traps) && out.tanker.ev === 'blood', 'gas drums, and a blood moon');
   want('bus', out.bus.obj === 'rescue', 'a survivor to get out');
   want('river', out.river.ev === 'fog', 'fog');
   const lw = (ok, what) => ok || bad.push(`later: ${what} ${JSON.stringify(L)}`);
   lw(/jerrycan/i.test(L.lines[0]) && /road crew/i.test(L.lines[1]), 'both cards should carry their Later line');
-  lw(L.pend === 'tanker@1' && L.pips === 1, "the tanker should wait at St. Mary's, marked on the map");
+  lw(
+    L.forks3 === 3 && L.wide && L.key3 === 'road' && /"n":3/.test(L.log3),
+    'three ways: three forks, the card three across, and the 3 key takes the third'
+  );
+  lw(L.pend === 'tanker@4', 'the tanker taken into Route 9 should wait for the quarry, the next truck');
+  lw(L.pendT === 'tanker@1' && L.pips === 1, "the tanker should wait at St. Mary's, marked on the map");
   lw(
     L.cans === 2 && !L.jerryAgain && L.pipsAfter === 0 && L.saidTanker === 1,
     'the garage truck should want two cans, once, and the mark go'
@@ -135,6 +187,17 @@ export async function run(b) {
   );
   lw(L.noCodes && L.noTimber && L.noJerry, 'no Later line when the road ahead cannot deliver');
   lw(L.saved === 'wrecks@3', 'a Continue should keep what is waiting');
+  const cw = (ok, what) => ok || bad.push(`choice: ${what} ${JSON.stringify(C)}`);
+  cw(
+    C.borders.join() === '2,5,6',
+    'the choices should come where the road crosses into Route 9, Mill River and Hollow Hill'
+  );
+  for (const [a, o] of Object.entries(C.offers)) cw(o.three && o.area, `${a}: three different ways, all from its own`);
+  cw(
+    /chapel/.test(C.offers['Hollow Hill'].seen) && /yard/.test(C.offers['Hollow Hill'].seen),
+    'Hollow Hill has its own ways'
+  );
+  cw(C.inside === 0 && C.insideOn, 'inside one country there is no choice: on to the next place');
   check(!bad.length, bad.join('\n        '));
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   return `${ids.length} ways: ambush ${out.bridge.near} round you, horde, rescue, fog, blood moon, packs and brutes`;

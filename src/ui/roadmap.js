@@ -1,7 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // The road map on the travel card: the stops from Dead Acre to the hospital, the way you took between each two
 // you have passed (a darker line, bowed the side you took, with its mark), and ahead of you the road forking into
-// the two ways on offer, each drawn in the colour of its danger with the mark of what waits on it. Hover a way's
+// the ways on offer (three, where the road crosses into new country), each drawn in the colour of its danger with the
+// mark of what waits on it. Hover a way's
 // card and its fork lights up; pick it and the van drives that fork to the next stop.
 import { GS } from '../core/gs.js';
 import { STOPS } from '../game/route.js';
@@ -13,6 +14,7 @@ const NS = 'http://www.w3.org/2000/svg',
   Y = 58,
   PADX = 34,
   BOW = 18, // how far the two ways ahead bow apart
+  BOW3 = 24, // and three: the middle one runs straight
   BOW_PAST = 11;
 export const RISK = ['Calm', 'Rough', 'Bad'];
 const RISK_COL = ['#8ec5a0', '#e0b36a', '#e8806a'];
@@ -28,7 +30,11 @@ export const GLYPH = {
   tanker: ['M0-8C3-4 6-2 6 2.5A6 6 0 0 1-6 2.5C-6-0.5-4.5-2.5-2.5-4C-2.5-2-1.5-1 0-0.5C0-3-1-5 0-8z', true],
   bus: ['M-9-4h18v8h-18zM-7-1.5h3M-2.5-1.5h3M2-1.5h3M-6 4v2M6 4v2', false],
   river: ['M-8-3q2-2.4 4 0t4 0t4 0t4 0M-8 3q2-2.4 4 0t4 0t4 0t4 0', false],
+  chapel: ['M0-9v5M-2.5-6.5h5M-7 8V0l7-4.5L7 0v8zM-2 8V4h4v4', false],
+  yard: ['M0-8v9M-3-8h6M-4 1h8l-1.2 7h-5.6z', false],
 };
+// which side of the road a way runs, of n on offer: -1, 0 (straight on) or 1
+const side = (k, n) => (n >= 3 ? k - 1 : n === 2 ? (k ? 1 : -1) : 0);
 const el = (t, a = {}, parent) => {
   const n = document.createElementNS(NS, t);
   for (const k in a) if (a[k] !== null && a[k] !== undefined) n.setAttribute(k, a[k]);
@@ -39,7 +45,7 @@ const X = i => PADX + (i / (STOPS.length - 1)) * (VW - 2 * PADX);
 const legPath = (i, side, bow) => {
   const x0 = X(i - 1),
     x1 = X(i),
-    b = side === null ? 0 : side ? bow : -bow;
+    b = (side || 0) * bow;
   return { d: `M${x0} ${Y}Q${(x0 + x1) / 2} ${Y + 2 * b} ${x1} ${Y}`, mx: (x0 + x1) / 2, my: Y + b };
 };
 // the mark for a way, as an <svg> for a card
@@ -77,14 +83,15 @@ export function drawRoad(box, to, ways, end = false) {
   for (let i = 1; i < STOPS.length; i++) {
     if (i < to) {
       const L = log.find(l => l.s === i),
-        p = legPath(i, L ? L.i : null, BOW_PAST);
+        f = L ? side(L.i, L.n || 2) : 0,
+        p = legPath(i, f, BOW_PAST);
       el('path', { d: p.d, class: 'rleg past' }, svg);
-      if (L && VIA[L.id]) mark(svg, L.id, p.mx, p.my + (L.i ? 10 : -10), '#7fa892', 0.7, false); // its mark, just off the line
+      if (L && VIA[L.id]) mark(svg, L.id, p.mx, p.my + (f < 0 ? -10 : 10), '#7fa892', 0.7, false); // its mark, just off the line
     } else if (i === to && ways && ways.length) {
       ways.forEach((id, k) => {
         const V = VIA[id] || {},
           col = RISK_COL[V.risk || 0],
-          p = legPath(i, ways.length > 1 ? k : null, BOW);
+          p = legPath(i, side(k, ways.length), ways.length >= 3 ? BOW3 : BOW);
         el('path', { d: p.d, class: 'rleg fork', 'data-i': k, stroke: col, id: `rway${k}` }, svg);
         mark(svg, id, p.mx, p.my, col, 1, true).setAttribute('data-i', k);
       });
@@ -92,7 +99,7 @@ export function drawRoad(box, to, ways, end = false) {
       el(
         'path',
         {
-          d: legPath(i, null, 0).d,
+          d: legPath(i, 0, 0).d,
           class: i === to && !end ? 'rleg fork solo' : 'rleg ahead',
           id: i === to ? 'rway0' : null,
         },

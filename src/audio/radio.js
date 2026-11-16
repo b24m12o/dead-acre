@@ -44,6 +44,9 @@ export const RADIO = {
     tanker: 'Everyone for miles saw that tanker burn. The moon is red tonight, and more of them are coming.',
     bus: 'About that coach in the ditch. Somebody in it may still be breathing. Get to them before the dead do.',
     river: 'Fog came up the river behind you. You will not see far tonight. Listen for them.',
+    chapel:
+      'The ones from that chapel are still filing in behind you, nine. Some lie down in the grass and wait. Watch where you step in the fog.',
+    yard: 'Those graves by the shed were dug from the inside. Big ones are coming up the hill after you.',
   },
   get last() {
     return atSign()

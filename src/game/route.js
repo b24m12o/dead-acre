@@ -84,6 +84,9 @@ export const STOPS = [
     desc: 'Where it began. The helipad is on the lawn past the east wing.',
   },
 ];
+// the road crosses into new country on the way to stop S: Dead Acre to Route 9, on to Mill River, up to Hollow Hill.
+// Only there is there a choice of way (three a run); inside one country you just go on to the next place
+export const borderAt = S => S > 0 && !!STOPS[S] && !!STOPS[S - 1] && STOPS[S].area !== STOPS[S - 1].area;
 // the stop you are at on a night (the night before the first is the first stop's)
 export const stopAt = w => {
   const i = STOPS.findIndex(s => Math.max(1, w) <= s.to);

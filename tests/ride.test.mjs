@@ -12,7 +12,7 @@ const RIDE = String.raw`(() => {
   const fr = () => { update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60); };
   const fr0 = () => { fr(); if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } GS.P.hp = S.maxHp; }; // getting there: no cards, no harm
   initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null;
-  GS.RUN.stop = 0; GS.wave = 2; leaveStop('foot'); travelStep(); { const t = performance.now(); while (performance.now() - t < 650); } document.querySelector('#route .way[data-i="0"]').click(); // walk into St. Mary's, the first place left by truck
+  GS.RUN.stop = 0; GS.wave = 2; leaveStop('foot'); travelStep(); { const t = performance.now(); while (performance.now() - t < 650); } (document.querySelector('#route .way[data-i="0"]') || $('routeGo')).click(); // walk into St. Mary's, the first place left by truck
   GS.RUN.viaLater = []; // whichever way was on offer, nothing rides along from it (the tanker's jerrycan would make it two cans)
   GS.queue = []; GS.enemies.length = 0; GS.wave = 5; GS.nightLive = true; GS.nightDone = false; nightCleared();
   for (let i = 0; i < 60 * 8 && !GS.truck; i++) fr0();
@@ -58,7 +58,7 @@ const RIDE = String.raw`(() => {
   o.cards = o.cards || GS.state === 'levelup'; o.over = GS.state === 'over'; o.stateEnd = GS.state;
   o.blockLeft = T.ride.block ? T.ride.block.hp : 0;
   if (GS.state !== 'travel') return o;
-  travelStep(); { const t = performance.now(); while (performance.now() - t < 650); } document.querySelector('#route .way').click();
+  travelStep(); { const t = performance.now(); while (performance.now() - t < 650); } (document.querySelector('#route .way') || $('routeGo')).click();
   o.arrived = GS.state; o.inv = GS.P.inv; o.ride = GS.P.ride; o.cling = GS.enemies.filter(e => e.cling).length;
   for (let i = 0; i < 60 * 8 && GS.state === 'play'; i++) fr();
   o.cardsAfter = GS.state === 'levelup';

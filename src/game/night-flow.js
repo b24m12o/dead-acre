@@ -40,7 +40,7 @@ import {
 } from './journey.js';
 import { applyVia, codesDue, laterArrive, laterCase, offerVia, viaPickSoon, viaRadio, viaSig } from './routes.js';
 import { radioDawn } from './radio-choice.js';
-import { BOSS_HORDE_J, STOPS } from './route.js';
+import { BOSS_HORDE_J, STOPS, borderAt } from './route.js';
 import { newRun } from './run.js';
 import { $ } from '../core/errors.js';
 function dawnDrops() {
@@ -336,7 +336,7 @@ export function travelStep() {
   } catch {
     /* no storage: nothing to clear */
   }
-  const ways = GS.RUN.journey && !GS.RUN.hm ? offerVia() : null, // which way to the next place: on foot or in the truck alike
+  const ways = GS.RUN.journey && !GS.RUN.hm && borderAt(stopNow()) ? offerVia() : null, // which way into the new country: on foot or in the truck alike
     ready = showRoute(id => arrive(id ? applyVia(id, ways) : ''), ways, how);
   fade(false);
   ready();

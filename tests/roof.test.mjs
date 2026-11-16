@@ -18,7 +18,14 @@ export async function run(b) {
       if (go) { newRun(); GS.state = 'play'; GS.queue = []; GS.enemies.length = 0; GS.nightLive = false; GS.interT = 999; } // a town with no such house: lay out another
       for (const d of GS.doors) {
         const h = houses.find(h => h.roof && !h.open && d.x > h.x * TILE - 1 && d.x < (h.x + h.w) * TILE + 1 && d.y > h.y * TILE - 1 && d.y < (h.y + h.h) * TILE + 1);
-        if (h && h.w >= 4 && h.h >= 4 && !wallAt(d.x - d.nx * 60, d.y - d.ny * 60)) { H = h; D = d; break; }
+        if (!(h && h.w >= 4 && h.h >= 4 && !wallAt(d.x - d.nx * 60, d.y - d.ny * 60))) continue;
+        // and solid wall along the way the test throws from just inside (another door or a gap in line would rightly let it out)
+        const qx = d.x - d.nx * 60, qy = d.y - d.ny * 60, bx = -d.ny, by = d.nx;
+        if (![1, -1].some(s => roofStop(qx, qy, qx + bx * s * 1500, qy + by * s * 1500))) continue;
+        // and the same for the throw in from outside, beside the door
+        const ins = (x, y) => x > h.x * TILE && x < (h.x + h.w) * TILE && y > h.y * TILE && y < (h.y + h.h) * TILE,
+          st = roofStop(d.x + d.nx * 80 + bx * 90, d.y + d.ny * 80 + by * 90, qx + bx * 30, qy + by * 30);
+        if (st && !ins(st[0], st[1])) { H = h; D = d; break; }
       }
     }
     out.found = !!H;

@@ -487,6 +487,8 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 /* Copyright (c) 2026 b24m12o. All rights reserved. */
 #route .ways{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 4px}
 #route .ways[hidden]{display:none}
+#route .ways.n3{grid-template-columns:1fr 1fr 1fr}
+#route .panel.narrow.wide{width:min(840px,100%)}
 #route .way{position:relative;display:grid;align-content:start;gap:6px;text-align:left;padding:14px 14px 13px;border-radius:10px;border:1px solid rgba(207,214,217,.16);background:rgba(20,24,29,.7);color:#c9cfd1;font:400 13.5px/1.35 var(--font-body,inherit);cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
 #route .way:disabled{opacity:.45;cursor:default}
 #route .way:not(:disabled):hover,#route .way:not(:disabled):focus-visible{border-color:#ffd08a;background:rgba(36,32,24,.85);transform:translateY(-1px);outline:none}
