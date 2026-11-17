@@ -56,6 +56,9 @@ const WATCH = `(() => {
       burning: (typeof cars !== 'undefined' ? cars : []).filter(c => c.fire && !c.dead && Math.hypot(c.x - GS.P.x, c.y - GS.P.y) < 400).length,
       road: O && { x: R(O.x), y: R(O.y), gone: !!O.gone, reach: reach(O.x, O.y) }, way: w && { x: R(w.x), y: R(w.y), label: w.label, reach: reach(w.x, w.y) } };
   };
+  const B = (window.__boons = { drop: {}, took: {} }), bd0 = boonDrop, bt0 = tickBoons; // game changers: dropped, and picked up
+  boonDrop = function () { const n = (GS.boonDrops || []).length, r = bd0.apply(this, arguments); if ((GS.boonDrops || []).length > n) { const k = GS.boonDrops[GS.boonDrops.length - 1]; (B.drop[GS.wave] = B.drop[GS.wave] || []).push(k.id); } return r; };
+  tickBoons = function () { const n = (GS.boonDrops || []).length, ids = (GS.boonDrops || []).map(k => k.id), r = bt0.apply(this, arguments); if ((GS.boonDrops || []).length < n && GS.P) for (const id of ids) if (!GS.boonDrops.some(k => k.id === id) && ((GS.P.boons || {})[id] > 0 || id === 'bag' || id === 'drum')) (B.took[GS.wave] = B.took[GS.wave] || []).push(id); return r; };
   const fp0 = firePool; // each patch of burning ground remembers what lit it
   firePool = function () {
     const r = fp0.apply(this, arguments), f = GS.firePools[GS.firePools.length - 1];
@@ -118,7 +121,8 @@ async function one(b, i) {
       how = JSON.parse(await ev('JSON.stringify(window.__how)')),
       clock = JSON.parse(await ev('JSON.stringify(window.__clock)')),
       maxHp = await ev('Math.round(S.maxHp)'),
-      brk = await ev('window.__brk || null');
+      brk = await ev('window.__brk || null'),
+      boons = JSON.parse(await ev('JSON.stringify(window.__boons || null)'));
     const nights = {};
     for (const [w, n] of Object.entries(r.nights))
       if (+w > 0)
@@ -154,6 +158,7 @@ async function one(b, i) {
       nights,
       via: r.via,
       brk,
+      boons, // the game changers dropped, night by night, and which the bot happened to pick up
       errs: errs.slice(0, 3),
       wall: Math.round((Date.now() - t0) / 1000),
     };

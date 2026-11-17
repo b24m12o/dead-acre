@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { BOON, boonOn } from '../game/boons.js';
 import { roofStop } from '../world/roofs.js';
 import { camKick } from '../render/camera.js';
 import { GS } from '../core/gs.js';
@@ -55,11 +56,13 @@ export function firePlayer(cwx, cwy, p, target) {
     if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.triggers++;
     const rate = G.rate * S.rate * hb.rate * (g === 'lmg' && (braced || S.evo.walkfire) ? 1.15 : 1);
     p.fireCd = Math.max(p.fireCd, -1 / 60) + 1 / rate; // carry at most a frame of overshoot: idle time must not bank a second shot
-    const c = Math.cos(p.aimA),
+    const duty = boonOn('duty'),
+      c = Math.cos(p.aimA),
       s = Math.sin(p.aimA),
       mxp = p.x + c * G.muzzle,
       myp = p.y + s * G.muzzle,
-      dm = G.dmg * S.dmg * hb.dmg * km.dmg * (g === 'pistol' && TW('pistol') ? 1.6 : 1);
+      dm = G.dmg * S.dmg * hb.dmg * km.dmg * (g === 'pistol' && TW('pistol') ? 1.6 : 1) * (duty ? BOON.duty.dmg : 1),
+      dp = duty ? BOON.duty.pierce : 0; // duty rounds (boons.js): through them, and harder
     let base = p.aimA;
     {
       const fx = cwx - mxp,
@@ -126,7 +129,7 @@ export function firePlayer(cwx, cwy, p, target) {
         vy: Math.sin(a) * sp,
         life: (G.life * 2.2 + G.muzzle / sp) * S.rangeK,
         dmg: dm * (G.pellets + hb.pellets) * 0.7,
-        pierce: S.pierce + 2,
+        pierce: S.pierce + 2 + dp,
         fall: 0.8,
         bounce: 0,
         hits: [],
@@ -157,7 +160,7 @@ export function firePlayer(cwx, cwy, p, target) {
           vy: Math.sin(a) * sp,
           life: (G.life + G.muzzle / sp) * S.rangeK * rand(0.85, 1.08),
           dmg: dm,
-          pierce: S.pierce,
+          pierce: S.pierce + dp,
           bounce: S.bounce,
           hits: [],
           pellet: true,
@@ -222,7 +225,7 @@ export function firePlayer(cwx, cwy, p, target) {
           vy: Math.sin(a) * G.speed,
           life: G.life + G.muzzle / G.speed,
           dmg: dm * k,
-          pierce: S.pierce + hb.pierce + km.pierce + (G.pierce || 0) + (br && g === 'rifle' ? 1 : 0),
+          pierce: S.pierce + hb.pierce + km.pierce + (G.pierce || 0) + (br && g === 'rifle' ? 1 : 0) + dp,
           crit: km.crit + (g === 'rifle' && S.evo.marks ? 0.15 : 0),
           fall: G.fall || 0.85,
           ap: g === 'rifle' || g === 'lmg' || g === 'lever' ? 1 : 0,

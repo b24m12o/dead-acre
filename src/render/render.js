@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { boonBlink } from '../game/boons.js';
 import { GS } from '../core/gs.js';
 import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';
 import { opt } from '../core/settings.js';
@@ -382,6 +383,12 @@ export function render() {
         0.45,
         0
       ); /* a modest self-glow: under a streetlamp they no longer burn out to a white square */
+  }
+  for (const k of GS.boonDrops || []) {
+    const bob = Math.sin(k.t * 5 + k.x) * 2.5,
+      dm = 1 / (1 + 3.2 * lampHot(k.x, k.y)),
+      al = boonBlink(k); // what one of the dead in uniform dropped (game/boons.js): it flickers in its last seconds
+    quad(R['bn_' + k.id] || R.medkit, k.x, k.y - 8 + bob, 0, 1.3, 1.3, dm, dm, dm, al, 0.55, 0.5, 0.42, 0);
   }
   for (const q of GS.parts)
     if (q.k >= 3 && q.k !== 10 && q.k !== 11 && q.k !== 13) {

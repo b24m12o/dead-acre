@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { BOONS, boonDrops } from '../game/boons.js';
 import { placeLights } from '../world/places.js';
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2 } from '../core/util.js';
@@ -106,6 +107,7 @@ export function drawObjectiveGlow() {
 }
 export function objectiveLights() {
   placeLights(); // the place's own lights: the motel's neon, the quarry's floods, the hospital's emergency lamp
+  for (const k of boonDrops()) addLight(k.x, k.y - 6, 120, 0.5, 0.42, 0.3); // a warm glow where it lies, so you see it at night
   if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) addLight(GS.obj.x, GS.obj.y - 30, 200, 0.4, 0.36, 0.28);
   if (GS.obj && GS.obj.type === 'siege' && GS.obj.inside > 0) addLight(GS.obj.cx, GS.obj.cy, 190, 0.5, 0.36, 0.2); // a lantern on the floor in there
   if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && !GS.obj.joined)
@@ -134,6 +136,7 @@ export function objectiveLights() {
 }
 export function markerList() {
   const m = [];
+  for (const k of boonDrops()) m.push({ x: k.x, y: k.y, col: BOONS[k.id].col, label: BOONS[k.id].name.toUpperCase() }); // a game changer on the ground, while it lasts
   if (GS.evac && !GS.evac.ride) m.push({ x: GS.evac.x, y: GS.evac.y, col: '#8ef0a0', label: 'EVAC' });
   if (GS.evac && GS.evac.ride)
     for (const g of GS.evac.ride.groups)

@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { BOON, boonOn, tickBoons } from '../game/boons.js';
 import { roofStop } from '../world/roofs.js';
 import { tickDoors } from '../game/doors.js';
 import { heroSay } from '../audio/barks.js';
@@ -201,7 +202,8 @@ export function update(dt) {
         (p.held ? 0.06 : p.daze > 0 ? 0.55 : 1) *
         (1 - 0.38 * (p.spore || 0)) *
         pileSlow(p.x, p.y, true) *
-        (p.gun === 'lmg' && !S.evo.walkfire && GS.time - (p.lastShotT || -9) < 0.22 ? 0.6 : 1),
+        (p.gun === 'lmg' && !S.evo.walkfire && GS.time - (p.lastShotT || -9) < 0.22 ? 0.6 : 1) *
+        (boonOn('adren') ? BOON.speed : 1),
       tvx = mx * S.speed * dz2,
       tvy = my * S.speed * dz2,
       dvx = tvx - p.vx,
@@ -255,7 +257,7 @@ export function update(dt) {
     const g = p.gun,
       G = GUNS[g],
       n = magSize(g);
-    p.reload -= dt * S.reloadK;
+    p.reload -= dt * S.reloadK * (boonOn('adren') ? BOON.reload : 1);
     if (!G.perShell) sfx.reloadTick(p, 1 - Math.max(0, p.reload) / (p.reloadMax || 1)); // the handling sounds, in step with the reload
     if (p.reload <= 0) {
       if (G.perShell) {
@@ -375,6 +377,7 @@ export function update(dt) {
   tickGadgets(dt);
   tickHorde(dt);
   tickTraps(dt);
+  tickBoons(dt);
   tickDoors(dt);
   tickStation(dt); // the gas station's tanks, once a pump has blown
   tickHatches(dt);

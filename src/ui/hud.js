@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { boonHud } from '../game/boons.js';
 import { SIG } from '../game/objectives.js';
 import { GS } from '../core/gs.js';
 import { lvBank, lvRest } from '../game/upgrades.js';
@@ -403,6 +404,7 @@ export function updateHud() {
       br.classList.toggle('ready', GS.P.brace >= 1);
     }
   } // the Soldier's brace: fills while he stands still, gold when every shot counts for more
+  boonHud(); // a bar for each game changer that's running (game/boons.js)
   {
     const sl = 'Shove · ' + kn('shove');
     if (hc.shL !== sl) {

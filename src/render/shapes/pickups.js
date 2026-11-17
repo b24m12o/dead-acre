@@ -37,6 +37,37 @@ export function shapePickups() {
       for(int i=0;i<4;i++){ vec2 c=vec2(i<2?-12.5:12.5,(i==0||i==2)?-12.5:12.5); d=min(d,sdBox(p,vec3(c,6.3),vec3(1.6,1.6,4.75),0.3)); } /* steel corner caps */
       for(int s=-1;s<=1;s+=2){ float x=float(s)*8.2; d=min(d,sdBox(p,vec3(x,0.0,6.3),vec3(1.25,13.9,4.82),0.2)); d=min(d,sdBox(p,vec3(x,-6.0,11.15),vec3(1.7,1.1,0.25),0.2)); } /* two straps, each with its buckle */
     }
+    else if(k==9){ /* two auto-injectors on their card, blue safety caps at the back, orange needle ends */
+      d=sdBox(p,vec3(0.0,0.0,0.35),vec3(13.0,7.2,0.3),0.4);
+      for(int s=-1;s<=1;s+=2){ float y=float(s)*3.3; d=min(d,sdCap(p,vec3(-9.6,y,2.7),vec3(10.6,y,2.7),2.3,2.3)); d=min(d,sdCap(p,vec3(-12.4,y,2.7),vec3(-9.8,y,2.7),2.6,2.6)); }
+    }
+    else if(k==10){ /* a box of duty rounds: navy card, open, the brass standing in rows */
+      float L=8.4, Wd=6.0; d=sdBox(p,vec3(0.0,0.0,2.4),vec3(L,Wd,2.2),0.4);
+      d=smax(d,-sdBox(p,vec3(0.0,0.0,3.6),vec3(L-1.0,Wd-1.0,2.0),0.2),0.3);
+      d=min(d,sdBox(p,vec3(-L-2.6,0.0,0.6),vec3(2.4,Wd,0.35),0.2));
+      d=min(d,rounds(p,vec2(-L+2.4,-Wd+2.4),vec2(2.4,2.4),6,4,1.05,3.6));
+    }
+    else if(k==11){ /* a police go-bag: soft black nylon, a zip down the top, two carry handles, an end pocket */
+      d=sdBox(p,vec3(0.0,0.0,4.6),vec3(10.4,5.4,2.0),2.6); d-=0.25*fbm(p.xy*0.45);
+      d=smin(d,sdBox(p,vec3(0.0,0.0,9.2),vec3(9.0,0.45,0.25),0.2),0.5);
+      for(int s=-1;s<=1;s+=2) d=min(d,sdCap(p,vec3(-5.4,float(s)*1.7,9.5),vec3(5.4,float(s)*1.7,9.5),0.85,0.85));
+      d=smin(d,sdBox(p,vec3(13.2,0.0,3.6),vec3(0.8,4.0,1.8),1.0),0.8);
+    }
+    else if(k==12){ /* a firefighter's helmet: the long brim (longest at the back), the ribbed dome, the leather front shield */
+      d=sdEll(p,vec3(-1.6,0.0,1.1),vec3(14.4,11.2,0.85));
+      d=smin(d,sdEll(p,vec3(1.0,0.0,3.6),vec3(8.4,7.0,5.0)),1.2);
+      for(int s=-1;s<=1;s++) d=smin(d,sdCap(p,vec3(-6.6,float(s)*2.6,6.6-abs(float(s))*0.9),vec3(7.0,float(s)*2.6,6.9-abs(float(s))*0.9),0.75,0.75),0.6);
+      d=min(d,sdBox(p,vec3(9.2,0.0,5.0),vec3(0.7,3.0,3.2),0.5));
+    }
+    else if(k==13){ /* a drum-fed auto shotgun on its side: stock, grip, receiver, the drum under it, barrel and handguard */
+      d=sdBox(p,vec3(0.0,1.0,2.0),vec3(6.4,2.1,1.5),0.5);
+      d=min(d,sdCap(p,vec3(6.0,2.2,2.2),vec3(20.0,2.2,2.2),1.0,1.0));
+      d=min(d,sdBox(p,vec3(10.6,1.3,2.0),vec3(4.0,1.5,1.6),0.5));
+      d=min(d,sdBox(p,vec3(-13.0,0.6,2.0),vec3(5.4,1.7,1.4),0.6));
+      d=min(d,sdBox(p,vec3(-4.8,-2.6,2.0),vec3(1.1,2.3,1.3),0.5));
+      d=min(d,sdCap(p,vec3(1.0,-4.4,0.7),vec3(1.0,-4.4,3.4),5.2,5.2));
+      d=min(d,sdBox(p,vec3(-1.0,3.6,2.0),vec3(3.4,0.5,0.9),0.3));
+    }
     else { /* a military rifle case: olive-drab moulded shell, ribbed lid round a flat label panel, four black latches, two handles, a pressure valve */
       d=sdBox(p,vec3(0.0,0.0,3.8),vec3(29.0,9.8,3.5),1.8);
       float rib=smoothstep(0.7,1.0,abs(fract((p.x+29.0)/7.25)*2.0-1.0))*step(6.0,p.z)*step(13.0,abs(p.x)); d-=0.32*rib;
@@ -59,6 +90,13 @@ export function shapePickups() {
         if(p.z>10.6&&abs(p.x)<6.4){ vec2 q=p.xy-vec2(0.0,1.0); if(abs(q.x)<5.0&&abs(q.y)<7.5&&fract(q.y*0.42)<0.45&&abs(q.x)<(fract(q.y*0.13)<0.5?4.6:3.0)) c=hx(0xd8d2b8); } /* stencilled lot markings */
         if(abs(abs(p.x)-8.2)<1.25) c=hx(0xb89c48)*(0.85+0.25*fbm(vec2(p.x*3.0,p.y*0.6))); if(abs(abs(p.x)-8.2)<1.7&&abs(p.y+6.0)<1.1&&p.z>11.0) c=hx(0x8a8c88); } /* straps, buckles */
       c=mix(c,hx(0x3a2e20),clamp((fbm(p.xy*0.35+2.0)-0.62)*1.4,0.0,0.3)); return c; }
+    if(k==9){ if(p.z<0.9) return hx(0xd4d8d4)*(0.88+0.12*fbm(p.xy*1.5)); if(p.x<-9.7) c=hx(0x2a58d0); else if(p.x>8.8) c=hx(0xe8601c); else c=hx(0xe6c024)*(0.9+0.15*fbm(p.xy*2.0)); if(abs(p.x-0.6)<3.0&&p.x>-9.7&&p.x<8.8) c=hx(0xf0eee4); return c; }
+    if(k==10){ c=hx(0x1e2a4a)*(0.85+0.2*fbm(p.xy*0.8)); if(p.x<-8.4) c*=0.8; if(abs(p.x)<8.4&&abs(p.y)<5.2&&p.z>4.0){ c=hx(0xc89a40)*(0.85+0.3*fbm(p.xy*3.0)); vec2 q=fract((p.xy+vec2(8.4-2.4,6.0-2.4))/2.4+0.5)-0.5; if(length(q)<0.22) c=hx(0xb06a3a); } if(abs(abs(p.y)-5.9)<0.5&&p.z>1.0&&p.z<3.6) c=hx(0xd8b040); return c; }
+    if(k==11){ c=hx(0x1e2024)*(0.82+0.3*fbm(p.xy*1.2)); if(abs(p.y)<0.6&&p.z>8.6&&abs(p.x)<9.4) c=hx(0x8a8c90); if(p.z>9.0&&abs(abs(p.y)-1.7)<1.0&&abs(p.x)<5.6) c=hx(0x2c2e32); if(p.z>7.2&&abs(p.x+6.0)<3.0&&abs(p.y-4.4)<1.5){ c=hx(0x203a78); if(abs(p.y-4.4)<0.45&&fract(p.x*0.9)<0.62) c=hx(0xe8e8e4); } if(p.x>12.2) c*=0.85; return c; }
+    if(k==12){ c=hx(0xd8a82a)*(0.84+0.24*fbm(p.xy*0.8)); c=mix(c,hx(0x3a2a1a),clamp((fbm(p.xy*0.5+5.0)-0.55)*1.6,0.0,0.55)); /* scorched */
+      if(p.z<2.2&&length((p.xy-vec2(-1.6,0.0))/vec2(14.4,11.2))>0.86) c=hx(0xd0d4c8)*(0.9+0.1*fbm(p.xy*2.0)); /* the reflective trim round the brim */
+      if(p.x>8.4&&p.z>2.0) c=hx(0x2a1e16)*(0.9+0.2*fbm(p.xy*2.0)); return c; }
+    if(k==13){ c=hx(0x1e1f22)*(0.85+0.25*fbm(p.xy*1.4)); if(p.x>6.2&&abs(p.y-2.2)<1.2) c=hx(0x3a3c40); float r=length(p.xy-vec2(1.0,-4.4)); if(r<5.4&&p.y<-0.6){ c=hx(0x2a2c2a)*(0.9+0.15*fbm(p.xy*2.0)); if(fract(r*0.55)>0.86) c*=0.6; if(r<1.3) c=hx(0x4a4c4e); } return c; }
     c=hx(0x5a6438)*(0.86+0.2*fbm(p.xy*0.6)); c=mix(c,hx(0x3e4628),clamp((fbm(p.xy*0.25+4.0)-0.55)*1.5,0.0,0.45)); /* olive-drab polymer, scuffed */
     if(abs(p.y)>9.7||p.z<1.6) c*=0.78; if(smoothstep(0.7,1.0,abs(fract((p.x+29.0)/7.25)*2.0-1.0))>0.5&&abs(p.x)>13.0&&p.z>6.0) c*=1.12;
     if(p.y>9.4&&abs(fract((p.x+21.0)/14.0+0.5)-0.5)*14.0<2.2) c=hx(0x1c1c1a); if(p.y<-9.6&&abs(abs(p.x)-13.0)<3.6) c=hx(0x202020); if(length(p.xy-vec2(25.0,-6.0))<1.4&&p.z>6.6) c=hx(0x2a2a28);
@@ -78,6 +116,11 @@ export function shapePickups() {
     ['ammo_gren', 8],
     ['crate', 12],
     ['wcase', 11],
+    ['bn_adren', 6],
+    ['bn_duty', 6],
+    ['bn_bag', 10],
+    ['bn_gear', 9],
+    ['bn_drum', 6],
   ].forEach(([n, z], i) => {
     bakePart(n, 'pk', i, z, 90 + i * 2.7, true);
     BAKE.parts[n].sl = true;

@@ -37,7 +37,14 @@ export function runData() {
     RUN,
     S,
     LV,
-    P: { hp: P.hp, owned: P.owned, mag: P.mag, ammo: P.ammo, gun: P.gun, lastGun: P.lastGun },
+    P: {
+      hp: P.hp,
+      owned: P.owned.filter(g => g !== P.temp), // a dropped drum gun is the night's, not yours to keep (boons.js)
+      mag: P.mag,
+      ammo: P.ammo,
+      gun: P.gun === P.temp ? P.lastGun : P.gun,
+      lastGun: P.lastGun,
+    },
     wave: GS.wave,
     level: GS.level,
     xp: GS.xp,

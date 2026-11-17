@@ -493,6 +493,55 @@ export function paintBasics() {
     0.6,
     0.6
   ); // matte, so a lamp right overhead can't gloss it into a white blob; a green first-aid kit with a white cross, the way real ones are marked
+  // the game changers a dead one can drop (game/boons.js), painted for when the 3D bake can't run
+  region('bn_adren', 30, 20, a => {
+    shape(a, c => rr(c, -13, -7, 26, 14, 2), '#d4d8d4', { lw: 1 });
+    for (const y of [-3.3, 3.3]) {
+      shape(a, c => rr(c, -12, y - 2.4, 23, 4.8, 2.4), '#e6c024', { lw: 1 });
+      a.fillStyle = '#2a58d0';
+      a.fillRect(-12.5, y - 2.6, 3.2, 5.2);
+      a.fillStyle = '#e8601c';
+      a.fillRect(8.8, y - 2.2, 2.6, 4.4);
+      a.fillStyle = '#f0eee4';
+      a.fillRect(-2.4, y - 2.2, 6, 4.4);
+    }
+  });
+  region('bn_duty', 26, 22, a => {
+    shape(a, c => rr(c, -11, -8, 20, 16, 1.5), '#1e2a4a', { lw: 1.4 });
+    a.fillStyle = '#c89a40';
+    for (let i = 0; i < 6; i++)
+      for (let j = 0; j < 4; j++) {
+        circ(a, -6 + i * 2.4, -3.6 + j * 2.4, 1);
+        a.fill();
+      }
+    a.fillStyle = '#d8b040';
+    a.fillRect(-11, -8, 20, 1.2);
+  });
+  region('bn_bag', 34, 22, a => {
+    shape(a, c => rr(c, -13, -8, 26, 16, 5), '#1e2024', { lw: 1.6 });
+    a.fillStyle = '#8a8c90';
+    a.fillRect(-9, -0.5, 18, 1);
+    a.fillStyle = '#203a78';
+    a.fillRect(-9, 3, 6, 3);
+    a.fillStyle = '#2c2e32';
+    a.fillRect(13, -4, 3, 8);
+  });
+  region('bn_gear', 32, 26, a => {
+    shape(a, c => ell(c, -1.6, 0, 14.4, 11.2), '#d0d4c8', { lw: 1.2 });
+    shape(a, c => ell(c, -1.6, 0, 12.6, 9.6), '#c89a28');
+    shape(a, c => ell(c, 1, 0, 8.4, 7), '#d8a82a', { lw: 1 });
+    a.fillStyle = '#2a1e16';
+    a.fillRect(8.4, -3, 1.8, 6);
+  });
+  region('bn_drum', 44, 22, a => {
+    a.fillStyle = '#1e1f22';
+    a.fillRect(-18.4, -2.3, 11, 3.4);
+    a.fillRect(-6.4, -3.1, 12.8, 4.2);
+    a.fillRect(-5.9, 0.3, 2.2, 4.6);
+    a.fillStyle = '#3a3c40';
+    a.fillRect(6, -3.2, 14, 2);
+    shape(a, c => circ(c, 1, 4.4, 5.2), '#2a2c2a', { lw: 1.2 });
+  });
   region(
     'canister',
     34,

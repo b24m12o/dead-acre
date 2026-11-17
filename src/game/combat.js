@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { boonDrop, gearK } from './boons.js';
 import { remainsFull } from '../render/remains.js';
 import { stationCatch } from './station.js';
 import { boxCut } from '../world/lights.js';
@@ -726,6 +727,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       });
     }
   }
+  boonDrop(e); // now and then, what one in uniform carried (boons.js)
   if (e.elite) {
     GS.runSeeds += 15;
     GS.slowmo = Math.max(GS.slowmo, 0.25);
@@ -1033,8 +1035,9 @@ function killerAt(sx, sy) {
 }
 export function hurtPlayer(dmg, sx, sy, why) {
   if (GS.P.inv > 0 || GS.state !== 'play') return;
+  if (!(gearK(why) > 0)) return; // in turnout gear fire and blasts don't touch you (boons.js)
   GS.P.lastBy = why || killerAt(sx, sy);
-  dmg *= DIFF().dmg;
+  dmg *= DIFF().dmg * gearK(why);
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.damageTaken += Math.max(0, dmg);
   GS.nightHit = true;
   if (sx !== undefined) {

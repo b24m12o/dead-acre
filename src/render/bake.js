@@ -534,6 +534,11 @@ export function init() {
     ammo_gren: [34, 26],
     crate: [34, 34],
     wcase: [64, 26],
+    bn_adren: [30, 20],
+    bn_duty: [26, 22],
+    bn_bag: [34, 22],
+    bn_gear: [32, 26],
+    bn_drum: [44, 22],
   };
   BAKE_SIZES.heli = [272, 112];
   Object.assign(BAKE_SIZES, O_SIZES, RF_SIZES, WB_SIZES);
