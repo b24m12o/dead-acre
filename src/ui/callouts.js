@@ -51,7 +51,50 @@ export function dropStreak(re) {
   GS.streakQ = GS.streakQ.filter(q => !re.test(q[0]));
   if (GS.streakCur && re.test(GS.streakCur[0]) && GS.streakT > 0) GS.streakT = Math.min(GS.streakT, 0.05);
 }
+// In a fight the big words in the middle of the screen are kept for real danger. Everything else is a short line at
+// the bottom edge, and the running commentary (a surge coming, an elite down, a chain's name) isn't said at all: the
+// fight speaks for itself. At dawn, on the menu and in training, everything is said as it always was
+const FIGHT_BIG = new Set([
+  'Man down',
+  "They didn't make it",
+  'Pinned',
+  'Choked',
+  'Grabbed',
+  'It has you',
+  'Dragged off',
+  'Horde',
+  'Surrounded',
+  'Ambush',
+  'Another one',
+]);
+const FIGHT_QUIET = new Set([
+  'Here they come',
+  'Last surge',
+  'Elite down',
+  'Quiet kill',
+  'Killing spree',
+  'Rampage',
+  'Butcher',
+  'Corpse collector',
+  'Massacre',
+]);
+export const inFight = () => GS.state === 'play' && !!GS.nightLive && !GS.nightDone && GS.wave > 0 && !GS.RUN.tut;
+let tickT = 0;
+export function ticker(t, sub) {
+  const el = $('ticker');
+  if (!el) return;
+  el.innerHTML = sub ? `<b>${t}</b> · ${sub}` : `<b>${t}</b>`;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(tickT);
+  tickT = setTimeout(() => el.classList.remove('show'), 2600);
+}
 export function showStreak(t, sub, urgent = STREAK_URGENT[t], valid = null) {
+  if (inFight() && !FIGHT_BIG.has(t)) {
+    if (!FIGHT_QUIET.has(t)) ticker(t, sub);
+    return;
+  }
   if (urgent && GS.state === 'play' && GS.streakT > 0.25 && GS.streakCur && !STREAK_URGENT[GS.streakCur[0]]) {
     requeueStreak();
     GS.streakT = 0;

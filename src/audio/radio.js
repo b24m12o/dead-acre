@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { inFight, ticker } from '../ui/callouts.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { rand } from '../core/util.js';
@@ -463,6 +464,7 @@ export function radioKey() {
 } /* just the click and burst of a handset keying up */
 export function radio(line, who, pri = 1) {
   if (!line) return;
+  if (inFight() && pri < 2 && GS.time - (GS.nightT0 ?? -99) > 8) return; // once a night is under way the radio keeps quiet, but for the story and the bosses
   GS.radioQ.push({ t: line, who: who || (GS.RUN && GS.RUN.voice) || 'Reyes', pri, at: GS.time });
   while (GS.radioQ.length > 4) {
     let k = 0;
@@ -479,7 +481,9 @@ export function tip(id) {
   GS.meta.tips['t_' + id] = true;
   saveMeta();
   if (T[1] && ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 4) return;
-  radio(T[0], null, 0);
+  if (inFight())
+    ticker(T[0]); // in a fight, read at the bottom edge rather than said
+  else radio(T[0], null, 0);
 }
 export function radioTick(dt) {
   const el = $('radio');

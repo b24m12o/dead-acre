@@ -741,8 +741,17 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       GS.pickups.push({ k: 'hp', v: 25, x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
     glowBurst(e.x, e.y, [1, 0.85, 0.3], 30, 320, 0.8, 0.7);
   }
-  const mult = 1 + Math.min(4, Math.floor(GS.combo / 10) * 0.5);
-  GS.score += Math.round(e.score * mult * (1 + GS.wave * 0.1));
+  const mult = 1 + Math.min(4, Math.floor(GS.combo / 10) * 0.5),
+    pts = Math.round(e.score * mult * (1 + GS.wave * 0.1));
+  GS.score += pts;
+  if (GS.nightLive && !GS.nightDone && pts > 0)
+    floatText(
+      e.x,
+      e.y - 26,
+      `+${pts}`,
+      mult >= 3 ? '#ff9a5a' : mult > 1 ? '#ffd27a' : 'rgba(242,234,216,0.8)',
+      mult > 1 ? 12 : 10
+    ); // what it was worth, off the body
   if (S.leech) GS.P.hp = Math.min(S.maxHp, GS.P.hp + S.leech);
   const big = e.type === 'queen',
     ex = e.x,

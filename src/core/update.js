@@ -629,7 +629,7 @@ export function update(dt) {
         SG.n++;
         if (SG.i < SG.cuts.length && (SG.m || 0) - GS.queue.length >= SG.cuts[SG.i] && GS.queue.length) {
           SG.i++;
-          SG.lull = (GS.press || 0) > 0.35 ? 18 : (GS.press || 0) < 0.05 ? 10 : 14; // a longer breath after a hard surge, a shorter one after an easy one
+          SG.lull = ((GS.press || 0) > 0.35 ? 18 : (GS.press || 0) < 0.05 ? 10 : 14) * rand(0.6, 1.3); // a longer breath after a hard surge, a shorter one after an easy one, never the same twice
           SG.quiet = 0;
         }
       }

@@ -35,6 +35,7 @@ const ALL = [
   'boons',
   'pockets',
   'flow',
+  'talk',
   'threads',
   'marks',
   'roof',

@@ -24,6 +24,19 @@ import { tutStart, tutWanted } from './tutorial.js';
 import { choiceLights, choiceNight } from './radio-choice.js';
 import { laterNight, viaAmbush, viaNight } from './routes.js';
 import { dirReset } from './director.js';
+function surgeCuts(m) {
+  const n = Math.random() < 0.25 ? 0 : Math.random() < 0.6 ? 1 : 2, // breathers between them
+    at = [];
+  for (let k = 0; k < n; k++) {
+    let f = 0;
+    for (let t = 0; t < 12; t++) {
+      f = rand(0.22, 0.8);
+      if (at.every(g => Math.abs(g - f) > 0.18)) break;
+    }
+    at.push(f);
+  }
+  return at.sort((a, b) => a - b).map(f => Math.round(m * f));
+}
 function surgePlan(w) {
   if (bossNight(w) || w < 2 || GS.RUN.tut || GS.RUN.practice || GS.horde) return null; // a horde night has no surges: the horde is the night
   const n = GS.queue.length;
@@ -40,7 +53,7 @@ function surgePlan(w) {
       m,
       i: 0,
       n: 0,
-      cuts: [Math.round(m * 0.34), Math.round(m * 0.68)],
+      cuts: surgeCuts(m), // one to three surges, breaking at no set point: a night can't be read ahead
       lull: 0,
       quiet: 0,
       horde: null,
@@ -98,10 +111,6 @@ function surgeGo(SG) {
       return;
     }
   }
-  showStreak(
-    last ? 'Last surge' : 'Here they come',
-    last ? 'Hold out and it is dawn' : 'The street is filling up again'
-  );
   sfx.growl && sfx.growl(GS.P.x + rand(-300, 300), GS.P.y + rand(-300, 300));
 }
 export function hordeSpot(H) {
@@ -127,6 +136,7 @@ export function hordeSpot(H) {
 export function startWave() {
   for (const c of GS.crates) if (c.dawn) c.dawn = false; // last dawn's drop is just a crate now
   GS.nightLive = true;
+  GS.nightT0 = GS.time; // when tonight began: the radio has its say at the start, then keeps quiet (radio.js)
   GS.wave++;
   laterNight(); // the pharmacy's bandages run out after their third night
   GS.queue = buildWave(GS.wave);

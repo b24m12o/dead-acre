@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { viaTag } from '../game/routes.js';
 import { boonHud } from '../game/boons.js';
 import { SIG } from '../game/objectives.js';
 import { GS } from '../core/gs.js';
@@ -14,7 +15,6 @@ import { underBoss } from '../game/waves.js';
 import { AB, abCd, shoveCd } from '../game/abilities.js';
 import { bossHint } from '../actors/bosses.js';
 import { FINAL_NIGHT } from '../game/districts.js';
-import { viaTag } from '../game/routes.js';
 import { GARAGE } from '../world/map.js';
 import { TRAITS } from '../actors/backups.js';
 import { EV_NAME } from '../audio/radio.js';
@@ -223,6 +223,7 @@ function gunPanel() {
       .join('');
   }
 }
+const told = () => !!GS.RUN.nextSig && GS.RUN.nextSig.s === 'horde';
 export function updateHud() {
   if (GS.streakT > 0 && GS.streakCur) placeStreak();
   hudFade();
@@ -279,7 +280,7 @@ export function updateHud() {
     }
     setT(
       'dawnWhat',
-      [GS.RUN.nextSig ? SIG[GS.RUN.nextSig.s] : '', viaTag(GS.wave + 1).replace(/^ · /, '')].filter(Boolean).join(' · ')
+      [told() ? SIG[GS.RUN.nextSig.s] : '', viaTag(GS.wave + 1).replace(/^ · /, '')].filter(Boolean).join(' · ') // what tomorrow holds stays a surprise, but a horde (you're given traps to lay for it) and what the way you chose brings
     );
   }
   setT(
@@ -315,19 +316,15 @@ export function updateHud() {
               : GS.nightDone && !left && GS.interT > 0
                 ? GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14
                   ? `Drop unopened · Enter starts night ${GS.wave + 1}`
-                  : `Night ${GS.wave + 1} in ${Math.ceil(GS.interT)}${GS.RUN.nextSig ? ' · ' + SIG[GS.RUN.nextSig.s] : ''}${viaTag(GS.wave + 1)} · Enter to start now`
+                  : `Night ${GS.wave + 1} in ${Math.ceil(GS.interT)}${told() ? ' · ' + SIG[GS.RUN.nextSig.s] : ''}${viaTag(GS.wave + 1)} · Enter to start now`
                 : GS.horde && !GS.horde.done && !GS.horde.finale && GS.horde.startT > 1 && GS.nightLive
                   ? `Horde in ${Math.ceil(GS.horde.startT)} s · Enter to call it now`
                   : quiet
-                    ? sg.i >= sg.cuts.length
-                      ? 'Quiet · last surge next'
-                      : 'Quiet · more coming'
+                    ? 'Quiet'
                     : GS.RUN.tut
                       ? 'Training'
                       : left
-                        ? sg && GS.nightLive && !GS.nightDone
-                          ? `Surge ${Math.min(sg.i + 1, 3)} of 3 · ${left} still walking`
-                          : `Survive till dawn · ${left} still walking`
+                        ? `${left} still walking`
                         : GS.obj && !GS.obj.done
                           ? 'Finish the job'
                           : 'Hold on'
@@ -346,15 +343,28 @@ export function updateHud() {
     }
   } // the weather, as a small tag
   setT('scoreTxt', GS.score.toLocaleString());
-  const mult = 1 + Math.min(4, Math.floor(GS.combo / 10) * 0.5);
-  setT(
-    'chain',
-    GS.combo >= 10
-      ? `Chain ${GS.combo} · ×${mult.toFixed(1)} score`
-      : GS.combo >= 5
-        ? `Chain ${GS.combo} · ×1.5 at 10`
-        : ''
-  );
+  {
+    // the chain, big: how many in a row, the score multiplier it's worth, and a bar running down to when it breaks
+    const c = GS.combo,
+      el = $('chain'),
+      on = c >= 3;
+    if (hc.cOn !== on) {
+      hc.cOn = on;
+      el.classList.toggle('on', on);
+      hc.cN = -1;
+    }
+    if (on) {
+      if (hc.cN !== c) {
+        hc.cN = c;
+        const mult = 1 + Math.min(4, Math.floor(c / 10) * 0.5);
+        el.innerHTML = `<b>${c}</b><span>chain</span><em class="${mult > 1 ? 'up' : ''}">×${mult.toFixed(1)}</em><i></i>`;
+        el.classList.remove('bump');
+        void el.offsetWidth;
+        el.classList.add('bump');
+      }
+      el.style.setProperty('--ct', Math.max(0, Math.min(1, GS.comboT / 2.4)).toFixed(3));
+    }
+  }
   {
     const gk = GS.P.owned.map(g => g + GS.P.mag[g]).join() + JSON.stringify(GS.P.ammo) + GS.P.gun + (GS.P.reload > 0);
     if (hc.guns !== gk) {

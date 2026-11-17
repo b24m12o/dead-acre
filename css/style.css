@@ -598,3 +598,17 @@ body.pad :focus{outline:2px solid #ffd08a;outline-offset:3px}body.pad #route .wa
 .rollrow.boon{color:var(--bc)}
 .rollrow.boon .thin{flex:0 0 72px;min-width:60px;height:3px;margin-left:auto}
 .rollrow.boon .thin i{background:var(--bc)}
+/* in a fight, news that isn't danger: one short line at the bottom edge (callouts.js ticker) */
+#ticker{position:fixed;left:50%;bottom:58px;transform:translate(-50%,6px);max-width:min(720px,80vw);pointer-events:none;font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(242,234,216,.82);background:rgba(20,24,29,.6);padding:4px 10px;border-radius:3px;opacity:0;transition:opacity .25s,transform .25s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:6}
+#ticker b{color:#f0c878;font-weight:600}
+#ticker.show{opacity:1;transform:translate(-50%,0)}
+/* the chain (hud.js): big beside the score, the multiplier it's worth, a bar running down to when it breaks */
+#chain{display:none}
+#chain.on{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto 3px;column-gap:6px;align-items:baseline;justify-items:end;margin-right:6px;color:var(--cream)}
+#chain b{grid-row:1/3;font-family:var(--font-hud);font-weight:600;font-size:30px;line-height:.9;color:#f0c878;text-shadow:0 2px 6px rgba(0,0,0,.8)}
+#chain span{font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(242,234,216,.7);justify-self:start}
+#chain em{font-style:normal;font-family:var(--font-hud);font-weight:600;font-size:15px;color:rgba(242,234,216,.75);justify-self:start}
+#chain em.up{color:#ff9a5a}
+#chain i{grid-column:1/3;justify-self:stretch;height:3px;background:linear-gradient(90deg,#f0c878 calc(var(--ct,1)*100%),rgba(255,255,255,.12) 0);border-radius:2px}
+#chain.bump b{animation:chainBump .22s ease-out}
+@keyframes chainBump{0%{transform:scale(1.35)}100%{transform:scale(1)}}

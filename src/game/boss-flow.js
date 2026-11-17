@@ -212,7 +212,7 @@ export function bossEntrance(bt, quick) {
   // nothing just digs up any more: each boss announces itself its own way, and the camera leans toward it
   GS.bossDue = true;
   const L = BOSS_RADIO[bt];
-  if (L) for (const l of [].concat(L.pre)) radio(l);
+  if (L) for (const l of [].concat(L.pre)) radio(l, null, 2);
   GS.later.push({ t: quick ? 0.6 : 2.2, fn: whenPlay(() => (ENTRANCE[bt] || ENTRANCE.walk)()) });
 }
 function gzSecond() {
@@ -443,7 +443,7 @@ export function arenaPhase(e, ph, skip) {
   if (!skip && !GS.RUN.practice) for (let i = 0; i < 2; i++) dropAmmo(e.x, e.y, 1.5, 120); // each boss changes the place it fights in when it gets hurt (a burst through two phases plays both)
   const bt = e.btype,
     L = BOSS_RADIO[bt];
-  if (L && !skip) radio(ph === 1 ? L.p1 : L.p2);
+  if (L && !skip) radio(ph === 1 ? L.p1 : L.p2, null, 2);
   if (bt === 'abom') {
     if (ph === 1) lampsOff(lampsNear(e.x, e.y, 650, 6), 0.18, 0, e);
     else {
@@ -555,7 +555,7 @@ export function bossDown(e, alone) {
   });
   {
     const L = BOSS_RADIO[bt];
-    if (L) GS.later.push({ t: 1.4, fn: () => radio(L.kill) });
+    if (L) GS.later.push({ t: 1.4, fn: () => radio(L.kill, null, 2) });
   }
   if (GS.RUN.practice) return;
   GS.queue.length = 0;

@@ -264,7 +264,7 @@ function planDawn() {
   {
     const s = planSig(GS.wave + 1);
     GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
-    if (s) GS.later.push({ t: 3.2, fn: () => GS.nightDone && showStreak(`Night ${GS.wave + 1}`, SIG[s]) });
+    if (s === 'horde') GS.later.push({ t: 3.2, fn: () => GS.nightDone && showStreak(`Night ${GS.wave + 1}`, SIG[s]) }); // the rest of what tomorrow holds is its own surprise
     if (!GS.RUN.hm && GS.wave + 1 === FINAL_NIGHT) {
       GS.RUN.lz = HELIPAD ? HELIPAD.slice() : freeSpot(260, 520);
       const kit = { mine: 3, drum: 3, noise: 1, rig: 2 };
