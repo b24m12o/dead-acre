@@ -42,9 +42,9 @@ export async function run(b) {
     g.axes[3] = -1; fr(20); out.aimUp = angDiff(0, P.aimA); g.axes[3] = 0; g.axes[2] = 1; fr(20); out.aimRight = angDiff(0, P.aimA); // an angle, however many turns round
     // the crosshair leans onto one near the line
     const e = makeEnemy('skitter', P.x + Math.cos(0.1) * 300, P.y + Math.sin(0.1) * 300); e.emerge = 1; e.hp = e.maxHp = 9999; e.aw = 0; e.sp = 0; GS.enemies.push(e);
-    fr(3);
+    fr(3); padTick(1 / 60); // read against the camera as it stands now (a shake can move it after the stick has aimed)
     out.lean = Math.hypot(cam.x + mouse.x / ZOOM - e.x, cam.y + mouse.y / ZOOM - e.y);
-    e.x = P.x + Math.cos(0.5) * 300; e.y = P.y + Math.sin(0.5) * 300; fr(3);
+    e.x = P.x + Math.cos(0.5) * 300; e.y = P.y + Math.sin(0.5) * 300; fr(3); padTick(1 / 60);
     out.noLean = Math.hypot(cam.x + mouse.x / ZOOM - e.x, cam.y + mouse.y / ZOOM - e.y);
     e.dead = true; GS.enemies.length = 0;
     // the trigger fires, X reloads, A rolls, B shoves
