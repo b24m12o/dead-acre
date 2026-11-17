@@ -82,17 +82,17 @@ void main(){
   c=max(c,vec3(0.0));
   // highlights roll off by brightness and keep their hue: concrete under a sodium lamp stays warm grey-orange instead of clipping to white
   { float L0=max(c.r,max(c.g,c.b)); vec3 hue=c/max(L0,0.0001); float Lt=L0<0.62?L0:0.62+0.38*(1.0-exp(-(L0-0.62)/0.38)); c=mix(hue*Lt,vec3(Lt),smoothstep(1.8,4.5,L0)*0.45); }
-  float l=dot(c,vec3(0.299,0.587,0.114)); c=mix(vec3(l),c,0.88); // a touch less saturated: closer to a photographed night than a comic
+  float l=dot(c,vec3(0.299,0.587,0.114)); c=mix(vec3(l),c,0.97); // nearly full colour: the fire, the lamps and the blood read
   // horror grade: cold teal shadows, warm sodium highlights, gentle S-curve
   c=mix(c*vec3(0.82,0.96,1.10), c*vec3(1.10,1.00,0.84), smoothstep(0.07,0.62,l));
-  c=c*c*(3.0-2.0*c)*0.2+c*0.8;
-  c=pow(max(c,vec3(0.0)),vec3(0.97));
+  c=c*c*(3.0-2.0*c)*0.34+c*0.66; // more contrast: lit things stand off the dark
+  c=pow(max(c,vec3(0.0)),vec3(0.94));
   c=mix(pow(c,vec3(0.9)),c,smoothstep(0.0,0.3,l)); // a toe: the darkest parts of the street keep their detail instead of closing up to black
   float gr=fract(sin(dot(gl_FragCoord.xy+fract(uTime*7.13)*vec2(311.7,183.3),vec2(12.9898,78.233)))*43758.5453);
   c+=(gr-0.5)*uGrain*(1.2-l);
   // A cinematic lens falloff keeps attention in the lit play area without crushing the centre.
   vec2 vd=cd*vec2(uAspect,1.0); float edge=length(vd); float vignette=smoothstep(0.30,1.08,edge);
-  c*=1.0-(0.31+0.08*uWx.z)*vignette;
+  c*=1.0-(0.27+0.08*uWx.z)*vignette;
   // weather grade: x fog (flat, grey, the far edges swallowed), y blood moon (red cast that deepens toward the edges), z storm (cold and wet), w night depth
   if(uWx.x>0.001){ float lf=dot(c,vec3(0.299,0.587,0.114)); vec3 g=mix(vec3(lf),c,0.5)*0.86+vec3(0.035,0.04,0.05); c=mix(c,g,uWx.x*0.75); c=mix(c,vec3(0.11,0.12,0.14),uWx.x*smoothstep(0.22,0.95,edge)*0.6); }
   if(uWx.y>0.001){ float lb=dot(c,vec3(0.299,0.587,0.114)); c=mix(c,mix(vec3(lb),c,0.7)*vec3(1.04,0.9,0.9),uWx.y); c=mix(c,c*vec3(0.95,0.6,0.58),uWx.y*vignette*0.75); }

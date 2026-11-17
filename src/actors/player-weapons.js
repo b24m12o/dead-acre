@@ -341,7 +341,7 @@ export function firePlayer(cwx, cwy, p, target) {
         vr: rand(-1, 1),
         wind: 1,
       });
-    flashLight(mxp, myp, G.pellets || g === 'hunter' ? 210 : 165, [1.15, 0.72, 0.34], 0.055);
+    flashLight(mxp, myp, G.pellets || g === 'hunter' ? 290 : 225, [1.55, 0.98, 0.46], 0.065); // each shot lights the street round you for a moment
     if (p.mag[g] <= 0)
       GS.later.push({
         t: 0.14,

@@ -68,10 +68,11 @@ export function init() {
     vec4 a=texture(uAlb,vUv); vec4 e=texture(uEmi,vUv); float al=a.a*vTint.a;
     vec3 col=mix(a.rgb*vTint.rgb, vec3(a.a), clamp(vEmit.a,0.0,1.0));
     o0=vec4(col*vTint.a, al);
-    o1=vec4(e.rgb*vEmit.rgb*vTint.a + vec3(a.a)*vEmit.a*0.5*vTint.a, al);
+    o1=vec4(e.rgb*vEmit.rgb*vTint.a + vec3(a.a)*max(vEmit.a,0.0)*0.5*vTint.a, al);
     if(uAdd>0.5){ o2=vec4(0.0); return; }
     vec4 nm=texture(uNrm,vUv);
     vec2 ln=nm.a>0.004 ? (nm.rg/nm.a)*2.0-1.0 : vec2(0.0);
+    if(vEmit.a<0.0){ float nz=sqrt(max(0.0,1.0-dot(ln,ln))); o1.rgb+=vec3(0.5,0.64,0.82)*pow(1.0-nz,1.7)*(-vEmit.a)*al; } // a figure's edge catches the night: it reads against a dark street
     ln*=vRot.zw;
     vec2 wn=vec2(vRot.x*ln.x-vRot.y*ln.y, vRot.y*ln.x+vRot.x*ln.y);
     float sp=nm.a>0.004 ? nm.b/nm.a : 0.0;

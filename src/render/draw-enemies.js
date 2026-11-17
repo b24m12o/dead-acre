@@ -1,7 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, lerp, rand } from '../core/util.js';
-import { lineQ, quad, setH } from './sprites.js';
+import { RIM, lineQ, quad, setH, setRim } from './sprites.js';
 import { R } from './atlas.js';
 import { drawLegs, ik2 } from '../actors/legs.js';
 import { dust, part } from './effects.js';
@@ -176,6 +176,15 @@ function zArm(W, sh, hand, L, w1, w2, side, skin, sleeve, fl, handSc, gone, ls =
   armSeg(shx, shy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, handSc, ls);
 }
 export function drawEnemy(e) {
+  const r0 = RIM;
+  setRim(e.dying === undefined || e.__std ? (e.type === 'queen' ? 0.32 : 0.42) * Math.min(1, e.sv ?? 1) : 0); // the living stand out from the street; the dead lie in it
+  try {
+    drawEnemy0(e);
+  } finally {
+    setRim(r0);
+  }
+}
+function drawEnemy0(e) {
   if (GS.SHMODE === true && e._lod && !e.__std && e.dying === undefined && !(e.down > 0) && !e.lurk) {
     const k = (e.sc || 1) * (e.bs || 1) * 1.2 * (e.emerge < 1 ? e.emerge : 1);
     setH(34);

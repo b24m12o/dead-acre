@@ -33,34 +33,30 @@ export function paintInteriors() {
     18,
     34,
     (a, e) => {
-      // a single tongue of flame (emissive only): round base, licking tip, hotter core
-      // soft all the way through: a tall glowing teardrop that fades out at the edges, brightest low in the body, no hard outlines
-      e.save();
-      e.scale(1, 2.1);
-      {
-        const g = e.createRadialGradient(0, 0.6, 0, 0, 0.2, 8.6);
-        g.addColorStop(0, 'rgba(255,255,255,1)');
-        g.addColorStop(0.32, 'rgba(255,255,255,0.82)');
-        g.addColorStop(0.62, 'rgba(255,255,255,0.32)');
+      // a single tongue of flame (emissive only): a round base, sides that pull in, and a tip that licks off to one
+      // side, nested three deep (the outer flame faint, the body brighter, a hot core low down), each edge soft but
+      // there: a flame's shape, not a glowing blob. The draw tints each layer red, orange and yellow-white
+      const tongue = (w, h, y0, al, lean) => {
+        e.beginPath();
+        e.moveTo(0, y0 + 1.5);
+        e.bezierCurveTo(w * 1.1, y0 + 0.5, w * 1.15, y0 - h * 0.3, w * 0.55, y0 - h * 0.6);
+        e.bezierCurveTo(w * 0.25, y0 - h * 0.78, lean * 0.6, y0 - h * 0.86, lean, y0 - h);
+        e.bezierCurveTo(-w * 0.1, y0 - h * 0.8, -w * 0.5, y0 - h * 0.66, -w * 0.82, y0 - h * 0.42);
+        e.bezierCurveTo(-w * 1.15, y0 - h * 0.18, -w * 1.05, y0 + 0.5, 0, y0 + 1.5);
+        const g = e.createLinearGradient(0, y0, 0, y0 - h);
+        g.addColorStop(0, `rgba(255,255,255,${al})`);
+        g.addColorStop(0.55, `rgba(255,255,255,${al * 0.85})`);
         g.addColorStop(1, 'rgba(255,255,255,0)');
         e.fillStyle = g;
-        e.beginPath();
-        e.arc(0, 0.2, 8.6, 0, TAU);
         e.fill();
-      }
+      };
+      e.save();
+      e.filter = 'blur(0.7px)';
+      tongue(7.6, 31, 15.5, 0.42, 2.2);
+      tongue(5.8, 24, 15, 0.6, 1.4);
+      tongue(3.8, 15.5, 14.5, 0.85, 0.7);
+      tongue(2.2, 8.5, 14, 1, 0.2);
       e.restore();
-      {
-        const g = e.createLinearGradient(0, -16, 0, -2);
-        g.addColorStop(0, 'rgba(255,255,255,0)');
-        g.addColorStop(1, 'rgba(255,255,255,0.45)');
-        e.fillStyle = g;
-        e.beginPath();
-        e.moveTo(0, -16);
-        e.bezierCurveTo(2.6, -10, 4.4, -5, 3.6, -1);
-        e.lineTo(-3.6, -1);
-        e.bezierCurveTo(-4.4, -5, -2.6, -10, 0, -16);
-        e.fill();
-      } // the licking tip, fading out as it rises
     },
     0,
     1,

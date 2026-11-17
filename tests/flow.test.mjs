@@ -45,6 +45,9 @@ export async function run(b) {
       out.lull = +(t / 60).toFixed(1);
       for (const [e] of far) e.dead = true;
     }
+    // a kill lands: a hair of stop on any, a real beat on an elite
+    GS.hitstop = 0; GS.killStopT = -9; const k1 = makeEnemy('skitter', P.x + 80, P.y); k1.emerge = 1; GS.HITB = { gun: 'pistol' }; killEnemy(k1, 999, 'bolt'); out.stopAny = +GS.hitstop.toFixed(3);
+    GS.hitstop = 0; GS.killStopT = -9; const k2 = makeEnemy('skitter', P.x + 80, P.y); k2.emerge = 1; makeElite(k2); killEnemy(k2, 1e6, 'bolt'); out.stopElite = +GS.hitstop.toFixed(3); GS.hitstop = 0;
     // a dawn with nothing in it, then one with an unopened supply drop
     GS.enemies.length = 0; GS.queue.length = 0; GS.obj = null; GS.RUN.sg = null; GS.crates.length = 0; GS.boonDrops = [];
     nightCleared(); GS.RUN.trapDawn = 0; GS.interT = 11; fr(2); out.idle = +GS.interT.toFixed(1);
@@ -57,6 +60,7 @@ export async function run(b) {
   check(o.lull !== undefined && o.lull < 8, `a breather with four far-off unaware ones lasted ${o.lull} s (of 18)`);
   check(o.idle <= 6, `an empty dawn still counts down from ${o.idle}`);
   check(o.busy > 10, `a dawn with an unopened drop came down to ${o.busy}`);
+  check(o.stopAny > 0 && o.stopElite >= 0.07, `the stop on a kill: ${o.stopAny} s, on an elite ${o.stopElite} s`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   return `wheel with a pistol; the bulb stops the round (zombie untouched); a breather ends in ${o.lull} s with only far-off ones; an empty dawn ${o.idle} s, one with a drop ${o.busy} s`;
 }

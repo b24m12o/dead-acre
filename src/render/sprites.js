@@ -147,6 +147,9 @@ let INK = false; // everything drawn comes out as its black silhouette (a shadow
 export function inkMode(on) {
   INK = on;
 }
+// the rim light on figures (draw-enemies.js sets it round each zombie): how strongly their silhouettes catch the night
+export let RIM = 0;
+export const setRim = k => (RIM = k);
 export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
   if (GS.SHMODE === 2) {
     // flashlight shadows: smear each silhouette away from the light, longer the further it stands
@@ -218,6 +221,7 @@ export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
   }
   ta *= GS.gA;
   if (INK) tr = tg = tb = er = eg = eb = ef = 0;
+  else if (RIM && !GS.SHMODE && !(ef > 0)) ef = -RIM; // a figure: its edge lit (gl.js), unless it's flashing from a hit
   tr *= GS.gT * GS.gR;
   tg *= GS.gT * GS.gG;
   tb *= GS.gT * GS.gB;

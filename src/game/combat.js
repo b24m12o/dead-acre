@@ -662,12 +662,14 @@ function gibAll(e, dx, dy, col) {
 // a heavy round that kills: the game catches its breath for a few frames (the hunting rifle most, buckshot only up
 // close, a head taken off by anything); the light guns that kill in a stream don't stop it. One at most every 0.18 s,
 // so a load of buckshot that drops three counts once; never with screen shake off
-export const KILL_STOP = { hunter: 0.045, lever: 0.035 };
+export const KILL_STOP = { hunter: 0.045, lever: 0.035, smg: 0, lmg: 0, auto: 0, rifle: 0, shotgun: 0 };
 GS.killStopT = -1;
 function killStop(e, src) {
-  if (src !== 'bolt' || !opt.shake || !GS.HITB) return;
-  const g = GS.HITB.gun;
-  let t = KILL_STOP[g] || 0;
+  if ((src !== 'bolt' && src !== 'boom') || !opt.shake) return;
+  const g = src === 'bolt' && GS.HITB ? GS.HITB.gun : '';
+  let t = src === 'boom' ? 0.04 : (KILL_STOP[g] ?? 0.012); // a single shot's kill lands, a hair; the heavy ones more (the fast guns' none: they'd stutter)
+  if (e.elite) t = Math.max(t, 0.075);
+  else if (e.type === 'beetle') t = Math.max(t, 0.06);
   if (g === 'shotgun' && GS.P && d2(e.x, e.y, GS.P.x, GS.P.y) < 160 * 160) t = Math.max(t, 0.03);
   if (e.headless) t = Math.max(t, 0.025);
   if (!t || (GS.time >= GS.killStopT && GS.time - GS.killStopT < 0.18)) return;
@@ -843,7 +845,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
         buck =
           src === 'bolt' && GS.HITB && GS.HITB.gun === 'shotgun' && GS.P && d2(e.x, e.y, GS.P.x, GS.P.y) < 160 * 160, // buckshot up close throws the body, whichever pellet was the last
         imp =
-          (src === 'boom' ? 440 : buck ? 360 : 100 + Math.min(300, dmg * 3.2)) *
+          (src === 'boom' ? 480 : buck ? 440 : 120 + Math.min(360, dmg * 4)) *
           rand(0.8, 1.2) *
           (e.type === 'beetle' ? 0.35 : big ? 0 : 1) *
           (fallK ? 0.25 : 1),
@@ -871,7 +873,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       sfx.gib(hx, hy);
     }
     killStop(e, src);
-    bleed(ex, ey, 14, dx, dy, big ? 40 : 10, col, big ? 420 : 300, big ? 1.6 : 1);
+    bleed(ex, ey, 14, dx, dy, big ? 44 : 16, col, big ? 440 : 340, big ? 1.6 : 1.1);
     if (Math.random() < 0.25) gib(ex, ey, R['g_meat' + randi(0, 1)], [1, 1, 1], col, 200, dx, dy);
     if (big)
       GS.later.push({
