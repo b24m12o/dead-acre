@@ -1,8 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// Stages the game and the test range for a host that serves a page and its own files separately, caps the size of
-// one file, and only serves files by well-known extensions: build/web/game (index.html, dist/, assets/) and
-// build/web/test-range (the test range page that loads assets/, and assets/). The sound bundles are MP3 data, so
-// they go out as .mp3, with pack.json changed to match. Run `npm run build` and `npm run testrange` first.
+// Stages the game for a host that serves a page and its own files separately, caps the size of one file, and only
+// serves files by well-known extensions: build/web/game (index.html, dist/, assets/). The sound bundles are MP3 data,
+// so they go out as .mp3, with pack.json changed to match. Run `npm run build` first.
 import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT } from '../lib/source.mjs';
@@ -35,13 +34,6 @@ writeFileSync(
 );
 for (const f of ['game.js', 'style.css']) cpSync(join(ROOT, 'dist', f), join(game, 'dist', f));
 assets(game);
-const tr = join(OUT, 'test-range');
-mkdirSync(tr, { recursive: true });
-writeFileSync(
-  join(tr, 'index.html'),
-  '<!DOCTYPE html>\n' + readFileSync(join(ROOT, 'build/test-range-web.html'), 'utf8')
-);
-assets(tr);
 list(OUT);
 console.log('build/web:', files.length, 'files');
 for (const f of files) console.log(' ', f.slice(OUT.length + 1));

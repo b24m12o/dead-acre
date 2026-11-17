@@ -76,7 +76,7 @@ out['revOpen'] = finish(best(SW + 'V_9.wav', 0.6)[0], 0.25, 0.9)
 out['revClose'] = finish(best(SW + 'V_10.wav', 0.6)[0], 0.25, 0.9)
 out['revEject'] = finish(best(SW + 'V_3.wav', 0.9)[0], 0.25, 0.9)
 out['revLoad'] = finish(trim(best(SW + 'V_18.wav', 2.4, n=3)[0], 1.0), 0.25, 0.85)
-# the launcher (chosen by ear in the test range, "Launcher B"): a dry pop, the way a 40 mm launcher sounds: a hollow
+# the launcher (chosen by ear, "Launcher B"): a dry pop, the way a 40 mm launcher sounds: a hollow
 # low thump, a short burst of air from the tube, a ping of the tube itself and the action's click, no gunshot crack
 th = tone_thump(170, 52, 0.45, 26)
 rng = np.random.default_rng(7)
