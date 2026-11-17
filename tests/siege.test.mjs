@@ -30,12 +30,17 @@ export async function run(b) {
     for (const e of zs) e.dead = true; GS.enemies.length = 0;
     // nailing back: stand still beside it
     P.x = bar.x - bar.nx * 40; P.y = bar.y - bar.ny * 40; P.vx = P.vy = 0;
-    fr(60 * 3);
+    // one far off, held where it is, keeps the night (and the siege) going: with none left the night would end
+    const keep = makeEnemy('skitter', P.x > WW / 2 ? 4 * TILE : WW - 4 * TILE, P.y > WH / 2 ? 4 * TILE : WH - 4 * TILE), kx0 = keep.x, ky0 = keep.y;
+    keep.emerge = 1; keep.hp = keep.maxHp = 1e6; keep.dmg = 0; keep.aw = 0; keep.sg = false;
+    const hold = () => { keep.x = kx0; keep.y = ky0; keep.vx = keep.vy = 0; keep.noProg = 0; };
+    for (let i = 0; i < 60 * 3; i++) { hold(); fr(1); }
     out.fixed = !bar.broken && bar.hp > bar.max * 0.35;
     // you can't walk out through a board
     P.x = bar.x - bar.nx * 40; P.y = bar.y - bar.ny * 40;
     const kx = bar.nx, ky = bar.ny;
-    for (let i = 0; i < 90; i++) { keys.add(kx > 0 ? 'd' : kx < 0 ? 'a' : ky > 0 ? 's' : 'w'); fr(1); }
+    for (let i = 0; i < 90; i++) { keys.add(kx > 0 ? 'd' : kx < 0 ? 'a' : ky > 0 ? 's' : 'w'); hold(); fr(1); }
+    keep.dead = true;
     keys.clear();
     out.out = (P.x - bar.x) * bar.nx + (P.y - bar.y) * bar.ny > 10;
     return out;
