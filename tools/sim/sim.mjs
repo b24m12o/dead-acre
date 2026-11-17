@@ -30,6 +30,8 @@ const swap = (s, a, b) => {
 let PLAY = RUN.replace('%s', 'true').replace('%s', JSON.stringify(arg('prefer', 'random'))); // --prefer molotov,hull: take those cards whenever offered
 PLAY = swap(PLAY, 'if (GOD) GS.P.hp = S.maxHp;', '');
 PLAY = swap(PLAY, 'window.__saved = (window.__saved || 0) + 1;', 'window.__death();');
+// a stalled dawn: where the way on is, and whether it can be reached
+PLAY = swap(PLAY, 'nightDone: GS.nightDone,', 'nightDone: GS.nightDone, dawn: window.__dawn(),');
 // what hurt the bot, night by night, and each death
 const WATCH = `(() => {
   const H = (window.__hurt = {}), F = (window.__how = {}), D = (window.__died = []);
@@ -37,6 +39,23 @@ const WATCH = `(() => {
   // something put off till later, what set it off)
   const how = () => { const ls = (new Error().stack || '').split('\\n'), f = i => { const m = /at (?:Object\\.)?([\\w$.]+)/.exec(ls[i] || ''); return m ? m[1] : '?'; }; const a = f(3); return a === 'explode' || a === 'updateFire' || a === 'fn' ? a + '<' + f(4) : a; };
   window.__death = () => { D.push({ w: GS.wave, by: String(GS.P.lastBy || '?'), lvl: GS.level }); GS.P.inv = 1.5; };
+  // when each night starts and is cleared (game seconds): how long the fight took, and how long the dawn after it
+  const CL = (window.__clock = {}), sw0 = startWave, nc0 = nightCleared;
+  startWave = function () { const r = sw0.apply(this, arguments); (CL[GS.wave] = CL[GS.wave] || {}).start = GS.time; return r; };
+  nightCleared = function () { const w = GS.wave, had = GS.nightDone, r = nc0.apply(this, arguments); if (!had && GS.nightDone) (CL[w] = CL[w] || {}).clear = GS.time; return r; };
+  // where the bot has been, every 2 s of the last 40: standing still, or going round in circles
+  const TR = (window.__trail = []), tw0 = tickWorld;
+  tickWorld = function () { const r = tw0.apply(this, arguments); if (GS.P && (TR.t ?? -9) <= GS.time - 2) { TR.t = GS.time; TR.push([Math.round(GS.P.x), Math.round(GS.P.y)]); if (TR.length > 20) TR.shift(); } return r; };
+  window.__dawn = () => {
+    const T = GS.truck, O = GS.roadOut, w = wayOut(), R = v => Math.round(v);
+    const reach = (x, y) => (typeof flow !== 'undefined' && flow ? flow[Math.floor(y / TILE) * MW + Math.floor(x / TILE)] : -1);
+    return { since: CL[GS.wave] && CL[GS.wave].clear ? Math.round(GS.time - CL[GS.wave].clear) : -1, mo: GS.RUN.moveOut, interT: +GS.interT.toFixed(1), state: GS.state, layout: typeof LAYOUT !== 'undefined' ? LAYOUT : '?',
+      truck: T && { x: R(T.x), y: R(T.y), gone: !!T.gone, ride: !!T.ride, parked: !!T.parked, dry: !!T.dry, drive: !!T.drive, board: +(T.board || 0).toFixed(2),
+        fuel: T.fuel, garage: T.garage && { open: !!T.garage.open }, cans: T.cans && T.cans.map(c => [R(c.x), R(c.y), c.got ? 1 : 0, reach(c.x, c.y)]) },
+      trail: TR.slice(), fires: (GS.firePools || []).filter(f => Math.hypot(f.x - GS.P.x, f.y - GS.P.y) < 300).length,
+      burning: (typeof cars !== 'undefined' ? cars : []).filter(c => c.fire && !c.dead && Math.hypot(c.x - GS.P.x, c.y - GS.P.y) < 400).length,
+      road: O && { x: R(O.x), y: R(O.y), gone: !!O.gone, reach: reach(O.x, O.y) }, way: w && { x: R(w.x), y: R(w.y), label: w.label, reach: reach(w.x, w.y) } };
+  };
   const fp0 = firePool; // each patch of burning ground remembers what lit it
   firePool = function () {
     const r = fp0.apply(this, arguments), f = GS.firePools[GS.firePools.length - 1];
@@ -97,6 +116,7 @@ async function one(b, i) {
     const died = JSON.parse(await ev('JSON.stringify(window.__died)')),
       hurt = JSON.parse(await ev('JSON.stringify(window.__hurt)')),
       how = JSON.parse(await ev('JSON.stringify(window.__how)')),
+      clock = JSON.parse(await ev('JSON.stringify(window.__clock)')),
       maxHp = await ev('Math.round(S.maxHp)'),
       brk = await ev('window.__brk || null');
     const nights = {};
@@ -117,9 +137,11 @@ async function one(b, i) {
           obj: n.obj,
           objOk: n.objOk,
           stuck: !!(n.stuck || n.evacStuck),
-          ...(n.stuck || n.evacStuck ? { why: JSON.stringify(n.stuck || n.evacStuck).slice(0, 1500) } : {}),
+          ...(n.stuck || n.evacStuck ? { why: JSON.stringify(n.stuck || n.evacStuck).slice(0, 5000) } : {}),
           by: hurt[w] || {},
           how: how[w] || {},
+          fight: clock[w] && clock[w].clear ? Math.round(clock[w].clear - clock[w].start) : -1, // seconds to clear the night
+          dawn: clock[w] && clock[w].clear && clock[+w + 1] ? Math.round(clock[+w + 1].start - clock[w].clear) : -1, // and the dawn after it
         };
     const line = {
       i,

@@ -72,6 +72,10 @@ function giantWedge(e, dt) {
 }
 // what the dead see: a wide cone ahead of them, and anything right at their back
 export const SIGHT = { half: 1.92, behind: 60 };
+// one of the dead going for the siege house, while there is still a siege: once it's over (won or lost) they are
+// just the night's dead again, and any that can't reach you come round nearer like the rest (a siege-bound straggler
+// used to wander the map for good, and the last lurkers lay waiting on it, so the night never ended)
+const sieging = e => !!e.sg && !!GS.obj && GS.obj.type === 'siege' && !GS.obj.done;
 export function updateEnemy(e, dt, p) {
   if (e.dead) return;
   e.flash = Math.max(0, e.flash - dt);
@@ -716,7 +720,7 @@ export function updateEnemy(e, dt, p) {
     tvx = nx * 1.3;
     tvy = ny * 1.3;
   }
-  if ((tvx || tvy) && !e.big && !e.sg && e.type !== 'queen' && e.type !== 'egg' && !e.lure) {
+  if ((tvx || tvy) && !e.big && !sieging(e) && e.type !== 'queen' && e.type !== 'egg' && !e.lure) {
     const k = dirPace(e, pd2);
     tvx *= k;
     tvy *= k;
@@ -810,8 +814,8 @@ export function updateEnemy(e, dt, p) {
     if (e.progT >= 1) {
       e.progT = 0;
       const d = Math.sqrt(pd2);
-      const busy = e.sg || GS.time - (e.boardT ?? -9) < 2; // at the siege house, or pounding on a door or a board: where it means to be
-      e.noProg = !busy && !dirRelax() && d > 260 && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0;
+      const busy = sieging(e) || GS.time - (e.boardT ?? -9) < 2; // at the siege house, or pounding on a door or a board: where it means to be
+      e.noProg = !busy && !dirRelax() && (d > 260 || !e.los) && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0; // far off, or near but walled off from you (two were left 240 px away behind a wall all night)
       e.lastPD = d;
       if (e.noProg >= 12 && !GS.queue.length && GS.nightLive) {
         // stuck where it can't reach you once the night's last wave is out: it comes round again near you, however many are left

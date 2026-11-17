@@ -31,6 +31,7 @@ const ALL = [
   'characters',
   'quit',
   'director',
+  'stall',
   'threads',
   'marks',
   'roof',
