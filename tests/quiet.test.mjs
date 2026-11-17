@@ -77,10 +77,16 @@ export async function run(b) {
     out.bruteLives = br.hp > 0 && !br.dead; out.armLives = ar.hp > 0 && !ar.dead;
     clear(); home();
     // 5. the Listener: you stand in plain view and it does nothing
-    const L = makeSpecial('blind', P.x + 260, P.y); L.emerge = 1; L.a = Math.PI;
-    const lx = L.x, ly = L.y;
-    fr(180);
-    out.stood = Math.hypot(L.x - lx, L.y - ly) < 6 && !(L.aw > 0) && P.hp === S.maxHp;
+    // (a noise from anywhere else in that time, a supply crate's flare landing say, would send it off: then again)
+    let L;
+    for (let k = 0; k < 4; k++) {
+      clear(); home();
+      L = makeSpecial('blind', P.x + 260, P.y); L.emerge = 1; L.a = Math.PI;
+      const lx = L.x, ly = L.y, n0 = NOISE.t;
+      fr(180);
+      out.stood = Math.hypot(L.x - lx, L.y - ly) < 6 && !(L.aw > 0) && P.hp === S.maxHp;
+      if (out.stood || NOISE.t === n0) break;
+    }
     // a noise off to one side: it runs there, not at you, and you (standing still) are left alone
     const nx = P.x + 60, ny = P.y + 170;
     makeNoise(nx, ny, 700, false, false);
