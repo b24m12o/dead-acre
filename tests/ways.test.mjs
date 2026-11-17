@@ -142,9 +142,11 @@ export async function run(b) {
     return out;
   })()`);
   // an arrival with nothing to choose goes on by itself: no click, no key, and a few seconds later you're in the place
+  await pg.waitForTimeout(2000); // the last card's van and fade done with
   await ev(
     `(() => { GS.state = 'play'; $('route').hidden = true; GS.RUN.stop = 0; GS.wave = 2; leaveStop('foot'); travelStep(); return 1; })()`
   );
+  await pg.waitForTimeout(300);
   const upFirst = await ev(`!$('route').hidden && document.querySelectorAll('#routeWays .way').length === 0`);
   await pg.waitForTimeout((await ev('ROUTE_AUTO')) * 1000 + 1500);
   const auto = await ev(

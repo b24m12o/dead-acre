@@ -1197,7 +1197,8 @@ export function placeArrival() {
 
 // the travel card: the road so far, the stop ahead, what comes with you, and which way to go: two ways to the
 // next place (routes.js), picked with a click or 1 / 2 once the place is laid out behind the card
-let routeOutT = 0;
+let routeOutT = 0,
+  routeGen = 0; // which card is up: a fade from one already left never touches the next
 export function showRoute(onGo, ways, how) {
   const el = $('route'),
     to = stopNow(),
@@ -1231,6 +1232,7 @@ export function showRoute(onGo, ways, how) {
   box.classList.toggle('n3', !!ways && ways.length >= 3);
   el.querySelector('.panel').classList.toggle('wide', !!ways && ways.length >= 3); // three across need the room
   clearTimeout(routeOutT);
+  const gen = ++routeGen;
   el.classList.remove('leaving', 'out');
   el.hidden = false;
   const btn = $('routeGo');
@@ -1250,6 +1252,7 @@ export function showRoute(onGo, ways, how) {
     window.removeEventListener('keydown', key, true);
     el.classList.add('leaving'); // the van drives the way you picked, then the card fades: the place is already yours
     driveVan(road, ways && ways.length ? i : 0, () => {
+      if (gen !== routeGen) return; // another card has come up since
       el.classList.add('out');
       routeOutT = setTimeout(() => {
         el.hidden = true;
