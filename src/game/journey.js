@@ -1239,11 +1239,14 @@ export function showRoute(onGo, ways, how) {
   btn.textContent = 'On the road…';
   let ready = false,
     done = false;
-  let armT = 1e15;
+  let armT = 1e15,
+    autoT = 0;
   const go = i => {
     if (!ready || done || performance.now() < armT) return; // a beat first: a key held from the walk can't pick for you
     if (ways && ways.length && !(i >= 0)) return; // there's a choice to make first
     done = true;
+    clearTimeout(autoT);
+    btn.classList.remove('auto');
     window.removeEventListener('keydown', key, true);
     el.classList.add('leaving'); // the van drives the way you picked, then the card fades: the place is already yours
     driveVan(road, ways && ways.length ? i : 0, () => {
@@ -1290,9 +1293,14 @@ export function showRoute(onGo, ways, how) {
       btn.disabled = false;
       btn.textContent = 'Climb out · Enter';
       btn.focus({ preventScroll: true });
+      btn.classList.remove('auto');
+      void btn.offsetWidth;
+      btn.classList.add('auto'); // nothing to choose: the card goes on its own once you've read it (Enter or a click goes now)
+      autoT = setTimeout(() => go(), ROUTE_AUTO * 1000 + 650);
     }
   }; // the caller says when the new place is laid out
 }
+export const ROUTE_AUTO = 3.5; // seconds an arrival card with nothing to choose stays up
 // a quick fade to black and back, for the walk from one place into the next
 export function fade(on) {
   const f = $('fade');

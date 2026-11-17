@@ -617,3 +617,7 @@ body.pad :focus{outline:2px solid #ffd08a;outline-offset:3px}body.pad #route .wa
 #gauge{background:rgba(18,21,25,.5)}
 .gauge .rollrow{font-size:9.5px}
 .gauge .rollrow .thin{min-width:56px}
+/* an arrival card with nothing to choose (journey.js): the button empties as it waits, then the card goes on its own */
+#routeGo{position:relative;overflow:hidden}
+#routeGo.auto::after{content:'';position:absolute;left:0;bottom:0;height:3px;width:100%;background:rgba(20,16,12,.55);transform-origin:left;animation:routeAuto 3.5s linear .65s forwards}
+@keyframes routeAuto{from{transform:scaleX(1)}to{transform:scaleX(0)}}

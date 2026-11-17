@@ -141,7 +141,21 @@ export async function run(b) {
     showStreak = ss;
     return out;
   })()`);
+  // an arrival with nothing to choose goes on by itself: no click, no key, and a few seconds later you're in the place
+  await ev(
+    `(() => { GS.state = 'play'; $('route').hidden = true; GS.RUN.stop = 0; GS.wave = 2; leaveStop('foot'); travelStep(); return 1; })()`
+  );
+  const upFirst = await ev(`!$('route').hidden && document.querySelectorAll('#routeWays .way').length === 0`);
+  await pg.waitForTimeout((await ev('ROUTE_AUTO')) * 1000 + 1500);
+  const auto = await ev(
+    `JSON.stringify({ hidden: $('route').hidden || $('route').classList.contains('leaving'), state: GS.state, stop: stopNow() })`
+  );
   await pg.close();
+  check(upFirst, 'the arrival card did not come up');
+  check(
+    /"hidden":true/.test(auto) && /"state":"play"/.test(auto),
+    'an arrival with nothing to choose waited for a click: ' + auto
+  );
   const bad = [];
   const want = (id, ok, what) => ok || bad.push(`${id}: ${what} ${JSON.stringify(out[id])}`);
   for (const id of ids) {
