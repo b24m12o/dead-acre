@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { DAWN_IDLE, dawnBusy } from '../game/night-flow.js';
 import { takePouch } from '../game/pockets.js';
 import { BOON, boonOn, tickBoons } from '../game/boons.js';
 import { roofStop } from '../world/roofs.js';
@@ -628,7 +629,7 @@ export function update(dt) {
         SG.n++;
         if (SG.i < SG.cuts.length && (SG.m || 0) - GS.queue.length >= SG.cuts[SG.i] && GS.queue.length) {
           SG.i++;
-          SG.lull = (GS.press || 0) > 0.35 ? 28 : (GS.press || 0) < 0.05 ? 15 : 22; // a longer breath after a hard surge, a shorter one after an easy one
+          SG.lull = (GS.press || 0) > 0.35 ? 18 : (GS.press || 0) < 0.05 ? 10 : 14; // a longer breath after a hard surge, a shorter one after an easy one
           SG.quiet = 0;
         }
       }
@@ -685,6 +686,7 @@ export function update(dt) {
       GS.interT < 4 &&
       GS.crates.some(c => c.dawn && !c.open) &&
       (GS.RUN.dawnX = (GS.RUN.dawnX || 0) + dt) < 14;
+    if (GS.nightDone && !GS.RUN.moveOut && !dawnBusy()) GS.interT = Math.min(GS.interT, DAWN_IDLE); // nothing left to do at dawn: no long wait for nothing
     if (!waitDrop && !GS.RUN.moveOut) GS.interT -= dt; // the countdown holds at 4 while the dawn drop sits unopened, for up to 14 s more; it doesn't run at all while the truck waits to take you on
     if (GS.interT <= 0 && !GS.RUN.moveOut) {
       GS.interT = 2.6;

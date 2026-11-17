@@ -53,8 +53,9 @@ function surgePlan(w) {
 }
 export function surgeLull(SG, dt) {
   SG.lull -= dt;
-  let alive = 0;
-  for (const e of GS.enemies) if (!e.dead && !e.dormant) alive++;
+  let alive = 0; // only the ones still in it: near you, or onto you. A few wandering far off, unaware, don't hold the next surge back
+  for (const e of GS.enemies)
+    if (!e.dead && !e.dormant && (e.aw > 0 || e.los || d2(e.x, e.y, GS.P.x, GS.P.y) < 600 * 600)) alive++;
   if (alive <= 3 || SG.lull <= 0) {
     SG.quiet = (SG.quiet || 0) + dt;
     if (SG.quiet >= 3.5 || SG.lull <= -6) surgeGo(SG);

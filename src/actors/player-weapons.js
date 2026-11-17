@@ -417,7 +417,10 @@ export function updatePBullet(b, dt) {
   b.y += b.vy * dt;
   b.life -= dt;
   if (b.life <= 0) return;
-  if (!b.small) lampShot(b.x - b.vx * dt, b.y - b.vy * dt, b.x, b.y); // a bulb in its path pops, and the round flies on
+  if (!b.small && lampShot(b.x - b.vx * dt, b.y - b.vy * dt, b.x, b.y)) {
+    b.life = 0;
+    return;
+  } // a bulb in its path pops, and that's where the round ends: up there it can't also hit one on the ground
   let used = false;
   if (GS.boss && GS.boss.signAt && !b.small && d2(b.x, b.y, GS.boss.signAt.x, GS.boss.signAt.y) < 26 * 26) {
     hitSign(GS.boss, b.dmg, b.x, b.y);

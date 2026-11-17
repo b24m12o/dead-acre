@@ -256,13 +256,7 @@ export function wheelTick() {
     WHEEL.held = null;
     WHEEL.open = false;
   }
-  if (
-    WHEEL.held &&
-    !WHEEL.open &&
-    performance.now() - WHEEL.downT > 170 &&
-    GS.P &&
-    (GS.P.owned.length > 1 || anyTraps())
-  ) {
+  if (WHEEL.held && !WHEEL.open && performance.now() - WHEEL.downT > 170 && GS.P) {
     WHEEL.open = true;
     WHEEL.sel = -1;
     WHEEL.ax = (GS.P.x - GS.camX) * ZOOM;
