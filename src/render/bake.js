@@ -539,6 +539,7 @@ export function init() {
     bn_bag: [34, 22],
     bn_gear: [32, 26],
     bn_drum: [44, 22],
+    pouch: [22, 20],
   };
   BAKE_SIZES.heli = [272, 112];
   Object.assign(BAKE_SIZES, O_SIZES, RF_SIZES, WB_SIZES);

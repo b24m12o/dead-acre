@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { takePouch } from '../game/pockets.js';
 import { BOON, boonOn, tickBoons } from '../game/boons.js';
 import { roofStop } from '../world/roofs.js';
 import { tickDoors } from '../game/doors.js';
@@ -31,7 +32,7 @@ import {
   reloadTime,
   braceTick,
 } from '../game/state.js';
-import { lvCan, openLevel } from '../game/upgrades.js';
+import { lvCan, lvWait, openLevel } from '../game/upgrades.js';
 import { makeElite, makeEnemy } from '../actors/enemies.js';
 import { siegeK } from '../game/siege.js';
 import { bossNight, sinceBoss, spawnPoint } from '../game/waves.js';
@@ -810,12 +811,14 @@ export function update(dt) {
   for (const k of GS.pickups) {
     k.t += dt;
     const dd = Math.sqrt(d2(k.x, k.y, p.x, p.y)),
-      ck = k.k === 'hp' ? 'hp' : k.at || '*',
+      ck = k.k === 'hp' || k.k === 'pouch' ? k.k : k.at || '*',
       cl = claim[ck] || 0;
     const full =
-      k.k === 'hp'
-        ? hpRoom - cl < Math.min(12, k.v * 0.5)
-        : (k.at ? ammoRoomFor(k) : ammoRoom) - cl < 0.35 * (k.v || 1);
+      k.k === 'pouch'
+        ? false // always worth having
+        : k.k === 'hp'
+          ? hpRoom - cl < Math.min(12, k.v * 0.5)
+          : (k.at ? ammoRoomFor(k) : ammoRoom) - cl < 0.35 * (k.v || 1);
     if (!full && !p.ride && ((dd < S.magnet && k.t > 0.25) || k.pull)) claim[ck] = cl + (k.v || 1);
     if (full) {
       if (k.pull) k.vx = k.vy = 0; // it was on its way and there's no room after all: it stops where it is, not flung past you
@@ -860,7 +863,8 @@ export function update(dt) {
       if (k.k === 'ammo') {
         if (k.at) addAmmoType(k.at, k.v);
         else addAmmo(k.v);
-      } else {
+      } else if (k.k === 'pouch') takePouch(k);
+      else {
         const hv = Math.round(k.v * (PK().medic ? 1.5 : 1));
         if (p.hp < S.maxHp * 0.5) heroSay('heal', 0.3);
         p.hp = Math.min(S.maxHp, p.hp + hv);
@@ -937,7 +941,12 @@ export function update(dt) {
       sfx.ting();
       if (!GS.RUN.lvTold) {
         GS.RUN.lvTold = 1;
-        showStreak('Level up', 'Tab to pick now · or it waits for a lull', false, () => lvCan()); // not after it's spent
+        showStreak(
+          'Level up',
+          lvWait() ? 'Your cards wait for dawn · Tab to pick now' : 'Tab to pick now · or it waits for a lull',
+          false,
+          () => lvCan()
+        ); // not after it's spent
       }
     }
     const killing = GS.time - (GS.lastKillT || -99) < 3; // the last kill's blast and gibs get three seconds to play out
@@ -950,7 +959,8 @@ export function update(dt) {
         }
     if (near) GS.lvSnooze = false; // a new fight: once it's over, the cards may come up on their own again
     if (near && !killing) GS.lvCalm = GS.time;
-    if (!killing && GS.time - GS.lvCalm > 1.5 && !GS.lvSnooze && lvCan() && GS.time > (GS.RUN.lvHold || 0)) openLevel();
+    if (!killing && GS.time - GS.lvCalm > 1.5 && !GS.lvSnooze && !lvWait() && lvCan() && GS.time > (GS.RUN.lvHold || 0))
+      openLevel(); // at dawn (or between Horde Mode's waves), once it's quiet: all the night's cards in one stop
   } else GS.lvReady = 0;
 }
 // now and then a pack of walkers comes up out of a sewer hatch near you instead of out of the dark: the lid scrapes

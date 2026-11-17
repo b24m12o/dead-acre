@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { pouchDrop } from './pockets.js';
 import { boonDrop, gearK } from './boons.js';
 import { remainsFull } from '../render/remains.js';
 import { stationCatch } from './station.js';
@@ -728,6 +729,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     }
   }
   boonDrop(e); // now and then, what one in uniform carried (boons.js)
+  pouchDrop(e); // and what anyone had in their pockets, for the run (pockets.js)
   if (e.elite) {
     GS.runSeeds += 15;
     GS.slowmo = Math.max(GS.slowmo, 0.25);

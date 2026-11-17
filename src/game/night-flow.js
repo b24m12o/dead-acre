@@ -162,6 +162,7 @@ export function nightCleared() {
   }
   if (GS.nightDone) return;
   GS.nightDone = true;
+  GS.RUN.lvHold = Math.max(GS.RUN.lvHold || 0, GS.time + 2); // the night's cards (held through the fight) come up a beat after it's cleared
   {
     const up = GS.buddies.filter(b => !(b.down > 0));
     if (!up.length || Math.random() < 0.4) GS.later.push({ t: 1.2, fn: () => heroSay('clear') }); // alone, or first to say it

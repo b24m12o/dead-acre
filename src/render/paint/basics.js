@@ -533,6 +533,14 @@ export function paintBasics() {
     a.fillStyle = '#2a1e16';
     a.fillRect(8.4, -3, 1.8, 6);
   });
+  region('pouch', 22, 20, a => {
+    shape(a, c => rr(c, -9.5, -8.5, 19, 17, 4), '#6a4a30', { lw: 1.2 });
+    a.fillStyle = '#5a3e28';
+    a.fillRect(-9, -8, 18, 9.5);
+    a.fillStyle = '#c8a050';
+    circ(a, 0, -5.4, 1.1);
+    a.fill();
+  });
   region('bn_drum', 44, 22, a => {
     a.fillStyle = '#1e1f22';
     a.fillRect(-18.4, -2.3, 11, 3.4);

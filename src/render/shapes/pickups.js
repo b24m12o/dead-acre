@@ -68,6 +68,11 @@ export function shapePickups() {
       d=min(d,sdCap(p,vec3(1.0,-4.4,0.7),vec3(1.0,-4.4,3.4),5.2,5.2));
       d=min(d,sdBox(p,vec3(-1.0,3.6,2.0),vec3(3.4,0.5,0.9),0.3));
     }
+    else if(k==14){ /* a worn leather belt pouch: the flap over the top, a brass press-stud */
+      d=sdBox(p,vec3(0.0,0.0,2.8),vec3(7.8,6.6,1.6),2.2); d-=0.2*fbm(p.xy*0.6);
+      d=smin(d,sdBox(p,vec3(0.0,-2.0,4.9),vec3(7.6,4.4,0.35),0.6),0.6);
+      d=min(d,sdSph(p,vec3(0.0,-5.4,5.6),1.0));
+    }
     else { /* a military rifle case: olive-drab moulded shell, ribbed lid round a flat label panel, four black latches, two handles, a pressure valve */
       d=sdBox(p,vec3(0.0,0.0,3.8),vec3(29.0,9.8,3.5),1.8);
       float rib=smoothstep(0.7,1.0,abs(fract((p.x+29.0)/7.25)*2.0-1.0))*step(6.0,p.z)*step(13.0,abs(p.x)); d-=0.32*rib;
@@ -97,6 +102,7 @@ export function shapePickups() {
       if(p.z<2.2&&length((p.xy-vec2(-1.6,0.0))/vec2(14.4,11.2))>0.86) c=hx(0xd0d4c8)*(0.9+0.1*fbm(p.xy*2.0)); /* the reflective trim round the brim */
       if(p.x>8.4&&p.z>2.0) c=hx(0x2a1e16)*(0.9+0.2*fbm(p.xy*2.0)); return c; }
     if(k==13){ c=hx(0x1e1f22)*(0.85+0.25*fbm(p.xy*1.4)); if(p.x>6.2&&abs(p.y-2.2)<1.2) c=hx(0x3a3c40); float r=length(p.xy-vec2(1.0,-4.4)); if(r<5.4&&p.y<-0.6){ c=hx(0x2a2c2a)*(0.9+0.15*fbm(p.xy*2.0)); if(fract(r*0.55)>0.86) c*=0.6; if(r<1.3) c=hx(0x4a4c4e); } return c; }
+    if(k==14){ c=hx(0x6a4a30)*(0.78+0.32*fbm(p.xy*0.9)); if(p.z>4.4&&p.y<2.6) c=hx(0x5a3e28)*(0.8+0.3*fbm(p.xy*1.1)); if(abs(p.y-2.3)<0.3&&p.z>4.2) c=hx(0xb89a70); if(length(p.xy-vec2(0.0,-5.4))<1.1&&p.z>5.0) c=hx(0xc8a050); c=mix(c,hx(0x2a1a10),clamp((fbm(p.xy*0.5+3.0)-0.6)*1.5,0.0,0.4)); return c; }
     c=hx(0x5a6438)*(0.86+0.2*fbm(p.xy*0.6)); c=mix(c,hx(0x3e4628),clamp((fbm(p.xy*0.25+4.0)-0.55)*1.5,0.0,0.45)); /* olive-drab polymer, scuffed */
     if(abs(p.y)>9.7||p.z<1.6) c*=0.78; if(smoothstep(0.7,1.0,abs(fract((p.x+29.0)/7.25)*2.0-1.0))>0.5&&abs(p.x)>13.0&&p.z>6.0) c*=1.12;
     if(p.y>9.4&&abs(fract((p.x+21.0)/14.0+0.5)-0.5)*14.0<2.2) c=hx(0x1c1c1a); if(p.y<-9.6&&abs(abs(p.x)-13.0)<3.6) c=hx(0x202020); if(length(p.xy-vec2(25.0,-6.0))<1.4&&p.z>6.6) c=hx(0x2a2a28);
@@ -121,6 +127,7 @@ export function shapePickups() {
     ['bn_bag', 10],
     ['bn_gear', 9],
     ['bn_drum', 6],
+    ['pouch', 7],
   ].forEach(([n, z], i) => {
     bakePart(n, 'pk', i, z, 90 + i * 2.7, true);
     BAKE.parts[n].sl = true;

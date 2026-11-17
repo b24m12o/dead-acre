@@ -2,7 +2,7 @@
 import { boonHud } from '../game/boons.js';
 import { SIG } from '../game/objectives.js';
 import { GS } from '../core/gs.js';
-import { lvBank, lvRest } from '../game/upgrades.js';
+import { lvBank, lvRest, lvWait } from '../game/upgrades.js';
 import { $ } from '../core/errors.js';
 import { clamp } from '../core/util.js';
 import { GUNS } from '../game/arsenal.js';
@@ -391,7 +391,15 @@ export function updateHud() {
       lr.hidden = !bank;
       $('xpBar').classList.toggle('full', !!bank);
     }
-    if (bank) setT('lvReady', bank > 1 ? `${bank} level-ups · Tab` : 'Level up · Tab');
+    if (bank)
+      setT(
+        'lvReady',
+        lvWait()
+          ? `${bank > 1 ? bank + ' cards' : 'Cards'} at dawn · Tab now`
+          : bank > 1
+            ? `${bank} level-ups · Tab`
+            : 'Level up · Tab'
+      ); // in the fight they wait for dawn
   } // banked level-ups wait here until you open them, or a lull does
   setB('dashFill', 1 - GS.P.dashCd / S.dashCd);
   setB('shoveFill', 1 - (GS.P.shoveCd || 0) / shoveCd());

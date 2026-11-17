@@ -704,6 +704,9 @@ export function lvRest() {
   }
   return Math.min(1, x / nd);
 }
+// while the night is being fought, the cards wait for dawn: no card ever stops a fight on its own (Tab still opens them
+// if you want them now). Not in boss practice, which has no dawn
+export const lvWait = () => !!GS.nightLive && !GS.nightDone && !GS.RUN.practice;
 // never in the chopper, at a boss's entrance or in the tutorial's scripted bits
 export const lvCan = () =>
   GS.state === 'play' &&

@@ -349,7 +349,9 @@ export function render() {
     const bob = Math.sin(k.t * 5 + k.x) * 2.5,
       hot = lampHot(k.x, k.y),
       dm = 1 / (1 + 3.2 * hot); // right under a lamp the light pool is several times brighter than the street: dim the paint there so the kit keeps its colour
-    if (k.k === 'ammo')
+    if (k.k === 'pouch')
+      quad(R.pouch || R.medkit, k.x, k.y - 8 + bob, 0, 1.2, 1.2, dm, dm, dm, 1, 0.5, 0.45, 0.4, 0); // a dead one's pouch (pockets.js)
+    else if (k.k === 'ammo')
       quad(
         R['ammo_' + k.at] || R.ammo,
         k.x,

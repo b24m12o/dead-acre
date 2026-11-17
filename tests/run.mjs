@@ -33,6 +33,7 @@ const ALL = [
   'director',
   'stall',
   'boons',
+  'pockets',
   'threads',
   'marks',
   'roof',
