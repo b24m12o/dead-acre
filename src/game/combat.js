@@ -400,7 +400,9 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       !e.run &&
       e.hp > 0 &&
       e.hp < e.maxHp * 0.7 &&
-      Math.random() < (src === 'boom' ? 0.45 : clamp((dmg - 10) / 60, 0.03, 0.35) + (e.hp < e.maxHp * 0.55 ? 0.12 : 0))
+      Math.random() <
+        (src === 'boom' ? 0.45 : clamp((dmg - 10) / 60, 0.03, 0.35) + (e.hp < e.maxHp * 0.55 ? 0.12 : 0)) *
+          (heavyHit(e, src) ? 1.6 : 1)
     ) {
       // blasts and heavy rounds take legs: the walker keeps coming on its hands
       e.crawl = true;
@@ -553,7 +555,7 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       e.type !== 'mini' &&
       e.hp > 0 &&
       e.hp < e.maxHp * 0.8 &&
-      Math.random() < clamp((dmg - 6) / 45, 0.05, 0.6) * (crit ? 1.6 : 1)
+      Math.random() < clamp((dmg - 6) / 45, 0.05, 0.6) * (crit ? 1.6 : 1) * (heavyHit(e, src) ? 1.8 : 1)
     ) {
       const ly = -(hx - e.x) * Math.sin(e.a) + (hy - e.y) * Math.cos(e.a),
         i = Math.abs(ly) < 3 ? (Math.random() < 0.5 ? 0 : 1) : ly > 0 ? 1 : 0; // the arm on the side the round hit
@@ -676,6 +678,14 @@ function killStop(e, src) {
   GS.killStopT = GS.time;
   GS.hitstop = Math.max(GS.hitstop, t);
 }
+// a heavy hit: buckshot up close, or a hunting rifle's round. It takes more off them (heads, arms, legs)
+const heavyHit = (e, src) => {
+  if (src !== 'bolt' || !GS.HITB || !GS.P) return false;
+  const g = GS.HITB.gun;
+  return (
+    g === 'hunter' || g === 'lever' || ((g === 'shotgun' || g === 'auto') && d2(e.x, e.y, GS.P.x, GS.P.y) < 160 * 160)
+  );
+};
 export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   if (GS.P && opt.gore && e.type !== 'queen' && d2(e.x, e.y, GS.P.x, GS.P.y) < 70 * 70) {
     GS.P.stains = GS.P.stains || [];
@@ -864,7 +874,8 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       if (GS.corpses.length > cap && (!remainsFull() || GS.corpses.length > cap + 80)) GS.corpses.shift(); // over-full: the oldest is painted into the ground; only with nothing drawing does one just go
     }
     if (!big) sfx.fall(e.x, e.y);
-    if (HUMAN[e.type] && e.type !== 'mini' && crit && Math.random() < 0.55) {
+    const hv = heavyHit(e, src);
+    if (HUMAN[e.type] && e.type !== 'mini' && Math.random() < (crit ? (hv ? 0.95 : 0.55) : hv ? 0.22 : 0)) {
       e.headless = true;
       bump('heads');
       const [hx, hy] = toWorld(e, 4, 0);
@@ -872,6 +883,15 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       bleed(hx, hy, 24, dx, dy, 14, col, 300);
       sfx.gib(hx, hy);
     }
+    if (hv && HUMAN[e.type] && e.lost && e.type !== 'mini' && Math.random() < 0.4) {
+      const i = Math.random() < 0.5 ? 0 : 1;
+      if (!e.lost[i]) {
+        e.lost[i] = true;
+        const [ax, ay] = toWorld(e, 2, (i ? 1 : -1) * 13);
+        gib(ax, ay, R.g_arm, ZSKIN[e.sk || 0], col, 260, dx, dy);
+        bleed(ax, ay, 18, dx, dy, 10, col, 300);
+      }
+    } // a heavy hit takes an arm with it as it throws the body
     killStop(e, src);
     bleed(ex, ey, 14, dx, dy, big ? 44 : 16, col, big ? 440 : 340, big ? 1.6 : 1.1);
     if (Math.random() < 0.25) gib(ex, ey, R['g_meat' + randi(0, 1)], [1, 1, 1], col, 200, dx, dy);

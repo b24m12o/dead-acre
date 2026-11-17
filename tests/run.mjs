@@ -36,6 +36,7 @@ const ALL = [
   'pockets',
   'flow',
   'talk',
+  'gait',
   'threads',
   'marks',
   'roof',

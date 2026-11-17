@@ -903,7 +903,27 @@ export function updateEnemy(e, dt, p) {
   burnTick(e, dt);
   e.stride =
     (e.stride || 0) +
-    (Math.hypot(e.vx, e.vy) * dt) / (e.type === 'beetle' ? 120 : e.type === 'hound' ? 70 : e.type === 'mini' ? 44 : 58);
+    ((Math.hypot(e.vx, e.vy) * dt) /
+      (e.type === 'beetle' ? 120 : e.type === 'hound' ? 70 : e.type === 'mini' ? 44 : 58)) *
+      (e.type === 'skitter' && !e.run ? e.cad || 1 : 1); // its own cadence
+  if (
+    e.type === 'skitter' &&
+    !e.run &&
+    !e.crawl &&
+    !(e.down > 0) &&
+    !(e.stag > 0) &&
+    !(e.wbT > 0) &&
+    e.emerge >= 1 &&
+    e.vx * e.vx + e.vy * e.vy > 30 * 30 &&
+    Math.random() < dt * 0.06
+  ) {
+    const sa = Math.atan2(e.vy, e.vx) + (Math.random() < 0.5 ? 1.5 : -1.5);
+    e.kx += Math.cos(sa) * 55;
+    e.ky += Math.sin(sa) * 55;
+    e.wbT = 0.4;
+  } // now and then a foot goes wrong: a sideways step, a lurch to keep its feet
+  if (e.crawl && !e.dead && e.vx * e.vx + e.vy * e.vy > 15 * 15 && Math.random() < dt * 2.2)
+    pool(e.x + rand(-6, 6), e.y + rand(-6, 6), rand(0.08, 0.15), bloodOf(e), 25); // a crawler drags a smear behind it
   if (e.hp < e.maxHp * 0.5 && Math.random() < dt * 2.5)
     bleed(e.x, e.y, 12, rand(-1, 1), rand(-1, 1), 1, bloodOf(e), 30, 0.8);
   if (em && e.type !== 'flower' && e.dmg > 0 && e.z < 12 && !(e.down > 0)) {

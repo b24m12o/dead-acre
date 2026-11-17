@@ -246,7 +246,11 @@ function drawEnemy0(e) {
     return;
   }
   const sink = e.emerge < 1 ? 1 - e.emerge : 0;
-  const ta = e.a + (dead ? 0 : Math.sin(GS.time * 40) * e.wob * 0.08),
+  const mv0 = dead ? 0 : Math.min(1, Math.hypot(e.vx, e.vy) / 50),
+    ta =
+      e.a +
+      (dead ? 0 : Math.sin(GS.time * 40) * e.wob * 0.08) +
+      (dead || e.type !== 'skitter' ? 0 : (1 - mv0) * Math.sin(GS.time * 1.2 + (e.id || 0)) * 0.06), // standing, it rocks
     c = Math.cos(ta),
     s = Math.sin(ta);
   const W = (lx, ly) => [e.x + (lx * c - ly * s) * em, e.y - e.z + (lx * s + ly * c) * em + sink * 6];
@@ -299,8 +303,10 @@ function drawEnemy0(e) {
       const K = brute ? 1.9 : bloat ? 1.25 : 1,
         limp = e.limp && !run && !brute && !bloat,
         lurch = run ? 0 : Math.sin(ph) * (limp ? 0.14 : 0.09) * mv;
-      const sway =
-          (run ? 0.8 : limp ? 2.8 : 1.6) * Math.sin(ph) * mv * K +
+      const hu = run || brute || bloat ? 0 : e.hunch || 0,
+        sway =
+          (run ? 0.8 : limp ? 2.8 : 1.6) * Math.sin(ph) * mv * K * (run ? 1 : e.swK || 1) +
+          (dead || run || brute ? 0 : (1 - mv) * Math.sin(GS.time * 1.4 + (e.id || 0) * 1.7) * 1.3 * (e.swK || 1)) + // standing, it sways
           (e.wbT > 0 ? Math.sin(GS.time * 9 + (e.id || 0)) * 3.4 * Math.min(1, e.wbT / 0.5) * K : 0),
         fk = e.flT > 0 && !dead ? e.flT / 0.16 : 0,
         fwx = (e.fdx || 0) * 4 * fk * em,
@@ -312,7 +318,7 @@ function drawEnemy0(e) {
         look = dead ? 0 : clamp(angDiff(ta, e.hl ?? ta), -0.9, 0.9);
       // feet
       setH(2);
-      const stepL = (run ? 15 : 9) * K * mv,
+      const stepL = ((run ? 15 : 9) * K * mv) / (run ? 1 : e.cad || 1),
         drag = run ? 1 : 0.55;
       for (const sd of [-1, 1]) {
         const bad = limp && sd > 0,
@@ -409,6 +415,15 @@ function drawEnemy0(e) {
             [22 + reach + tw + sw * 3, -11.5],
             [20.5 + reach - tw - sw * 3, 11.5],
           ];
+        if (!dead && e.type === 'skitter' && e.aw > 0 && GS.P) {
+          const nr = clamp((150 - Math.hypot(GS.P.x - e.x, GS.P.y - e.y)) / 90, 0, 1);
+          if (nr > 0)
+            hands = hands.map((h, i) => [
+              lerp(h[0], 24 + tw * 0.5 + Math.sin(GS.time * 7 + i * 2) * 1.5, nr),
+              lerp(h[1], (i ? 1 : -1) * 11, nr),
+            ]);
+        } // close to you, both arms come up and reach
+        if (hu) hands = hands.map(h => [h[0] * (1 - 0.3 * hu) - 3 * hu, h[1] * (1 - 0.12 * hu)]); // bent forward: the arms hang lower, closer in
       } // reaching out at shoulder width, elbows a little soft
       if (!dead && (e.shape || e.trait) === 'bloater')
         hands = [
@@ -583,7 +598,7 @@ function drawEnemy0(e) {
         const kn = e.__std
           ? e.__kn || 0
           : 0; /* kneeling, the back is bent forward: from above the torso shows longer and sits ahead of the hips */
-        const [tbx, tby] = Wb(3 * kn, 0);
+        const [tbx, tby] = Wb(3 * kn + 2.5 * hu, 0);
         const gut =
           (e.shape || e.trait) === 'bloater'
             ? (e.kind === 'spore' ? 1.34 : 1.2) + Math.sin(GS.time * 2.6 + e.id) * 0.025
@@ -593,7 +608,14 @@ function drawEnemy0(e) {
           tbx,
           tby,
           ta + lurch + fk * 0.14 * (e.flS || 1),
-          em * hunch * (1 + sq) * (run ? 1.06 : 1) * (1 + 0.12 * kn) * gut * (tr === 'runner' ? 1.08 : 1),
+          em *
+            hunch *
+            (1 + sq) *
+            (run ? 1.06 : 1) *
+            (1 + 0.12 * kn) *
+            (1 + 0.1 * hu) *
+            gut *
+            (tr === 'runner' ? 1.08 : 1),
           em * hunch * (1 - sq * 0.5) * 1.07 * (gut > 1 ? 1.12 : 1) * tW,
           spit || scream ? 1 : tc[0],
           spit || scream ? 1 : tc[1],
@@ -630,7 +652,7 @@ function drawEnemy0(e) {
           const head = spit ? R.z_head_spit : scream ? R.z_shead : R['z_head' + (e.hv || 0)];
           const tilt = dead ? 0 : Math.sin(GS.time * 1.7 + e.id * 2.3) * 0.35 + (e.tilt || 0),
             hf = (scream ? lerp(4, -2, e.open || 0) : run ? 7 : 4) + (tr === 'runner' ? 3 : 0);
-          const [hx0, hy0] = Wb(hf + 5 * kn - fk * 2, Math.sin(GS.time * 1.1 + e.id) * 1.2 + look * 2.2),
+          const [hx0, hy0] = Wb(hf + 5 * kn + 5 * hu - fk * 2, Math.sin(GS.time * 1.1 + e.id) * 1.2 + look * 2.2),
             hx = hx0 + fwx * 0.6,
             hy = hy0 + fwy * 0.6;
           setH(30); /* the head snaps back further than the shoulders */

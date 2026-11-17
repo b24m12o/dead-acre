@@ -85,6 +85,11 @@ export function makeEnemy(type, x, y) {
   e.pose = Math.random() < 0.5 ? 0 : randi(1, 3);
   e.limp = Math.random() < 0.5 ? 0 : 1;
   e.stride = rand(0, 1);
+  // its own way of walking: short quick steps or long slow ones; a slight roll from foot to foot or a heavy shamble;
+  // now and then one bent forward, head low, arms hanging. Drawn only: the speed is the same
+  e.cad = rand(0.8, 1.3);
+  e.swK = rand(0.6, 1.75);
+  e.hunch = Math.random() < 0.22 ? rand(0.6, 1) : 0;
   e.bs = type === 'skitter' || type === 'mini' ? rand(0.93, 1.08) : 1; // people come in sizes: drawn only, the body you hit is the same
   e.bw = type === 'skitter' || type === 'mini' ? rand(0.88, 1.14) : 1; // and builds: stocky or slight, across the shoulders
   e.lost = [false, false];
