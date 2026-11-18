@@ -130,10 +130,10 @@ void main(){
   }
   window.ABOM3D = { P3, VAO, A, rot, xf, ik, pose: null, on: false };
   // draw it in place of the 2D boss, in whichever pass is running (the scene, the moon's shadows, a lamp's)
-  const drawEnemy_0 = drawEnemy;
-  drawEnemy = function (e) {
-    if (!e.__3d || !window.ABOM3D.pose) return drawEnemy_0.apply(this, arguments);
+  // draws the posed creature into whatever pass is running: the scene, the moon's shadows, a lamp's
+  window.ABOM3D.draw = function () {
     const S = window.ABOM3D.pose;
+    if (!S) return;
     flush();
     const vp = gl.getParameter(gl.VIEWPORT),
       W = vp[2],
@@ -180,6 +180,11 @@ void main(){
       gl.disable(gl.SCISSOR_TEST);
     }
     gl.useProgram(GS.curProg.p);
+  };
+  const drawEnemy_0 = drawEnemy;
+  drawEnemy = function (e) {
+    if (!e.__3d || !window.ABOM3D.pose) return drawEnemy_0.apply(this, arguments);
+    window.ABOM3D.draw();
   };
   return 'ok';
 })();
