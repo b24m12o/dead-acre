@@ -13,6 +13,7 @@ import { R } from './atlas.js';
 import { MAPREG, MH, MW, NM, TILE, WH, WW, grassCells, mapA, texMapA, texMapE, texMapN } from '../world/map.js';
 import { HUMAN } from './effects.js';
 import { drawEnemy } from './draw-enemies.js';
+import { figCam, figFlush } from './fig3d.js';
 import { LYB, lyState } from './draw-bodies.js';
 import { pileKeep } from '../world/piles.js';
 
@@ -154,7 +155,9 @@ function pass(tex, size, level, att, box, draw, shade) {
   quad(MAPREG, WW / 2, WH / 2, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0);
   flush();
   bset(GS.texAtlA, GS.texAtlE, GS.texAtlN, false);
+  figCam([x0 / s, y1 / s, w / s, -h / s], SZ); // the 3D bodies paint in through the same camera, at this target's size
   draw(shade);
+  figCam(null);
   flush();
   gl.readBuffer(att);
   gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -209,6 +212,7 @@ export function bakeRemains() {
       for (const d of M) drawMark(d);
       for (const e of B) if (HUMAN[e.type]) bodyAO(e, 0.26);
       for (const e of B) drawEnemy(e);
+      figFlush();
       if (!shade) return;
       // the shadow it lay in, and under: its own shapes in black, pushed off along the moonlight as the shadow pass
       // does. Without it a body brightens the moment it becomes ground
@@ -217,6 +221,7 @@ export function bakeRemains() {
       GS.SHS = REMAINS.shade;
       inkMode(true);
       for (const e of B) drawEnemy(e);
+      figFlush();
       flush();
       inkMode(false);
       GS.SHMODE = false;

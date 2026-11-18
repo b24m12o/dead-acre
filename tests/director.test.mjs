@@ -17,10 +17,12 @@ export async function run(b) {
     if (!spot) return { err: 'no open ground' };
     P.x = spot[0]; P.y = spot[1];
     // a night with surges: night 6
+    GS.horde = null; GS.RUN.hm = false; GS.RUN.practice = null; // an ordinary run, whatever an earlier test left behind
     GS.wave = 5; GS.RUN.nextSig = { w: 6, s: null }; // a plain night: a random one may be a horde, which has no surges
     GS.RUN.viaN = null; GS.RUN.viaA = null;
     startWave();
     for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0;
+    out.why = { horde: !!GS.horde, boss: bossNight(GS.wave), sig: GS.RUN.sig || null, journey: !!GS.RUN.journey, mode: GS.RUN.mode || null };
     out.sg = !!GS.RUN.sg; out.fresh = GS.dir && GS.dir.ph === 'build' && GS.dir.peaks === 0;
     const q0 = GS.queue.length + GS.enemies.length;
     // crowded close: eight of them round you that cannot reach you

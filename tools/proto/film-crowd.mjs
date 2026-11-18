@@ -16,7 +16,8 @@ const OUT = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[
   SECS = +arg('--secs', 8),
   ZOOM = +arg('--zoom', 2.4),
   FLAT = process.argv.includes('--2d'),
-  STAGE = +arg('--stage', 0);
+  STAGE = +arg('--stage', 0),
+  SHOW = process.argv.includes('--show'); // a scripted showcase: knocked down and up again, an arm lost, legs lost and crawling, then shot
 const FR = join(dirname(OUT), 'film-crowd-frames');
 rmSync(FR, { recursive: true, force: true });
 mkdirSync(FR, { recursive: true });
@@ -37,10 +38,15 @@ try {
         const e = makeEnemy('skitter', GS.P.x + Math.cos(a) * r, GS.P.y + Math.sin(a) * r); e.emerge = 1; e.trait = null; e.elite = false; e.shield = null; e.kind = null; GS.enemies.push(e); }
       GS.queue.push(...Array(40).fill('skitter')); GS.P.aimA = -Math.PI / 2; }
     window.__cx = GS.P.x; window.__cy = GS.P.y - 120;
-    window.__frame = (n, i) => { for (let j = 0; j < n; j++) { if (GS.state === 'levelup') { GS.luOpenT = 0; choose(0); } if (GS.state === 'cine') cineSkip();
+    window.__show = i => { if (!${SHOW}) return; const L = GS.enemies.filter(e => !e.dead && e.dying === undefined && !(e.down > 0) && !e.crawl).sort((a, b) => Math.hypot(a.x - GS.P.x, a.y - GS.P.y) - Math.hypot(b.x - GS.P.x, b.y - GS.P.y));
+      if (i === Math.round(${FPS} * 1.2)) for (const e of L.slice(0, 2)) tripOver(e, e.a); // tripped: down, and up again
+      if (i === Math.round(${FPS} * 2.2) && L[0]) { L[0].lost[0] = true; bleed(L[0].x, L[0].y, 18, 1, 0, 8, [0.4, 0.03, 0.02], 260); } // an arm gone
+      if (i === Math.round(${FPS} * 2.8) && L[1]) { const e = L[1]; e.crawl = true; e.sup = false; e.down = 0; e.fallA = e.a; e.lyG = 0; e.cfall = 0.32; } // the legs gone: on its hands
+    };
+    window.__frame = (n, i) => { __show(i); for (let j = 0; j < n; j++) { if (GS.state === 'levelup') { GS.luOpenT = 0; choose(0); } if (GS.state === 'cine') cineSkip();
         const near = GS.enemies.filter(e => !e.dead && e.dying === undefined).sort((a, b) => Math.hypot(a.x - GS.P.x, a.y - GS.P.y) - Math.hypot(b.x - GS.P.x, b.y - GS.P.y))[0];
         if (near) GS.P.aimA = Math.atan2(near.y - GS.P.y, near.x - GS.P.x);
-        mouse.down = near && Math.hypot(near.x - GS.P.x, near.y - GS.P.y) < 150 && (i % 16) < 5;
+        mouse.down = near && Math.hypot(near.x - GS.P.x, near.y - GS.P.y) < 150 && (i % 16) < 5 && (!${SHOW} || i > ${FPS} * 5);
         update(1 / 60); tickWorld(1 / 60); }
       // the camera eases toward you and the nearest few
       const L = GS.enemies.filter(e => !e.dead).sort((a, b) => Math.hypot(a.x - GS.P.x, a.y - GS.P.y) - Math.hypot(b.x - GS.P.x, b.y - GS.P.y)).slice(0, 3);

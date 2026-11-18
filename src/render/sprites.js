@@ -146,6 +146,7 @@ let CULL = null; // a box of the world to draw into instead of the screen (paint
 export function cullBox(b) {
   CULL = b;
 }
+export const inking = () => INK;
 let INK = false; // everything drawn comes out as its black silhouette (a shadow painted with the picture's own shapes)
 export function inkMode(on) {
   INK = on;
