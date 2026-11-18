@@ -43,7 +43,7 @@ import { bossOf, explode, hurtPlayer, makeLurker, makeShield, updateCrates } fro
 import { mouse, moveInput } from './input.js';
 import { PK } from '../ui/hangar.js';
 import { rope, runLater } from './later.js';
-import { updateEnemy } from '../actors/enemy-ai.js';
+import { comeRound, sieging, updateEnemy } from '../actors/enemy-ai.js';
 import { firePlayer, updateBang, updateMortar, updatePBullet } from '../actors/player-weapons.js';
 import { bossProj } from '../actors/projectiles.js';
 import { BILE } from '../render/draw-enemies.js';
@@ -605,6 +605,23 @@ export function update(dt) {
     buddyShoot(s, dt, 1);
     budLook(s, p, dt, spd);
   });
+  // a night never hangs: none of its last few in sight for 8 s, nothing more to come, and they all come round just out
+  // of sight of you and come for you (a horde's last ones milling where they gathered, one stuck in a yard)
+  if (GS.nightLive && !GS.nightDone && !GS.queue.length && !GS.evac && !GS.RUN.tut && !(GS.boss && !GS.boss.dead)) {
+    let n = 0,
+      seen = false;
+    for (const e of GS.enemies) {
+      if (e.dead || e.type === 'flower') continue;
+      n++;
+      if (e.x > cam.x - 80 && e.x < cam.x + viewW + 80 && e.y > cam.y - 80 && e.y < cam.y + viewH + 80) seen = true;
+    }
+    GS.blankT = n && n <= 12 && !seen ? (GS.blankT || 0) + dt : 0;
+    if (GS.blankT >= 8) {
+      GS.blankT = 0;
+      for (const e of GS.enemies) if (!e.dead && e.type !== 'flower' && !sieging(e)) comeRound(e, 420, 620);
+      if (GS.horde && !GS.horde.done) GS.horde.alert = true;
+    }
+  } else GS.blankT = 0;
   const SG = GS.RUN.sg;
   dirTick(dt, SG); // the director: how hard the night is on you, and so when the rest come (director.js)
   if (GS.burstT > 0) GS.burstT -= dt; // a boss turning: its lot comes now, all together (arenaPhase)

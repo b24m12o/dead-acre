@@ -34,6 +34,7 @@ const ALL = [
   'stall',
   'pace',
   'entrance',
+  'hang',
   'boons',
   'pockets',
   'flow',

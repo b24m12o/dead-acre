@@ -75,7 +75,26 @@ export const SIGHT = { half: 1.92, behind: 60 };
 // one of the dead going for the siege house, while there is still a siege: once it's over (won or lost) they are
 // just the night's dead again, and any that can't reach you come round nearer like the rest (a siege-bound straggler
 // used to wander the map for good, and the last lurkers lay waiting on it, so the night never ended)
-const sieging = e => !!e.sg && !!GS.obj && GS.obj.type === 'siege' && !GS.obj.done;
+export const sieging = e => !!e.sg && !!GS.obj && GS.obj.type === 'siege' && !GS.obj.done;
+// one that can't or won't come (stuck behind something, lost in a corner, milling where its horde gathered): it climbs
+// back out of the dark just out of sight of you, and comes for you this time, not back to whatever noise it stood at
+export function comeRound(e, r0 = 420, r1 = 560) {
+  const [sx, sy] = spawnRing(r0, r1);
+  e.offN = 0;
+  e.x = sx;
+  e.y = sy;
+  e.vx = e.vy = e.kx = e.ky = 0;
+  e.emerge = 0;
+  e.aw = 9;
+  e.lure = null;
+  e.dormant = false;
+  if (e.st !== 'move') {
+    e.st = 'move';
+    e.stT = 0.6;
+  }
+  e.noProg = 0;
+  e.lastPD = 1e9;
+}
 export function updateEnemy(e, dt, p) {
   if (e.dead) return;
   e.flash = Math.max(0, e.flash - dt);
@@ -823,20 +842,7 @@ export function updateEnemy(e, dt, p) {
       if ((e.noProg >= 12 || e.offN >= 3) && !GS.queue.length && GS.nightLive) {
         // stuck where it can't reach you once the night's last wave is out, or one of the last few hanging back out of
         // sight: it comes round again just out of sight of you, however many are left
-        const [sx, sy] = spawnRing(420, 560);
-        e.offN = 0;
-        e.x = sx;
-        e.y = sy;
-        e.vx = e.vy = e.kx = e.ky = 0;
-        e.emerge = 0;
-        e.aw = 9;
-        e.lure = null; // and it comes for you this time, not back to whatever noise it was standing at
-        if (e.st !== 'move') {
-          e.st = 'move';
-          e.stT = 0.6;
-        }
-        e.noProg = 0;
-        e.lastPD = 1e9;
+        comeRound(e);
       }
     }
   } // the last stragglers that can't find a way to you (stuck behind something, lost in a corner) climb back out of the dark nearer you, so a night always ends
