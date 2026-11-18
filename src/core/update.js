@@ -36,7 +36,7 @@ import {
 import { lvCan, lvWait, openLevel } from '../game/upgrades.js';
 import { makeElite, makeEnemy } from '../actors/enemies.js';
 import { siegeK } from '../game/siege.js';
-import { bossNight, sinceBoss, spawnPoint } from '../game/waves.js';
+import { bossNight, sinceBoss, spawnPoint, spawnRing } from '../game/waves.js';
 import { chips, decal, dust, floatText, glowBurst, part, pool, ring } from '../render/effects.js';
 import { bossOf, explode, hurtPlayer, makeLurker, makeShield, updateCrates } from '../game/combat.js';
 import { mouse, moveInput } from './input.js';
@@ -624,16 +624,21 @@ export function update(dt) {
       const mark = t === 'hunt';
       if (mark) t = GS.wave >= 6 && Math.random() < 0.5 ? 'beetle' : 'skitter'; // a marked elite for the hunt job
       const edge = false,
-        [sx, sy] = SG && SG.horde && t !== 'queen' ? hordeSpot(SG.horde) : spawnPoint(t === 'queen' ? 520 : 460, edge);
+        [sx, sy] =
+          SG && SG.horde && t !== 'queen'
+            ? hordeSpot(SG.horde)
+            : t === 'queen' || edge
+              ? spawnPoint(520, edge)
+              : spawnRing(); // just out of sight, so they are on you in seconds
       if (SG) {
         SG.n++;
         if (SG.i < SG.cuts.length && (SG.m || 0) - GS.queue.length >= SG.cuts[SG.i] && GS.queue.length) {
           SG.i++;
-          SG.lull = ((GS.press || 0) > 0.35 ? 18 : (GS.press || 0) < 0.05 ? 10 : 14) * rand(0.6, 1.3); // a longer breath after a hard surge, a shorter one after an easy one, never the same twice
+          SG.lull = ((GS.press || 0) > 0.35 ? 9 : (GS.press || 0) < 0.05 ? 5 : 7) * rand(0.6, 1.3); // a longer breath after a hard surge, a shorter one after an easy one, never the same twice
           SG.quiet = 0;
         }
       }
-      const pack = t === 'skitter' ? randi(2, 3 + Math.min(3, GS.wave >> 2)) : t === 'hound' ? 3 : 1; // specials come alone
+      const pack = t === 'skitter' ? randi(3, 4 + Math.min(3, GS.wave >> 2)) : t === 'hound' ? 3 : 1; // specials come alone
       for (let i = 0; i < pack; i++) {
         const ne = SPECIAL[t]
           ? makeSpecial(t, sx, sy)

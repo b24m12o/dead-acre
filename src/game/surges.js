@@ -71,7 +71,7 @@ export function surgeLull(SG, dt) {
     if (!e.dead && !e.dormant && (e.aw > 0 || e.los || d2(e.x, e.y, GS.P.x, GS.P.y) < 600 * 600)) alive++;
   if (alive <= 3 || SG.lull <= 0) {
     SG.quiet = (SG.quiet || 0) + dt;
-    if (SG.quiet >= 3.5 || SG.lull <= -6) surgeGo(SG);
+    if (SG.quiet >= 2 || SG.lull <= -4) surgeGo(SG);
   }
 }
 function surgeGo(SG) {

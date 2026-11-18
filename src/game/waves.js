@@ -24,8 +24,10 @@ export const sinceBoss = w => {
 export const lastNight = w => !GS.RUN.endless && w === FINAL_NIGHT; // endless: Horde Mode's runs, which have no last night
 export function buildWave(w) {
   const q = [];
-  let n = Math.round(9 + Math.min(w, 8) * 5 + Math.max(0, w - 8) * 3);
-  if (w > 1 && bossNight(w - 1)) n = Math.round(n * 0.8); // the night after a boss is a lighter one
+  let n = Math.round((9 + Math.min(w, 8) * 5 + Math.max(0, w - 8) * 3) * (bossNight(w) ? 1 : 1.25)); // a boss's night keeps its count: the boss is the wall
+  if (w > 1 && bossNight(w - 1))
+    n = Math.round(n * 0.8); // the night after a boss is a lighter one
+  else if (!bossNight(w)) n = Math.round(n * (1 + 0.07 * sinceBoss(w))); // and they build to the next: the night before one is the worst of its stretch
   const T = [['skitter', 6]];
   const Dn = GS.RUN.district;
   if (w >= 2) T.push(['hopper', 0.9], ['wasp', 1.2 * (INF(8) ? 1.8 : 1)]);
@@ -84,6 +86,29 @@ export function buildWave(w) {
       q.splice(Math.floor(Math.random() * q.length), 0, q[Math.floor(Math.random() * q.length)]);
   }
   return q;
+}
+// a spot just out of sight, minD to maxD from you, that can walk to you: where the night's dead come from, so they are
+// on you in seconds rather than wandering in from the far side of the map (and where a lost straggler comes back in)
+export function spawnRing(minD = 560, maxD = 980) {
+  {
+    const ps = pitSpot(minD);
+    if (ps) return ps;
+  } // at the quarry they come up out of the pit
+  const P = GS.P;
+  for (let k = 0; k < 48; k++) {
+    const a = rand(0, TAU),
+      r = rand(minD, maxD),
+      x = P.x + Math.cos(a) * r,
+      y = P.y + Math.sin(a) * r;
+    if (x < 4 * TILE || y < 4 * TILE || x > WW - 4 * TILE || y > WH - 4 * TILE) continue;
+    if (x > cam.x - 40 && x < cam.x + viewW + 40 && y > cam.y - 40 && y < cam.y + viewH + 40) continue; // never in sight
+    const tx = Math.floor(x / TILE),
+      ty = Math.floor(y / TILE);
+    let ok = true;
+    for (let j = -1; j <= 1 && ok; j++) for (let i = -1; i <= 1 && ok; i++) if (isWall(tx + i, ty + j)) ok = false;
+    if (ok && reachPt(x, y)) return [x, y];
+  }
+  return spawnPoint(minD, false);
 }
 export function spawnPoint(minD = 480, edge = false) {
   {

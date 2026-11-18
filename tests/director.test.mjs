@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // The night's director (director.js). Crowded close, it lets the peak run a few seconds, then holds the rest of the queue
-// back for a breather, the far crowd closing in at half pace; the breather ends once things are calm, and never runs past
+// back for a breather, the far crowd closing in slower; the breather ends once things are calm, and never runs past
 // its limit. Cruising, it brings the next special forward. Never on a boss's night, and it neither adds nor removes any.
 import { openGame, check } from './lib/harness.mjs';
 
@@ -31,8 +31,8 @@ export async function run(b) {
     out.peakAt = peakAt; out.relaxAt = relaxAt; out.peaks = GS.dir.peaks;
     // in the breather: the queue waits
     const qa = GS.queue.length; fr(60 * 3, hold); out.held = qa > 0 && GS.queue.length === qa && GS.dir.ph === 'relax';
-    // and the far crowd, out of sight, closes in at half pace; near you, or in sight, at its own
-    out.paceFar = dirPace({ los: false }, 700 * 700); out.paceSeen = dirPace({ los: true }, 700 * 700); out.paceNear = dirPace({ los: false }, 200 * 200);
+    // and the far crowd, out of sight, closes in slower; near you, or in sight, at its own
+    out.slow = DIR.slow; out.paceFar = dirPace({ los: false }, 700 * 700); out.paceSeen = dirPace({ los: true }, 700 * 700); out.paceNear = dirPace({ los: false }, 200 * 200);
     // still crowded: the breather ends at its limit all the same
     let endAt = -1; for (let i = 0; i < 60 * 16 && endAt < 0; i++) { fr(1, hold); if (GS.dir.ph !== 'relax') endAt = i / 60; }
     out.limitEnd = endAt >= 0 && GS.dir.held <= DIR.relaxMax + 0.2;
@@ -63,8 +63,8 @@ export async function run(b) {
   );
   check(o.held, 'in the breather the rest of the queue should wait');
   check(
-    o.paceFar === 0.5 && o.paceSeen === 1 && o.paceNear === 1,
-    `the far crowd out of sight at half pace, the rest at their own: ${o.paceFar} ${o.paceSeen} ${o.paceNear}`
+    o.paceFar === o.slow && o.slow < 1 && o.paceSeen === 1 && o.paceNear === 1,
+    `the far crowd out of sight slower, the rest at their own: ${o.paceFar} ${o.paceSeen} ${o.paceNear}`
   );
   check(o.limitEnd, 'a breather should end at its limit even if it is still crowded');
   check(o.calmEnd >= 1.5 && o.calmEnd < 2.6, `calm, a breather should end as its time runs out: ${o.calmEnd} s`);

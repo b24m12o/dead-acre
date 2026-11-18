@@ -14,7 +14,7 @@ import { sfx } from '../audio/sfx.js';
 import { S, cam } from '../game/state.js';
 import { showStreak } from '../ui/callouts.js';
 import { ET, makeEnemy, traitTick } from './enemies.js';
-import { spawnPoint } from '../game/waves.js';
+import { spawnRing } from '../game/waves.js';
 import {
   HUMAN,
   bleed,
@@ -817,9 +817,14 @@ export function updateEnemy(e, dt, p) {
       const busy = sieging(e) || GS.time - (e.boardT ?? -9) < 2; // at the siege house, or pounding on a door or a board: where it means to be
       e.noProg = !busy && !dirRelax() && (d > 260 || !e.los) && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0; // far off, or near but walled off from you (two were left 240 px away behind a wall all night)
       e.lastPD = d;
-      if (e.noProg >= 12 && !GS.queue.length && GS.nightLive) {
-        // stuck where it can't reach you once the night's last wave is out: it comes round again near you, however many are left
-        const [sx, sy] = spawnPoint(380, false);
+      // one of the last few, out of sight and not coming: nobody hunts the last of them round the map
+      const seen = e.x > cam.x - 60 && e.x < cam.x + viewW + 60 && e.y > cam.y - 60 && e.y < cam.y + viewH + 60;
+      e.offN = !busy && !seen && !e.lurk && lastFew() && GS.nightLive && !GS.nightDone ? (e.offN || 0) + 1 : 0;
+      if ((e.noProg >= 12 || e.offN >= 3) && !GS.queue.length && GS.nightLive) {
+        // stuck where it can't reach you once the night's last wave is out, or one of the last few hanging back out of
+        // sight: it comes round again just out of sight of you, however many are left
+        const [sx, sy] = spawnRing(420, 560);
+        e.offN = 0;
         e.x = sx;
         e.y = sy;
         e.vx = e.vy = e.kx = e.ky = 0;

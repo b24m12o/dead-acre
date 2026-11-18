@@ -48,12 +48,20 @@ export function planSig(w) {
   const used = GS.RUN.sigUsed || [];
   const J = GS.RUN.journey;
   if (J && HORDE_J[w]) return 'horde'; // the campaign's hordes are where the story puts them (route.js)
-  if (w === 2) return 'pack';
-  if (w === 3) return 'brute';
+  if (w <= 3) {
+    const early = ['pack', 'brute', 'fog', 'storm', 'alarm'].filter(
+      s => !used.includes(s) && !(s === 'alarm' && !cars.some(c => c.hasAlarm && !c.alarmUsed && !c.dead))
+    );
+    return pick(early.length ? early : ['pack', 'brute']);
+  } // the first nights are never the same two: something that teaches, drawn at random
   if (w === 4) return 'horde';
   const deck = Object.keys(SIG).filter(
     s =>
-      !(J && s === 'horde') &&
+      !(
+        J &&
+        s === 'horde' &&
+        (w < 6 || bossNight(w + 1) || HORDE_J[w - 1] || HORDE_J[w + 1] || viaNight(w) || choiceNight(w))
+      ) && // later on the road a horde can come on any night, not only where the story puts one
       !used.slice(-3).includes(s) &&
       !(s === 'alarm' && !cars.some(c => c.hasAlarm && !c.alarmUsed && !c.dead)) &&
       !(s === 'siege' && ((used.includes('siege') && used.lastIndexOf('siege') > used.length - 5) || !siegeHouse()))

@@ -19,13 +19,13 @@ export const DIR = {
   cruise: 0.12, // below this you are cruising
   near: 220, // "close": within this many px of you
   peakT: [3, 5], // a peak runs on this long
-  relaxT: [6, 10], // then the breather, at least this long
-  relaxMax: 14, // and never longer than this: a night must not stall
+  relaxT: [4, 7], // then the breather, at least this long
+  relaxMax: 9, // and never longer than this: a night must not stall
   cruiseT: 10, // cruising this long brings a special forward
   pullGap: 20, // at most one every this many seconds
   quick: 0.8, // and the rest come this much quicker while you cruise
   far: 450, // the crowd's pace is only ever changed this far from you, and out of sight
-  slow: 0.5, // in a breather they close in at this pace
+  slow: 0.7, // in a breather they close in at this pace
   hurry: 1.15, // and at this while you cruise
 };
 // the ordinary dead: anything else in the queue is a special, and a special is what a cruise brings forward

@@ -275,7 +275,7 @@ export function begin() {
   } // Horde Mode: wave after wave of hordes, no evac
   GS.RUN.abB = abPickB(GS.RUN.hero);
   if (!GS.RUN.practice) clearSave(); // a new run replaces whatever was saved
-  GS.RUN.jobN = camp ? JOBS_J.slice() : [3, 7, 12, pick([9, 13])];
+  GS.RUN.jobN = camp ? JOBS_J.map(w => (w === 7 ? pick([6, 7]) : w)) : [3, 7, 12, pick([9, 13])]; // Hale can be found either night at the gas station
   if (camp) GS.RUN.stop = 0; // Main Street, Dead Acre
   {
     const sh = a => {
