@@ -17,7 +17,8 @@ export const strip = t => {
   return l.join('\n');
 };
 
-// players never rebuild the 3D character pictures, so dist leaves out the shapes they are built from
+// players never rebuild the 3D character pictures, so dist leaves out the shapes they are built from, except the
+// bosses' (GB_GLSL), which the live 3D bosses draw every frame
 const LEAN = /src[\\/]render[\\/](bake\.js|shapes[\\/]\w+\.js)$/;
 const leanPlugin = {
   name: 'lean',
@@ -25,8 +26,9 @@ const leanPlugin = {
     b.onLoad({ filter: LEAN }, a => {
       const out = readFileSync(a.path, 'utf8')
         .replace(/bakeGroup\(\s*'(\w+)',\s*`[\s\S]*?`\s*\);/g, (_, g) => `bakeGroup('${g}', '');`)
-        .replace(/const BAKE_LIB = `[\s\S]*?`;/, "const BAKE_LIB = '';");
-      if (out.includes('float map(vec3 p)')) throw new Error('shape code was not stripped from ' + a.path);
+        .replace(/bakeGroup\(\s*'gb',\s*GB_GLSL\s*\)/, "bakeGroup('gb', '')"); // the bosses' shapes stay (GB_GLSL): the live 3D bosses draw them
+      if (out.replace(/export const GB_GLSL = `[\s\S]*?`;/, '').includes('float map(vec3 p)'))
+        throw new Error('shape code was not stripped from ' + a.path);
       return { contents: out, loader: 'js' };
     });
   },

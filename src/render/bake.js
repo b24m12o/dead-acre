@@ -3,22 +3,12 @@ import { $ } from '../core/errors.js';
 import { gl, progFinish, program } from './gl.js';
 import { AS, regionScale } from './atlas.js';
 import { PACK } from '../core/assets.js';
+import { SDF_LIB } from './sdf-lib.js';
 export const FS_VS = `#version 300 es
 out vec2 vUv; void main(){ vec2 p=vec2((gl_VertexID<<1)&2, gl_VertexID&2); vUv=p; gl_Position=vec4(p*2.0-1.0,0.0,1.0); }`;
 /* ---------- the 3D bake: body parts are modelled as signed-distance shapes and photographed straight down on the graphics card at load.
    Each part keeps its old name and size, so the drawing code never knows; if the card can't do it, the painted version is used. ---------- */
-const BAKE_LIB = `
-float sdSph(vec3 p, vec3 c, float r){ return length(p-c)-r; }
-float sdEll(vec3 p, vec3 c, vec3 r){ p-=c; float k0=length(p/r), k1=length(p/(r*r)); return k0*(k0-1.0)/max(k1,1e-5); }
-float sdCap(vec3 p, vec3 a, vec3 b, float ra, float rb){ vec3 pa=p-a, ba=b-a; float t=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0); return length(pa-ba*t)-mix(ra,rb,t); }
-float sdBox(vec3 p, vec3 c, vec3 b, float r){ vec3 q=abs(p-c)-b; return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0)-r; }
-float smin(float a, float b, float k){ float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0); return mix(b,a,h)-k*h*(1.0-h); }
-float smax(float a, float b, float k){ return -smin(-a,-b,k); }
-float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
-float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x), f.y); }
-float fbm(vec2 p){ float s=0.0, a=0.5; for(int i=0;i<4;i++){ s+=a*vn(p); p=p*2.03+vec2(17.1,9.2); a*=0.5; } return s; }
-vec3 hx(int c){ return vec3(float((c>>16)&255),float((c>>8)&255),float(c&255))/255.0; }
-`;
+const BAKE_LIB = SDF_LIB;
 const BAKE_FS = group => `#version 300 es
 precision highp float; precision highp int;
 uniform vec3 uBox; uniform vec2 uRes; uniform int uPart; uniform float uSeed; uniform int uSS; uniform int uSteps; uniform float uObl;

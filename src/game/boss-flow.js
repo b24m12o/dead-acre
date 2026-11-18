@@ -1,6 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { cinePlay } from './cine.js';
+import { CINE, cinePlay } from './cine.js';
 import { clawOut } from '../actors/legs.js';
+import { CLIP_END, boss3dOn, clipAbom } from '../render/boss3d.js';
 import { placeStage } from './setpieces.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
@@ -319,7 +320,139 @@ const ENTRANCE = {
     const [x, y] = stageSpot(520, 680);
     stage(bt, x, y, [[0.9, () => walkOut(bossArrive(x, y, true), toYou(x, y), 1.2, 50, 1.3, null, 0.2, 1)]], 0.9, 3.6);
   },
+  abom3d(bt) {
+    // in 3D (boss3d.js): the lights round where it will surface die one after another, then it climbs out of the
+    // street: the asphalt splits, its blades come up out of the hole and stab into the street beyond the rim, its head
+    // breaks the surface, it hauls itself up on them, its legs come over the rim one by one and grip, it stands, its
+    // tail slides out after it, it roars. The clip poses it; at the end (played out or skipped) the fight takes it over
+    // where the clip left it
+    const [x, y] = stageSpot(500, 640),
+      steps = [],
+      L = lampsNear(x, y, 430, 5),
+      t0 = 0.5,
+      yaw = Math.atan2(GS.P.y - y, GS.P.x - x),
+      C = clipAbom(x, y, yaw);
+    L.forEach((l, i) => steps.push([t0 + i * 0.15, () => lampOff(l)]));
+    const tS = t0 + L.length * 0.15 + 0.2;
+    steps.push([tS + 0.25, () => sfx.chitter(x, y, 0.9)]);
+    let e = null,
+      last = 0;
+    const fx = {
+      crack: k => {
+        decal(R.hole, x + rand(-6, 6), y + rand(-6, 6), 0.8 + 2.6 * k, [1, 1, 1, 0.35 + 0.45 * k], [0, 0, 0], 120);
+        dust(x + rand(-40, 40), y + rand(-40, 40), 1 + ((k * 4) | 0), 40 + 40 * k, 1, 1, [0.28, 0.27, 0.25]);
+        chips(x, y, 2 + ((k * 6) | 0), null, 4, 80 + 120 * k);
+        shake(0.04 + 0.2 * k);
+        if (Math.round(k * 5) % 2 === 0) sfx.rumble(x, y);
+      },
+      burst: () => {
+        e = bossArrive(x, y, false);
+        if (e) {
+          e.emerge = 1;
+          e.clip3d = C;
+          e.a = e.face = yaw;
+          if (GS.state === 'cine') CINE.boss = e;
+        }
+        decal(R.hole, x, y, 3.6, [1, 1, 1, 0.95], [0, 0, 0], 200);
+        for (let i = 0; i < 16; i++) {
+          const a = rand(0, TAU),
+            sp = rand(90, 280);
+          part({
+            k: 3,
+            x: x + Math.cos(a) * 30,
+            y: y + Math.sin(a) * 30,
+            z: 6,
+            vz: rand(140, 300),
+            vx: Math.cos(a) * sp,
+            vy: Math.sin(a) * sp,
+            life: 1.8,
+            max: 1.8,
+            size: rand(0.7, 1.4),
+            rot: rand(0, TAU),
+            vr: rand(-6, 6),
+            drag: 1.6,
+            c: [0.2, 0.2, 0.22],
+          });
+        } // slabs of the street, thrown up and falling back
+        chips(x, y, 16, null, 4, 300);
+        dust(x, y, 10, 100, 1.4, 1.3, [0.24, 0.23, 0.21]);
+        shake(0.5);
+      },
+      stab: p => {
+        chips(p[0], p[1], 10, null, 4, 200);
+        sparks(p[0], p[1], [1, 0.85, 0.5], 8, 220);
+        decal(R.hole, p[0], p[1], 0.7, [1, 1, 1, 0.8], [0, 0, 0], 120);
+        sfx.crunch(p[0], p[1]);
+        shake(0.3);
+      },
+      grip: p => {
+        chips(p[0], p[1], 7, null, 4, 150);
+        dust(p[0], p[1], 3, 40, 0.9, 0.9, [0.3, 0.28, 0.26]);
+        decal(R.hole, p[0], p[1], 0.5, [1, 1, 1, 0.6], [0, 0, 0], 120);
+        sfx.crunch(p[0], p[1]);
+        shake(0.14);
+      },
+      step: p => {
+        dust(p[0], p[1], 3, 40, 0.9, 0.8, [0.3, 0.28, 0.26]);
+        shake(0.07);
+      },
+      haul: () => {
+        dust(x, y, 8, 90, 1.3, 1.2, [0.26, 0.25, 0.23]);
+        chips(x, y, 8, null, 4, 160);
+        sfx.rumble(x, y);
+        shake(0.2);
+      },
+      roar: () => {
+        if (e) sfx.roar(e.x, e.y, 'abom');
+        shake(0.45);
+      },
+    };
+    const at = t => {
+      const tc = Math.min(CLIP_END, t - tS);
+      if (tc < 0) return;
+      const pose = C.pose(tc);
+      C.events(last, tc, pose, fx);
+      last = tc;
+      if (e && !e.dead) {
+        e.pose3 = pose;
+        e.p3F = GS.time;
+        e.x = pose.bodyP[0];
+        e.y = pose.bodyP[1];
+      }
+    };
+    cinePlay({
+      x,
+      y,
+      steps,
+      reveal: tS + 2.6,
+      end: tS + 5.4,
+      key: bt,
+      name: bossName(),
+      sub: SUB[bt] || '',
+      onTick: at,
+      onEnd: () => {
+        at(tS + CLIP_END); // skipped: on to the end of it
+        if (!e) return;
+        const pose = C.pose(CLIP_END);
+        e.clip3d = null;
+        e.pose3 = null;
+        e.p3 = null;
+        e.x = pose.bodyP[0];
+        e.y = pose.bodyP[1];
+        e.a = e.face = yaw;
+        e.t0 = GS.time;
+        if (e.legs)
+          e.legs.forEach((Lg, i) => {
+            Lg.fx = pose.legs[i][2][0];
+            Lg.fy = pose.legs[i][2][1];
+            Lg.t = 1;
+            Lg.out = undefined;
+          }); // its feet where the clip planted them
+      },
+    });
+  },
   abom(bt) {
+    if (boss3dOn()) return ENTRANCE.abom3d(bt);
     // the lights round where it will surface die one after another, the street shakes and splits, it clicks, and it
     // tears up out of the asphalt
     const [x, y] = stageSpot(500, 640),

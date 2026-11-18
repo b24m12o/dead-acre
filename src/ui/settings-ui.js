@@ -146,6 +146,7 @@ export function syncOpts() {
     ['dmgBtn', opt.dmgNums],
     ['flashBtn', opt.flash],
     ['goreBtn', opt.gore],
+    ['b3dBtn', opt.b3d],
     ['grainBtn', opt.grain],
     ['losBtn', opt.los],
     ['chLine', GS.meta.ch.line],
@@ -311,6 +312,11 @@ export function init() {
   $('goreBtn').addEventListener('click', () => {
     opt.gore = !opt.gore;
     store.set('rr_gore', opt.gore ? '1' : '0');
+    syncOpts();
+  });
+  $('b3dBtn').addEventListener('click', () => {
+    opt.b3d = !opt.b3d;
+    store.set('rr_b3d', opt.b3d ? '1' : '0');
     syncOpts();
   });
   $('dmgBtn').addEventListener('click', () => {

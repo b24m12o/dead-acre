@@ -35,6 +35,7 @@ const ALL = [
   'pace',
   'entrance',
   'hang',
+  'boss3d',
   'boons',
   'pockets',
   'flow',

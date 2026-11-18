@@ -29,13 +29,15 @@ function el() {
 
 // x, y: where the camera looks; steps: [time, fn] (a step's fn may return the boss); reveal: when it comes out;
 // end: when the camera goes back; name/sub: its card; key: what marks it seen
-export function cinePlay({ x, y, steps, reveal, end, name, sub, key }) {
+export function cinePlay({ x, y, steps, reveal, end, name, sub, key, onTick = null, onEnd = null }) {
   const seen = !!(GS.meta.bossSeen && GS.meta.bossSeen[key]);
   CINE.steps = steps.slice().sort((a, b) => a[0] - b[0]);
   CINE.t = seen ? Math.max(0, reveal - 0.45) : 0; // seen before: straight to the moment it comes out
   CINE.end = seen ? reveal + 1.5 : end;
   CINE.cardAt = reveal + (seen ? 0.15 : 0.55);
   CINE.boss = null;
+  CINE.onTick = onTick; // every frame of it (a clip that poses the boss)
+  CINE.onEnd = onEnd; // when it's over, played out or skipped
   CINE.age = 0;
   CINE.card = { name, sub };
   CINE.prev = GS.state;
@@ -49,6 +51,7 @@ export function cinePlay({ x, y, steps, reveal, end, name, sub, key }) {
   c.lastChild.textContent = sub || '';
   document.body.classList.add('cine');
   while (CINE.steps.length && CINE.steps[0][0] <= CINE.t) run(CINE.steps.shift()); // what had already happened
+  if (CINE.onTick) CINE.onTick(CINE.t);
   GS.P.inv = Math.max(GS.P.inv, 1);
 }
 function run(s) {
@@ -62,6 +65,7 @@ export function cineTick(dt) {
   CINE.age += dt;
   while (CINE.steps.length && CINE.steps[0][0] <= CINE.t) run(CINE.steps.shift());
   physTick(dt);
+  if (CINE.onTick) CINE.onTick(CINE.t);
   const e = CINE.boss;
   if (e && !e.dead) updateEnemy(e, dt, GS.P);
   if (CINE.card && CINE.t >= CINE.cardAt) {
@@ -78,6 +82,8 @@ export function cineSkip() {
 }
 function cineEnd() {
   if (GS.state !== 'cine') return;
+  if (CINE.onEnd) CINE.onEnd();
+  CINE.onTick = CINE.onEnd = null;
   GS.state = CINE.prev === 'cine' ? 'play' : CINE.prev || 'play';
   cam.cine = null;
   if (CINE.boss) {

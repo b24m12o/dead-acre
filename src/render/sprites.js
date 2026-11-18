@@ -129,6 +129,8 @@ export function flush() {
   GS.qn = 0;
 }
 let CX, CY;
+// the lamp the current lamp shadows are thrown from: [x, y, height of its head] (the live 3D bosses throw theirs)
+export const lampNow = () => [LSX, LSY, LSH];
 let LSX = 0,
   LSY = 0,
   LSH = 120;

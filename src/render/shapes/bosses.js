@@ -2,10 +2,9 @@
 // The giant bosses as 3D shapes: bodies, heads and shoulder caps. Each group is SDF code (map: the shape, alb: its colours) that tools/bake renders into
 // the pictures the game ships; dist leaves the code out (see tools/lib/source.mjs).
 import { bakeGroup, bakePart } from '../bake.js';
-export function shapeBosses() {
-  bakeGroup(
-    'gb',
-    `
+// the shapes as GLSL: map(p) for part uPart (in its own frame), alb(p, n) its colours. The bake photographs them; the
+// live 3D bosses (boss3d.js) draw them every frame, so the shipped game keeps this group
+export const GB_GLSL = `
   float gBody(vec3 p, float W, float D, float H){ /* a giant's back and shoulders from above, the walker's build scaled up: W half the shoulder span, D half the depth, H the height of the back */
     vec3 s=vec3(D/9.5,W/15.5,H/7.0), q=p/s;
     float d=sdEll(q,vec3(-0.9,0.0,0.0),vec3(8.4,13.2,7.0));
@@ -137,8 +136,9 @@ export function shapeBosses() {
     c=vec3(0.86)*(0.85+0.25*fbm(p.xy*0.5+uSeed)); return c;
   }
   vec3 alb(vec3 p, vec3 n){ vec3 c=albB(p,n); return c*mix(0.58,1.0,smoothstep(-1.0,uBox.z*0.8,p.z))*(0.7+0.3*smoothstep(0.1,0.85,n.z)); }
-  `
-  ); // the four giant bosses: bodies, heads and shoulder caps
+  `;
+export function shapeBosses() {
+  bakeGroup('gb', GB_GLSL); // the four giant bosses: bodies, heads and shoulder caps
   [
     ['rk_torso', 36],
     ['gk_torso', 26],
