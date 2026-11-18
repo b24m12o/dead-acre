@@ -30,7 +30,7 @@ export async function run(b) {
     for (let i = 0; i < 24; i++) { begin(); hale.add(GS.RUN.jobN[1]); }
     out.hale = [...hale].sort();
     // one of the last few, out of sight and hanging back: it comes round within a few seconds
-    GS.RUN.tut = null; GS.state = 'play'; GS.wave = 6; GS.RUN.nextSig = { w: 6, s: null }; // a plain night (a random one may be a horde) GS.RUN.viaN = null; GS.RUN.viaA = null;
+    GS.RUN.tut = null; GS.state = 'play'; GS.wave = 6; GS.RUN.nextSig = { w: 6, s: null }; GS.RUN.viaN = null; GS.RUN.viaA = null; // a plain night (a random one may be a horde)
     startWave();
     for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.queue.length = 0; GS.dir = null;
     const [sx, sy] = spawnRing(1250, 1450);
@@ -39,10 +39,11 @@ export async function run(b) {
     for (let i = 0; i < 60 * 12 && at < 0; i++) {
       e.x = sx; e.y = sy; e.vx = e.vy = 0; e.lastPD = 1e9; // hanging back: not stuck, just not coming
       update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60);
+      if (GS.state === 'cine') cineSkip();
       if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } P.hp = S.maxHp; P.inv = 9;
       if (Math.hypot(e.x - P.x, e.y - P.y) < 700) at = i / 60;
     }
-    out.back = at; out.backD = Math.round(Math.hypot(e.x - P.x, e.y - P.y));
+    out.st = GS.state + ' ' + e.st + ' ' + (e.dead ? 'dead' : 'alive'); out.back = at; out.backD = Math.round(Math.hypot(e.x - P.x, e.y - P.y));
     return out;
   })()`);
   await pg.close();
@@ -54,7 +55,10 @@ export async function run(b) {
     o.hale.length === 2 && o.hale[0] === 6 && o.hale[1] === 7,
     'Hale should be found on night 6 or 7: ' + o.hale.join(', ')
   );
-  check(o.back > 0 && o.back < 6, `one of the last few hanging back out of sight should come round soon: ${o.back} s`);
+  check(
+    o.back > 0 && o.back < 6,
+    `one of the last few hanging back out of sight should come round soon: ${o.back} s (${o.st})`
+  );
   check(o.backD < 700, `and come round near you: ${o.backD} px`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   return `spawns 560-980 px off, none in sight; night 2: ${o.sigs.join(', ')}; Hale on 6 or 7; a straggler back after ${o.back.toFixed(1)} s, ${o.backD} px off`;
