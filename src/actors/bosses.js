@@ -39,6 +39,8 @@ export const WCOL = {
   dead: [1.4, 1.0, 0.6],
 };
 GS.curBoss = null;
+// a heavy body gets up to speed over a few strides: a charge starts at a third of its pace and is flat out in 0.4 s
+export const runUp = e => Math.min(1, 0.35 + (e.stAge || 0) / 0.4);
 export function bossVoice(e, dt) {
   // between attacks you can still tell who is out there
   if (e.dying !== undefined || e.emerge < 1) return;
@@ -577,7 +579,6 @@ export function bossRoadkill(dist, dt, e, lead, ph, spMul) {
       'stomp',
       0.6,
       () => {
-        e.squash = 0.18;
         sfx.boom(e.x, e.y);
         sfx.crunch(e.x, e.y);
         shake(0.5);
@@ -1187,8 +1188,8 @@ export function bossCharge(G, bt, dt, e, ph) {
   }
   e.stT -= dt;
   const csp = bt === 'roadkill' ? 760 : bt === 'chief' ? 560 : 620;
-  e.tvx = e.lx * csp;
-  e.tvy = e.ly * csp;
+  e.tvx = e.lx * csp * runUp(e);
+  e.tvy = e.ly * csp * runUp(e);
   e.vx = e.tvx;
   e.vy = e.tvy;
   e.face = Math.atan2(e.ly, e.lx);
@@ -1326,8 +1327,8 @@ export function bossSprint(dt, e, ph) {
     v = 470 + ph * 40;
   e.sa += clamp(angDiff(e.sa, want), -tr * dt, tr * dt);
   e.face = e.sa;
-  e.tvx = e.vx = Math.cos(e.sa) * v;
-  e.tvy = e.vy = Math.sin(e.sa) * v;
+  e.tvx = e.vx = Math.cos(e.sa) * v * runUp(e);
+  e.tvy = e.vy = Math.sin(e.sa) * v * runUp(e);
   if (Math.random() < 0.6) dust(e.x, e.y, 1, 40, 1.2, 0.7);
   if (Math.random() < 0.25 && GS.pools.length < 40) bleed(e.x, e.y, 6, -Math.cos(e.sa), -Math.sin(e.sa), 2, BILE, 60); // the bolt: it runs you down, turning as it goes; roll late and it can't turn in time
   if (GS.state === 'play' && GS.P.inv <= 0 && hitsP(e.x + Math.cos(e.sa) * 30, e.y + Math.sin(e.sa) * 30, e.r * 0.85)) {

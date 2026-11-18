@@ -11,15 +11,6 @@ export async function run(b) {
     initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null; GS.state = 'play'; __god();
     const P = GS.P, out = {};
     const step = n => { for (let i = 0; i < n; i++) { if (GS.state === 'levelup') { GS.luOpenT = 0; choose(0); } if (GS.state === 'cine') cineSkip(); update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60); } };
-    // a turned car: walk into its end, past where its tiles' blockers reach
-    const c = cars.find(c => c.truck) || cars[0];
-    const a0 = c.a; c.a = 0.5; c.jx = c.jy = c.ja = 0;
-    const L = (c.truck ? 118 : 78) / 2;
-    const ex = c.x + Math.cos(c.a) * (L - 8), ey = c.y + Math.sin(c.a) * (L - 8); // just inside its far end
-    P.x = ex; P.y = ey; P.vx = P.vy = 0; collide(P);
-    const u = (P.x - c.x) * Math.cos(c.a) + (P.y - c.y) * Math.sin(c.a), v = -(P.x - c.x) * Math.sin(c.a) + (P.y - c.y) * Math.cos(c.a);
-    out.outside = Math.abs(u) >= L - 4 || Math.abs(v) >= (c.truck ? 22 : 19) - 4;
-    c.a = a0;
     // the survivor card, taken standing right by something solid: the one who joins you stands beside you in the open
     let spot = null;
     for (let t = 0; t < 20000 && !spot; t++) {
@@ -52,6 +43,21 @@ export async function run(b) {
       near = far.filter(e => !e.dead && Math.hypot(e.x - P.x, e.y - P.y) < 700).length;
     }
     out.t = t; out.near = near; out.aware = far.filter(e => !e.dead && e.aw > 0).length;
+    // a car the map set down jack-knifed: walk into its end, where it sticks out past its lane
+    const tw = () => cars.filter(c => Math.abs(Math.sin(c.a)) > 0.2 && Math.abs(Math.sin(c.a)) < 0.9);
+    let turned = tw();
+    for (let k = 0; k < 12 && !turned.length; k++) { generateMap(); turned = tw(); } // not every map has one
+    out.turned = turned.length;
+    out.outside = true;
+    for (const c of turned) {
+      const L = (c.truck ? 118 : 78) / 2;
+      for (const sd of [-1, 1]) {
+        P.x = c.x + Math.cos(c.a) * (L - 10) * sd; P.y = c.y + Math.sin(c.a) * (L - 10) * sd; P.vx = P.vy = 0;
+        for (let k = 0; k < 4; k++) collide(P);
+        const u = (P.x - c.x) * Math.cos(c.a) + (P.y - c.y) * Math.sin(c.a), v = -(P.x - c.x) * Math.sin(c.a) + (P.y - c.y) * Math.cos(c.a);
+        if (Math.abs(u) < L - 6 && Math.abs(v) < (c.truck ? 22 : 19) - 6) out.outside = false;
+      }
+    }
     return out;
   })()`);
   await pg.close();
@@ -59,7 +65,10 @@ export async function run(b) {
     o.spot && o.budOpen,
     `a survivor from the card should join you in the open, not in what you stand by: ${o.spot}, ${o.budOpen}`
   );
-  check(o.outside, 'walking into a turned car at its end should push you out of it');
+  check(
+    o.turned > 0 && o.outside,
+    `walking into a jack-knifed car at its end should push you out of it (${o.turned} on the map)`
+  );
   check(
     o.near >= 5 && o.t <= 11,
     `the last few, out of sight, should come round within ~10 s: ${o.near} near after ${o.t} s`

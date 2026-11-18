@@ -88,11 +88,36 @@ export function updateLegs(e, dt) {
   for (const L of e.legs) {
     const dx = e.x + L.rx * c - L.ry * s + e.vx * 0.1,
       dy = e.y + L.rx * s + L.ry * c + e.vy * 0.1;
+    if (L.out !== undefined) {
+      // climbing out of a hole (clawOut): each leg waits its turn in the hole, then reaches out slowly over the rim
+      // and digs in, and the next one comes
+      if ((L.out -= dt) > 0) {
+        L.fx = e.x;
+        L.fy = e.y;
+        continue;
+      }
+      L.out = undefined;
+      L.t = 0;
+      L.sx = L.fx;
+      L.sy = L.fy;
+      L.tx = dx;
+      L.ty = dy;
+      L.slow = 3.2;
+      L.grip = 1;
+      continue;
+    }
     if (L.t < 1) {
-      L.t = Math.min(1, L.t + dt / sp.time);
+      L.t = Math.min(1, L.t + dt / (sp.time * (L.slow || 1)));
       const k = L.t * L.t * (3 - 2 * L.t);
       L.fx = lerp(L.sx, L.tx, k);
       L.fy = lerp(L.sy, L.ty, k);
+      if (L.t >= 1) {
+        L.slow = 0;
+        if (L.grip) {
+          L.grip = 0;
+          if (L.onGrip) L.onGrip(L.fx, L.fy);
+        }
+      }
     } else {
       const dd = d2(L.fx, L.fy, dx, dy);
       if (dd > sp.step * sp.step * 9) {
@@ -167,4 +192,17 @@ export function drawLegs(e, sc, fl, curl = 0) {
       );
     } // a dead, bruised hand walking on its knuckles: darker than the arm, never a pale glove
   }
+}
+// it climbs out of a hole: every foot starts down in it, the front pair reaching out first, then the back; onGrip(x, y)
+// as each one digs in at the rim
+export function clawOut(e, gap = 0.28, onGrip = null) {
+  const order = e.legs.map((L, i) => [L.rx, i]).sort((a, b) => b[0] - a[0]);
+  order.forEach(([, i], k) => {
+    const L = e.legs[i];
+    L.fx = e.x;
+    L.fy = e.y;
+    L.t = 1;
+    L.out = 0.05 + k * gap;
+    L.onGrip = onGrip;
+  });
 }

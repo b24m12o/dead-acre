@@ -789,6 +789,22 @@ export function generateMap() {
     barrelSpots.push({ x: (x + 0.5) * TILE, y: (y + 0.5) * TILE });
     i++;
   }
+  // a car blocks where it is drawn: a jack-knifed one's ends stick out past the row of tiles it was set down on, so
+  // every tile whose middle is under the car blocks too. The dead path round it, and the way you're blocked (nav.js)
+  // agrees with the way that's walked: no gap that looks open to the pathing but not to you
+  for (const c of cars) {
+    const hl = (c.truck ? 118 : 78) / 2,
+      hw = (c.truck ? 44 : 38) / 2,
+      ca = Math.cos(c.a),
+      sa = Math.sin(c.a);
+    for (let ty = Math.floor((c.y - hl) / TILE) - 1; ty <= Math.floor((c.y + hl) / TILE) + 1; ty++)
+      for (let tx = Math.floor((c.x - hl) / TILE) - 1; tx <= Math.floor((c.x + hl) / TILE) + 1; tx++) {
+        if (tx < 2 || ty < 2 || tx >= MW - 2 || ty >= MH - 2 || grid[ty * MW + tx]) continue;
+        const dx = (tx + 0.5) * TILE - c.x,
+          dy = (ty + 0.5) * TILE - c.y;
+        if (Math.abs(dx * ca + dy * sa) < hl + 4 && Math.abs(-dx * sa + dy * ca) < hw + 4) set(tx, ty, 6);
+      }
+  }
   genDecor();
   buildCarMap();
   prepBlocks();

@@ -2,7 +2,7 @@
 import { GS } from '../core/gs.js';
 import { clamp, d2 } from '../core/util.js';
 import { gl } from '../render/gl.js';
-import { MH, MW, TILE, TRAD, WH, WW, cars, grid, isWall, ttype } from './map.js';
+import { MH, MW, TILE, TRAD, WH, WW, grid, isWall, ttype } from './map.js';
 export function texFromCanvas(c, mip, premul = true) {
   const t = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, t);
@@ -117,38 +117,6 @@ export function collide(o, r = o.cr || o.r, only = null) {
         }
         hit = true;
       }
-    }
-  if (o === GS.P && !o.ride && !only)
-    for (const c of cars) {
-      // a car blocks where it is drawn, turned as it is: a jack-knifed truck's ends stick out past the round blockers
-      // its tiles were stamped with along the lane
-      const dx = o.x - c.x,
-        dy = o.y - c.y;
-      if (dx * dx + dy * dy > 100 * 100) continue;
-      const ca = Math.cos(c.a),
-        sa = Math.sin(c.a),
-        hl = (c.truck ? 118 : 78) / 2 - 3,
-        hw = (c.truck ? 44 : 38) / 2 - 3;
-      let u = dx * ca + dy * sa,
-        v = -dx * sa + dy * ca;
-      const ou = hl + r - Math.abs(u),
-        ov = hw + r - Math.abs(v);
-      if (ou <= 0 || ov <= 0) continue;
-      if (ou < ov) u += (u < 0 ? -1 : 1) * ou;
-      else v += (v < 0 ? -1 : 1) * ov; // out the near side
-      const nx = c.x + u * ca - v * sa,
-        ny = c.y + u * sa + v * ca,
-        px = nx - o.x,
-        py = ny - o.y,
-        pl = Math.hypot(px, py) || 1;
-      o.x = nx;
-      o.y = ny;
-      const vn = (o.vx * px + o.vy * py) / pl;
-      if (vn < 0) {
-        o.vx -= (vn * px) / pl;
-        o.vy -= (vn * py) / pl;
-      }
-      hit = true;
     }
   return hit;
 }

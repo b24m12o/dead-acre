@@ -352,8 +352,10 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   } // the lantern at its hip
   if (e.type === 'queen') {
     const kl = Math.hypot(kx, ky) || 1;
-    e.rcx = clamp((e.rcx || 0) + (kx / kl) * 2.5, -7, 7);
-    e.rcy = clamp((e.rcy || 0) + (ky / kl) * 2.5, -7, 7); // a hit rocks the body back
+    const hk = clamp(dmg / (e.maxHp * 0.012), 0.25, 2.2); // how hard: buckshot nudges it, a rifle round or a blast rocks it
+    e.rvx = (e.rvx || 0) + (kx / kl) * 46 * hk;
+    e.rvy = (e.rvy || 0) + (ky / kl) * 46 * hk; // a hit rocks the upper body back on its legs (a spring: queen.js)
+    e.twv = (e.twv || 0) + Math.sign(Math.sin(angDiff(e.a, Math.atan2(-ky, -kx))) || 1) * 1.4 * hk; // and twists it, round the side that was hit
     e.stg = (e.stg || 0) + dmg;
     if (e.stg > e.maxHp * 0.05 && GS.time > (e.stgCd || 0) && !(e.stunT > 0) && !(e.spinT > 0) && STAGGERABLE[e.st]) {
       e.stg = 0;
@@ -388,8 +390,10 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   } // the body snaps away from the hit
   e.hp -= dmg;
   e.flash = 0.08;
-  e.squash = 0.18;
-  e.wob = 1;
+  if (e.type !== 'queen') {
+    e.squash = 0.18;
+    e.wob = 1;
+  } // a boss doesn't squash or shiver when it's hit: it's too heavy for that (it flinches, below)
   e.aw = Math.max(e.aw || 0, 8);
   e.lure = null;
   e.heardT = GS.time; // hurt: it wants you now, whatever is ringing

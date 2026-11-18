@@ -5,6 +5,7 @@ import { TAU, clamp, d2, keepIf, rand, randi } from '../core/util.js';
 import { opt } from '../core/settings.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
+import { sfx } from '../audio/sfx.js';
 import { WH, WW, crystals } from './map.js';
 import { solidPt } from './nav.js';
 import { updateLegs } from '../actors/legs.js';
@@ -15,7 +16,7 @@ import { tickCrowd } from '../audio/crowd.js';
 import { tickAmbience } from '../audio/ambience.js';
 import { S, cam } from '../game/state.js';
 import { showStreak } from '../ui/callouts.js';
-import { HUMAN, decal, part, ring, shake } from '../render/effects.js';
+import { HUMAN, decal, dust, part, ring, shake } from '../render/effects.js';
 import { LYB, lyMove, lyState, lyThud } from '../render/draw-bodies.js';
 import { updateAsh } from './wear.js';
 import { WINDX, physTick } from './physics.js';
@@ -150,6 +151,31 @@ export function tickWorld(dt) {
     const pd = e.dying;
     e.dying += dt;
     if (LYB[e.type] && pd < 0.5) lyMove(e, lyState(e).g);
+    if (e.type === 'queen' && e.giant && pd < 0.8 && e.dying >= 0.8) {
+      // a boss hits the ground: the thud, the dust thrown out along the length of it, and what it carried falls from its
+      // hands and lies there
+      const fa = e.fallA ?? e.a + Math.PI,
+        cx = e.x + Math.cos(fa) * 34,
+        cy = e.y + Math.sin(fa) * 34;
+      for (let i = -2; i <= 2; i++)
+        dust(cx + Math.cos(fa) * i * 16, cy + Math.sin(fa) * i * 16, 3, 70, 1.3, 1.1, [0.3, 0.29, 0.27]);
+      sfx.thump(cx, cy);
+      sfx.crunch(cx, cy);
+      shake(0.35);
+      const gear = e.btype === 'chief' ? R.cf_axe : e.btype === 'grave' ? R.gk_shovel : null;
+      if (gear) {
+        const ga = fa + (e.dieDir || 1) * 1.3 + rand(-0.3, 0.3);
+        decal(
+          gear,
+          cx + Math.cos(ga) * 46,
+          cy + Math.sin(ga) * 46,
+          e.btype === 'chief' ? 1.15 : 1.6,
+          [1, 1, 1, 1],
+          [0.15, 0.15, 0.15],
+          200
+        );
+      }
+    }
     if (pd < 0.42 && e.dying >= 0.42 && HUMAN[e.type] && GS.corpses.length < 60) {
       const K = e.type === 'beetle' ? 2 : 1,
         ba = e.fallA ?? e.a + Math.PI;

@@ -101,7 +101,7 @@ export function updateEnemy(e, dt, p) {
   e.squash = Math.max(0, e.squash - dt);
   e.wob = Math.max(0, e.wob - dt * 4);
   if (e.emerge < 1) {
-    e.emerge = Math.min(1, e.emerge + dt * (e.type === 'queen' ? 0.7 : 2.2));
+    e.emerge = Math.min(1, e.emerge + dt * (e.emRate || (e.type === 'queen' ? 0.7 : 2.2)));
     if (Math.random() < dt * 20) dust(e.x, e.y, 1, 30, 0.6, 0.6);
   }
   if (!GS.queue.length && GS.enemies.length <= 3 && e.type !== 'flower' && e.type !== 'queen' && !e.big)
@@ -763,7 +763,25 @@ export function updateEnemy(e, dt, p) {
       ? Math.atan2(e.vy, e.vx)
       : face;
   if (e.shield && shieldUp(e) && e.emerge >= 1) e.a += clamp(angDiff(e.a, face), -SHIELD_TURN * dt, SHIELD_TURN * dt);
-  else if (!(e.down > 0))
+  else if (e.type === 'queen' && !(e.down > 0)) {
+    // a boss is heavy: it winds up into a turn and slows out of it, and a turn has a top speed, lower when it's spent or
+    // mid-swing, higher in a charge. That's when you get round its back
+    const slow =
+        e.recT > 0 ||
+        e.stunT > 0 ||
+        e.turnT > 0 ||
+        e.st === 'chop' ||
+        e.st === 'gslam' ||
+        e.st === 'roar' ||
+        e.st === 'pswing' ||
+        e.st === 'inhale' ||
+        e.st === 'brace',
+      fast = e.st === 'charge' || e.st === 'leap' || e.st === 'rush' || e.st === 'sprint',
+      wMax = fast ? 4.5 : slow ? 0.6 : 1.9,
+      want = clamp(angDiff(e.a, fa) * 3, -wMax, wMax);
+    e.av = (e.av || 0) + (want - (e.av || 0)) * damp(fast ? 9 : 3.5, dt);
+    e.a += e.av * dt;
+  } else if (!(e.down > 0))
     e.a +=
       angDiff(e.a, fa) *
       damp(

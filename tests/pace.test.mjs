@@ -30,7 +30,7 @@ export async function run(b) {
     for (let i = 0; i < 24; i++) { begin(); hale.add(GS.RUN.jobN[1]); }
     out.hale = [...hale].sort();
     // one of the last few, out of sight and hanging back: it comes round within a few seconds
-    GS.RUN.tut = null; GS.state = 'play'; GS.wave = 6; GS.RUN.nextSig = null; GS.RUN.viaN = null; GS.RUN.viaA = null;
+    GS.RUN.tut = null; GS.state = 'play'; GS.wave = 6; GS.RUN.nextSig = { w: 6, s: null }; // a plain night (a random one may be a horde) GS.RUN.viaN = null; GS.RUN.viaA = null;
     startWave();
     for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.queue.length = 0; GS.dir = null;
     const [sx, sy] = spawnRing(1250, 1450);

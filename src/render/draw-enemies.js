@@ -851,9 +851,10 @@ function drawEnemy0(e) {
       const kz = 1 + lift / 420;
       drawLegs(e, em * kz, fl, dead ? Math.min(1, e.dying) : lift > 20 ? 0.7 : 0);
       const W2 = (lx, ly, k = em * kz) => toWorld(e, lx, ly, k);
+      const armOut = e.emerge < 1 ? (t => t * t * (3 - 2 * t))(clamp((e.emerge - 0.1) / 0.6, 0, 1)) : 1; // coming up out of the hole, the blades come up over the rim after it
       for (const sd of [-1, 1]) {
         const [shx, shy] = W2(40, sd * 52),
-          reach = 104 + e.claw * 58,
+          reach = (104 + e.claw * 58) * (0.4 + 0.6 * armOut),
           [tx, ty] = W2(reach, sd * (58 - e.claw * 40));
         const [kx, ky, cx, cy] = ik2(shx, shy, tx, ty, 58 * em * kz, 58 * em * kz, sd);
         setH(22);
@@ -1062,14 +1063,86 @@ function drawGiant(e, fl, em, ta) {
   const G = GIANT[e.btype] || GIANT.roadkill,
     bt = e.btype,
     lift = e.z || 0,
-    E = em * (1 + lift / 420),
+    E = em * (1 + lift / 420) * (1 - 0.05 * (e.dying !== undefined ? clamp(e.dying / 0.28, 0, 1) : 0)),
     dying = e.dying !== undefined,
-    df = dying ? Math.min(1, e.dying / 0.9) : 0,
-    fe = df * df;
+    // its death: the knees go first (it sinks where it stands), then it topples the way the last round was going,
+    // gathering speed as it goes, hits the ground and settles with a small bounce
+    fp = dying ? clamp((e.dying - 0.22) / 0.6, 0, 1) : 0,
+    fe = fp * fp - (dying && e.dying > 0.82 && e.dying < 1 ? Math.sin(((e.dying - 0.82) / 0.18) * Math.PI) * 0.05 : 0),
+    fa = e.fallA ?? (e.a || 0) + Math.PI;
+  const st = dying ? 'dead' : e.st;
+  // the hips and the feet: where it is and the way it faces. The feet are planted: each boot stays where it was put
+  // down until the hips have moved on past it, then it steps, landing a little ahead the way it's going, one foot at a
+  // time; the body's weight shifts over the foot that's down, and rides a little higher mid-stride
+  const ta0 = ta,
+    cl0 = Math.cos(ta0),
+    sl0 = Math.sin(ta0),
+    WL = (lx, ly) => [e.x + (lx * cl0 - ly * sl0) * E, e.y - lift + (lx * sl0 + ly * cl0) * E];
+  let swx = 0,
+    swy = 0,
+    bob = 0;
+  if (!dying) {
+    const now = GS.time,
+      dtf = clamp(now - (e.gfT ?? now), 0, 0.05);
+    e.gfT = now;
+    const sp = Math.hypot(e.vx, e.vy),
+      fast = st === 'charge' || st === 'rush' || st === 'sprint',
+      stepT = clamp(0.44 - sp * 0.00055, 0.17, 0.44),
+      lead = Math.min(0.5, stepT * 0.55),
+      rest = sd => {
+        const [x, y] = WL(-2, sd * 11 * G.K);
+        return [x + e.vx * lead, y + e.vy * lead];
+      },
+      reach = (fast ? 22 : 12) * G.K * E;
+    if (!e.gf)
+      e.gf = [-1, 1].map(sd => {
+        const [x, y] = rest(sd);
+        return { x, y, t: 1, sx: x, sy: y };
+      });
+    for (let i = 0; i < 2; i++) {
+      const f = e.gf[i],
+        o = e.gf[1 - i],
+        [rx, ry] = rest(i ? 1 : -1),
+        off = Math.hypot(f.x - rx, f.y - ry);
+      if (f.t < 1) {
+        f.t = Math.min(1, f.t + dtf / stepT);
+        const k = f.t * f.t * (3 - 2 * f.t);
+        f.x = lerp(f.sx, rx, k);
+        f.y = lerp(f.sy, ry, k);
+      } else if (off > reach * 5) {
+        f.x = rx;
+        f.y = ry;
+      } // thrown a long way (a blast, the venting tank): it finds its feet again
+      else if (
+        o.t >= 1 &&
+        off > reach &&
+        ((e.gfN ?? i) === i || off > Math.hypot(o.x - rest(i ? -1 : 1)[0], o.y - rest(i ? -1 : 1)[1]) + reach * 0.5)
+      ) {
+        f.t = 0;
+        f.sx = f.x;
+        f.sy = f.y;
+        e.gfN = 1 - i;
+      }
+    }
+    const [hx0, hy0] = WL(-4, 0);
+    for (let i = 0; i < 2; i++) {
+      const f = e.gf[i];
+      if (f.t < 1) {
+        const w = Math.sin(f.t * Math.PI),
+          o = e.gf[1 - i];
+        swx += (o.x - hx0) * 0.14 * w;
+        swy += (o.y - hy0) * 0.14 * w;
+        bob = Math.max(bob, w);
+      }
+    }
+  }
+  // the upper body: on the hips, flung back and twisted by a hit (a spring: queen.js), over the planted foot; falling,
+  // it goes down the way it was knocked, turning as it goes
+  ta = ta0 + (e.tw || 0) + (dying ? (e.dieDir || 1) * 0.38 * fe : 0);
   const c = Math.cos(ta),
     s = Math.sin(ta),
-    ox = (e.rcx || 0) - c * 26 * fe * E,
-    oy = (e.rcy || 0) - s * 26 * fe * E,
+    ox = (e.rcx || 0) + swx + Math.cos(fa) * 34 * fe * E,
+    oy = (e.rcy || 0) + swy + Math.sin(fa) * 34 * fe * E,
     y0 = e.y - lift + oy,
     x0 = e.x + ox;
   const W = (lx, ly) => [x0 + (lx * c - ly * s) * E, y0 + (lx * s + ly * c) * E];
@@ -1077,17 +1150,21 @@ function drawGiant(e, fl, em, ta) {
     ph = (e.stride || 0) * TAU,
     cl = e.claw || 0,
     wd = e.wind || 0,
-    st = dying ? 'dead' : e.st,
-    sq = e.squash > 0 ? Math.sin((e.squash / 0.18) * Math.PI) * 0.08 : 0;
+    sq = 0;
   const slump = !dying && e.st === 'move' && e.recT > 0.25 && !(e.stunT > 0); // an opening you can see
-  // legs and boots: a long stride you can see under the body
-  if (!dying) {
-    setH(3);
-    const stepL = 13 * G.K * Math.min(1, mv) * (st === 'charge' || st === 'rush' || st === 'sprint' ? 1.5 : 1);
-    for (const sd of [-1, 1]) {
-      const f = Math.sin(ph + (sd > 0 ? Math.PI : 0)) * stepL,
-        [hx, hy] = W(-6, sd * 10 * G.K),
-        [fx, fy] = W(f - 2, sd * 11 * G.K);
+  // legs and boots, from the hips to where each boot is planted (or swinging through, lifted); falling, the boots stay
+  // where they were and the hips go down with the body
+  if (e.gf) {
+    for (let i = 0; i < 2; i++) {
+      const sd = i ? 1 : -1,
+        f = e.gf[i],
+        up = f.t < 1 && !dying ? Math.sin(f.t * Math.PI) : 0,
+        [hx0, hy0] = WL(-6, sd * 10 * G.K),
+        hx = hx0 + Math.cos(fa) * 20 * fe * E,
+        hy = hy0 + Math.sin(fa) * 20 * fe * E,
+        fx = f.x,
+        fy = f.y;
+      setH(3 + up * 5);
       lineQ(
         hx,
         hy,
@@ -1104,7 +1181,22 @@ function drawGiant(e, fl, em, ta) {
         fl,
         R.z_upper
       );
-      quad(R.z_foot, fx, fy, ta + sd * 0.1, G.K * E, G.K * E, G.boot[0], G.boot[1], G.boot[2], 1, 0.5, 0.5, 0.5, fl);
+      quad(
+        R.z_foot,
+        fx,
+        fy,
+        ta0 + sd * 0.1,
+        G.K * E * (1 + 0.08 * up),
+        G.K * E * (1 + 0.08 * up),
+        G.boot[0],
+        G.boot[1],
+        G.boot[2],
+        1,
+        0.5,
+        0.5,
+        0.5,
+        fl
+      );
     }
   }
   // arms: the pose says what is coming
@@ -1133,7 +1225,7 @@ function drawGiant(e, fl, em, ta) {
     ];
   // arms up and out: the whole weight comes down
   else if (st === 'act' && e.act === 'pull') {
-    const j = Math.sin(GS.time * 18) * 5;
+    const j = Math.sin(GS.time * 7) * 4;
     hands = [
       [G.reach * 0.95 + j, -G.sh * 0.3],
       [G.reach * 0.95 + j, G.sh * 0.3],
@@ -1257,6 +1349,43 @@ function drawGiant(e, fl, em, ta) {
       hands[i] = d > 1 ? [dx * k, sy + dy * k] : [m, sy];
     }
   } /* seen from above an arm never folds into a stub: the hand stays most of an arm's length from the shoulder */
+  {
+    // the arms carry weight: each hand goes to its pose on a spring, swinging in and a touch past before it settles,
+    // instead of snapping there; a blow (the swing, the chop) is stiffer, so it still lands when it should
+    const now = GS.time,
+      hdt = clamp(now - (e.hdT ?? now), 0, 0.05);
+    e.hdT = now;
+    const quick =
+        cl > 0 || wd > 0 || st === 'chop' || st === 'pswing' || st === 'act' || st === 'charge' || st === 'rush',
+      k = quick ? 700 : dying ? 120 : 260,
+      dmp = 2 * Math.sqrt(k) * 0.7;
+    if (!e.hd) e.hd = hands.map(h => [h[0], h[1], 0, 0]);
+    const n = Math.max(1, Math.ceil(hdt / 0.008)),
+      h = hdt / n;
+    for (let i = 0; i < 2; i++) {
+      const H = e.hd[i];
+      for (let j = 0; j < n; j++) {
+        H[2] += ((hands[i][0] - H[0]) * k - H[2] * dmp) * h;
+        H[3] += ((hands[i][1] - H[1]) * k - H[3] * dmp) * h;
+        H[0] += H[2] * h;
+        H[1] += H[3] * h;
+      }
+      hands[i] = [H[0], H[1]];
+    }
+    // what hangs from it (the lantern) or drags behind (the sign): a slow, loose pendulum that trails the way it moves
+    // and swings on when it stops or turns
+    const S = e.swg || (e.swg = { x: 0, y: 0, vx: 0, vy: 0 }),
+      tx = -(e.vx || 0) * 0.035,
+      ty = -(e.vy || 0) * 0.035;
+    for (let j = 0; j < n; j++) {
+      S.vx += ((tx - S.x) * 38 - S.vx * 2.6) * h;
+      S.vy += ((ty - S.y) * 38 - S.vy * 2.6) * h;
+      S.x += S.vx * h;
+      S.y += S.vy * h;
+    }
+    S.x = clamp(S.x, -14, 14);
+    S.y = clamp(S.y, -14, 14);
+  }
   const [h0x, h0y] = W(hands[0][0], hands[0][1]),
     [h1x, h1y] = W(hands[1][0], hands[1][1]);
   // what each one carries
@@ -1271,7 +1400,10 @@ function drawGiant(e, fl, em, ta) {
             ? ta - 0.12
             : swing
               ? Math.atan2(h1y - y0, h1x - x0)
-              : ta + 0.5 + Math.sin(GS.time * 1.6 + (e.stride || 0) * TAU) * 0.06,
+              : ta +
+                0.5 +
+                Math.sin(GS.time * 1.6 + (e.stride || 0) * TAU) * 0.06 +
+                clamp(((e.swg ? e.swg.x * -Math.sin(ta) + e.swg.y * Math.cos(ta) : 0) / 14) * 0.5, -0.5, 0.5), // dragged: it swings out behind on the turns
       len = 62 * E; // carried out in front, face first, the way it swings it; held point-first like a ram on the charge
     setH(swing ? 40 : 30);
     quad(
@@ -1453,18 +1585,18 @@ function drawGiant(e, fl, em, ta) {
   setH(30 * G.K);
   const rear =
       st === 'rear' || st === 'roar'
-        ? 1.05 + Math.sin(GS.time * 40) * 0.012
+        ? 1.05 + Math.sin(GS.time * 7) * 0.014
         : st === 'inhale'
           ? 1 + 0.1 * clamp(1.3 - e.stT, 0, 1)
           : st === 'act' && e.act === 'retch'
-            ? 1.04 + Math.sin(GS.time * 30) * 0.015
+            ? 1.04 + Math.sin(GS.time * 8) * 0.016
             : 1, // the chest swells on the breath in
-    br = 1 + Math.sin(GS.time * 1.6 + e.id) * 0.012;
+    br = 1 + Math.sin(GS.time * 1.6 + e.id) * 0.012 + bob * 0.012; // breathing, and a little higher mid-stride
   quad(
     R[G.torso],
     x0,
     y0,
-    ta + (e.stunT > 0 ? Math.sin(GS.time * 18) * 0.05 : 0),
+    ta + (e.stunT > 0 ? Math.sin(GS.time * 2.6) * 0.07 : 0),
     E * rear * br * (1 + sq) * (1 + 0.18 * fe),
     E * rear * br,
     1,
@@ -1515,13 +1647,16 @@ function drawGiant(e, fl, em, ta) {
   }
   if (pzFlat) pzFlat();
   if (bt === 'grave' && e.lant) {
-    const [lx, ly] = W(-4, -G.sh * 0.92);
+    const [lx0, ly0] = W(-4, -G.sh * 0.92),
+      sg = e.swg || { x: 0, y: 0 },
+      lx = lx0 + sg.x * E,
+      ly = ly0 + sg.y * E;
     setH(31 * G.K);
     quad(
       R.gk_lantern,
       lx,
-      ly + Math.sin(GS.time * 2) * 1.5 * E,
-      ta * 0.2,
+      ly + Math.sin(GS.time * 2) * 1.2 * E,
+      ta * 0.2 + sg.x * 0.03,
       E * 1.2,
       E * 1.2,
       1,
@@ -1545,7 +1680,7 @@ function drawGiant(e, fl, em, ta) {
       : e.cueT > 0
         ? clamp(angDiff(ta, e.cueA), -1.1, 1.1) * Math.min(1, (e.cueMax - e.cueT) / 0.07)
         : angDiff(ta, e.face ?? ta) * 0.5,
-    [hx, hy] = W(G.hx - 40 * fe - (slump ? 7 : 0), 0);
+    [hx, hy] = W(G.hx - (slump ? 7 : 0), 0);
   setH(40 * G.K);
   quad(
     R[G.head],

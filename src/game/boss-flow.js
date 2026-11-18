@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { cinePlay } from './cine.js';
+import { clawOut } from '../actors/legs.js';
 import { placeStage } from './setpieces.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
@@ -347,7 +348,16 @@ const ENTRANCE = {
         const e = bossArrive(x, y, false);
         if (e) {
           e.rev = 0;
-          e.revT = 1.6;
+          e.revT = 2.2;
+          e.emRate = 0.42; // slowly: it hauls itself up on its legs
+          if (e.legs)
+            clawOut(e, 0.3, (gx, gy) => {
+              chips(gx, gy, 6, null, 4, 140);
+              dust(gx, gy, 3, 40, 0.9, 0.9, [0.3, 0.28, 0.26]);
+              decal(R.hole, gx, gy, 0.6, [1, 1, 1, 0.6], [0, 0, 0], 60);
+              sfx.crunch(gx, gy);
+              shake(0.12);
+            }); // a leg at a time over the rim, each one digging into the asphalt
         } // it comes up out of the dark of the hole, under the dust, into the light
         decal(R.hole, x, y, 3.4, [1, 1, 1, 0.95], [0, 0, 0], 90); // the crater stays
         for (let i = 0; i < 14; i++) {
@@ -377,7 +387,7 @@ const ENTRANCE = {
         return e;
       },
     ]);
-    stage(bt, x, y, steps, tR, tR + 2.4);
+    stage(bt, x, y, steps, tR, tR + 3.2);
   },
   roadkill(bt) {
     // a car alarm starts screaming down the road, the car rocks harder and harder, and it bursts out of the wreck

@@ -28,6 +28,7 @@ import {
   hitsP,
   interruptBoss,
   pzScream,
+  runUp,
 } from './bosses.js';
 import { BILE } from '../render/draw-enemies.js';
 import { NOISE, makeNoise, screamAt } from '../game/noise.js';
@@ -81,8 +82,22 @@ export function updateQueen(e, dt, ux, uy, dist) {
     noise(0.3, 0.09, 520, 140, 'lowpass', 0, b);
     tone(70, 0.25, 'sine', 0.05, 0.7, 0, 0, b);
   } else if (!(e.recT > 0)) e.huff = 0; // a heavy breath out: it is about to turn back on you
-  e.rcx = (e.rcx || 0) * Math.exp(-dt * 9);
-  e.rcy = (e.rcy || 0) * Math.exp(-dt * 9);
+  {
+    // the flinch: the upper body thrown back and twisted by a hit, on its hips, and swinging back past upright a little
+    // before it settles (a spring, not a snap); the legs stay where they are (draw-enemies.js)
+    const k = 150,
+      c = 13;
+    e.rvx = (e.rvx || 0) + (-(e.rcx || 0) * k - (e.rvx || 0) * c) * dt;
+    e.rvy = (e.rvy || 0) + (-(e.rcy || 0) * k - (e.rvy || 0) * c) * dt;
+    e.rcx = clamp((e.rcx || 0) + e.rvx * dt, -10, 10);
+    e.rcy = clamp((e.rcy || 0) + e.rvy * dt, -10, 10);
+    e.twv = (e.twv || 0) + (-(e.tw || 0) * 110 - (e.twv || 0) * 11) * dt;
+    e.tw = clamp((e.tw || 0) + e.twv * dt, -0.24, 0.24);
+  }
+  if (e.st !== e.stWas) {
+    e.stWas = e.st;
+    e.stAge = 0;
+  } else e.stAge = (e.stAge || 0) + dt; // how long it's been at what it's doing: a charge builds up to speed
   e.wind = e.clawT > (e.clawW || 0.75) - 0.55 ? ((e.clawW || 0.75) - e.clawT) / 0.55 : 0;
   e.stg = Math.max(0, (e.stg || 0) - dt * e.maxHp * 0.008);
   e.turnT = Math.max(0, (e.turnT || 0) - dt);
@@ -257,7 +272,6 @@ export function updateQueen(e, dt, ux, uy, dist) {
   // ---- Patient Zero: the scream (a long breath in first) and the IV-pole swing
   if (e.st === 'inhale') {
     e.stT -= dt;
-    e.squash = 0.1;
     if (Math.random() < 0.3)
       part({
         k: 2,
@@ -303,8 +317,8 @@ export function updateQueen(e, dt, ux, uy, dist) {
   if (e.st === 'rush') {
     e.stT -= dt;
     e.face = Math.atan2(e.ly, e.lx);
-    e.tvx = e.vx = e.lx * 600;
-    e.tvy = e.vy = e.ly * 600;
+    e.tvx = e.vx = e.lx * 600 * runUp(e);
+    e.tvy = e.vy = e.ly * 600 * runUp(e);
     if (Math.random() < 0.6) dust(e.x, e.y, 1, 40, 1.2, 0.7);
     if (GS.state === 'play' && hitsP(e.x + e.lx * 30, e.y + e.ly * 30, e.r * 0.9) && !e.rushHit) {
       e.rushHit = true;
