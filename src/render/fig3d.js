@@ -524,7 +524,19 @@ function poseZombie(e, D, o) {
       s2 = dead || crawl ? 0 : lyS(0.82, 1.13, el), // knees under it (or sitting up)
       s3 = dead || crawl ? 0 : lyS(1.06, 1.24, el), // up on its knees
       s4 = dead || crawl ? 0 : lyS(1.24, 1.55, el), // on its feet
-      g = st.g; // how far it has gone over
+      g0 = st.g; // how far it has gone over
+    // how it dies, decided once from the blow (the speed the game threw the body at): an ordinary round and its
+    // knees go first and it slumps, then over; buckshot or a blast throws it off its feet; headless, it drops
+    if (dead && e._dk === undefined) {
+      const sp = Math.hypot(e.rvx || 0, e.rvy || 0);
+      e._dk = e.headless ? 2 : sp > 330 || (e.vz || 0) > 40 ? 1 : 0;
+    }
+    const dk = dead ? e._dk : -1,
+      td = dead ? e.dying : 0,
+      g = dk === 1 ? Math.min(1, g0 * 1.3) : g0,
+      buckle =
+        dk === 0 || dk === 2 ? (1 - g) * Math.sin((Math.min(1, td / (dk === 2 ? 0.12 : 0.22)) * Math.PI) / 2) : 0,
+      fly = dk === 1 ? Math.sin(Math.min(1, td / 0.5) * Math.PI) : 0;
     const Hd = sup ? A + Math.PI : A, // its heading lying down: toward its head face down, toward its feet on its back
       Rlie = sup ? mm(Rz(Hd), Ryb(-Math.PI / 2)) : mm(Rz(Hd), Ryb(Math.PI / 2));
     // up again: the body's tilt comes back (all fours, then kneeling, then standing), turning to where it goes
@@ -542,11 +554,15 @@ function poseZombie(e, D, o) {
       z0 = zLie + (H - zLie) * Math.cos((g * Math.PI) / 2),
       z1 = sup ? lerp(z0, zLie + 1, s2) : lerp(z0, zKneel, s2),
       z2 = lerp(z1, zKneel + 1, s3);
-    Jp = [e.x, e.y - 0, lerp(z2, H, s4) + (dead ? e.z || 0 : 0)];
+    Jp = [e.x, e.y, lerp(z2, H, s4) + (dead ? (e.z || 0) - buckle * H * (dk === 2 ? 0.5 : 0.32) + fly * 7 : 0)];
     // pushing up: its back arches and its head comes up; sitting up on its back it hunches over its knees
-    chestBend = dead ? (hsh(id, 51) - 0.5) * 0.3 : sup ? 0.25 * s2 : -0.55 * s1 * (1 - s2) + 0.25 * s2 * (1 - s3);
+    chestBend = dead
+      ? (hsh(id, 51) - 0.5) * 0.3 + buckle * 0.5 - fly * 0.3
+      : sup
+        ? 0.25 * s2
+        : -0.55 * s1 * (1 - s2) + 0.25 * s2 * (1 - s3);
     chestSide = dead ? (hsh(id, 53) - 0.5) * 0.5 : 0;
-    headUp = dead ? (hsh(id, 55) - 0.5) * 0.8 : crawl ? -0.5 : -0.35 * s1 * (1 - s3);
+    headUp = dead ? (hsh(id, 55) - 0.5) * 0.8 * g + buckle * 0.5 - fly * 0.5 : crawl ? -0.5 : -0.35 * s1 * (1 - s3);
     // the limbs on the ground: where they lie (dead, in the pose it fell in), are planted, or reach and haul it on
     const hdF = [Math.cos(hd), Math.sin(hd), 0],
       hdR = [-Math.sin(hd), Math.cos(hd), 0],
@@ -610,7 +626,11 @@ function poseZombie(e, D, o) {
           h[1] += tw * sd;
           return h;
         });
-        if (g < 1) uprightK = Math.max(uprightK, 1 - g); // its arms still out as it goes over
+        if (g < 1) {
+          uprightK = Math.max(uprightK, 1 - g); // its arms still out as it goes over...
+          const up = Math.sin(g * Math.PI) * (dk === 1 ? 16 : 9);
+          for (const h of hands) h[2] += up; // ...and flung up by the fall
+        }
       }
     }
   }
@@ -640,13 +660,22 @@ function poseZombie(e, D, o) {
   }
   const fwd = [Math.cos(yaw), Math.sin(yaw), 0],
     rt = [-Math.sin(yaw), Math.cos(yaw), 0];
-  const lean =
-      (0.12 + hu * 0.35 + crouch * 0.35 + lk * 0.25 - fk * 0.32 * (e.flS || 1) + mvv * (run ? 0.25 : 0.06)) * U,
-    Rpp = mm(Rp, mm(Rxb(sway * 0.6), Ryb(lean * 0.35))),
-    Rs = mm(Rpp, mm(Ryb(lean * 0.3 + chestBend * 0.5), Rz(-sway * 0.8 + Math.sin(ph) * 0.08 * mvv + chestSide * 0.5))),
+  // a hit: the upper body is shoved the way the round was going (back, or to a side), and twists off it; the head
+  // snaps after it. The legs keep on under it
+  const fd = e.fdx !== undefined ? [e.fdx, e.fdy || 0, 0] : fwd,
+    hf = fk * (fd[0] * fwd[0] + fd[1] * fwd[1]),
+    hs = fk * (fd[0] * rt[0] + fd[1] * rt[1]),
+    tw0 = fk * (e.flS || 1) * 0.3;
+  const lean = (0.12 + hu * 0.35 + crouch * 0.35 + lk * 0.25 + hf * 0.55 + mvv * (run ? 0.25 : 0.06)) * U,
+    side = hs * 0.45 * U,
+    Rpp = mm(Rp, mm(Rxb(sway * 0.6 + side * 0.3), Ryb(lean * 0.35))),
+    Rs = mm(
+      Rpp,
+      mm(Ryb(lean * 0.3 + chestBend * 0.5), Rz(-sway * 0.8 + Math.sin(ph) * 0.08 * mvv + chestSide * 0.5 + tw0))
+    ),
     Rc = mm(
       Rs,
-      mm(Ryb(lean * 0.35 + chestBend * 0.5), Rxb(-sway * 0.5 + (hsh(id, 3) - 0.5) * 0.12 * U + chestSide * 0.5))
+      mm(Ryb(lean * 0.35 + chestBend * 0.5), Rxb(-sway * 0.5 + side + (hsh(id, 3) - 0.5) * 0.12 * U + chestSide * 0.5))
     );
   const Js = add(Jp, mv(Rpp, sc3(sub(r[1], r[0]), k))),
     Jc = add(Js, mv(Rs, sc3(sub(r[2], r[1]), k)));
@@ -655,7 +684,7 @@ function poseZombie(e, D, o) {
   D3(2, Rc, Jc);
   // the head: hanging forward, lolling, turned toward what it looks at; lifted as it pushes up off the ground
   const look = dead || ground ? 0 : clamp(angDiff(yaw, e.hl ?? yaw), -0.9, 0.9),
-    droop = (0.25 + (hsh(id, 5) - 0.5) * 0.3 + hu * 0.3) * U + headUp,
+    droop = (0.25 + (hsh(id, 5) - 0.5) * 0.3 + hu * 0.3) * U + headUp + hf * 0.4,
     loll = (hsh(id, 7) - 0.5) * 0.5 + Math.sin(t * 0.9 + id) * 0.08 * (dead ? 0 : 1),
     Rh = mm(Rc, mm(Rz(look * 0.8), mm(Ryb(droop - lean * 0.4), Rxb(loll)))),
     Jh = add(Jc, mv(Rc, sc3(sub(r[3], r[2]), k)));

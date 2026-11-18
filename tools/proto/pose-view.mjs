@@ -7,7 +7,13 @@
 import { writeFileSync } from 'node:fs';
 import { browser, openGame } from '../../tests/lib/harness.mjs';
 const OUT = process.argv[2] || '/tmp/pose-view.png';
-const ONLY = process.argv.includes('--rise') ? 'rise' : process.argv.includes('--fall') ? 'fall' : null;
+const ONLY = process.argv.includes('--rise')
+  ? 'rise'
+  : process.argv.includes('--fall')
+    ? 'fall'
+    : process.argv.includes('--death')
+      ? 'death'
+      : null;
 // each: a label and how to set the zombie up (e is a fresh ordinary zombie facing up the screen, standing still)
 const STATES0 = [
   ['walk', 'e.vy = -40; e.stride = 0.2;'],
@@ -33,7 +39,7 @@ const STATES0 = [
   ['half', 'e.half = true; e.lyG = 1;'],
   ['lying in wait', "e.lurk = 'lie'; e.down = 1.55 - 0.9; e.fallA = Math.PI / 2;"],
 ];
-const STATES = process.argv.includes('--rise') || process.argv.includes('--fall') ? [] : STATES0;
+const STATES = ['--rise', '--fall', '--death'].some(f => process.argv.includes(f)) ? [] : STATES0;
 if (ONLY === 'rise') {
   STATES.length = 0;
   for (let el = 0.4; el <= 1.56; el += 0.1)
@@ -50,6 +56,21 @@ if (ONLY === 'rise') {
     for (const t of [0.05, 0.15, 0.25, 0.35, 0.5])
       STATES.push([`fall ${t}`, `e.dying = ${t}; e.fallA = ${fa}; e.sup = ${sup}; e.apose = 0; e.keep = 99;`]);
   }
+else if (ONLY === 'death') {
+  for (const [nm, set] of [
+    ['slump', 'e.rvx = 0; e.rvy = 200;'],
+    ['thrown', 'e.rvx = 0; e.rvy = 440;'],
+    ['headless', 'e.rvx = 0; e.rvy = 150; e.headless = true;'],
+  ])
+    for (const t of [0.06, 0.14, 0.24, 0.34, 0.5])
+      STATES.push([`${nm} ${t}`, `${set} e.dying = ${t}; e.fallA = Math.PI / 2; e.apose = 1; e.keep = 99;`]);
+  for (const [nm, d] of [
+    ['hit front', '0, 1'],
+    ['hit right side', '-1, 0'],
+    ['hit left side', '1, 0'],
+  ])
+    STATES.push([nm, `e.flT = 0.15; [e.fdx, e.fdy] = [${d}]; e.flS = 1;`]);
+}
 if (ONLY) STATES.splice(0, ONLY === 'fall' ? STATES.length - 20 : 0);
 const b = await browser();
 try {
