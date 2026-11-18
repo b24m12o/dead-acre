@@ -37,6 +37,7 @@ const data = {
     h: 'data:image/avif;base64,' + b64('assets/' + pack.bake.h),
   },
   vox: pack.vox.list.map(([id, t, d, o, n, w]) => [id, t, d, vox.subarray(o, o + n).toString('base64'), w]),
+  mesh: pack.mesh ? b64('assets/' + pack.mesh.file) : undefined,
   gun: pack.gun.list.map(([n, o, l]) => [n, gun.subarray(o, o + l).toString('base64')]),
   mus: pack.mus.list.map(([n, o, l, ...x]) => [n, mus.subarray(o, o + l).toString('base64'), ...x]),
 };

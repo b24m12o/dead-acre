@@ -7,6 +7,7 @@ import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
 import { drawRanger, lampHot } from './draw-player.js';
 import { drawEnemy } from './draw-enemies.js';
+import { figFlush } from './fig3d.js';
 import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
 import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk, propShadow } from './decor.js';
@@ -387,7 +388,11 @@ export function drawCasters() {
   for (const c of truckCans()) push(c.y, drawCan, c); // fuel for the truck in the garage
   if (GS.obj && GS.obj.type === 'box') for (const q of GS.obj.piles) if (vis(q.x, q.y)) push(q.y - 30, drawPile, q);
   DQ.sort((a, b) => a.y - b.y);
-  for (const q of DQ) q.f(q.a);
+  for (const q of DQ) {
+    if (q.f !== drawEnemy) figFlush(); // a run of 3D figures goes down before whatever stands in front of them
+    q.f(q.a);
+  }
+  figFlush();
   if (!GS.SHMODE && GS.P && !GS.NOHERO && GS.state !== 'over') {
     const P = GS.P,
       over = e =>

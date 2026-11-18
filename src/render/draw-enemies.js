@@ -8,6 +8,7 @@ import { dust, part } from './effects.js';
 import { shieldUp } from '../game/combat.js';
 import { queenTail, toWorld } from '../actors/projectiles.js';
 import { drawBoss3D } from './boss3d.js';
+import { drawFig3D, figFlush, is3D, setShirts } from './fig3d.js';
 import { drawBody } from './draw-bodies.js';
 export const ZSKIN = [
     [0.6, 0.66, 0.5],
@@ -41,6 +42,7 @@ export const BLOOD = [0.31, 0.022, 0.02],
   BILE = [0.42, 0.38, 0.14];
 let ZP = 'z_'; // which set of arm parts zArm draws with: painted (z_) or 3D-baked (zs_)
 const LONGSL = { 0: 1, 1: 1, 2: 1, 3: 1, 5: 1, 7: 1, 8: 1, 9: 1, 11: 1, 12: 1, 13: 1, 14: 1, 17: 1, 18: 1 }; // outfits whose sleeves reach the wrist
+setShirts(ZSHIRT);
 export function sleeveLen(e) {
   if (e.slv === undefined)
     e.slv =
@@ -177,6 +179,9 @@ function zArm(W, sh, hand, L, w1, w2, side, skin, sleeve, fl, handSc, gone, ls =
   armSeg(shx, shy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, handSc, ls);
 }
 export function drawEnemy(e) {
+  if (is3D(e)) {
+    if (drawFig3D(e)) return;
+  } else figFlush(); // the figures drawn in 3D before it go down first (fig3d.js)
   if (e.type === 'queen' && e.btype === 'abom' && !e.__std && drawBoss3D(e)) return; // the Abomination in 3D (boss3d.js)
   const r0 = RIM;
   setRim(e.dying === undefined || e.__std ? (e.type === 'queen' ? 0.32 : 0.42) * Math.min(1, e.sv ?? 1) : 0); // the living stand out from the street; the dead lie in it

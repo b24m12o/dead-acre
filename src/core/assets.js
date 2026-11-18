@@ -7,6 +7,7 @@ import { GS } from './gs.js';
 import { SBV, gunHD } from '../audio/audio.js';
 import { MSN, loadMusic } from '../audio/music.js';
 import { BAKE } from '../render/bake.js';
+import { meshArrived } from '../render/fig3d.js';
 
 // what arrived: the pack's version, the 3D pictures (bake), and which of the sound sets came in
 export const PACK = {
@@ -113,6 +114,10 @@ export async function assetsPrep(step) {
       clearInterval(tick);
     }
     PACK.bake = { key: j.bake.key, hs: j.bake.hs, pos: j.bake.pos, a, h };
+    if (j.mesh)
+      get(j.mesh.file, 'arrayBuffer', 60000)
+        .then(meshArrived)
+        .catch(e => console.warn('Dead Acre: no 3D figures this time, the pictures stand in', e)); // the 3D figures' meshes
     const sound = (k, ms, take, why) => {
       if (!j[k]) return;
       const q = (PACK.parts[k] = { size: listSize(j[k].list, k === 'vox' ? 3 : 1), got: 0, done: false });
@@ -157,6 +162,12 @@ export async function assetsPrep(step) {
 
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
+  if (window.__DA_DATA && window.__DA_DATA.mesh) {
+    const b = atob(window.__DA_DATA.mesh),
+      u = new Uint8Array(b.length);
+    for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+    meshArrived(u.buffer);
+  } // the one-file version: the 3D figures' meshes are built in
   // type DA_STATUS() in the browser console to see where the art and sounds came from
   window.DA_STATUS = () => ({
     pack: ASSET_URL ? PACK.v || 'unreachable: ' + PACK.err : 'built in',

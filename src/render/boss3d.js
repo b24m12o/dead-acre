@@ -7,7 +7,7 @@
 // Its pose comes from the fight the game already plays (its planted feet, its blades, its tail, what it's doing) with
 // the body's weight on top: lowering into a crouch, rising in a leap, rearing, leaning into its speed and its turns,
 // rocking from hits, collapsing when it dies. Its entrance is a clip of its own (clipAbom): it climbs out of the
-// street. Off in Settings (3D bosses), or on a machine that can't build it, the old pictures draw it instead.
+// street. Off in Settings (3D models), or on a machine that can't build it, the old pictures draw it instead.
 import { GS } from '../core/gs.js';
 import { opt } from '../core/settings.js';
 import { angDiff, clamp, lerp } from '../core/util.js';
@@ -639,7 +639,7 @@ export function primeBoss3D(shadow) {
   gl.disable(gl.SCISSOR_TEST);
   gl.useProgram(GS.curProg.p);
 }
-// whether the 3D Abomination draws now (Settings: 3D bosses; this machine could build it; it's built)
+// whether the 3D Abomination draws now (Settings: 3D models; this machine could build it; it's built)
 export const boss3dOn = () => opt.b3d !== false && !bad && !!gl && ready();
 // draws the Abomination in 3D into whichever pass is running (the scene, the moon's shadows, a lamp's); false if it
 // can't, so the picture draws instead

@@ -68,6 +68,7 @@ import { bakeRemains, bodyAO } from './remains.js';
 import { atmosLights, drawAsh, drawAshGlow, shaftGlow } from '../world/wear.js';
 import { lampShadowPass } from './lampshadows.js';
 import { primeBoss3D } from './boss3d.js';
+import { fig3dFrame } from './fig3d.js';
 import { occTex } from './lampocc.js';
 import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
 import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
@@ -110,6 +111,7 @@ function beamK() {
 }
 export const YOU_AO = { a: 0.34 };
 export function render() {
+  fig3dFrame(); // a fresh row of the bone texture for each 3D figure this frame
   const [sx, sy] = shakeOff();
   GS.camX = cam.x + sx;
   GS.camY = cam.y + sy;

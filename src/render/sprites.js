@@ -141,6 +141,7 @@ export function lampFrom(x, y, h) {
   LSY = y;
   LSH = h;
 }
+export const culling = () => !!CULL;
 let CULL = null; // a box of the world to draw into instead of the screen (painting remains into the ground): [x0, y0, x1, y1]
 export function cullBox(b) {
   CULL = b;
