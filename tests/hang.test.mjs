@@ -23,7 +23,8 @@ export async function run(b) {
       const n0 = GS.buddies.length;
       UP.find(u => u.id === 'buddy').apply();
       const s = GS.buddies[n0];
-      out.budOpen = !!s && !blockPt(s.x, s.y) && los(P.x, P.y, s.x, s.y) && Math.hypot(s.x - P.x, s.y - P.y) < 140;
+      out.budOpen = !!s && !blockPt(s.x, s.y) && los(P.x, P.y, s.x, s.y) && Math.hypot(s.x - P.x, s.y - P.y) < 250; // in a tight corner it looks further out (spotNear)
+      out.bud = s && { block: blockPt(s.x, s.y), los: los(P.x, P.y, s.x, s.y), d: Math.round(Math.hypot(s.x - P.x, s.y - P.y)), at: [Math.round(P.x), Math.round(P.y)] };
       for (const b of GS.buddies) b.dead = true; GS.buddies.length = 0;
     }
     // a horde night down to its last 7, milling out of sight where their mass gathered
@@ -63,7 +64,7 @@ export async function run(b) {
   await pg.close();
   check(
     o.spot && o.budOpen,
-    `a survivor from the card should join you in the open, not in what you stand by: ${o.spot}, ${o.budOpen}`
+    `a survivor from the card should join you in the open, not in what you stand by: ${o.spot}, ${o.budOpen} ${JSON.stringify(o.bud)}`
   );
   check(
     o.turned > 0 && o.outside,
