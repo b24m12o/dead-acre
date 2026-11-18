@@ -1044,8 +1044,10 @@ export function bossOf(e) {
   return BOSS_THE[e.btype] || bossName();
 }
 const aOr = w => (/^[aeiou]/.test(w) ? 'an ' : 'a ') + w; // an armored, a bloated
+let killerE = null; // and which of them it was
 function killerAt(sx, sy) {
   // who most likely did it: the nearest of the dead to where the hit came from
+  killerE = null;
   if (sx === undefined) return 'the dead';
   let best = null,
     bd = 140 * 140;
@@ -1057,6 +1059,7 @@ function killerAt(sx, sy) {
       best = e;
     }
   }
+  killerE = best || (GS.boss && !GS.boss.dead ? GS.boss : null);
   if (best)
     return best.type === 'queen'
       ? bossOf(best)
@@ -1066,11 +1069,18 @@ function killerAt(sx, sy) {
           'the dead';
   return GS.boss && !GS.boss.dead ? bossOf(GS.boss) : 'the dead';
 }
-export function hurtPlayer(dmg, sx, sy, why) {
+// a boss's attacks (the slam, the charge, the chop, the bile) hit this much harder than they used to; walking into it
+// (bump) hurts what it always did
+export const BOSS_ATK = 1.35;
+export function hurtPlayer(dmg, sx, sy, why, bump = false) {
   if (GS.P.inv > 0 || GS.state !== 'play') return;
   if (!(gearK(why) > 0)) return; // in turnout gear fire and blasts don't touch you (boons.js)
+  killerE = null;
   GS.P.lastBy = why || killerAt(sx, sy);
-  dmg *= DIFF().dmg * gearK(why);
+  const bossHit =
+    !bump && (why ? !!GS.boss && !GS.boss.dead && why === bossOf(GS.boss) : !!killerE && killerE.type === 'queen');
+  dmg *= DIFF().dmg * gearK(why) * (bossHit ? BOSS_ATK : 1);
+  if (GS.boss && !GS.boss.dead) GS.boss.took = (GS.boss.took || 0) + dmg; // what its fight cost you: its crate is graded on it
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.damageTaken += Math.max(0, dmg);
   GS.nightHit = true;
   if (sx !== undefined) {
@@ -1587,8 +1597,12 @@ export function updateCrates(dt) {
         GS.runSeeds += 40;
         floatText(c.x, c.y - 48, '+40 scrap', '#ffd08a', 15);
       } // the crate a gun loadout's weapon case became
+      if (c.bossPicks) {
+        GS.cratePicks = GS.cratePicksN = c.bossPicks;
+        floatText(c.x, c.y - 66, `${c.bossPicks} picks`, '#ffd08a', 17);
+      } // a boss's crate: as many picks as the kill earned
       const go = () => {
-        if (GS.state === 'play') offerUpgrades('crate');
+        if (GS.state === 'play') offerUpgrades(c.bossPicks ? 'boss' : 'crate');
         else if (GS.state === 'levelup' || GS.state === 'pause') GS.later.push({ t: 0.1, fn: go });
       };
       GS.later.push({ t: 0.15, fn: go });

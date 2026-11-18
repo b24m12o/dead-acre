@@ -1331,7 +1331,7 @@ export function bossSprint(dt, e, ph) {
   if (Math.random() < 0.6) dust(e.x, e.y, 1, 40, 1.2, 0.7);
   if (Math.random() < 0.25 && GS.pools.length < 40) bleed(e.x, e.y, 6, -Math.cos(e.sa), -Math.sin(e.sa), 2, BILE, 60); // the bolt: it runs you down, turning as it goes; roll late and it can't turn in time
   if (GS.state === 'play' && GS.P.inv <= 0 && hitsP(e.x + Math.cos(e.sa) * 30, e.y + Math.sin(e.sa) * 30, e.r * 0.85)) {
-    hurtPlayer(e.dmg * 1.1, e.x, e.y);
+    hurtPlayer(e.dmg * 0.9, e.x, e.y); // with a boss's attacks hitting harder (BOSS_ATK), about what it was: it is the last one's most common hit
     GS.P.vx += Math.cos(e.sa) * 560;
     GS.P.vy += Math.sin(e.sa) * 560;
     shake(0.35);

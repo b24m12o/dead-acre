@@ -743,15 +743,21 @@ export function offerUpgrades(source = 'level') {
   renderPicks();
   const bank = source === 'level' ? lvBank() : 0;
   $('luEye').textContent =
-    source === 'crate'
-      ? 'Supply crate · free gear'
-      : source === 'route'
-        ? 'Army checkpoint · free gear'
-        : source === 'start'
-          ? 'Go bag'
-          : `Level ${GS.level + 1}${bank > 1 ? ` · ${bank - 1} more after this` : ''}`;
+    source === 'boss'
+      ? `Boss crate · pick ${GS.cratePicksN - GS.cratePicks + 1} of ${GS.cratePicksN}`
+      : source === 'crate'
+        ? 'Supply crate · free gear'
+        : source === 'route'
+          ? 'Army checkpoint · free gear'
+          : source === 'start'
+            ? 'Go bag'
+            : `Level ${GS.level + 1}${bank > 1 ? ` · ${bank - 1} more after this` : ''}`;
   $('luTitle').textContent =
-    source === 'crate' ? 'Crate unpacked' : source === 'route' ? 'Their kit, your pick' : 'Pick your gear';
+    source === 'crate' || source === 'boss'
+      ? 'Crate unpacked'
+      : source === 'route'
+        ? 'Their kit, your pick'
+        : 'Pick your gear';
   hideCallouts();
   GS.state = 'levelup';
   $('levelup').hidden = false;
@@ -863,7 +869,9 @@ export function choose(i) {
     showStreak(u.name, 'Combo ready');
     sfx.elite();
   }
-  if (lvl && lvCan()) openLevel(); // more banked: the next set straight away, one stop for all of them
+  if (lvl && lvCan())
+    openLevel(); // more banked: the next set straight away, one stop for all of them
+  else if (GS.pickSource === 'boss' && --GS.cratePicks > 0) offerUpgrades('boss'); // a boss's crate: the next pick straight away
 }
 export function renderMods() {
   // the Pause screen: every pick so far, its icon, its rank and the full text of what it does

@@ -45,7 +45,11 @@ export function buildWave(w) {
   if (stay && stay.mix) for (const m of stay.mix) T.push(m.slice());
   if (stay && stay.add && !bossNight(w))
     for (const [t, c] of Object.entries(stay.add)) for (let i = 0; i < c; i++) q.push(t);
-  if (bossNight(w)) n = Math.floor(n * (w >= 10 ? 0.3 : 0.38)); // the boss is staged by bossEntrance, not spawned from the queue
+  if (bossNight(w)) {
+    GS.RUN.burstN = Math.max(4, Math.round(n * 0.09)); // what comes with it when it changes, at each of its two turns (arenaPhase)
+    n = Math.floor(n * (w >= 10 ? 0.16 : 0.2)); // the boss is staged by bossEntrance, not spawned from the queue; a light trickle round it
+    for (const t of T) if (t[0] === 'beetle') t[1] *= 0.35; // the brutes stay out of its way
+  }
   if (w >= 3 && !bossNight(w))
     for (let i = 0; i < (1 + Math.floor(w / 5) + (INF(8) ? 1 : 0) + (Dn === 'cemetery' ? 1 : 0)) * 1; i++)
       q.push('flower');

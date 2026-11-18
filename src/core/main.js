@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { cinePad } from '../game/cine.js';
 import { savedRun } from '../game/save.js';
 import { breathe, loadStep, watchSounds } from '../ui/loading.js';
 import { GS } from './gs.js';
@@ -68,6 +69,11 @@ function frame(now) {
     tickWorld(sdt);
     updateCamera(dt);
     if (GS.state === 'play') updateHud();
+  } else if (GS.state === 'cine') {
+    cinePad();
+    update(dt);
+    tickWorld(dt);
+    updateCamera(dt);
   } else if (GS.state === 'menu') {
     menuUpdate(dt);
     tickWorld(dt);

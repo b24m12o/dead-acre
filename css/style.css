@@ -621,3 +621,14 @@ body.pad :focus{outline:2px solid #ffd08a;outline-offset:3px}body.pad #route .wa
 #routeGo{position:relative;overflow:hidden}
 #routeGo.auto::after{content:'';position:absolute;left:0;bottom:0;height:3px;width:100%;background:rgba(20,16,12,.55);transform-origin:left;animation:routeAuto 3.5s linear .65s forwards}
 @keyframes routeAuto{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+/* a boss's entrance: black bars, the HUD away, its name low on the left */
+#cineBars i{position:fixed;left:0;right:0;height:10.5vh;background:#000;z-index:30;pointer-events:none;transition:transform .5s cubic-bezier(.3,.7,.3,1)}
+#cineBars i:first-child{top:0;transform:translateY(-101%)}
+#cineBars i:last-child{bottom:0;transform:translateY(101%)}
+body.cine #cineBars i{transform:none}
+body[data-st="cine"] .hud,body[data-st="cine"] #hint,body[data-st="cine"] #bossBox{opacity:0!important;visibility:hidden}
+#cineCard{position:fixed;left:6vw;bottom:calc(10.5vh + 28px);z-index:31;pointer-events:none;opacity:0;transform:translateX(-18px);transition:opacity .6s,transform .6s cubic-bezier(.2,.7,.3,1);color:#ebe6dc}
+#cineCard.show{opacity:1;transform:none}
+#cineCard b{display:block;font-family:var(--font-hud);font-weight:600;font-size:clamp(34px,5vw,66px);text-transform:uppercase;letter-spacing:.05em;line-height:1;text-shadow:0 2px 14px rgba(0,0,0,.85)}
+#cineCard span{display:block;margin-top:10px;font-family:var(--font-mono);font-weight:600;font-size:clamp(12px,1.15vw,15px);letter-spacing:.14em;text-transform:uppercase;color:#cdbb9c;text-shadow:0 1px 6px rgba(0,0,0,.9)}
+#cineCard span:empty{display:none}

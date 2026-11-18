@@ -21,7 +21,7 @@ const NAMES = {
 };
 const FIGHT = (district, night) => `(() => {
   begin(); GS.RUN.district = '${district}'; newRun(); GS.state = 'play'; __god();
-  const step = n => { for (let i = 0; i < n; i++) { if (GS.state === 'levelup') { GS.luOpenT = 0; choose(0); } update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60); } };
+  const step = n => { for (let i = 0; i < n; i++) { if (GS.state === 'levelup') { GS.luOpenT = 0; choose(0); } if (GS.state === 'cine') cineSkip(); update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60); } };
   GS.wave = ${night} - 1; GS.queue = []; for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.interT = 99; startWave();
   for (let i = 0; i < 600 && !GS.boss; i++) step(1);
   if (!GS.boss) return { spawned: false };

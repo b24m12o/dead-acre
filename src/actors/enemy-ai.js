@@ -949,7 +949,9 @@ export function updateEnemy(e, dt, p) {
           (e.st === 'charge' ? 1.5 : e.shield ? 1.3 : 1) *
           (e.lost && e.lost[0] && e.lost[1] ? 0.5 : e.lost && (e.lost[0] || e.lost[1]) ? 0.8 : 1),
         e.x,
-        e.y
+        e.y,
+        undefined,
+        e.type === 'queen' && (e.st === 'move' || e.st === 'roar') // a boss walking into you: a bump, not an attack
       );
       if (e.type !== 'queen') {
         const dx = e.x - p.x,

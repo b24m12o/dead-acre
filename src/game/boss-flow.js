@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { cinePlay } from './cine.js';
 import { placeStage } from './setpieces.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
@@ -9,7 +10,7 @@ import { MW, TILE, WH, WW, cars, houses, lamps } from '../world/map.js';
 import { flow, blockPt } from '../world/nav.js';
 import { MUS, noise, spat } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
-import { cam, dropAmmo } from './state.js';
+import { S, cam, dropAmmo } from './state.js';
 import { showStreak } from '../ui/callouts.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { banner, lastNight, spawnPoint } from './waves.js';
@@ -166,7 +167,7 @@ function lampsBack() {
     }
   GS.FOGBT = 0;
 } // the power comes back: every dead light stutters on again
-function ringFires(cx, cy, n, r0, r1, life, t0 = 0) {
+function ringFires(cx, cy, n, r0, r1, life, t0 = 0, steps = null) {
   for (let i = 0, k = 0; i < n * 3 && k < n; i++) {
     const a = rand(0, TAU),
       r = rand(r0, r1),
@@ -174,30 +175,34 @@ function ringFires(cx, cy, n, r0, r1, life, t0 = 0) {
       y = cy + Math.sin(a) * r;
     if (!freeAround(x, y, 12)) continue;
     const kk = k++;
-    GS.later.push({
-      t: t0 + kk * 0.15,
-      fn: () => {
-        if (GS.state !== 'play') return;
-        firePool(x, y, rand(34, 50), life);
-        flashLight(x, y, 180, [1.4, 0.7, 0.3], 0.2);
-        for (let j = 0; j < 4; j++)
-          part({
-            k: 10,
-            x: x + rand(-14, 14),
-            y: y + rand(-14, 14),
-            z: 4,
-            vz: rand(30, 70),
-            vx: rand(-15, 15),
-            vy: rand(-15, 15),
-            life: 0.7,
-            max: 0.7,
-            size: rand(0.5, 0.9),
-            rot: rand(0, TAU),
-            vr: rand(-2, 2),
-            drag: 1,
-          });
-      },
-    });
+    const go = () => {
+      firePool(x, y, rand(34, 50), life);
+      flashLight(x, y, 180, [1.4, 0.7, 0.3], 0.2);
+      for (let j = 0; j < 4; j++)
+        part({
+          k: 10,
+          x: x + rand(-14, 14),
+          y: y + rand(-14, 14),
+          z: 4,
+          vz: rand(30, 70),
+          vx: rand(-15, 15),
+          vy: rand(-15, 15),
+          life: 0.7,
+          max: 0.7,
+          size: rand(0.5, 0.9),
+          rot: rand(0, TAU),
+          vr: rand(-2, 2),
+          drag: 1,
+        });
+    };
+    if (steps) steps.push([t0 + kk * 0.15, go]);
+    else
+      GS.later.push({
+        t: t0 + kk * 0.15,
+        fn: () => {
+          if (GS.state === 'play') go();
+        },
+      });
   }
 }
 function whenPlay(fn) {
@@ -213,7 +218,7 @@ export function bossEntrance(bt, quick) {
   GS.bossDue = true;
   const L = BOSS_RADIO[bt];
   if (L) for (const l of [].concat(L.pre)) radio(l, null, 2);
-  GS.later.push({ t: quick ? 0.6 : 2.2, fn: whenPlay(() => (ENTRANCE[bt] || ENTRANCE.walk)()) });
+  GS.later.push({ t: quick ? 0.6 : 2.2, fn: whenPlay(() => (ENTRANCE[bt] || ENTRANCE.walk)(bt)) });
 }
 function gzSecond() {
   if (!GS.RUN.gzDue) return;
@@ -237,7 +242,8 @@ function bossArrive_tip() {
 }
 function bossArrive(x, y, walk) {
   GS.bossDue = false;
-  if (GS.state !== 'play') return null;
+  if (GS.state !== 'play' && GS.state !== 'cine') return null;
+  const cine = GS.state === 'cine';
   bossArrive_tip();
   const e = makeEnemy('queen', x, y);
   GS.nightLive = true;
@@ -260,7 +266,7 @@ function bossArrive(x, y, walk) {
     const bb = $('bossBox').firstElementChild;
     if (bb) bb.textContent = bossName();
   }
-  banner(bossName(), GS.RUN.practice ? 'Boss practice' : '', true); // the name; how to fight it is in the boss bar
+  if (!cine) banner(bossName(), GS.RUN.practice ? 'Boss practice' : '', true); // the name (in its entrance, on its card); how to fight it is in the boss bar
   sfx.roar(x, y, e.btype);
   shake(0.3);
   {
@@ -275,7 +281,7 @@ function bossArrive(x, y, walk) {
     MUS.phJump = null;
     MUS.sec = null;
   } // its own music, from the top
-  cam.peek = { x, y, t: 1.6 };
+  if (!cine) cam.peek = { x, y, t: 1.6 };
   if (lastNight(GS.wave) && INF(10) && !GS.RUN.practice && !GS.RUN.gzDone) {
     GS.RUN.gzDone = true;
     GS.RUN.gzDue = true;
@@ -283,38 +289,94 @@ function bossArrive(x, y, walk) {
   } // Ground Zero: a second one always follows
   return e;
 }
+// each boss's entrance, staged as a scene (cine.js): [time, fn] steps, the moment it comes out, when the camera goes
+// back. Its card: the name, and one line of what the radio knows.
+// how long a quick kill of each takes (from the fights' start): inside this, and the crate is richer
+const BOSS_PAR = { abom: 75, chief: 95, roadkill: 80, grave: 95, pz: 120 };
+const SUB = {
+  abom: 'Main Street · it lives down in the wiring',
+  chief: 'Engine 4 · went into the fire and never came back out',
+  roadkill: 'Highway 9 · anything loud, it goes for',
+  grave: 'Hollow Hill · blind, and it hears everything',
+  pz: 'County Hospital · where it started',
+};
+// a few steps out into the open (t seconds at sp px/s), then (if roar) it stands and roars
+function walkOut(e, ang, t, sp, roar, fn) {
+  if (e) e.cine = { vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, t, roar, fn };
+  return e;
+}
+const toYou = (x, y) => Math.atan2(GS.P.y - y, GS.P.x - x);
+function stage(bt, x, y, steps, reveal, end) {
+  cinePlay({ x, y, steps, reveal, end, key: bt, name: bossName(), sub: SUB[bt] || '' });
+}
 const ENTRANCE = {
-  walk() {
+  walk(bt) {
     const [x, y] = stageSpot(520, 680);
-    cam.peek = { x, y, t: 2.2 };
-    GS.later.push({ t: 0.6, fn: () => bossArrive(x, y, true) });
+    stage(bt, x, y, [[0.9, () => walkOut(bossArrive(x, y, true), toYou(x, y), 1.2, 50, 1.3)]], 0.9, 3.6);
   },
-  abom() {
-    // the lights around where it will surface die one after another, it clicks, then it bursts out of the street
+  abom(bt) {
+    // the lights round where it will surface die one after another, the street shakes and splits, it clicks, and it
+    // tears up out of the asphalt
     const [x, y] = stageSpot(500, 640),
-      n = lampsOff(lampsNear(x, y, 430, 6), 0.3);
-    cam.peek = { x, y, t: 2.6 + n * 0.3 };
-    GS.later.push({
-      t: 0.5 + n * 0.3,
-      fn: () => {
-        if (GS.state === 'play') sfx.chitter(x, y, 0.9);
+      steps = [],
+      L = lampsNear(x, y, 430, 5),
+      t0 = 0.8;
+    L.forEach((l, i) => steps.push([t0 + i * 0.22, () => lampOff(l)]));
+    const tB = t0 + L.length * 0.22 + 0.2;
+    steps.push([tB + 0.3, () => sfx.chitter(x, y, 0.9)]);
+    for (let k = 0; k < 7; k++)
+      steps.push([
+        tB + k * 0.19,
+        () => {
+          const f = (k + 1) / 7;
+          shake(0.04 + 0.22 * f);
+          dust(x + rand(-24, 24), y + rand(-24, 24), 1 + (k >> 1), 36 + 34 * f, 0.8, 0.9, [0.3, 0.28, 0.26]);
+          chips(x, y, 1 + k, null, 4, 60 + 30 * k);
+          decal(R.hole, x + rand(-6, 6), y + rand(-6, 6), 0.5 + 0.5 * f, [1, 1, 1, 0.22 * f], [0, 0, 0], 14);
+          if (!(k % 2)) sfx.rumble(x, y);
+        },
+      ]);
+    const tR = tB + 1.35;
+    steps.push([
+      tR,
+      () => {
+        const e = bossArrive(x, y, false);
+        chips(x, y, 16, null, 4, 300);
+        dust(x, y, 9, 100, 1.3, 1.2, [0.32, 0.3, 0.27]);
+        ring(x, y, 10, 90, 0.5, [0.55, 0.5, 0.45], 0.6);
+        shake(0.55);
+        return e;
       },
-    });
-    GS.later.push({ t: 1.3 + n * 0.3, fn: () => bossArrive(x, y, false) });
+    ]);
+    stage(bt, x, y, steps, tR, tR + 2.4);
   },
-  roadkill() {
-    // an alarm starts screaming down the road, then the car comes apart and it climbs out of the wreck
+  roadkill(bt) {
+    // a car alarm starts screaming down the road, the car rocks harder and harder, and it bursts out of the wreck
     const dd = c => Math.hypot(c.x - GS.P.x, c.y - GS.P.y),
       car = cars
         .filter(c => !c.dead && !c.burnt && dd(c) > 380 && dd(c) < 820)
         .sort((a, b) => Math.abs(dd(a) - 560) - Math.abs(dd(b) - 560))[0];
-    if (!car) return ENTRANCE.walk();
-    startAlarm(car);
-    cam.peek = { x: car.x, y: car.y, t: 3.4 };
-    GS.later.push({
-      t: 1.9,
-      fn: whenPlay(() => {
-        const a = Math.atan2(GS.P.y - car.y, GS.P.x - car.x);
+    if (!car) return ENTRANCE.walk(bt);
+    const steps = [[0.25, () => startAlarm(car)]];
+    for (let k = 0; k < 5; k++)
+      steps.push([
+        0.8 + k * 0.28,
+        () => {
+          const f = (k + 1) / 5,
+            s = k % 2 ? 1 : -1;
+          car.jva = (car.jva || 0) + s * (0.15 + 0.35 * f);
+          car.jvx = (car.jvx || 0) + rand(-30, 30) * f;
+          car.jvy = (car.jvy || 0) + rand(-30, 30) * f;
+          sfx.thump(car.x, car.y);
+          shake(0.05 + 0.12 * f);
+          if (k > 2) sparks(car.x, car.y, [1, 0.9, 0.6], 6, 200);
+        },
+      ]);
+    const tR = 2.3;
+    steps.push([
+      tR,
+      () => {
+        const a = toYou(car.x, car.y);
         let x = car.x,
           y = car.y;
         for (let k = 40; k < 220; k += 8) {
@@ -325,9 +387,9 @@ const ENTRANCE = {
         car.alarm = 0;
         car.hasAlarm = false;
         damageCar(car, car.max * 0.55);
-        car.jvx = (car.jvx || 0) - Math.cos(a) * 140;
-        car.jvy = (car.jvy || 0) - Math.sin(a) * 140;
-        car.jva = (car.jva || 0) + rand(-0.5, 0.5);
+        car.jvx = (car.jvx || 0) - Math.cos(a) * 160;
+        car.jvy = (car.jvy || 0) - Math.sin(a) * 160;
+        car.jva = (car.jva || 0) + rand(-0.7, 0.7);
         sparks(x, y, [1, 0.9, 0.6], 22, 380);
         for (let i = 0; i < 16; i++)
           part({
@@ -348,19 +410,23 @@ const ENTRANCE = {
           });
         sfx.shatter();
         sfx.crunch(x, y);
-        shake(0.4);
+        shake(0.45);
         const e = bossArrive(x, y, true);
         if (e) {
           e.lx = Math.cos(a);
           e.ly = Math.sin(a);
         }
-      }),
-    });
+        return walkOut(e, a, 0.8, 60, 1.2);
+      },
+    ]);
+    stage(bt, car.x, car.y, steps, tR, tR + 2.5);
   },
-  grave() {
-    // fog rolls up the hill, the bell tolls three times, a crypt door drags open and it walks out
+  grave(bt) {
+    // fog rolls up the hill, the bell tolls three times, a crypt door grinds open, its lantern swings out of the
+    // dark, and it walks out into the open
     let best = null,
-      bs = 1e9;
+      bs = 1e9,
+      door = null;
     for (const o of houses)
       if (o.style === 'crypt') {
         const cx = (o.x + o.w / 2) * TILE,
@@ -378,69 +444,89 @@ const ENTRANCE = {
           if (sc < bs) {
             bs = sc;
             best = [x, y];
+            door = [cx, cy];
           }
         }
       }
-    const [x, y] = best || stageSpot(520, 680);
-    GS.FOGBT = Math.max(GS.FOGBT, 0.75);
-    cam.peek = { x, y, t: 3.8 };
-    for (let i = 0; i < 3; i++)
-      GS.later.push({
-        t: i * 0.85,
-        fn: () => {
-          if (GS.state === 'play') sfx.bell(x, y);
-        },
-      });
-    GS.later.push({
-      t: 2.2,
-      fn: () => {
-        if (GS.state === 'play') sfx.creak(x, y);
-      },
-    });
-    GS.later.push({
-      t: 2.9,
-      fn: whenPlay(() => {
+    const [x, y] = best || stageSpot(520, 680),
+      out = door ? Math.atan2(y - door[1], x - door[0]) : toYou(x, y),
+      steps = [[0, () => (GS.FOGBT = Math.max(GS.FOGBT, 0.75))]];
+    for (let i = 0; i < 3; i++) steps.push([0.3 + i * 0.7, () => sfx.bell(x, y)]);
+    steps.push([2.2, () => sfx.creak(x, y)]);
+    steps.push([2.25, () => dust(x, y, 8, 50, 1, 1)]);
+    for (let i = 0; i < 4; i++)
+      steps.push([2.5 + i * 0.12, () => flashLight(x, y, 120 + i * 30, [1.2, 0.8, 0.4], 0.35)]); // the lantern, swinging out
+    const tR = 2.95;
+    steps.push([
+      tR,
+      () => {
         dust(x, y, 10, 70, 1.2, 1);
-        bossArrive(x, y, true);
-      }),
-    });
-  },
-  chief() {
-    // a siren winds up, the street catches fire in a ring, its radio crackles and it steps out of the flames
-    const [x, y] = placeStage('chief') || stageSpot(520, 660); // at the Starlite, out of the burnt fire station
-    sfx.siren(x, y, 2);
-    cam.peek = { x, y, t: 3.4 };
-    ringFires(x, y, 7, 60, 100, 18, 0.5);
-    GS.later.push({
-      t: 1.5,
-      fn: () => {
-        if (GS.state === 'play') sfx.radio(x, y);
+        return walkOut(bossArrive(x, y, true), out, 1.3, 45, 1.3);
       },
-    });
-    GS.later.push({
-      t: 2.3,
-      fn: whenPlay(() => {
+    ]);
+    stage(bt, x, y, steps, tR, tR + 2.8);
+  },
+  chief(bt) {
+    // a siren winds up, the street catches fire in a ring, its radio crackles, and it walks out through the flames
+    // dragging its axe on the concrete
+    const [x, y] = placeStage('chief') || stageSpot(520, 660), // at the Starlite, out of the burnt fire station
+      steps = [[0.2, () => sfx.siren(x, y, 2)]];
+    ringFires(x, y, 7, 60, 100, 18, 0.5, steps);
+    steps.push([1.5, () => sfx.radio(x, y)]);
+    const tR = 2.1;
+    let scr = 0;
+    steps.push([
+      tR,
+      () => {
         sfx.breath(x, y, true);
-        bossArrive(x, y, true);
-      }),
-    });
-  },
-  pz() {
-    // the lights go out one by one, from the far end of town toward you, and then you hear it breathing
-    const [x, y] = placeStage('pz') || stageSpot(560, 720), // at County Hospital, out of its front door
-      n = lampsOff(lampsNear(GS.P.x, GS.P.y, 1100, 8, true, 200), 0.32, 0.8),
-      tA = 1.4 + n * 0.32;
-    GS.later.push({
-      t: tA - 0.6,
-      fn: () => {
-        if (GS.state === 'play') sfx.breath(x, y, true);
+        return walkOut(bossArrive(x, y, true), toYou(x, y), 2.4, 70, 1.2, (e, dt) => {
+          const s = e.a + Math.PI * 0.75,
+            ax = e.x + Math.cos(s) * e.r * 1.1,
+            ay = e.y + Math.sin(s) * e.r * 1.1;
+          if (Math.random() < dt * 14) sparks(ax, ay, [1, 0.8, 0.45], 3, 140); // the axe head on the concrete
+          if ((scr -= dt) <= 0) {
+            scr = 0.45;
+            sfx.scrape(ax, ay);
+          }
+        });
       },
-    });
-    GS.later.push({ t: tA, fn: () => bossArrive(x, y, true) });
+    ]);
+    stage(bt, x, y, steps, tR, tR + 3.9);
+  },
+  pz(bt) {
+    // the lights round the hospital go out from the outside in, you hear it breathing, then the front doors burst
+    // and it comes out running
+    const [x, y] = placeStage('pz') || stageSpot(560, 720), // at County Hospital, out of its front door
+      steps = [],
+      L = lampsNear(x, y, 900, 7, true);
+    L.forEach((l, i) => steps.push([0.7 + i * 0.25, () => lampOff(l)]));
+    const tR = 0.9 + L.length * 0.25 + 0.6;
+    steps.push([tR - 0.7, () => sfx.breath(x, y, true)]);
+    steps.push([
+      tR,
+      () => {
+        sfx.doorBreak(x, y);
+        sfx.shatter();
+        chips(x, y, 12, null, 3, 260);
+        dust(x, y, 12, 90, 1.3, 1.1);
+        shake(0.45);
+        return walkOut(bossArrive(x, y, true), toYou(x, y), 0.9, 150, 1.4);
+      },
+    ]);
+    stage(bt, x, y, steps, tR, tR + 2.7);
   },
 };
+
 export function arenaPhase(e, ph, skip) {
-  if (!skip && !GS.RUN.practice) for (let i = 0; i < 2; i++) dropAmmo(e.x, e.y, 1.5, 120); // each boss changes the place it fights in when it gets hurt (a burst through two phases plays both)
+  if (!skip && !GS.RUN.practice) for (let i = 0; i < 2; i++) dropAmmo(e.x, e.y, 1.5, 120);
+  if (!skip && !GS.RUN.practice && GS.RUN.burstN) {
+    const n = GS.RUN.burstN + (ph === 2 ? 2 : 0),
+      lot = [];
+    for (let i = 0; i < n; i++) lot.push(i % 4 === 3 ? 'mini' : 'skitter');
+    if (ph === 2 && GS.wave >= 8) lot.push('beetle'); // and at its last turn, one brute
+    GS.queue.unshift(...lot);
+    GS.burstT = 2.5;
+  } // its company comes when it turns, in one lot, rather than all through the fight // each boss changes the place it fights in when it gets hurt (a burst through two phases plays both)
   const bt = e.btype,
     L = BOSS_RADIO[bt];
   if (L && !skip) radio(ph === 1 ? L.p1 : L.p2, null, 2);
@@ -534,13 +620,20 @@ export function bossDown(e, alone) {
       (GS.RUN.practice
         ? 99
         : 4.8) /* any other night the win ending rings straight into the quiet; on the last night the silence holds until the evac fight starts */; // the band stops dead with it
+  // the kill is graded: quick (inside its par) and clean (it cost you under a quarter of your health). Its crate holds
+  // 5 picks for both, 3 for either, 1 otherwise
+  const fast = secs <= (BOSS_PAR[bt] || 90),
+    clean = (e.took || 0) < S.maxHp * 0.25,
+    picks = fast && clean ? 5 : fast || clean ? 3 : 1,
+    grade = fast && clean ? 'Flawless' : clean ? 'Clean kill' : fast ? 'Quick kill' : '';
+  GS.RUN.bossPicks = picks;
   if (!GS.RUN.practice) {
     const sc = GS.wave <= 5 ? 40 : GS.wave <= 10 ? 80 : 150;
     GS.runSeeds += sc;
     GS.RUN.lvHold = GS.time + 1.1; // the cards wait until the kill has landed
     banner(
       `${nm} is dead`,
-      `+${sc} scrap · ${fmtT(secs)}${tr.first ? ' · first kill' : tr.nb ? ' · best time' : ''}`,
+      `${grade ? grade + ' · ' : ''}${fmtT(secs)} · ${picks} ${picks > 1 ? 'picks' : 'pick'} in its crate${tr.first ? ' · first kill' : tr.nb ? ' · best time' : ''}`,
       false
     );
     GS.RUN.bossDawn = (BOSS_RADIO[bt] || {}).dawn;
@@ -578,7 +671,14 @@ export function bossDown(e, alone) {
   GS.later.push({
     t: 2.6,
     fn: () => {
-      if (GS.state === 'play') dropCrate();
+      if (GS.state !== 'play') return;
+      const cr = dropCrate(
+        undefined,
+        undefined,
+        undefined,
+        `Its crate · ammo and ${picks} ${picks > 1 ? 'picks' : 'pick'} of gear`
+      );
+      if (cr) cr.bossPicks = picks;
     },
   });
   {

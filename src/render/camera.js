@@ -37,8 +37,13 @@ export function updateCamera(dt) {
       tly += dy * m;
     }
   } // a boss arriving pulls the eye toward it for a moment
-  cam.lx += (tlx - cam.lx) * damp(2.2, dt);
-  cam.ly += (tly - cam.ly) * damp(2.2, dt);
+  if (GS.state === 'cine' && cam.cine) {
+    tlx = cam.cine.x - GS.P.x;
+    tly = cam.cine.y - GS.P.y;
+  } // a boss's entrance: the eye goes all the way over, and comes back to you after
+  const dk = GS.state === 'cine' ? 2.6 : 2.2;
+  cam.lx += (tlx - cam.lx) * damp(dk, dt);
+  cam.ly += (tly - cam.ly) * damp(dk, dt);
   const tx = GS.P.x + cam.lx - viewW / 2,
     ty = GS.P.y + cam.ly - viewH / 2;
   const sd = (cur, tgt, v) => {

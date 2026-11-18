@@ -22,6 +22,7 @@ export const RUN = String.raw`(()=>{
   startN();
   while (T < cap && GS.state !== 'over' && GS.state !== 'won' && GS.wave <= FINAL_NIGHT) {
     if (GS.state === 'levelup') { GS.luOpenT = 0; choosePick(); continue; }
+    if (GS.state === 'cine') { cineSkip(); continue; } /* a boss's entrance: skipped, as a player may */
     if (GS.state === 'radio') { const ws = document.querySelectorAll('#radioAsk .way'); if (ws.length) { window.__rAsk = (window.__rAsk || 0) + 1; const t = performance.now(); while (performance.now() - t < 650); ws[Math.floor(Math.random() * ws.length)].click(); } continue; } /* the radio's question: a random answer */
     if (GS.state === 'travel') { travelStep(); { const t = performance.now(); while (performance.now() - t < 650); } const ws = document.querySelectorAll('#route .way'); if (ws.length) ws[PICK === 'first' ? 0 : Math.floor(Math.random() * ws.length)].click(); else $('routeGo').click(); continue; } /* on the truck to the next place: straight off at the other end */
     if (GS.state !== 'play') { window.__brk = GS.state + ' on night ' + GS.wave; break; }

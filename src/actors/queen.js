@@ -112,6 +112,28 @@ export function updateQueen(e, dt, ux, uy, dist) {
       if (thr('gstep', 160)) noise(0.14, 0.12 * clamp(1 - d / 900, 0, 1), 180, 50, 'lowpass', 0, spat(e.x, e.y));
     }
   } // weight: every footfall
+  if (GS.state === 'cine') {
+    // its entrance: it does what the scene says (comes out, walks a few steps, stands and roars), nothing more
+    const c = e.cine;
+    if (c && c.t > 0) {
+      c.t -= dt;
+      e.tvx = c.vx;
+      e.tvy = c.vy;
+      e.face = e.a = Math.atan2(c.vy, c.vx);
+      if (e.st === 'roar' && c.t > 0) e.st = 'move';
+      if (c.fn) c.fn(e, dt);
+      if (c.t <= 0 && c.roar) {
+        e.st = 'roar';
+        e.stT = e.busyT = c.roar;
+        sfx.roar(e.x, e.y, bt);
+        shake(0.35);
+      }
+    } else if (e.st === 'roar') {
+      e.stT -= dt;
+      if (e.stT <= 0) e.st = 'move';
+    }
+    return;
+  }
   if (e.spinT > 0) {
     e.spinT -= dt;
     e.stunT -= dt;

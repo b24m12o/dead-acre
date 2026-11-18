@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { cineTick } from '../game/cine.js';
 import { DAWN_IDLE, dawnBusy } from '../game/night-flow.js';
 import { takePouch } from '../game/pockets.js';
 import { BOON, boonOn, tickBoons } from '../game/boons.js';
@@ -135,6 +136,7 @@ function separate(L) {
   }
 }
 export function update(dt) {
+  if (GS.state === 'cine') return cineTick(dt); // a boss's entrance: everything holds still but it
   if (GS.fxTr && GS.fxTr.length) {
     for (const t of GS.fxTr) t.t -= dt;
     GS.fxTr = GS.fxTr.filter(t => t.t > 0);
@@ -605,10 +607,12 @@ export function update(dt) {
   });
   const SG = GS.RUN.sg;
   dirTick(dt, SG); // the director: how hard the night is on you, and so when the rest come (director.js)
-  if (GS.queue.length && SG && SG.lull > 0)
+  if (GS.burstT > 0) GS.burstT -= dt; // a boss turning: its lot comes now, all together (arenaPhase)
+  if (GS.queue.length && SG && SG.lull > 0 && !(GS.burstT > 0))
     surgeLull(SG, dt); // between surges: finish off what is out, then a breath before the next lot
-  else if (GS.queue.length && !dirHold(SG)) {
+  else if (GS.queue.length && (GS.burstT > 0 || !dirHold(SG))) {
     GS.spawnT -= dt;
+    if (GS.burstT > 0) GS.spawnT = Math.min(GS.spawnT, 0.18);
     if (GS.spawnT <= 0 && sewerPack(SG)) GS.spawnT = 1.4;
     if (GS.spawnT <= 0) {
       GS.spawnT =
@@ -657,6 +661,7 @@ export function update(dt) {
           !ne.kind &&
           Math.random() <
             (0.03 + GS.wave * 0.005 + 0.012 * sinceBoss(GS.wave)) *
+              (bossNight(GS.wave) ? 0.4 : 1) * // on a boss's night the elites leave it the stage
               (INF(3) ? 2 : 1) *
               (GS.RUN.viaN && GS.RUN.viaN.w === GS.wave && GS.RUN.viaN.trait ? 2 : 1)
         )

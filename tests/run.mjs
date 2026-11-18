@@ -33,6 +33,7 @@ const ALL = [
   'director',
   'stall',
   'pace',
+  'entrance',
   'boons',
   'pockets',
   'flow',
