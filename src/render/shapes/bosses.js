@@ -20,6 +20,7 @@ export const GB_GLSL = `
   vec3 abLocal(vec3 p, int j){ float th=j==0?0.62:j==1?-0.62:j==2?1.92:j==3?-1.92:3.14159; vec2 c=vec2(-10.0,0.0)+vec2(cos(th),sin(th))*38.0, q=p.xy-c; float cs=cos(th), sn=sin(th); return vec3(q.x*cs+q.y*sn,-q.x*sn+q.y*cs,p.z); } /* one of the fused people, in its own frame: x out toward where its head was */
   float map(vec3 p){
     int k=uPart; float d;
+#ifndef ABOM_ONLY
     if(k==0){ /* Roadkill: hunched, the left shoulder dropped, a hump of muscle over the back */
       vec3 q=p; q.z+=smoothstep(8.0,50.0,-p.y)*5.0; d=gBody(q,58.0,32.0,22.0);
       d=smin(d,sdEll(q,vec3(-9.0,0.0,20.0),vec3(20.0,30.0,9.0)),8.0);
@@ -69,6 +70,9 @@ export const GB_GLSL = `
       float shield=sdBox(p,vec3(14.0,0.0,11.0),vec3(3.0,4.6,4.2),1.0);
       d=smin(dome,brim,2.0); d=smin(d,shield,1.0); d+=0.8*exp(-(pow(p.x+4.0,2.0)+pow(p.y-6.0,2.0))/8.0)*step(10.0,p.z);
     }
+#else
+    if(false){}
+#endif
     else if(k==9){ /* the Abomination: five people grown into one mass, their backs fused radially round a raw core, heads sunk at the necks */
       p/=1.22; d=sdEll(p,vec3(-10.0,0.0,2.0),vec3(42.0,38.0,18.0));
       for(int j=0;j<5;j++){ vec3 l=abLocal(p,j); float bk=sdEll(l,vec3(0.0,0.0,6.0),vec3(21.0,15.5,10.0)); bk=smin(bk,sdCap(l,vec3(13.0,-15.0,6.5),vec3(13.0,15.0,6.5),6.4,6.4),5.0); bk=smin(bk,sdCap(l,vec3(19.0,0.0,8.0),vec3(25.0,0.0,6.0),4.2,3.8),2.5);
@@ -106,6 +110,7 @@ export const GB_GLSL = `
   vec3 bloodB(vec3 c, vec3 p, float amt){ float m=clamp((fbm(p.xy*0.16+vec2(-4.0,9.0)+uSeed)-0.62)*amt,0.0,1.0); return mix(c,vec3(0.3,0.035,0.03),m); }
   vec3 albB(vec3 p, vec3 n){
     int k=uPart; vec3 c;
+#ifndef ABOM_ONLY // the live 3D Abomination (boss3d.js) builds with only its own parts: the others would only slow its compile
     if(k==0){ c=skinB(p,0x9a7a66);
       vec2 dir=normalize(vec2(0.45,1.0)); float v=dot(p.xy,dir), w=dot(p.xy,vec2(-dir.y,dir.x)); if(abs(w+4.0)<10.0&&p.x<10.0){ float ch=fract(v*0.16+abs(w+4.0)*0.07); c=mix(c,hx(0x4a2e3e),(ch<0.42?0.6:0.2)*smoothstep(10.0,6.0,abs(w+4.0))); } /* the tyre tread bruised across the back */
       if(p.y<-30.0&&p.x>-14.0) c=mix(c,hx(0x8a3a2e)*(0.8+0.4*fbm(p.xy*0.8)),0.75); /* the left side skinned raw on the asphalt */
@@ -119,6 +124,7 @@ export const GB_GLSL = `
     if(k==5){ float beard=sdEll(p,vec3(18.0,0.0,2.0),vec3(9.0,6.6,3.6)); if(beard<0.8&&p.x>12.0){ float st=sin(p.y*3.0+fbm(p.xy*1.2)*6.0); return hx(0x9a968c)*(0.75+0.3*fbm(p.xy*1.4))*(0.85+0.15*st); } if(p.x<-16.0&&p.z<5.5) return hx(0x8a8880)*(0.7+0.3*sin(p.y*2.2+fbm(p.yx)*5.0)); c=hx(0x3a2c20)*(0.8+0.3*fbm(p.xy*0.5)); if(p.z>11.0&&p.z<12.6) c=hx(0x1e1812); c=mix(c,hx(0x5a4a34),clamp((fbm(p.xy*0.3+6.0)-0.6)*1.6,0.0,0.5)); return c; }
     if(k==6){ c=skinB(p,0x8e8a84); if(p.y>2.0) c=mix(c,hx(0x8a6a7a),clamp((p.y-2.0)/10.0,0.0,0.45)); for(int i=0;i<3;i++){ vec2 e=vec2(-6.0+float(i)*6.0,-6.0+float(i)*2.5); if(length(p.xy-e)<2.5) c=length(p.xy-e)<0.8?hx(0x8a8a80):hx(0xe0ddd0); if(abs(p.y-e.y+(p.x-e.x)*0.4)<0.25&&p.x<e.x-2.0) c=hx(0x202020); } return bloodB(c,p,1.2); }
     if(k==7){ c=hx(0xe4e0d4)*(0.85+0.2*fbm(p.xy*0.5)); if(p.z<3.0) c*=0.86; if(sdBox(p,vec3(14.0,0.0,11.0),vec3(3.0,4.6,4.2),1.0)<0.4){ c=hx(0x6a2a1a)*(0.85+0.3*fbm(p.xy*1.2)); if(length(p.xy-vec2(14.5,0.0))<2.2) c=hx(0xc8a858); } c=mix(c,hx(0x1a1612),clamp((fbm(p.xy*0.2+3.0)-0.5)*2.2,0.0,0.75)); return c; }
+#endif
     if(k==9||k==10||k==11||k==12){ /* dead flesh: grey-pink, bruised purple and green, veins, sores; bone where it shows */
       c=mix(hx(0x7c706c),hx(0x6a5e5a),fbm(p.xy*0.15+2.0))*(0.8+0.36*fbm(p.xy*0.5+uSeed)); c=mix(c,hx(0x5a3e58),clamp((fbm(p.xy*0.09+6.0)-0.46)*2.2,0.0,0.6)); c=mix(c,hx(0x5e6a44),clamp((fbm(p.xy*0.11+9.0)-0.56)*2.2,0.0,0.42)); c=mix(c,hx(0x3a2a2c),clamp((fbm(p.xy*0.32+12.0)-0.62)*2.6,0.0,0.45)); /* grey-mauve dead skin, bruised purple and green, patchy dark mottling: no smooth pink */
       float vv=abs(fbm(p.xy*(k==9?0.06:0.14)+3.0)*2.0-1.0); c=mix(c,hx(0x4a2a3a),smoothstep(0.06,0.0,vv)*0.55);

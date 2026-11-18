@@ -7,6 +7,13 @@ import { openGame, check } from './lib/harness.mjs';
 export const name = 'boss3d: the Abomination in 3D, posed by its fight';
 export async function run(b) {
   const { pg, errs, ev } = await openGame(b, { noFrames: true });
+  // its shader builds in the background from load: wait for it (the pictures stand in till then)
+  let ready = false;
+  for (let i = 0; i < 120 && !ready; i++) {
+    ready = await ev('boss3dOn()');
+    if (!ready) await pg.waitForTimeout(250);
+  }
+  check(ready, 'the 3D shader should build in the background within 30 s');
   const o = await ev(`(() => {
     initAudio(); GS.meta.tutDone = true; GS.meta.bossSeen = {}; __god();
     startPractice('abom');

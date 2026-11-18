@@ -18,6 +18,7 @@ import {
   setBind,
 } from '../core/binds.js';
 import { DEVICE_RENDER_CAP, gfxPreset, resize } from '../render/sprites.js';
+import { warm as warmBoss3D } from '../render/boss3d.js';
 import { initAudio, playS } from '../audio/audio.js';
 import { applyVol, setMusic, setMuted } from '../audio/music.js';
 import { CH_COLS, paintCH } from './crosshair.js';
@@ -317,6 +318,7 @@ export function init() {
   $('b3dBtn').addEventListener('click', () => {
     opt.b3d = !opt.b3d;
     store.set('rr_b3d', opt.b3d ? '1' : '0');
+    warmBoss3D();
     syncOpts();
   });
   $('dmgBtn').addEventListener('click', () => {

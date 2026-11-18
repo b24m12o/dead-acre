@@ -11,21 +11,29 @@
 import { GS } from '../core/gs.js';
 import { opt } from '../core/settings.js';
 import { angDiff, clamp, lerp } from '../core/util.js';
-import { gl, program } from './gl.js';
+import { gl, progFinish } from './gl.js';
 import { FS_VS } from './bake.js';
 import { SDF_LIB } from './sdf-lib.js';
 import { GB_GLSL } from './shapes/bosses.js';
 import { SUNV, emptyVAO, flush, lampNow, viewH, viewW } from './sprites.js';
 import { queenTail } from '../actors/projectiles.js';
 
-const FS = () => `#version 300 es
+// two builds: the body (into the scene's three targets) and its shadow (into a shadow map's one target)
+const FS = shadow => `#version 300 es
+${shadow ? '#define SHADOW' : ''}
 precision highp float; precision highp int;
 uniform vec4 uCam; uniform vec2 uRes; uniform int uMode; uniform vec2 uSun; uniform vec3 uLamp; uniform float uShA;
 uniform vec4 uHole; uniform vec3 uEye; uniform float uT; uniform float uFlash; uniform float uFade; uniform float uRage;
 uniform mat3 uBodyR; uniform vec3 uBodyP; uniform mat3 uHeadR; uniform vec3 uHeadP;
 uniform vec3 uNeck[2]; uniform vec3 uLeg[12]; uniform vec3 uArm[8]; uniform vec3 uTail[6]; uniform vec3 uBound;
+#ifdef SHADOW
+layout(location=0) out vec4 o0;
+#else
 layout(location=0) out vec4 o0; layout(location=1) out vec4 o1; layout(location=2) out vec4 o2;
+#endif
 vec3 uBox; int uPart; float uSeed;
+#define ABOM_ONLY
+#define ZERO min(uMode,0)
 ${SDF_LIB}
 ${GB_GLSL}
 float sdLimb(vec3 p, vec3 a, vec3 b, float ra, float rb){ return sdCap(p,a,b,ra,rb)-(fbm(p.xy*0.5+p.z*0.3)-0.5)*1.0; }
@@ -39,41 +47,45 @@ float scene(vec3 p, out int part, out vec3 lp){
   { vec3 l=transpose(uHeadR)*(p-uHeadP); float b=length(l/vec3(34.0,30.0,26.0))-1.0;
     float dh; if(b>0.3) dh=b*26.0; else { uPart=10; dh=map(l); }
     if(dh<d){ part=10; lp=l; } d=smin(d,dh,4.0); }
-  for(int i=0;i<4;i++){ vec3 h=uLeg[i*3], k=uLeg[i*3+1], f=uLeg[i*3+2];
+  for(int i=ZERO;i<4;i++){ vec3 h=uLeg[i*3], k=uLeg[i*3+1], f=uLeg[i*3+2];
     float a=sdLimb(p,h,k,9.5,7.0), b=sdLimb(p,k,f,7.0,4.2); float dl=smin(a,b,3.0); dl=smin(dl,sdSph(p,f,5.5),2.0);
     if(dl<d){ part=11; mat3 fr=frameOf(a<b?h:k,a<b?k:f); lp=transpose(fr)*(p-((a<b?h+k:k+f)*0.5)); }
     d=smin(d,dl,a<b?6.0:1.0); }
-  for(int i=0;i<2;i++){ vec3 s=uArm[i*4], e=uArm[i*4+1], h=uArm[i*4+2], t=uArm[i*4+3];
+  for(int i=ZERO;i<2;i++){ vec3 s=uArm[i*4], e=uArm[i*4+1], h=uArm[i*4+2], t=uArm[i*4+3];
     float a=sdLimb(p,s,e,12.0,9.5), b=sdLimb(p,e,h,9.5,6.5); float da=smin(a,b,3.0);
     vec3 bl=t-h; float bt=clamp(dot(p-h,bl)/dot(bl,bl),0.0,1.0); vec3 q=p-(h+bl*bt);
     mat3 fr=frameOf(h,t); vec3 lq=transpose(fr)*q; float blade=length(lq*vec3(1.0,1.0,2.6))-mix(7.5,0.6,bt);
     if(da<d){ part=11; mat3 f2=frameOf(a<b?s:e,a<b?e:h); lp=transpose(f2)*(p-((a<b?s+e:e+h)*0.5)); }
     if(blade<min(d,da)){ part=13; lp=lq; }
     d=smin(d,da,7.0); d=min(d,blade); }
-  for(int i=0;i<5;i++){ vec3 a=uTail[i], b=uTail[i+1]; mat3 fr=frameOf(b,a); vec3 l=transpose(fr)*(p-(a+b)*0.5)/(1.0-float(i)*0.07);
+  for(int i=ZERO;i<5;i++){ vec3 a=uTail[i], b=uTail[i+1]; mat3 fr=frameOf(b,a); vec3 l=transpose(fr)*(p-(a+b)*0.5)/(1.0-float(i)*0.07);
     float ds; if(length(l)>34.0) ds=(length(l)-26.0)*(1.0-float(i)*0.07); else { uPart=12; ds=map(l)*(1.0-float(i)*0.07); }
     if(ds<d){ part=12; lp=l; } d=smin(d,ds,3.0); }
   { vec3 m=uTail[5]; float dm=sdSph(p,m,12.0); dm=smax(dm,-sdSph(p,m+normalize(m-uTail[4])*11.0,7.0),2.0); if(dm<d){ part=14; lp=p-m; } d=smin(d,dm,3.0); }
   return d;
 }
 float sceneD(vec3 p){ int k; vec3 l; return scene(p,k,l); }
-vec3 nrmS(vec3 p){ vec2 e=vec2(0.7,-0.7); return normalize(e.xyy*sceneD(p+e.xyy)+e.yyx*sceneD(p+e.yyx)+e.yxy*sceneD(p+e.yxy)+e.xxx*sceneD(p+e.xxx)); }
+vec3 nrmS(vec3 p){ vec3 n=vec3(0.0); for(int i=ZERO;i<4;i++){ vec3 e=2.0*vec3(float(((i+3)>>1)&1),float((i>>1)&1),float(i&1))-1.0; n+=e*sceneD(p+e*0.7); } return normalize(n); }
 bool inHole(vec2 xy){ if(uHole.z<1.0) return false; vec2 q=xy-uHole.xy; float an=atan(q.y,q.x); return length(q)<uHole.z*(1.0+0.13*(vn(vec2(an*2.6,1.7))-0.5)+0.06*sin(an*7.0)); }
 vec3 worldOf(vec2 fc){ return vec3(uCam.x+fc.x/uRes.x*uCam.z, uCam.y+(1.0-fc.y/uRes.y)*uCam.w, 0.0); }
 void main(){
   vec3 g=worldOf(gl_FragCoord.xy);
-  if(uMode>0){ // its shadow on the street: the moon's (each unit up throws it SUNV further), or a lamp's
+#ifdef SHADOW
+  { // its shadow on the street: the moon's (each unit up throws it SUNV further), or a lamp's
     if(inHole(g.xy)) discard;
     float sh=0.0;
-    if(uMode==1){ float z=2.0; for(int i=0;i<60;i++){ vec3 q=vec3(g.xy-uSun*z,z); float dd=sceneD(q); if(dd<0.5){ sh=1.0; break; } z+=max(dd*0.6,1.5); if(z>uBound.z) break; } }
-    else { vec3 v=uLamp-g; float len=length(v), s=2.0/len; for(int i=0;i<60;i++){ vec3 q=g+v*s; float dd=sceneD(q); if(dd<0.5){ sh=1.0; break; } s+=max(dd*0.6,1.5)/len; if(s>0.95||q.z>uBound.z) break; } }
+    // one march for both (the moon's: s is the height; a lamp's: s is the share of the way to it)
+    vec3 v=uLamp-g; float len=uMode==1?1.0:length(v), s=2.0/len;
+    for(int i=ZERO;i<60;i++){ vec3 q=uMode==1?vec3(g.xy-uSun*s,s):g+v*s; float dd=sceneD(q); if(dd<0.5){ sh=1.0; break; }
+      s+=max(dd*0.6,1.5)/len; if((uMode==1?q.z:s)>(uMode==1?uBound.z:0.95)||q.z>uBound.z) break; }
     if(sh<0.5) discard;
-    o0=vec4(uShA*uFade); o1=vec4(0.0); o2=vec4(0.0); return; }
+    o0=vec4(uShA*uFade); }
+#else
   // straight down from a camera high over it: what stands higher is a little nearer, a little bigger
   vec3 ro=uEye, rd=normalize(g-uEye);
   float t=max(0.0,(uEye.z-uBound.z)/max(-rd.z,0.01)), dmin=1e3; vec3 pm=ro; bool hit=false; vec3 p=ro;
   float px=uCam.z/uRes.x;
-  for(int i=0;i<110;i++){ p=ro+rd*t; float floorZ=inHole(p.xy)?-uHole.w:0.0; if(p.z<floorZ) break;
+  for(int i=ZERO;i<110;i++){ p=ro+rd*t; float floorZ=inHole(p.xy)?-uHole.w:0.0; if(p.z<floorZ) break;
     float dd=sceneD(p); if(dd<dmin){ dmin=dd; pm=p; } if(dd<0.25){ hit=true; break; } t+=max(dd*0.8,0.35); }
   float cov=(hit?1.0:smoothstep(1.4*px,0.0,dmin))*uFade;
   if(cov<0.01) discard;
@@ -84,13 +96,14 @@ void main(){
   else if(k==14){ c=mix(vec3(0.3,0.04,0.03),vec3(0.55,0.42,0.36),smoothstep(5.0,11.0,length(lp+normalize(uTail[5]-uTail[4])*6.0))); }
   else { uPart=k; uSeed=k==9?87.9:k==10?91.0:k==11?94.1:97.2; uBox=k==9?vec3(190.0,156.0,34.0):k==10?vec3(86.0,76.0,22.0):k==11?vec3(40.0,14.0,8.0):vec3(42.0,38.0,15.0);
     c=alb(lp,n); }
-  float ao=clamp(sceneD(p+n*4.0)/4.0,0.0,1.0)*0.5+clamp(sceneD(p+n*10.0)/10.0,0.0,1.0)*0.5;
+  float ao=0.0; for(int i=ZERO;i<2;i++){ float h=i==0?4.0:10.0; ao+=clamp(sceneD(p+n*h)/h,0.0,1.0)*0.5; }
   float sh=(0.46+0.54*pow(max(n.z,0.0),1.2))*mix(1.0,ao,0.6);
   if(p.z<0.0) sh*=mix(0.07,0.75,smoothstep(-uHole.w,0.0,p.z)); // down in the hole: in the dark
   vec3 em=vec3(0.5,0.64,0.82)*pow(1.0-max(n.z,0.0),1.7)*0.32*step(0.0,p.z)+vec3(uFlash);
   if(k==10){ for(int s=-1;s<=1;s+=2){ float e=length(lp-vec3(5.0,float(s)*12.0,13.0)); em+=vec3(1.4,0.25,0.12)*uRage*smoothstep(4.5,1.5,e)*(0.8+0.2*sin(uT*9.0)); } } // the eyes catch, and burn
   if(k==9){ float e=length(lp/1.22-vec3(-10.0,0.0,20.0)); em+=vec3(0.9,0.16,0.08)*uRage*smoothstep(13.0,4.0,e)*(0.55+0.45*sin(uT*2.4)); } // the raw core at its heart, pulsing
   o0=vec4(c*sh*cov,cov); o1=vec4(em*cov,cov); o2=vec4((n.xy*0.5+0.5)*cov,0.12*cov,cov);
+#endif
 }`;
 
 // ---------- the rig: vectors, turns, two-bone IK ----------
@@ -540,24 +553,70 @@ export function clipAbom(hx, hy, yaw) {
 
 // ---------- drawing ----------
 let P3 = null,
-  bad = false;
+  bad = false,
+  pend = null;
 export const B3D = { ms: 0 };
-// whether the 3D Abomination draws (Settings: 3D bosses), and whether this machine could build it
-export const boss3dOn = () => opt.b3d !== false && !bad && !!gl;
-function build() {
-  if (P3 || bad) return P3;
+// Its shader is big, and some machines' drivers take many seconds over it, holding the whole browser still if the game
+// waits on it. So it is built in the background from the moment the game loads (init, and when the setting is turned
+// on), and only asked about once the driver says it's done: till then the Abomination is drawn from its pictures.
+export function warm() {
+  if (P3 || bad || pend || !gl || opt.b3d === false) return;
   try {
-    P3 = program(FS_VS, FS());
+    const ext = gl.getExtension('KHR_parallel_shader_compile'),
+      one = shadow => {
+        const p = gl.createProgram(),
+          sh = (type, src) => {
+            const o = gl.createShader(type);
+            gl.shaderSource(o, src);
+            gl.compileShader(o);
+            gl.attachShader(p, o);
+            return o;
+          },
+          vs = sh(gl.VERTEX_SHADER, FS_VS),
+          fs = sh(gl.FRAGMENT_SHADER, FS(shadow));
+        gl.linkProgram(p);
+        return { p, vs, fs };
+      };
+    pend = { ext, body: one(false), shadow: one(true) };
   } catch (err) {
-    bad = true;
-    console.warn('Dead Acre: the 3D bosses could not be built here, so the pictures stand in', err);
+    fail(err);
   }
-  return P3;
 }
+function fail(err) {
+  bad = true;
+  pend = null;
+  console.warn('Dead Acre: the 3D bosses could not be built here, so the pictures stand in', err);
+}
+// whether it's built: without the driver's word that it's done (KHR_parallel_shader_compile), this is where it waits
+function ready() {
+  if (P3) return true;
+  if (bad) return false;
+  if (!pend) warm();
+  if (!pend) return false;
+  const { ext, body, shadow } = pend;
+  if (
+    ext &&
+    !(
+      gl.getProgramParameter(body.p, ext.COMPLETION_STATUS_KHR) &&
+      gl.getProgramParameter(shadow.p, ext.COMPLETION_STATUS_KHR)
+    )
+  )
+    return false;
+  pend = null;
+  for (const { p, vs, fs } of [body, shadow])
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      fail(gl.getShaderInfoLog(fs) || gl.getShaderInfoLog(vs) || gl.getProgramInfoLog(p));
+      return false;
+    }
+  P3 = { body: progFinish(body.p), shadow: progFinish(shadow.p) };
+  return true;
+}
+// whether the 3D Abomination draws now (Settings: 3D bosses; this machine could build it; it's built)
+export const boss3dOn = () => opt.b3d !== false && !bad && !!gl && ready();
 // draws the Abomination in 3D into whichever pass is running (the scene, the moon's shadows, a lamp's); false if it
 // can't, so the picture draws instead
 export function drawBoss3D(e) {
-  if (!boss3dOn() || !build()) return false;
+  if (!boss3dOn()) return false;
   if (e.p3F !== GS.time || !e.pose3) {
     e.p3F = GS.time;
     if (!e.clip3d) e.pose3 = poseLive(e);
@@ -569,10 +628,11 @@ export function drawBoss3D(e) {
     W = vp[2],
     H = vp[3],
     mode = GS.SHMODE === 3 || GS.SHMODE === 4 ? 2 : GS.SHMODE ? 1 : 0,
-    u = P3.u,
+    prog = mode ? P3.shadow : P3.body,
+    u = prog.u,
     [lx, ly, lh] = lampNow(),
     fade = e.dying !== undefined ? clamp(((e.keep || 0.55) - e.dying) / 1.5, 0, 1) : 1;
-  gl.useProgram(P3.p);
+  gl.useProgram(prog.p);
   gl.uniform4f(u.uCam, GS.camX, GS.camY, viewW, viewH);
   gl.uniform2f(u.uRes, W, H);
   gl.uniform1i(u.uMode, mode);

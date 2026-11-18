@@ -13,6 +13,7 @@ import './render/post.js';
 import { init as initSprites } from './render/sprites.js';
 import { init as initAtlas } from './render/atlas.js';
 import { init as initVisGpu } from './render/visgpu.js';
+import { warm as warmBoss3D } from './render/boss3d.js';
 import './render/atlas-paint.js';
 import { init as initMap } from './world/map.js';
 import { init as initNav } from './world/nav.js';
@@ -92,6 +93,7 @@ initBakeShapes();
 initSprites();
 initAtlas();
 initVisGpu();
+warmBoss3D(); // the 3D Abomination's shader, built in the background (boss3d.js)
 initMap();
 initNav();
 initAudioCore();
