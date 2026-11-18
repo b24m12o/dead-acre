@@ -36,7 +36,7 @@ vec3 uBox; int uPart; float uSeed;
 #define ZERO min(uMode,0)
 ${SDF_LIB}
 ${GB_GLSL}
-float sdLimb(vec3 p, vec3 a, vec3 b, float ra, float rb){ return sdCap(p,a,b,ra,rb)-(fbm(p.xy*0.5+p.z*0.3)-0.5)*1.0; }
+float sdLimb(vec3 p, vec3 a, vec3 b, float ra, float rb){ return (sdCap(p,a,b,ra,rb)-(fbm(p.xy*0.5+p.z*0.3)-0.5)*1.0)*0.8; } // its lumps make it steeper than a true distance: stepped short, so rays don't slip through the thin ends
 mat3 frameOf(vec3 a, vec3 b){ vec3 x=normalize(b-a); vec3 up=abs(x.z)<0.97?vec3(0.0,0.0,1.0):vec3(0.0,1.0,0.0); vec3 y=normalize(cross(up,x)); return mat3(x,y,cross(x,y)); }
 float scene(vec3 p, out int part, out vec3 lp){
   float d=1e3; part=-1; lp=p;
@@ -54,7 +54,7 @@ float scene(vec3 p, out int part, out vec3 lp){
   for(int i=ZERO;i<2;i++){ vec3 s=uArm[i*4], e=uArm[i*4+1], h=uArm[i*4+2], t=uArm[i*4+3];
     float a=sdLimb(p,s,e,12.0,9.5), b=sdLimb(p,e,h,9.5,6.5); float da=smin(a,b,3.0);
     vec3 bl=t-h; float bt=clamp(dot(p-h,bl)/dot(bl,bl),0.0,1.0); vec3 q=p-(h+bl*bt);
-    mat3 fr=frameOf(h,t); vec3 lq=transpose(fr)*q; float blade=length(lq*vec3(1.0,1.0,2.6))-mix(7.5,0.6,bt);
+    mat3 fr=frameOf(h,t); vec3 lq=transpose(fr)*q; float blade=(length(lq*vec3(1.0,1.0,2.6))-mix(7.5,0.6,bt))/2.6; // flattened 2.6 times: a step that safe, or rays slip through it
     if(da<d){ part=11; mat3 f2=frameOf(a<b?s:e,a<b?e:h); lp=transpose(f2)*(p-((a<b?s+e:e+h)*0.5)); }
     if(blade<min(d,da)){ part=13; lp=lq; }
     d=smin(d,da,7.0); d=min(d,blade); }
@@ -65,10 +65,10 @@ float scene(vec3 p, out int part, out vec3 lp){
   return d;
 }
 float sceneD(vec3 p){ int k; vec3 l; return scene(p,k,l); }
-vec3 nrmS(vec3 p){ vec3 n=vec3(0.0); for(int i=ZERO;i<4;i++){ vec3 e=2.0*vec3(float(((i+3)>>1)&1),float((i>>1)&1),float(i&1))-1.0; n+=e*sceneD(p+e*0.7); } return normalize(n); }
 bool inHole(vec2 xy){ if(uHole.z<1.0) return false; vec2 q=xy-uHole.xy; float an=atan(q.y,q.x); return length(q)<uHole.z*(1.0+0.13*(vn(vec2(an*2.6,1.7))-0.5)+0.06*sin(an*7.0)); }
 vec3 worldOf(vec2 fc){ return vec3(uCam.x+fc.x/uRes.x*uCam.z, uCam.y+(1.0-fc.y/uRes.y)*uCam.w, 0.0); }
 void main(){
+  if(uFade<0.001) discard;
   vec3 g=worldOf(gl_FragCoord.xy);
 #ifdef SHADOW
   { // its shadow on the street: the moon's (each unit up throws it SUNV further), or a lamp's
@@ -85,18 +85,27 @@ void main(){
   vec3 ro=uEye, rd=normalize(g-uEye);
   float t=max(0.0,(uEye.z-uBound.z)/max(-rd.z,0.01)), dmin=1e3; vec3 pm=ro; bool hit=false; vec3 p=ro;
   float px=uCam.z/uRes.x;
-  for(int i=ZERO;i<110;i++){ p=ro+rd*t; float floorZ=inHole(p.xy)?-uHole.w:0.0; if(p.z<floorZ) break;
-    float dd=sceneD(p); if(dd<dmin){ dmin=dd; pm=p; } if(dd<0.25){ hit=true; break; } t+=max(dd*0.8,0.35); }
-  float cov=(hit?1.0:smoothstep(1.4*px,0.0,dmin))*uFade;
-  if(cov<0.01) discard;
-  if(!hit) p=pm;
-  int k; vec3 lp; scene(p,k,lp); vec3 n=nrmS(p);
+  // One loop does every look at the body: the march down to it, then one at the spot it found (what part, where on it),
+  // four round it (which way it faces), two out from it (how deep a crease it's in). Each look written out on its own
+  // would be a whole copy of the body in the compiled shader, which some drivers take many seconds over.
+  int ph=0, tap=0, k=-1; vec3 lp=vec3(0.0), nacc=vec3(0.0), n=vec3(0.0,0.0,1.0); float ao=0.0, cov=0.0;
+  for(int i=ZERO;i<124;i++){
+    vec3 q=p, e=vec3(0.0); float h=1.0;
+    if(ph==0){ q=ro+rd*t;
+      if(q.z<(inHole(q.xy)?-uHole.w:0.0)||i>=110){ cov=smoothstep(1.4*px,0.0,dmin)*uFade; if(cov<0.01) discard; p=pm; ph=1; continue; } }
+    else if(ph==1){ if(tap>0){ e=2.0*vec3(float(((tap+2)>>1)&1),float(((tap-1)>>1)&1),float((tap-1)&1))-1.0; q=p+e*0.7; } }
+    else if(ph==2){ h=tap==0?4.0:10.0; q=p+n*h; }
+    else break;
+    int kk; vec3 ll; float dd=scene(q,kk,ll);
+    if(ph==0){ if(dd<dmin){ dmin=dd; pm=q; } if(dd<0.25){ hit=true; p=q; cov=uFade; if(cov<0.01) discard; ph=1; } else t+=max(dd*0.8,0.35); }
+    else if(ph==1){ if(tap==0){ k=kk; lp=ll; } else nacc+=e*dd; tap++; if(tap==5){ n=normalize(nacc); ph=2; tap=0; } }
+    else { ao+=clamp(dd/h,0.0,1.0)*0.5; tap++; if(tap==2) ph=3; }
+  }
   vec3 c;
   if(k==13){ c=mix(vec3(0.84,0.8,0.72),vec3(0.42,0.36,0.3),smoothstep(0.3,0.8,fbm(lp.xy*0.4)))*0.9; }
   else if(k==14){ c=mix(vec3(0.3,0.04,0.03),vec3(0.55,0.42,0.36),smoothstep(5.0,11.0,length(lp+normalize(uTail[5]-uTail[4])*6.0))); }
   else { uPart=k; uSeed=k==9?87.9:k==10?91.0:k==11?94.1:97.2; uBox=k==9?vec3(190.0,156.0,34.0):k==10?vec3(86.0,76.0,22.0):k==11?vec3(40.0,14.0,8.0):vec3(42.0,38.0,15.0);
     c=alb(lp,n); }
-  float ao=0.0; for(int i=ZERO;i<2;i++){ float h=i==0?4.0:10.0; ao+=clamp(sceneD(p+n*h)/h,0.0,1.0)*0.5; }
   float sh=(0.46+0.54*pow(max(n.z,0.0),1.2))*mix(1.0,ao,0.6);
   if(p.z<0.0) sh*=mix(0.07,0.75,smoothstep(-uHole.w,0.0,p.z)); // down in the hole: in the dark
   vec3 em=vec3(0.5,0.64,0.82)*pow(1.0-max(n.z,0.0),1.7)*0.32*step(0.0,p.z)+vec3(uFlash);
@@ -611,6 +620,25 @@ function ready() {
   P3 = { body: progFinish(body.p), shadow: progFinish(shadow.p) };
   return true;
 }
+// Once built, each of the two draws once, unseen (one pixel, nothing written), into the kind of target it's for: some
+// drivers only finish turning a shader into the GPU's own code when it is first used, and this is when they do it,
+// on the menu, not as the Abomination climbs out. The scene pass and the moon's shadow pass call it every frame.
+let primed = 0;
+export function primeBoss3D(shadow) {
+  const bit = shadow ? 2 : 1;
+  if (primed & bit || !gl || opt.b3d === false || bad || !ready()) return;
+  primed |= bit;
+  flush();
+  const prog = shadow ? P3.shadow : P3.body;
+  gl.useProgram(prog.p);
+  gl.uniform1f(prog.u.uFade, 0);
+  gl.enable(gl.SCISSOR_TEST);
+  gl.scissor(0, 0, 1, 1);
+  gl.bindVertexArray(emptyVAO);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.disable(gl.SCISSOR_TEST);
+  gl.useProgram(GS.curProg.p);
+}
 // whether the 3D Abomination draws now (Settings: 3D bosses; this machine could build it; it's built)
 export const boss3dOn = () => opt.b3d !== false && !bad && !!gl && ready();
 // draws the Abomination in 3D into whichever pass is running (the scene, the moon's shadows, a lamp's); false if it
@@ -642,7 +670,7 @@ export function drawBoss3D(e) {
   gl.uniform4f(u.uHole, S.hole[0], S.hole[1], S.hole[2], S.hole[3]);
   gl.uniform3f(u.uEye, S.eye[0], S.eye[1], S.eye[2]);
   gl.uniform1f(u.uT, GS.time);
-  gl.uniform1f(u.uFlash, e.flash > 0 && e.dying === undefined ? 0.35 * Math.min(1, e.flash / 0.05) : 0);
+  gl.uniform1f(u.uFlash, e.flash > 0 && e.dying === undefined ? 0.12 * Math.min(1, e.flash / 0.05) : 0); // a hint of a hit: under steady fire it's on nearly all the time
   gl.uniform1f(u.uFade, fade);
   gl.uniform1f(u.uRage, e.dying !== undefined ? 0.2 : e.ph === 2 ? 1.6 : 1);
   gl.uniformMatrix3fv(u.uBodyR, false, S.bodyR.flat());

@@ -67,6 +67,7 @@ import { BILE, GIANT } from './draw-enemies.js';
 import { bakeRemains, bodyAO } from './remains.js';
 import { atmosLights, drawAsh, drawAshGlow, shaftGlow } from '../world/wear.js';
 import { lampShadowPass } from './lampshadows.js';
+import { primeBoss3D } from './boss3d.js';
 import { occTex } from './lampocc.js';
 import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
 import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
@@ -169,6 +170,7 @@ export function render() {
   }
   GS.SHS = 0.7;
   drawCasters();
+  primeBoss3D(true);
   flush();
   GS.SHMODE = false;
   setH(0);
@@ -436,6 +438,7 @@ export function render() {
     }
   drawFog(0.8);
   drawCasters();
+  primeBoss3D(false);
   for (const q of GS.parts)
     if (q.k === 2) {
       const t = 1 - q.life / q.max,
