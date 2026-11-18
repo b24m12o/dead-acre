@@ -507,6 +507,23 @@ export function budBoard(s, dt) {
   s.recoil = Math.max(0, (s.recoil || 0) - dt * 40);
   return true;
 }
+// an open spot beside you, in plain sight of you and on ground that walks to you: where a survivor who joins you
+// stands, never inside a barricade, a fence or a wall you happen to be next to
+export function spotNear(p, r0 = 40, r1 = 90) {
+  const open = (x, y) =>
+    !blockPt(x, y) && !blockPt(x + 14, y) && !blockPt(x - 14, y) && !blockPt(x, y + 14) && !blockPt(x, y - 14);
+  for (let k = 0; k < 40; k++) {
+    const a = rand(0, TAU),
+      r = rand(r0, r1 + k * 4),
+      x = p.x + Math.cos(a) * r,
+      y = p.y + Math.sin(a) * r;
+    if (x < 2 * TILE || y < 2 * TILE || x > WW - 2 * TILE || y > WH - 2 * TILE || !open(x, y)) continue;
+    if (!los(p.x, p.y, x, y)) continue;
+    if (flow && flow[Math.floor(y / TILE) * MW + Math.floor(x / TILE)] === 65535) continue;
+    return [x, y];
+  }
+  return [p.x, p.y];
+}
 export function regroupSpot(p, i) {
   const back = p.formA + Math.PI,
     open = (x, y) => {

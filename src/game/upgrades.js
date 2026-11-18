@@ -10,7 +10,7 @@ import { hideCallouts, showStreak } from '../ui/callouts.js';
 import { AB } from './abilities.js';
 import { updateHint } from '../ui/settings-ui.js';
 import { HLOOK } from '../render/draw-player.js';
-import { NPC_TINTS, TRAITS, budSetup, makeSurvivor, rollBud } from '../actors/backups.js';
+import { NPC_TINTS, TRAITS, budSetup, makeSurvivor, rollBud, spotNear } from '../actors/backups.js';
 import { FAVOURS } from './objectives.js';
 import { chalDone, setGearLocks, statMax } from './challenges.js';
 import { PERK_ICONS, perkIcon } from '../ui/perk-icons.js';
@@ -216,7 +216,8 @@ export const UP = [
       S.buddy++;
       const r = GS.RUN.nextBud || rollBud();
       GS.RUN.nextBud = null;
-      const b = Object.assign(makeSurvivor(GS.P.x - 40, GS.P.y + 30), {
+      const [bx, by] = spotNear(GS.P); // beside you, never inside the barricade you're standing by
+      const b = Object.assign(makeSurvivor(bx, by), {
         a: rand(0, TAU),
         cd: 0,
         aim: 0,

@@ -14,7 +14,7 @@ import { dropCrate } from './combat.js';
 import { bossNight } from './waves.js';
 import { BOSS_HORDE_J, STOPS } from './route.js';
 import { stopNow } from './journey.js';
-import { TRAITS, budSetup, makeSurvivor } from '../actors/backups.js';
+import { TRAITS, budSetup, makeSurvivor, spotNear } from '../actors/backups.js';
 import { budSay } from '../audio/barks.js';
 import { THREAD_LINES } from '../audio/bark-lines.js';
 import { sfx } from '../audio/sfx.js';
@@ -135,8 +135,7 @@ export function threadBack() {
   if (!A || GS.wave < A.w) return;
   GS.RUN.away = null;
   const P = GS.P,
-    a = rand(0, TAU),
-    b = Object.assign(makeSurvivor(P.x + Math.cos(a) * 60, P.y + Math.sin(a) * 60), {
+    b = Object.assign(makeSurvivor(...spotNear(P, 50, 80)), {
       a: rand(0, TAU),
       cd: 0,
       aim: 0,

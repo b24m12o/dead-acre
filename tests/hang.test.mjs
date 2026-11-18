@@ -20,6 +20,21 @@ export async function run(b) {
     const u = (P.x - c.x) * Math.cos(c.a) + (P.y - c.y) * Math.sin(c.a), v = -(P.x - c.x) * Math.sin(c.a) + (P.y - c.y) * Math.cos(c.a);
     out.outside = Math.abs(u) >= L - 4 || Math.abs(v) >= (c.truck ? 22 : 19) - 4;
     c.a = a0;
+    // the survivor card, taken standing right by something solid: the one who joins you stands beside you in the open
+    let spot = null;
+    for (let t = 0; t < 20000 && !spot; t++) {
+      const x = 300 + Math.random() * (WW - 600), y = 300 + Math.random() * (WH - 600);
+      if (!blockPt(x, y) && reachPt(x, y) && blockPt(x - 40, y + 30)) spot = [x, y];
+    }
+    out.spot = !!spot;
+    if (spot) {
+      P.x = spot[0]; P.y = spot[1]; P.vx = P.vy = 0;
+      const n0 = GS.buddies.length;
+      UP.find(u => u.id === 'buddy').apply();
+      const s = GS.buddies[n0];
+      out.budOpen = !!s && !blockPt(s.x, s.y) && los(P.x, P.y, s.x, s.y) && Math.hypot(s.x - P.x, s.y - P.y) < 140;
+      for (const b of GS.buddies) b.dead = true; GS.buddies.length = 0;
+    }
     // a horde night down to its last 7, milling out of sight where their mass gathered
     GS.wave = 3; startWave(); step(30);
     GS.queue.length = 0;
@@ -40,6 +55,10 @@ export async function run(b) {
     return out;
   })()`);
   await pg.close();
+  check(
+    o.spot && o.budOpen,
+    `a survivor from the card should join you in the open, not in what you stand by: ${o.spot}, ${o.budOpen}`
+  );
   check(o.outside, 'walking into a turned car at its end should push you out of it');
   check(
     o.near >= 5 && o.t <= 11,

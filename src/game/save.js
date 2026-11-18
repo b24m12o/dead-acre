@@ -7,7 +7,7 @@ import { GS } from '../core/gs.js';
 import { store } from '../core/settings.js';
 import { LV, S, equip } from './state.js';
 import { EVOS, UP } from './upgrades.js';
-import { makeSurvivor, budSetup } from '../actors/backups.js';
+import { makeSurvivor, budSetup, spotNear } from '../actors/backups.js';
 import { TAU, rand } from '../core/util.js';
 
 const KEY = 'rr_run',
@@ -104,8 +104,8 @@ export function restoreRun(d) {
     ? d.held.map(id => UP.find(u => u.id === id) || EVOS.find(u => u.id === id)).filter(Boolean)
     : null;
   GS.runSeeds = d.runSeeds;
-  for (const [i, s] of (d.bud || []).entries()) {
-    const b = Object.assign(makeSurvivor(P.x - 40 + i * 40, P.y + 40), {
+  for (const s of d.bud || []) {
+    const b = Object.assign(makeSurvivor(...spotNear(P)), {
       a: rand(0, TAU),
       cd: 0,
       aim: 0,

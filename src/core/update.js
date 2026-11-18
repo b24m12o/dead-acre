@@ -58,6 +58,7 @@ import {
   buddyShoot,
   buddySlot,
   regroupSpot,
+  spotNear,
   rescueFollower,
 } from '../actors/backups.js';
 import { radioTick } from '../audio/radio.js';
@@ -545,8 +546,17 @@ export function update(dt) {
       }
       if (pd > 280 && closed < 30) s.lostT = (s.lostT || 0) + 0.5;
       else s.lostT = 0;
+      s.stuckT = dd > 50 && closed < 8 && pd <= 280 && !s.ride ? (s.stuckT || 0) + 0.5 : 0; // near, wanting to come, going nowhere: walled in
     }
     const onScr = s.x > cam.x - 30 && s.x < cam.x + viewW + 30 && s.y > cam.y - 50 && s.y < cam.y + viewH + 30;
+    if (s.stuckT >= 4) {
+      const [nx, ny] = spotNear(p);
+      s.x = nx;
+      s.y = ny;
+      s.stuckT = 0;
+      s.lastPd = Math.hypot(p.x - s.x, p.y - s.y);
+      s.flowT = 0;
+    } // stuck in something just by you (a barricade it was dropped in, say): out beside you
     if (pd > 950 || (s.lostT >= 2 && !onScr) || s.lostT >= 4) {
       const sp = regroupSpot(p, i);
       if (sp) {
