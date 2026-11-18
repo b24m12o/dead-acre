@@ -178,15 +178,18 @@ function zArm(W, sh, hand, L, w1, w2, side, skin, sleeve, fl, handSc, gone, ls =
 export function drawEnemy(e) {
   const r0 = RIM;
   setRim(e.dying === undefined || e.__std ? (e.type === 'queen' ? 0.32 : 0.42) * Math.min(1, e.sv ?? 1) : 0); // the living stand out from the street; the dead lie in it
+  const gT0 = GS.gT;
   try {
     drawEnemy0(e);
   } finally {
     setRim(r0);
+    GS.gT = gT0;
   }
 }
 function drawEnemy0(e) {
   if (GS.SHMODE === true && e._lod && !e.__std && e.dying === undefined && !(e.down > 0) && !e.lurk) {
-    const k = (e.sc || 1) * (e.bs || 1) * 1.2 * (e.emerge < 1 ? e.emerge : 1);
+    const k =
+      (e.sc || 1) * (e.bs || 1) * 1.2 * (e.emerge < 1 ? (e.type === 'queen' ? 0.86 + 0.14 * e.emerge : e.emerge) : 1);
     setH(34);
     quad(R.blob, e.x, e.y - e.z, e.a, (e.r * 1.9 * k) / 32, (e.r * 2.7 * k) / 32, 1, 1, 1, 1, 0, 0, 0, 0);
     return;
@@ -199,7 +202,7 @@ function drawEnemy0(e) {
   const fall = dead ? (t => t * t)(Math.min(1, e.dying / 0.5)) : 0,
     fade = dead ? clamp(((e.keep || 0.55) - e.dying) / 1.5, 0, 1) : 1;
   const em =
-    (e.emerge < 1 ? e.emerge * (2 - e.emerge) : 1) *
+    (e.emerge < 1 ? (e.type === 'queen' ? 0.86 + 0.14 * e.emerge : e.emerge * (2 - e.emerge)) : 1) * // a boss doesn't grow out of nothing: it rises the last of the way toward the camera
     (e.sc || 1) *
     (e.bs || 1) *
     (e.type === 'queen' ? 1 : 1.2) *
@@ -237,7 +240,9 @@ function drawEnemy0(e) {
     }
   } // an elite has been dead longer and fed more: bigger, darker with old blood
   const sq = e.squash > 0 ? Math.sin((e.squash / 0.18) * Math.PI) * 0.14 : 0;
-  GS.gT = e.lurk === 'lie' ? 0.58 : 1 - fall * 0.42;
+  GS.gT =
+    (e.lurk === 'lie' ? 0.58 : 1 - fall * 0.42) *
+    (e.type === 'queen' && e.rev < 1 ? 0.06 + 0.94 * Math.max(0, e.rev) ** 2 : 1); // a boss coming out of the dark (a doorway, a crypt, smoke, the hole it tore): unlit at first, into the light
   GS.gA = fade * (0.3 + 0.7 * (e.sv ?? 1)) * (e.__std ? e.__sa : 1);
   if (GS.gA < 0.01) {
     GS.gT = 1;

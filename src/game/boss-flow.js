@@ -300,9 +300,13 @@ const SUB = {
   grave: 'Hollow Hill · blind, and it hears everything',
   pz: 'County Hospital · where it started',
 };
-// a few steps out into the open (t seconds at sp px/s), then (if roar) it stands and roars
-function walkOut(e, ang, t, sp, roar, fn) {
-  if (e) e.cine = { vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, t, roar, fn };
+// a few steps out into the open (t seconds at sp px/s), then (if roar) it stands and roars. dark: how unlit it starts
+// (0 black, 1 lit), coming into the light over lit seconds
+function walkOut(e, ang, t, sp, roar, fn, dark = 1, lit = 0.8) {
+  if (!e) return e;
+  e.cine = { vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, t, roar, fn };
+  e.rev = dark;
+  e.revT = lit;
   return e;
 }
 const toYou = (x, y) => Math.atan2(GS.P.y - y, GS.P.x - x);
@@ -312,7 +316,7 @@ function stage(bt, x, y, steps, reveal, end) {
 const ENTRANCE = {
   walk(bt) {
     const [x, y] = stageSpot(520, 680);
-    stage(bt, x, y, [[0.9, () => walkOut(bossArrive(x, y, true), toYou(x, y), 1.2, 50, 1.3)]], 0.9, 3.6);
+    stage(bt, x, y, [[0.9, () => walkOut(bossArrive(x, y, true), toYou(x, y), 1.2, 50, 1.3, null, 0.2, 1)]], 0.9, 3.6);
   },
   abom(bt) {
     // the lights round where it will surface die one after another, the street shakes and splits, it clicks, and it
@@ -341,8 +345,33 @@ const ENTRANCE = {
       tR,
       () => {
         const e = bossArrive(x, y, false);
+        if (e) {
+          e.rev = 0;
+          e.revT = 1.6;
+        } // it comes up out of the dark of the hole, under the dust, into the light
+        decal(R.hole, x, y, 3.4, [1, 1, 1, 0.95], [0, 0, 0], 90); // the crater stays
+        for (let i = 0; i < 14; i++) {
+          const a = rand(0, TAU),
+            s = rand(90, 260);
+          part({
+            k: 3,
+            x: x + Math.cos(a) * 20,
+            y: y + Math.sin(a) * 20,
+            z: 6,
+            vz: rand(120, 260),
+            vx: Math.cos(a) * s,
+            vy: Math.sin(a) * s,
+            life: 1.8,
+            max: 1.8,
+            size: rand(0.7, 1.3),
+            rot: rand(0, TAU),
+            vr: rand(-6, 6),
+            drag: 1.6,
+            c: [0.2, 0.2, 0.22],
+          });
+        } // slabs of the street, thrown up and falling back
         chips(x, y, 16, null, 4, 300);
-        dust(x, y, 9, 100, 1.3, 1.2, [0.32, 0.3, 0.27]);
+        dust(x, y, 14, 110, 1.6, 1.6, [0.24, 0.23, 0.21]);
         ring(x, y, 10, 90, 0.5, [0.55, 0.5, 0.45], 0.6);
         shake(0.55);
         return e;
@@ -416,7 +445,8 @@ const ENTRANCE = {
           e.lx = Math.cos(a);
           e.ly = Math.sin(a);
         }
-        return walkOut(e, a, 0.8, 60, 1.2);
+        dust(x, y, 10, 70, 1.3, 1.2, [0.26, 0.25, 0.24]); // out of the wreck's dust
+        return walkOut(e, a, 0.8, 60, 1.2, null, 0.3, 0.7);
       },
     ]);
     stage(bt, car.x, car.y, steps, tR, tR + 2.5);
@@ -461,7 +491,7 @@ const ENTRANCE = {
       tR,
       () => {
         dust(x, y, 10, 70, 1.2, 1);
-        return walkOut(bossArrive(x, y, true), out, 1.3, 45, 1.3);
+        return walkOut(bossArrive(x, y, true), out, 1.3, 45, 1.3, null, 0, 1.1); // out of the dark of the crypt
       },
     ]);
     stage(bt, x, y, steps, tR, tR + 2.8);
@@ -479,16 +509,41 @@ const ENTRANCE = {
       tR,
       () => {
         sfx.breath(x, y, true);
-        return walkOut(bossArrive(x, y, true), toYou(x, y), 2.4, 70, 1.2, (e, dt) => {
-          const s = e.a + Math.PI * 0.75,
-            ax = e.x + Math.cos(s) * e.r * 1.1,
-            ay = e.y + Math.sin(s) * e.r * 1.1;
-          if (Math.random() < dt * 14) sparks(ax, ay, [1, 0.8, 0.45], 3, 140); // the axe head on the concrete
-          if ((scr -= dt) <= 0) {
-            scr = 0.45;
-            sfx.scrape(ax, ay);
-          }
-        });
+        for (let i = 0; i < 10; i++)
+          part({
+            k: 2,
+            x: x + rand(-30, 30),
+            y: y + rand(-30, 30),
+            vx: rand(-20, 20),
+            vy: rand(-30, -10),
+            life: rand(1.6, 2.4),
+            max: 2.4,
+            size: rand(0.8, 1.3),
+            grow: 1.8,
+            drag: 0.6,
+            rot: rand(0, TAU),
+            vr: rand(-1, 1),
+            c: [0.2, 0.19, 0.19],
+          }); // out of the smoke
+        return walkOut(
+          bossArrive(x, y, true),
+          toYou(x, y),
+          2.4,
+          70,
+          1.2,
+          (e, dt) => {
+            const s = e.a + Math.PI * 0.75,
+              ax = e.x + Math.cos(s) * e.r * 1.1,
+              ay = e.y + Math.sin(s) * e.r * 1.1;
+            if (Math.random() < dt * 14) sparks(ax, ay, [1, 0.8, 0.45], 3, 140); // the axe head on the concrete
+            if ((scr -= dt) <= 0) {
+              scr = 0.45;
+              sfx.scrape(ax, ay);
+            }
+          },
+          0.2,
+          1.3
+        );
       },
     ]);
     stage(bt, x, y, steps, tR, tR + 3.9);
@@ -510,7 +565,7 @@ const ENTRANCE = {
         chips(x, y, 12, null, 3, 260);
         dust(x, y, 12, 90, 1.3, 1.1);
         shake(0.45);
-        return walkOut(bossArrive(x, y, true), toYou(x, y), 0.9, 150, 1.4);
+        return walkOut(bossArrive(x, y, true), toYou(x, y), 0.9, 150, 1.4, null, 0, 0.5); // out of the dark of the doorway
       },
     ]);
     stage(bt, x, y, steps, tR, tR + 2.7);

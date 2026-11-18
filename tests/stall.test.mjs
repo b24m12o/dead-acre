@@ -18,7 +18,7 @@ export async function run(b) {
     const far = [P.x > WW / 2 ? 4 * TILE : WW - 4 * TILE, P.y > WH / 2 ? 4 * TILE : WH - 4 * TILE];
     const one = (sg) => { const e = makeEnemy('hopper', far[0], far[1]); e.emerge = 1; e.hp = e.maxHp = 1e6; e.dmg = 0; e.sg = sg; return e; };
     const watch = (e, secs) => { let at = -1; for (let i = 0; i < 60 * secs && at < 0; i++) { e.x = far[0]; e.y = far[1]; e.vx = e.vy = 0;
-      update(1 / 60); tickWorld(1 / 60); if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } P.hp = S.maxHp; P.inv = 9;
+      if (GS.state === 'cine') cineSkip(); update(1 / 60); tickWorld(1 / 60); if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } P.hp = S.maxHp; P.inv = 9;
       if (Math.hypot(e.x - far[0], e.y - far[1]) > 50) at = i / 60; } return at; };
     // a plain one, stuck
     const a = one(undefined); out.plain = watch(a, 25); out.plainNear = Math.round(Math.hypot(a.x - P.x, a.y - P.y)); a.dead = true; GS.enemies.length = 0;

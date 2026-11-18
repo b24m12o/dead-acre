@@ -112,6 +112,7 @@ export function updateQueen(e, dt, ux, uy, dist) {
       if (thr('gstep', 160)) noise(0.14, 0.12 * clamp(1 - d / 900, 0, 1), 180, 50, 'lowpass', 0, spat(e.x, e.y));
     }
   } // weight: every footfall
+  if (e.rev < 1) e.rev = Math.min(1, e.rev + dt / (e.revT || 0.8)); // out of the dark into the light (draw-enemies.js)
   if (GS.state === 'cine') {
     // its entrance: it does what the scene says (comes out, walks a few steps, stands and roars), nothing more
     const c = e.cine;

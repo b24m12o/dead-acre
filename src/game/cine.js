@@ -84,6 +84,7 @@ function cineEnd() {
     CINE.boss.cine = null;
     CINE.boss.t0 = GS.time; // its clock (and its par) starts when the fight does
     CINE.boss.emerge = Math.max(CINE.boss.emerge, 0.6);
+    CINE.boss.rev = Math.max(CINE.boss.rev ?? 1, 0.7);
   }
   GS.meta.bossSeen = GS.meta.bossSeen || {};
   if (!GS.meta.bossSeen[CINE.key]) {
