@@ -15,7 +15,7 @@ const OUT = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[
   FPS = +arg('--fps', 12),
   FLAT = process.argv.includes('--2d');
 const DIR = join(dirname(OUT), 'reel3d-parts');
-rmSync(DIR, { recursive: true, force: true });
+if (!process.argv.includes('--from')) rmSync(DIR, { recursive: true, force: true });
 mkdirSync(DIR, { recursive: true });
 // each segment: caption, seconds, speed (1 real time, 0.5 slow), zoom, how many zombies and where (an arc this far off
 // in front of you), what to do at the start, and each step (i: the frame)
@@ -46,25 +46,26 @@ let SEGS = [
   { cap: 'Legs shot off: it comes on, on its hands', secs: 4, n: 1, r: 120, zoom: 3.6, act: 'legs' },
   { cap: 'A crowd', secs: 5, n: 26, r: 260, zoom: 2.2, fire: true, spread: true },
 ];
-const T = (cap, ty, set, more) => ({ cap, ty, set, secs: 4.5, n: 3, r: 230, zoom: 3.2, fire: true, late: 2, ...more });
+const T = (cap, ty, set, more) => ({ cap, ty, set, secs: 4.5, n: 3, r: 230, zoom: 3.6, fire: true, late: 2, ...more });
 if (process.argv.includes('--types'))
   SEGS = [
     T('Ordinary', 'skitter', ''),
-    T('Runner', 'skitter', "e.trait = 'runner';"),
+    T('Runner', 'skitter', '', { trait: 'runner' }),
     T('Screamer', 'flower', ''),
     T('Spitter', 'wasp', ''),
-    T('Armored', 'skitter', "e.trait = 'armored';"),
+    T('Armored', 'skitter', '', { trait: 'armored' }),
     T('Riot shield', 'skitter', 'e.shield = { hp: 6, max: 6 };'),
-    T('Bloater elite', 'skitter', "e.trait = 'bloater'; e.sc = 1.12;"),
-    T('Spore carrier', 'skitter', "e.kind = 'spore';"),
-    T('Dragger', 'skitter', "e.kind = 'drag';"),
-    T('Climber', 'skitter', "e.kind = 'climb';"),
-    T('Listener (blind)', 'skitter', "e.kind = 'blind';"),
+    T('Bloater elite', 'skitter', '', { trait: 'bloater' }),
+    T('Spore carrier', 'skitter', '', { kind: 'spore' }),
+    T('Dragger', 'skitter', '', { kind: 'drag' }),
+    T('Climber', 'skitter', '', { kind: 'climb' }),
+    T('Listener (blind)', 'skitter', '', { kind: 'blind' }),
     T('Brute', 'beetle', '', { n: 1, secs: 6, late: 3 }),
     T('Bloater', 'hopper', '', { n: 2, secs: 5 }),
     T('Dogs', 'hound', '', { r: 330, zoom: 2.8 }),
     T('Egg sac, hatching', 'egg', 'e.hatch = 2.2;', { n: 1, r: 110, fire: false, free: true, secs: 4 }),
   ];
+if (process.argv.includes('--from')) SEGS = SEGS.slice(+arg('--from', 0));
 const b = await browser();
 try {
   const { pg, errs, ev } = await openGame(b, { noFrames: true });
@@ -76,19 +77,20 @@ try {
     let spot = null; for (let t = 0; t < 60000 && !spot; t++) { const x = 500 + Math.random() * (WW - 1000), y = 500 + Math.random() * (WH - 1000); let ok = true;
       for (let dx = -240; dx <= 240 && ok; dx += 30) for (let dy = -300; dy <= 120 && ok; dy += 30) if (blockPt(x + dx, y + dy)) ok = false; if (ok && lamps.every(L => Math.hypot(L.hx - x, L.hy - y + 100) > 330)) spot = [x, y]; }
     window.__spot = spot || [GS.P.x, GS.P.y]; return 1; })()`);
-  let si = 0;
+  let si = +arg('--from', 0);
   for (const S of SEGS) {
     const fr = join(DIR, String(si));
     mkdirSync(fr, { recursive: true });
     await ev(`(() => { const S = ${JSON.stringify(S)}; window.__Z = S.zoom; resize();
-      for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.queue.length = 0; GS.corpses.length = 0; GS.decals.length = 0; GS.parts.length = 0;
+      for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.queue.length = 0; GS.corpses.length = 0; GS.decals.length = 0; GS.parts.length = 0; GS.clouds.length = 0; resetSpecials();
       const P = GS.P; P.x = __spot[0]; P.y = __spot[1]; P.vx = P.vy = 0; P.aimA = -Math.PI / 2; mouse.down = false;
       window.__mine = [];
       for (let i = 0; i < S.n; i++) {
         const a = S.spread ? -Math.PI / 2 + (Math.random() - 0.5) * 2.2 : -Math.PI / 2 + (i - (S.n - 1) / 2) * 0.45, r = S.r + (S.spread ? Math.random() * 120 : (i % 2) * 25);
-        const e = makeEnemy(S.ty || 'skitter', P.x + Math.cos(a) * r, P.y + Math.sin(a) * r); e.emerge = 1; e.trait = null; e.elite = false; e.shield = null; e.kind = null; e.aw = 9;
+        const e = S.kind ? makeSpecial(S.kind, P.x + Math.cos(a) * r, P.y + Math.sin(a) * r) : makeEnemy(S.ty || 'skitter', P.x + Math.cos(a) * r, P.y + Math.sin(a) * r); e.emerge = 1; if (!S.kind) { e.trait = null; e.elite = false; e.shield = null; e.kind = null; } e.aw = 9;
+        if (S.trait) { makeElite(e); setTrait(e, S.trait); } // the game's own ways of making them, so they are whole
         if (S.set) new Function('e', S.set)(e);
-        e.a = Math.atan2(P.y - e.y, P.x - e.x); if (S.tough) e.hp = e.maxHp = 99999; GS.enemies.push(e); __mine.push(e);
+        e.a = Math.atan2(P.y - e.y, P.x - e.x); if (S.tough) e.hp = e.maxHp = 99999; __mine.push(e); // (makeEnemy has put it in the game)
       }
       window.__seg = S; window.__t = 0; window.__did = false; window.__cx = null; return 1; })()`);
     const frames = Math.round(S.secs * FPS);
@@ -112,7 +114,7 @@ try {
         }
         const L = __mine.length > 3 ? [P] : __mine.slice(0, 2); let x = 0, y = 0; for (const o of L) { x += o.x; y += o.y; } x /= L.length; y /= L.length;
         if (__cx === null) { __cx = x; __cy = y; } __cx += (x - __cx) * 0.25; __cy += (y - __cy) * 0.25;
-        cam.x = __cx - viewW / 2; cam.y = __cy - (__mine.length > 3 ? viewH * 0.12 : 0) - viewH / 2; const px = P.x; if (S.n < 3) P.x += 9000; render(); P.x = px; return 1; })()`);
+        cam.x = __cx - viewW / 2; cam.y = __cy - (__mine.length > 3 ? viewH * 0.12 : 0) - viewH / 2; const px = P.x; if (S.n < 3 || S.ty) P.x += 9000; render(); P.x = px; return 1; })()`);
       await pg.screenshot({ path: join(fr, `f${String(k).padStart(4, '0')}.png`) });
     }
     const txt = join(DIR, `cap${si}.txt`);
@@ -142,7 +144,7 @@ try {
     si++;
   }
   const list = join(DIR, 'list.txt');
-  writeFileSync(list, SEGS.map((_, i) => `file '${join(DIR, `s${i}.mp4`)}'`).join('\n'));
+  writeFileSync(list, Array.from({ length: si }, (_, i) => `file '${join(DIR, `s${i}.mp4`)}'`).join('\n'));
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', OUT]);
   await ev('GS.NOHERO = false; 1');
   if (errs.length) console.log('page errors:', errs.join(' | ').slice(0, 1500));
