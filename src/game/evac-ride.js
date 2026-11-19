@@ -109,7 +109,7 @@ export function startRide(e) {
     if (!sp) continue;
     const civ = [];
     for (let i = 0; i < 3; i++) {
-      const s = makeSurvivor(sp[0] + rand(-22, 22), sp[1] + rand(-22, 22));
+      const s = makeSurvivor(sp[0] + rand(-22, 22) * GK, sp[1] + rand(-22, 22) * GK);
       s.hp = s.max = 110 + 8 * GS.wave;
       s.gun = 'pistol';
       civ.push(s);
@@ -373,7 +373,11 @@ function pourOut(e, r, dt) {
   if (!sp) return;
   const n = 2 + ((Math.random() * 3) | 0);
   for (let i = 0; i < n; i++) {
-    const z = makeEnemy(Math.random() < 0.08 ? 'beetle' : 'skitter', sp[0] + rand(-16, 16), sp[1] + rand(-16, 16));
+    const z = makeEnemy(
+      Math.random() < 0.08 ? 'beetle' : 'skitter',
+      sp[0] + rand(-16, 16) * GK,
+      sp[1] + rand(-16, 16) * GK
+    );
     z.emerge = 1;
     z.aw = 9;
     if (Math.random() < 0.6) {

@@ -528,7 +528,7 @@ const ENTRANCE = {
     const dd = c => Math.hypot(c.x - GS.P.x, c.y - GS.P.y),
       car = cars
         .filter(c => !c.dead && !c.burnt && dd(c) > 380 * GK && dd(c) < 820 * GK)
-        .sort((a, b) => Math.abs(dd(a) - 560) - Math.abs(dd(b) - 560))[0];
+        .sort((a, b) => Math.abs(dd(a) - 560 * GK) - Math.abs(dd(b) - 560 * GK))[0];
     if (!car) return ENTRANCE.walk(bt);
     const steps = [[0.25, () => startAlarm(car)]];
     for (let k = 0; k < 5; k++)
@@ -614,7 +614,7 @@ const ENTRANCE = {
           if (!freeAround(x, y, 22)) continue;
           const d = Math.hypot(x - GS.P.x, y - GS.P.y);
           if (d < 420 * GK || d > 950 * GK) continue;
-          const sc = Math.abs(d - 600) + Math.abs(y - GS.P.y) * 0.6;
+          const sc = Math.abs(d - 600 * GK) + Math.abs(y - GS.P.y) * 0.6;
           if (sc < bs) {
             bs = sc;
             best = [x, y];

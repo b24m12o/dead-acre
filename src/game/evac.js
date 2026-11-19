@@ -204,7 +204,7 @@ export function updateEvac(dt) {
       [sx, sy] = spawnPoint(380, false),
       n = t === 'skitter' ? randi(1, 2 + Math.round(k * 2)) : 1;
     for (let i = 0; i < n; i++) {
-      const z = makeEnemy(t, sx + rand(-14, 14), sy + rand(-14, 14));
+      const z = makeEnemy(t, sx + rand(-14, 14) * GK, sy + rand(-14, 14) * GK);
       if (t === 'skitter' && Math.random() < 0.4 + k * 0.3) {
         z.run = true;
         z.sp *= 2.05;
@@ -235,8 +235,8 @@ export function updateEvac(dt) {
           const gx = e.hx - Math.sin(e.ha) * 18,
             gy = e.hy - e.z * 0.35 + Math.cos(e.ha) * 18,
             hit = Math.random() < 0.72,
-            tx = tg.x + (hit ? rand(-6, 6) : rand(-40, 40)),
-            ty = tg.y + (hit ? rand(-6, 6) : rand(-40, 40));
+            tx = tg.x + (hit ? rand(-6, 6) : rand(-40, 40)) * GK,
+            ty = tg.y + (hit ? rand(-6, 6) : rand(-40, 40)) * GK;
           e.tr.push({ x0: gx, y0: gy, x1: tx, y1: ty, t: 0.07 });
           if (!playS('lmg_m', 0.2, 0.95, 0, 0.5)) noise(0.05, 0.06, 2400, 600, 'bandpass', 0, spat(e.hx, e.hy));
           if (hit) hurtEnemy(tg, 34 + GS.wave, false, tx - gx, ty - gy, 1.2, 'gunner');

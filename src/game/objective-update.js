@@ -94,8 +94,8 @@ export function updateObjective(dt) {
       a = Math.atan2(s.y - GS.P.y, s.x - GS.P.x),
       ox = s.x,
       oy = s.y;
-    s.x += Math.cos(a) * 170 * dt;
-    s.y += Math.sin(a) * 170 * dt;
+    s.x += Math.cos(a) * 170 * GK * dt;
+    s.y += Math.sin(a) * 170 * GK * dt;
     collide(s);
     const v = Math.hypot(s.x - ox, s.y - oy) / Math.max(dt, 1e-4);
     if (v > 20) s.moveA += angDiff(s.moveA, Math.atan2(s.y - oy, s.x - ox)) * damp(10, dt);
@@ -138,7 +138,7 @@ export function updateObjective(dt) {
   } else if (GS.obj.type === 'rescue') {
     const s = GS.obj.s;
     s.inv = Math.max(0, s.inv - dt);
-    s.recoil = Math.max(0, s.recoil - dt * 40);
+    s.recoil = Math.max(0, s.recoil - dt * 40 * GK);
     s.hurt = Math.max(0, s.hurt - dt);
     if (GS.obj.state === 'wait' && d2(s.x, s.y, GS.P.x, GS.P.y) < (70 * GK) ** 2) {
       GS.obj.state = 'follow';
@@ -154,7 +154,7 @@ export function updateObjective(dt) {
       let sl = s.slot; // a spot of their own round you, like your backup's, and never one a backup already holds
       if (
         !sl ||
-        Math.hypot(GS.P.x - sl.px, GS.P.y - sl.py) > (still ? 30 : 0) ||
+        Math.hypot(GS.P.x - sl.px, GS.P.y - sl.py) > (still ? 30 * GK : 0) ||
         solidPt(sl.x, sl.y) ||
         taken.some(q => !q.rs && d2(q[0], q[1], sl.x, sl.y) < (44 * GK) ** 2)
       ) {
@@ -166,7 +166,7 @@ export function updateObjective(dt) {
         );
         sl = s.slot = b
           ? { x: b[0], y: b[1], px: GS.P.x, py: GS.P.y }
-          : { x: GS.P.x - Math.cos(fa) * 64, y: GS.P.y - Math.sin(fa) * 64, px: GS.P.x, py: GS.P.y };
+          : { x: GS.P.x - Math.cos(fa) * 64 * GK, y: GS.P.y - Math.sin(fa) * 64 * GK, px: GS.P.x, py: GS.P.y };
       }
       if (!still && d2(s.x, s.y, sl.x, sl.y) > (22 * GK) ** 2) {
         tx = sl.x;
@@ -186,13 +186,13 @@ export function updateObjective(dt) {
         ey = s.y - GS.P.y,
         el = Math.hypot(ex, ey) || 1;
       if (el < 36) {
-        s.x = GS.P.x + (ex / el) * 36;
-        s.y = GS.P.y + (ey / el) * 36;
+        s.x = GS.P.x + (ex / el) * 36 * GK;
+        s.y = GS.P.y + (ey / el) * 36 * GK;
       }
     }
     collide(s); /* never inside you */
     const spd = Math.hypot(s.vx, s.vy);
-    if (spd > 20) s.moveA += angDiff(s.moveA, Math.atan2(s.vy, s.vx)) * damp(10, dt);
+    if (spd > 20 * GK) s.moveA += angDiff(s.moveA, Math.atan2(s.vy, s.vx)) * damp(10, dt);
     s.strideAmp = lerp(s.strideAmp, Math.min(1, spd / 250), damp(10, dt));
     s.stride += (spd * dt) / 76;
     let tgt = null,
@@ -213,10 +213,10 @@ export function updateObjective(dt) {
         const c = Math.cos(s.aimA),
           sn = Math.sin(s.aimA);
         GS.pbullets.push({
-          x: s.x + c * 34,
-          y: s.y + sn * 34,
-          vx: c * 1100,
-          vy: sn * 1100,
+          x: s.x + c * 34 * GK,
+          y: s.y + sn * 34 * GK,
+          vx: c * 1100 * GK,
+          vy: sn * 1100 * GK,
           life: 0.5,
           dmg: 13 + GS.wave,
           pierce: 0,

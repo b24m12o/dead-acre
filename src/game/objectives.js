@@ -214,8 +214,8 @@ function makeBox() {
       py = y + Math.sin(pa) * pd;
     if (
       blockPt(px, py) ||
-      blockPt(px + 14, py) ||
-      blockPt(px - 14, py) ||
+      blockPt(px + 14 * GK, py) ||
+      blockPt(px - 14 * GK, py) ||
       !reachPt(px, py) ||
       GS.obj.piles.some(q => Math.hypot(q.x - px, q.y - py) < 70 * GK)
     )
@@ -230,7 +230,7 @@ export function boxSignal() {
   const o = GS.obj;
   if (!o || o.type !== 'box') return 0;
   const b = o.piles.find(q => q.box) || o.crash;
-  return o.batt * clamp(1 - Math.hypot(b.x - GS.P.x, b.y - GS.P.y) / 1500, 0, 1);
+  return o.batt * clamp(1 - Math.hypot(b.x - GS.P.x, b.y - GS.P.y) / (1500 * GK), 0, 1);
 }
 export function updateBox(dt) {
   // the beacon dies as the night goes on; you read its signal, find the wreck, and search the piles one by one, standing still while they come
@@ -302,7 +302,7 @@ export function updateBox(dt) {
   } else if (r < 0.75) floatText(cur.x, cur.y - 30, 'Not here', '#cfd6d9', 14);
   else {
     const a = rand(0, TAU);
-    makeLurker(cur.x + Math.cos(a) * 46, cur.y + Math.sin(a) * 46);
+    makeLurker(cur.x + Math.cos(a) * 46 * GK, cur.y + Math.sin(a) * 46 * GK);
     floatText(cur.x, cur.y - 30, 'Not here', '#cfd6d9', 14);
   } // and sometimes one of the bodies in the wreckage isn't dead
 }
