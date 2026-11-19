@@ -4,9 +4,10 @@
 // people and dogs to their true size, the big ones (the brute, the bloater, the dragger, the egg sac) big but not
 // buildings, the bosses as they are. And the props painted too big with them (the barrels).
 export const PER_M = 20, // units to the metre
-  PEOPLE = 0.3, // the hero, survivors, the ordinary dead, the dogs: their pictures against life size
-  BIG = 0.5, // the big dead
-  BRUTE = 0.68, // and the brute: a hulk 2.6 m tall, over the people
+  HEROIC = 1, // the living and the dead against life size (props stay true): a touch over it reads better from above
+  PEOPLE = 0.3 * HEROIC, // the hero, survivors, the ordinary dead, the dogs: their pictures against life size
+  BIG = 0.5 * HEROIC, // the big dead
+  BRUTE = 0.68 * HEROIC, // and the brute: a hulk 2.6 m tall, over the people
   BARREL = 0.45, // an oil drum: 0.6 m across
   MANHOLE = 0.6; // a manhole lid: 0.7 m
 // the street's things against their pictures, by what they are across in life: a hydrant 0.6 m with its nozzles, a
