@@ -17,7 +17,7 @@ function assets(dir) {
   for (const f of readdirSync(join(ROOT, 'assets/fonts')))
     cpSync(join(ROOT, 'assets/fonts', f), join(dir, 'assets/fonts', f));
   const p = structuredClone(pack);
-  for (const k of ['vox', 'gun', 'mus']) p[k].file = ren(p[k].file);
+  for (const k of ['vox', 'gun', 'mus', 'mesh']) if (p[k]) p[k].file = ren(p[k].file); // the 3D figures' meshes too (they went out as .mp3 and were asked for as .bin: no 3D figures on the page)
   writeFileSync(join(dir, 'assets/pack.json'), JSON.stringify(p));
 }
 const files = [];
