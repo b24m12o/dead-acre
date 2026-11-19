@@ -287,7 +287,7 @@ export function tickSiege(dt) {
   // the nearest board under attack
   if (!GS.fxTr) GS.fxTr = [];
   for (const s of o.civ) {
-    s.recoil = Math.max(0, (s.recoil || 0) - dt * 40);
+    s.recoil = Math.max(0, (s.recoil || 0) - dt * 40 * GK);
     s.cd = (s.cd ?? rand(0, 0.6)) - dt;
     if (s.cd <= 0) {
       s.cd = rand(0.55, 0.8);
@@ -304,7 +304,13 @@ export function tickSiege(dt) {
       if (tg) {
         s.bodyA = s.aimA = s.moveA = Math.atan2(tg.y - s.y, tg.x - s.x);
         s.recoil = 4;
-        GS.fxTr.push({ x0: s.x + Math.cos(s.aimA) * 16, y0: s.y + Math.sin(s.aimA) * 16, x1: tg.x, y1: tg.y, t: 0.07 });
+        GS.fxTr.push({
+          x0: s.x + Math.cos(s.aimA) * 16 * GK,
+          y0: s.y + Math.sin(s.aimA) * 16 * GK,
+          x1: tg.x,
+          y1: tg.y,
+          t: 0.07,
+        });
         playR('pistol', 0.2, s.x, s.y, 1);
         hurtEnemy(tg, 10 + GS.wave, false, tg.x - s.x, tg.y - s.y, 0.6, 'buddy');
         continue;

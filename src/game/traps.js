@@ -116,12 +116,12 @@ function throwTo(kind, maxD) {
     cx = cam.x + mouse.x / ZOOM,
     cy = cam.y + mouse.y / ZOOM,
     a = Math.atan2(cy - P.y, cx - P.x),
-    d = clamp(Math.hypot(cx - P.x, cy - P.y), 40, maxD);
+    d = clamp(Math.hypot(cx - P.x, cy - P.y), 40 * GK, maxD * GK);
   let tx = P.x + Math.cos(a) * d,
     ty = P.y + Math.sin(a) * d;
   for (let k = 0; k < 8 && blockPt(tx, ty); k++) {
-    tx -= Math.cos(a) * 24;
-    ty -= Math.sin(a) * 24;
+    tx -= Math.cos(a) * 24 * GK;
+    ty -= Math.sin(a) * 24 * GK;
   } // short of a wall, never inside it
   {
     const st = roofStop(P.x, P.y, tx, ty);
@@ -140,7 +140,7 @@ function throwTo(kind, maxD) {
     tx,
     ty,
     t: 0,
-    dur: clamp(d / 560, 0.22, 0.55),
+    dur: clamp(d / (560 * GK), 0.22, 0.55),
     z: 0,
     spin: rand(0, TAU),
   });
@@ -177,8 +177,8 @@ function useTrap() {
   else if (t === 'noise') throwTo('noise', 420);
   else if (t === 'drum') {
     const a = P.aimA,
-      x = P.x + Math.cos(a) * 34,
-      y = P.y + Math.sin(a) * 34;
+      x = P.x + Math.cos(a) * 34 * GK,
+      y = P.y + Math.sin(a) * 34 * GK;
     if (blockPt(x, y)) return floatText(P.x, P.y - 44, 'No room for the drum there', '#cfd6d9', 13);
     GS.barrels.push({ x, y, r: 14, hp: 20, dead: false, gas: true });
     noise(0.18, 0.06, 500, 160, 'lowpass'); // the clunk of a full drum set down
@@ -194,7 +194,7 @@ export function tickTraps(dt) {
     const k = Math.min(1, g.t / g.dur);
     g.x = g.x0 + (g.tx - g.x0) * k;
     g.y = g.y0 + (g.ty - g.y0) * k;
-    g.z = Math.sin(k * Math.PI) * (22 + g.dur * 80);
+    g.z = Math.sin(k * Math.PI) * (22 + g.dur * 80) * GK;
     g.spin += dt * 12;
     if (k >= 1) {
       g.done = true;
@@ -208,7 +208,7 @@ export function tickTraps(dt) {
     m.arm -= dt;
     if (m.arm > 0 || m.done) continue;
     query(m.x, m.y, 70 * GK, e => {
-      if (!m.done && !e.dead && e.emerge >= 1 && !e.fly && d2(m.x, m.y, e.x, e.y) < (40 + e.r * 0.5) ** 2)
+      if (!m.done && !e.dead && e.emerge >= 1 && !e.fly && d2(m.x, m.y, e.x, e.y) < (40 * GK + e.r * 0.5) ** 2)
         m.done = true;
     });
     if (m.done) {

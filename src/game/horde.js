@@ -53,7 +53,7 @@ function entry(away) {
       best = [x, y];
     }
   }
-  return best || [clamp(P.x + 1400, 4 * TILE, WW - 4 * TILE), clamp(P.y, 4 * TILE, WH - 4 * TILE)];
+  return best || [clamp(P.x + 1400 * GK, 4 * TILE, WW - 4 * TILE), clamp(P.y, 4 * TILE, WH - 4 * TILE)];
 }
 // the point it is walking to, and the shared route there (crowd-aware, so it fans out round a clog)
 const newLure = () => ({ x: 0, y: 0, alarm: 1e9, horde: true, flow: new Uint16Array(MW * MH) });
@@ -181,8 +181,8 @@ function alertAll(H) {
 function member(H) {
   const gi = H.spawned % H.ents.length,
     [ex, ey] = H.ents[gi],
-    x = ex + rand(-40, 40),
-    y = ey + rand(-40, 40),
+    x = ex + rand(-40, 40) * GK,
+    y = ey + rand(-40, 40) * GK,
     brute = (GS.RUN.hm ? GS.wave >= 3 : GS.wave >= 8) && H.spawned % 40 === 20, // later hordes carry brutes in them
     e = makeEnemy(brute ? 'beetle' : 'skitter', x, y);
   e.gi = gi; // which mass it walked in with: it gathers with them
@@ -326,7 +326,7 @@ export function tickHorde(dt) {
       H.lure.heard = null;
       if (H.reT < 7) {
         H.reT = 10;
-        aim(H, h.x + rand(-90, 90), h.y + rand(-90, 90));
+        aim(H, h.x + rand(-90, 90) * GK, h.y + rand(-90, 90) * GK);
       }
     } // a shot it hears: the whole mass turns toward it, still at a walk
     if (H.reT <= 0) {

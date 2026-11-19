@@ -30,7 +30,7 @@ export const SPECIAL = {
   blind: { name: 'Listener', tip: 'Blind · it runs at whatever makes a noise: a shot, running feet, a clock' },
 };
 export const BLIND = {
-feet: 170 * GK, // it hears you moving within this many px
+  feet: 170 * GK, // it hears you moving within this many px
   roll: 300 * GK, // and a roll from further
   still: 55 * GK, // moving slower than this (px/s) is silent
   hot: 6, // seconds it stays on a noise
@@ -94,7 +94,8 @@ export function specialTip(e) {
 const wallAt = (x, y) => !!grid[Math.floor(y / TILE) * MW + Math.floor(x / TILE)];
 // a wall within a step of it: only then does it go up and over (on open street it runs like any other)
 const nearWall = e => {
-  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (wallAt(e.x + i * 30 * GK, e.y + j * 30 * GK)) return true;
+  for (let j = -1; j <= 1; j++)
+    for (let i = -1; i <= 1; i++) if (wallAt(e.x + i * 30 * GK, e.y + j * 30 * GK)) return true;
   return false;
 };
 // away from you along the streets: the neighbouring tile furthest from you by the path, not a straight line into a wall

@@ -95,7 +95,7 @@ const underRoof = (tx, ty) => {
 };
 const lob = (a, dl, max, extra) => {
   thrown(GS.P, a);
-  const d = Math.min(dl, max),
+  const d = Math.min(dl, max * GK),
     [tx, ty] = underRoof(GS.P.x + Math.cos(a) * d, GS.P.y + Math.sin(a) * d);
   GS.bangs.push(
     Object.assign(
@@ -107,7 +107,7 @@ const lob = (a, dl, max, extra) => {
         tx,
         ty,
         t: 0,
-        dur: clamp(d / 520, 0.25, 0.6),
+        dur: clamp(d / (520 * GK), 0.25, 0.6),
         z: 0,
         spin: rand(0, TAU),
       },
@@ -134,7 +134,7 @@ export function useAbility() {
     if (h === 'ranger') {
       GS.mines = GS.mines || [];
       while (GS.mines.length >= 2 + S.abLv) GS.mines.shift();
-      GS.mines.push({ x: GS.P.x + Math.cos(a) * 20, y: GS.P.y + Math.sin(a) * 20, a, arm: 0.7 });
+      GS.mines.push({ x: GS.P.x + Math.cos(a) * 20 * GK, y: GS.P.y + Math.sin(a) * 20 * GK, a, arm: 0.7 });
       sfx.swap();
       floatText(GS.P.x, GS.P.y - 44, 'Claymore set', '#cfe0b0', 14);
     } else if (h === 'breacher') lob(a, dl, 460, { fuse: 0, flare: true });
@@ -144,7 +144,7 @@ export function useAbility() {
     return;
   }
   if (h === 'breacher') {
-    const d = Math.min(dl, 420),
+    const d = Math.min(dl, 420 * GK),
       [tx, ty] = underRoof(GS.P.x + Math.cos(a) * d, GS.P.y + Math.sin(a) * d);
     thrown(GS.P, a);
     GS.bangs.push({
@@ -155,7 +155,7 @@ export function useAbility() {
       tx,
       ty,
       t: 0,
-      dur: clamp(d / 520, 0.25, 0.6),
+      dur: clamp(d / (520 * GK), 0.25, 0.6),
       z: 0,
       spin: rand(0, TAU),
       fuse: 0.35,
@@ -166,16 +166,16 @@ export function useAbility() {
     const n = 6 + 3 * S.abLv;
     for (let i = 0; i < n; i++) GS.later.push({ t: i * 0.065, fn: () => fanShot(a) });
   } else {
-    const d = Math.min(dl, 560),
+    const d = Math.min(dl, 560 * GK),
       tx = GS.P.x + Math.cos(a) * d,
       ty = GS.P.y + Math.sin(a) * d,
       n = 3 + 2 * S.abLv;
     sfx.radio(GS.P.x, GS.P.y);
     floatText(GS.P.x, GS.P.y - 44, 'Fire mission', '#bff4ff', 15);
-    GS.warns.push({ t: 0, k: 'friend', x: tx, y: ty, r: 130, dur: 1.5 + (n - 1) * 0.42, owner: null });
+    GS.warns.push({ t: 0, k: 'friend', x: tx, y: ty, r: 130 * GK, dur: 1.5 + (n - 1) * 0.42, owner: null });
     for (let i = 0; i < n; i++) {
-      const ox = i ? rand(-35, 35) : 0,
-        oy = i ? rand(-35, 35) : 0;
+      const ox = i ? rand(-35, 35) * GK : 0,
+        oy = i ? rand(-35, 35) * GK : 0;
       GS.later.push({
         t: 1.5 + i * 0.42 - 0.6,
         fn: () => {
@@ -218,11 +218,11 @@ function fanShot(a0) {
     sn = Math.sin(a),
     dm = G.dmg * S.dmg * 1.25 * 2.2;
   GS.pbullets.push({
-    x: GS.P.x + c * 14,
-    y: GS.P.y + sn * 14,
-    sx: GS.P.x + c * 14,
-    sy: GS.P.y + sn * 14,
-    mz: G.muzzle - 14,
+    x: GS.P.x + c * 14 * GK,
+    y: GS.P.y + sn * 14 * GK,
+    sx: GS.P.x + c * 14 * GK,
+    sy: GS.P.y + sn * 14 * GK,
+    mz: G.muzzle - 14 * GK,
     vx: c * G.speed,
     vy: sn * G.speed,
     life: G.life + G.muzzle / G.speed,
@@ -255,7 +255,7 @@ function fanShot(a0) {
 // the shove (V): a cone in front of you, a short reach, a little over a second between shoves. It works mid-reload
 // without spoiling it, holds your fire a moment, and makes no more noise than a grunt. Not mid-roll, not on the
 // truck or in the chopper. Returns how many it caught
-export const SHOVE = { cd: 1.2, reach: 78, half: (55 * Math.PI) / 180, hold: 0.25 };
+export const SHOVE = { cd: 1.2, reach: 78 * GK, half: (55 * Math.PI) / 180, hold: 0.25 };
 export const shoveCd = () => SHOVE.cd * (GS.RUN && GS.RUN.hero === 'breacher' ? HERO_TRAIT.riot.cd : 1); // the Deputy's comes back sooner
 // the Gunslinger's roll: the revolver or the SMG in his hands comes out of it loaded
 function rollLoad(P) {
@@ -290,7 +290,10 @@ export function tryShove() {
     const dx = e.x - P.x,
       dy = e.y - P.y,
       d = Math.hypot(dx, dy);
-    if (d > SHOVE.reach * rk + (e.r || 14) || (d > 8 && Math.abs(angDiff(a, Math.atan2(dy, dx))) > SHOVE.half * rk))
+    if (
+      d > SHOVE.reach * rk + (e.r || 14 * GK) ||
+      (d > 8 * GK && Math.abs(angDiff(a, Math.atan2(dy, dx))) > SHOVE.half * rk)
+    )
       continue;
     hit.push([e, dx || Math.cos(a), dy || Math.sin(a)]);
     if (quietTarget(e) && d < fd) {
@@ -343,8 +346,8 @@ export function tryDash() {
   }
   const l = Math.hypot(mx, my) || 1;
   GS.P.dashA = Math.atan2(my, mx);
-  GS.P.vx = (mx / l) * 1050;
-  GS.P.vy = (my / l) * 1050;
+  GS.P.vx = (mx / l) * 1050 * GK;
+  GS.P.vy = (my / l) * 1050 * GK;
   GS.P.dashT = 0.17;
   GS.P.dashCd = S.dashCd;
   GS.P.inv = Math.max(GS.P.inv, 0.3);

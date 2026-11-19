@@ -52,7 +52,7 @@ export function startFlare(x, y, noise = false) {
     }
     return;
   }
-  const R2 = (700 * (1 + 0.4 * S.abLv)) ** 2;
+  const R2 = (700 * GK * (1 + 0.4 * S.abLv)) ** 2;
   for (const e of GS.enemies) {
     if (e.dead || e.big || e.fly || e.type === 'flower' || e.type === 'wasp' || d2(e.x, e.y, x, y) > R2) continue;
     e.lure = f;
@@ -72,7 +72,7 @@ function pullTo(f) {
     P = GS.P;
   for (const e of GS.enemies) {
     if (e.dead || e.lure === f || e.big || e.fly || e.type === 'flower' || e.type === 'wasp') continue;
-    if (d2(e.x, e.y, f.x, f.y) > (e.horde ? 2200 : 950) ** 2) continue;
+    if (d2(e.x, e.y, f.x, f.y) > ((e.horde ? 2200 : 950) * GK) ** 2) continue;
     if (P && e.los && d2(e.x, e.y, P.x, P.y) < (230 * GK) ** 2) continue;
     if ((e.heardT ?? -1) > f.t0) continue; // your gunfire, a blast or a hit since it started ringing: you come first
     e.lure = f;
@@ -113,7 +113,7 @@ export function tickGadgets(dt) {
       f.beepT -= dt;
       if (f.beepT <= 0 && GS.P) {
         f.beepT = 0.32;
-        const v = Math.max(0, 1 - Math.hypot(f.x - GS.P.x, f.y - GS.P.y) / 1100);
+        const v = Math.max(0, 1 - Math.hypot(f.x - GS.P.x, f.y - GS.P.y) / (1100 * GK));
         if (v > 0) tone(2300, 0.09, 'square', 0.05 * v, 1, 0, 3200);
       } // brrring: a cheap alarm clock, loud enough to carry
       f.pullT -= dt;
@@ -147,7 +147,7 @@ export function tickGadgets(dt) {
     if (f.ignT <= 0) {
       f.ignT = 0.5;
       query(f.x, f.y, 60 * GK, e => {
-        if (!e.dead && d2(f.x, f.y, e.x, e.y) < (34 + e.r) ** 2) ignite(e, 2);
+        if (!e.dead && d2(f.x, f.y, e.x, e.y) < (34 * GK + e.r) ** 2) ignite(e, 2);
       });
     }
   }

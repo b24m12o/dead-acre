@@ -88,7 +88,7 @@ function surgeGo(SG) {
       dir = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][
         Math.round((((a % TAU) + TAU) % TAU) / (TAU / 8)) % 8
       ];
-    SG.horde = { a, x: GS.P.x + Math.cos(a) * 640, y: GS.P.y + Math.sin(a) * 640, t: GS.time + 8 };
+    SG.horde = { a, x: GS.P.x + Math.cos(a) * 640 * GK, y: GS.P.y + Math.sin(a) * 640 * GK, t: GS.time + 8 };
     showStreak('Horde', `They are coming up out of the ground to the ${dir}`, true);
     radio('Nine, big group breaking through on your ' + dir + ' side. Find a choke point.');
     sfx.rumble(GS.P.x + Math.cos(a) * 400, GS.P.y + Math.sin(a) * 400);
@@ -118,7 +118,7 @@ export function hordeSpot(H) {
   // up out of the ground in one stretch of the map, the way the horde came
   for (let k = 0; k < 30; k++) {
     const a = H.a + rand(-0.45, 0.45),
-      d = rand(560, 760),
+      d = rand(560, 760) * GK,
       x = clamp(GS.P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
       y = clamp(GS.P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE),
       tx = Math.floor(x / TILE),
@@ -228,7 +228,7 @@ export function startWave() {
       !c.alive &&
       Math.random() < 0.45 &&
       d2(c.x, c.y, GS.P.x, GS.P.y) > (90 * GK) ** 2 &&
-      !GS.enemies.some(e => d2(c.x, c.y, e.x, e.y) < (e.r + 30) ** 2)
+      !GS.enemies.some(e => d2(c.x, c.y, e.x, e.y) < (e.r + 30 * GK) ** 2)
     ) {
       c.alive = true;
       c.hp = 40 + GS.wave * 8;
