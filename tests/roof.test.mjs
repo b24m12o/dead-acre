@@ -2,6 +2,7 @@
 // A roof stops a throw. From inside a roofed house a mine, a grenade or a molotov only leaves by the doorway: aimed
 // at the wall it drops at the wall's foot inside. Over a house it merely passes, and over the walls of a roofless
 // ruin, it still flies. The molotovs and pipe bombs you throw by yourself are not thrown at what a roof hides.
+import { GK } from '../src/core/scale.js';
 import { openGame, check } from './lib/harness.mjs';
 
 export const name = 'roof: nothing is thrown through one';
@@ -22,6 +23,7 @@ export async function run(b) {
         // and solid wall along the way the test throws from just inside (another door or a gap in line would rightly let it out)
         const qx = d.x - d.nx * 60, qy = d.y - d.ny * 60, bx = -d.ny, by = d.nx;
         if (![1, -1].some(s => roofStop(qx, qy, qx + bx * s * 1500, qy + by * s * 1500))) continue;
+        if (roofStop(qx, qy, d.x + d.nx * 200, d.y + d.ny * 200)) continue; // and out through the door, open ground: not into the next house along
         // and the same for the throw in from outside, beside the door
         const ins = (x, y) => x > h.x * TILE && x < (h.x + h.w) * TILE && y > h.y * TILE && y < (h.y + h.h) * TILE,
           st = roofStop(d.x + d.nx * 80 + bx * 90, d.y + d.ny * 80 + by * 90, qx + bx * 30, qy + by * 30);
@@ -57,8 +59,11 @@ export async function run(b) {
     out.mine = GS.tthrows.length === n0 + 1 && inH(t.tx, t.ty);
     // molotovs and pipe bombs of your own: not at one the roof hides, yes at one in the doorway's line
     S.molo = 1; GS.molos = [];
-    const z = makeEnemy('skitter', px + ax * 240 * GK, py + ay * 240 * GK); z.emerge = 1; z.hp = z.maxHp = 9999; z.sp = 0; z.aw = 0; GS.enemies.push(z);
-    if (roofStop(px, py, z.x, z.y) === null) { z.x = px - ax * 240 * GK; z.y = py - ay * 240 * GK; }
+    const z = makeEnemy('skitter', px, py); z.emerge = 1; z.hp = z.maxHp = 9999; z.sp = 0; z.aw = 0; GS.enemies.push(z);
+    // just the far side of the wall along from you: in a molotov's reach, but the roof's in the way
+    for (const s of [1, -1]) { const st = roofStop(px, py, px + ax * s * 1500, py + ay * s * 1500); if (!st) continue;
+      const d = Math.hypot(st[0] - px, st[1] - py) + 50 * GK; z.x = px + ax * s * d; z.y = py + ay * s * d; if (d < 400 * GK) break; }
+    out.hidDist = Math.round(Math.hypot(z.x - px, z.y - py)); out.hidStop = !!roofStop(px, py, z.x, z.y);
     rebuildHash();
     out.moloHidden = throwMolotov(P);
     z.x = D.x + D.nx * 170 * GK; z.y = D.y + D.ny * 170 * GK; rebuildHash();
@@ -79,6 +84,10 @@ export async function run(b) {
   check(o.into, 'a throw into the house through its wall should drop outside');
   check(o.over === null, 'a throw clean over the house should fly: ' + JSON.stringify(o.over));
   check(o.mine, 'a mine thrown at the wall from inside should land inside');
+  check(
+    o.hidStop && o.hidDist < 470 * GK,
+    `the one behind the wall should be in reach and hidden: ${o.hidDist} px, hidden ${o.hidStop}`
+  );
   check(
     o.moloHidden === false && o.moloDoor === true,
     `your molotov should wait for one it can reach: hidden ${o.moloHidden}, in the doorway's line ${o.moloDoor}`
