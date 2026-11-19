@@ -78,9 +78,66 @@ export function drawLampPole(L) {
   }
   const v = LAMPV(L);
   quad(R.glow, L.bx + 3, L.by + 3, 0, 0.16, 0.13, 0, 0, 0, 0.55, 0, 0, 0, 0);
-  lineQ(L.bx, L.by + 1, L.bx, L.by - v, L.lantern ? 4 : 6.5, 0.2, 0.2, 0.22, 1, 0, 0, 0, 0, R.pixel);
-  quad(R.pixel, L.bx, L.by - v, 0, L.lantern ? 1.1 : 1.6, L.lantern ? 1.1 : 1.6, 0.27, 0.27, 0.3, 1, 0, 0, 0, 0);
-} // the pole seen end-on from above: a short dark column with its cap; the arm reaches out from the cap
+  if (L.lantern) {
+    lineQ(L.bx, L.by + 1, L.bx, L.by - v, 4, 0.2, 0.2, 0.22, 1, 0, 0, 0, 0, R.pixel);
+    quad(R.pixel, L.bx, L.by - v, 0, 1.1, 1.1, 0.27, 0.27, 0.3, 1, 0, 0, 0, 0);
+    return;
+  }
+  // a street lamp's pole from above: a round concrete footing, a galvanised steel column tapering as it rises (lit
+  // down one side, a cold highlight up the other), and a cap where the arm leaves it. About 20 cm across, like a real one
+  const P = R.pixel;
+  lineQ(L.bx - 1.8, L.by + 0.5, L.bx + 1.8, L.by + 0.5, 7, 0.2, 0.2, 0.19, 1, 0, 0, 0, 0); // the footing
+  lineQ(L.bx, L.by, L.bx, L.by - v * 0.5, 4.2, 0.2, 0.21, 0.23, 1, 0, 0, 0, 0, P);
+  lineQ(L.bx, L.by - v * 0.5, L.bx, L.by - v, 3.4, 0.2, 0.21, 0.23, 1, 0, 0, 0, 0, P);
+  lineQ(L.bx - 1.1, L.by, L.bx - 0.8, L.by - v, 0.9, 0.42, 0.44, 0.47, 0.9, 0, 0, 0, 0, P);
+  lineQ(L.bx - 1.6, L.by - v, L.bx + 1.6, L.by - v, 3.6, 0.26, 0.27, 0.29, 1, 0, 0, 0, 0);
+} // the arm and the lamp head reach out from the cap (render.js, drawn over the roofs: streetLampHead)
+// a street lamp's arm and head, high over the street: a slim arm bowing up and out from the pole's cap to a cobra-head
+// housing about 80 cm long, its lens underneath lit when the lamp is (k: how lit)
+export function streetLampHead(L, lh, k) {
+  const dx = L.hx - L.bx,
+    dy = L.hy - L.by,
+    len = Math.hypot(dx, dy) || 1,
+    ux = dx / len,
+    uy = dy / len,
+    x0 = L.bx,
+    y0 = L.by - lh,
+    x2 = L.hx - ux * 6,
+    y2 = L.hy - lh - uy * 6,
+    cx = (x0 + x2) / 2,
+    cy = (y0 + y2) / 2 - Math.min(10, len * 0.18); // the arm's bow: up, toward the viewer
+  let px = x0,
+    py = y0;
+  for (let i = 1; i <= 6; i++) {
+    const t = i / 6,
+      qx = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cx + t * t * x2,
+      qy = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cy + t * t * y2,
+      w = 2.6 - t * 0.8;
+    lineQ(px, py, qx, qy, w, 0.2, 0.21, 0.23, 1, 0, 0, 0, 0, R.pixel);
+    lineQ(px, py - w * 0.3, qx, qy - w * 0.3, w * 0.3, 0.42, 0.44, 0.47, 0.8, 0, 0, 0, 0, R.pixel);
+    px = qx;
+    py = qy;
+  }
+  const hx = L.hx,
+    hy = L.hy - lh;
+  lineQ(hx - ux * 8, hy - uy * 8, hx + ux * 8, hy + uy * 8, 7, 0.2, 0.21, 0.23, 1, 0, 0, 0, 0); // the housing
+  lineQ(hx - ux * 7, hy - uy * 7 - 1.2, hx + ux * 6, hy + uy * 6 - 1.2, 1.6, 0.38, 0.4, 0.43, 0.8, 0, 0, 0, 0); // its top catching the moon
+  lineQ(
+    hx - ux * 5,
+    hy - uy * 5 + 1,
+    hx + ux * 6.5,
+    hy + uy * 6.5 + 1,
+    4,
+    0.75 + 0.25 * k,
+    0.7 + 0.2 * k,
+    0.55,
+    1,
+    2.6 * k,
+    2.2 * k,
+    1.5 * k,
+    0
+  ); // the lens: dull glass, or lit
+}
 export function drawTrunk(t) {
   if (GS.SHMODE) {
     drawPole(t.x, t.y, 40 * t.s, 9 * t.s, 0.2);

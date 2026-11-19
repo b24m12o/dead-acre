@@ -77,7 +77,7 @@ import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
 import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
 import { drawUI } from '../ui/draw-ui.js';
 import { buildVisGPU, visH, visTex, visW } from './visgpu.js';
-import { LAMPV, decorLights, drawHouseRoofs, roofShadows } from './decor.js';
+import { LAMPV, decorLights, drawHouseRoofs, roofShadows, streetLampHead } from './decor.js';
 import { fireBeds } from '../world/fire.js';
 import { drawPuddles } from '../world/weather.js';
 import { WXV, drawFog } from '../world/weather.js';
@@ -144,8 +144,13 @@ export function render() {
     if (L.down) continue;
     const lh = L.lantern ? 30 : 66;
     setH(lh);
-    lineQ(L.bx, L.by, L.hx, L.hy, L.lantern ? 3 : 4, 1, 1, 1, 1, 0, 0, 0, 0, R.pixel);
-    quad(L.lantern ? R.lantern : R.lamp, L.hx, L.hy, L.a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+    lineQ(L.bx, L.by, L.hx, L.hy, L.lantern ? 3 : 2.4, 1, 1, 1, 1, 0, 0, 0, 0, R.pixel);
+    if (L.lantern) quad(R.lantern, L.hx, L.hy, L.a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+    else {
+      const c = Math.cos(L.a),
+        s = Math.sin(L.a);
+      lineQ(L.hx - c * 8, L.hy - s * 8, L.hx + c * 8, L.hy + s * 8, 7, 1, 1, 1, 1, 0, 0, 0, 0); // the head's shadow: the housing's shape
+    }
   }
   GS.SHS = 0.7;
   roofShadows();
@@ -618,8 +623,12 @@ export function render() {
     if (L.down) continue;
     const k = lampK(L),
       lh = LAMPV(L);
-    lineQ(L.bx, L.by - lh, L.hx, L.hy - lh, L.lantern ? 3 : 4, 0.18, 0.18, 0.2, 1, 0, 0, 0, 0, R.pixel);
-    quad(L.lantern ? R.lantern : R.lamp, L.hx, L.hy - lh, L.a, 1, 1, 1, 1, 1, 1, 2.4 * k, 2.2 * k, 1.8 * k, 0);
+    if (!L.lantern) {
+      streetLampHead(L, lh, k);
+      continue;
+    }
+    lineQ(L.bx, L.by - lh, L.hx, L.hy - lh, 3, 0.18, 0.18, 0.2, 1, 0, 0, 0, 0, R.pixel);
+    quad(R.lantern, L.hx, L.hy - lh, L.a, 1, 1, 1, 1, 1, 1, 2.4 * k, 2.2 * k, 1.8 * k, 0);
   }
   drawAsh();
   drawFog(0.3);
@@ -766,6 +775,32 @@ export function render() {
   for (const m of GS.mortars)
     if (m.flare) quad(R.glow, m.x, m.y - m.z, 0, 0.5, 0.5, 0, 0, 0, 1, 0.9, 0.18, 0.1, 0);
     else if (!m.rock) quad(R.glow, m.x, m.y - m.z, 0, 0.6, 0.6, 0, 0, 0, 1, 0.35, 0.7, 0.08, 0);
+  // a shorted electrical box's current: a jagged white-blue line from the box to each of the dead it caught, flickering
+  // out in under half a second
+  for (const z of GS.arcs) {
+    const age = GS.time - z.t0;
+    if (age < 0 || age > 0.45 || Math.sin(GS.time * 90 + z.t0 * 7) < -0.6) continue;
+    const k = 1 - age / 0.45,
+      tx = z.e.x,
+      ty = z.e.y - 14 * PEOPLE,
+      dx = tx - z.x,
+      dy = ty - z.y,
+      L = Math.hypot(dx, dy) || 1,
+      n = Math.max(3, Math.round(L / 9));
+    let px = z.x,
+      py = z.y;
+    for (let i = 1; i <= n; i++) {
+      const f = i / n,
+        j = i < n ? (Math.random() - 0.5) * 9 * GK * Math.sin(f * Math.PI) * 2 : 0,
+        qx = z.x + dx * f - (dy / L) * j,
+        qy = z.y + dy * f + (dx / L) * j;
+      lineQ(px, py, qx, qy, 0.9, 0.7, 0.8, 1, 1, 1.8 * k, 2.2 * k, 3 * k, 0, R.pixel);
+      px = qx;
+      py = qy;
+    }
+  }
+  if (GS.arcs.length && GS.arcs.every(z => GS.time - z.t0 > 0.45)) GS.arcs.length = 0;
+  const BOLT_W = 0.42; // a round's streak across: a hair, not a pipe (it was as thick as the gun)
   for (const b of GS.pbullets) {
     if (b.shell) {
       if (b.t >= 0) quad(R.glow, b.x, b.y - b.z, 0, 0.3 * GK, 0.3 * GK, 0, 0, 0, 1, 1.2, 0.6, 0.2, 0);
@@ -783,8 +818,8 @@ export function render() {
       b.x - Math.cos(a) * 12 * sc,
       b.y - Math.sin(a) * 12 * sc,
       a,
-      1.25 * sc,
-      0.28 * (b.pellet ? 0.8 : 1),
+      1.05 * sc,
+      0.28 * (b.pellet ? 0.8 : 1) * BOLT_W, // thinner than the barrel it left
       0,
       0,
       0,

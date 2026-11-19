@@ -51,6 +51,12 @@ function unstick(o) {
   return true;
 }
 // pushes o out of walls. r: its radius against walls (default its crowd radius); only: which tile kinds stop it
+// a fence tile's run: 1 along x, 2 along y (both at a corner), 0 standing alone (then it is a post, round like the rest)
+const isFence = (tx, ty) =>
+  tx >= 0 && ty >= 0 && tx < MW && ty < MH && grid[ty * MW + tx] === 1 && ttype[ty * MW + tx] === 9;
+const fenceRun = (tx, ty) =>
+  (isFence(tx - 1, ty) || isFence(tx + 1, ty) ? 1 : 0) | (isFence(tx, ty - 1) || isFence(tx, ty + 1) ? 2 : 0);
+const FENCE_W = 4; // half its thickness: posts and wire
 export function collide(o, r = o.cr || o.r, only = null) {
   let hit = false;
   {
@@ -72,6 +78,41 @@ export function collide(o, r = o.cr || o.r, only = null) {
       const inside = tx >= 0 && ty >= 0 && tx < MW && ty < MH,
         t = inside ? ttype[ty * MW + tx] : 1;
       if (only && !only(t)) continue;
+      if (t === 9 && fenceRun(tx, ty)) {
+        // a run of fence is a line along the tile, edge to edge: the posts used to be round blocks with gaps between
+        // them a person at life size could slip through
+        const cx = (tx + 0.5) * TILE,
+          cy = (ty + 0.5) * TILE,
+          k = fenceRun(tx, ty);
+        for (const hz of [true, false]) {
+          if (!(k & (hz ? 1 : 2))) continue;
+          const nx = hz ? clamp(o.x, tx * TILE, tx * TILE + TILE) : cx,
+            ny = hz ? cy : clamp(o.y, ty * TILE, ty * TILE + TILE),
+            rad = FENCE_W + r;
+          let dx = o.x - nx,
+            dy = o.y - ny;
+          const dd = Math.hypot(dx, dy);
+          if (dd >= rad) continue;
+          let d = dd;
+          if (d < 0.001) {
+            dx = hz ? 0 : o.vx > 0 ? -1 : 1;
+            dy = hz ? (o.vy > 0 ? -1 : 1) : 0;
+            d = 1;
+          }
+          const pen = rad - dd,
+            ux = dx / d,
+            uy = dy / d;
+          o.x += ux * pen;
+          o.y += uy * pen;
+          const vn = o.vx * ux + o.vy * uy;
+          if (vn < 0) {
+            o.vx -= vn * ux;
+            o.vy -= vn * uy;
+          }
+          hit = true;
+        }
+        continue;
+      }
       if (t !== 1 && t !== 11) {
         const cx = (tx + 0.5) * TILE,
           cy = (ty + 0.5) * TILE,

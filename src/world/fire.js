@@ -82,8 +82,8 @@ export function smoke(x, y, n, R0 = 60, dark = false) {
       g = dark ? rand(0.2, 0.26) : 0.24;
     part({
       k: 2,
-      x: x + rand(-8, 8) + Math.cos(a) * (dark ? R0 * 0.3 : 0),
-      y: y + rand(-8, 8) + Math.sin(a) * (dark ? R0 * 0.3 : 0),
+      x: x + (rand(-8, 8) + Math.cos(a) * (dark ? R0 * 0.3 : 0)) * GK,
+      y: y + (rand(-8, 8) + Math.sin(a) * (dark ? R0 * 0.3 : 0)) * GK, // (R0 in the old size of things, like the rest)
       vx: Math.cos(a) * s * 0.4,
       vy: Math.sin(a) * s * 0.4 - rand(10, 30),
       life: rand(1.6, 3.2) * (dark ? 1.3 : 1),
@@ -106,10 +106,10 @@ export function fireball(x, y, R0) {
       s = rand(20, R0 * 1.5);
     part({
       k: 13,
-      x: x + Math.cos(a) * R0 * 0.2,
-      y: y + Math.sin(a) * R0 * 0.2,
-      vx: Math.cos(a) * s,
-      vy: Math.sin(a) * s - rand(10, 40),
+      x: x + Math.cos(a) * R0 * 0.2 * GK,
+      y: y + Math.sin(a) * R0 * 0.2 * GK,
+      vx: Math.cos(a) * s * 0.7,
+      vy: Math.sin(a) * s * 0.7 - rand(10, 40), // it rolls up and over where it went off, not out in a star
       life: (L = rand(0.7, 1.3)),
       max: L,
       size: (rand(0.8, 1.3) * R0) / 45,
@@ -123,8 +123,8 @@ export function fireball(x, y, R0) {
       s = rand(10, R0 * 0.9);
     part({
       k: 13,
-      x: x + Math.cos(a) * R0 * 0.1,
-      y: y + Math.sin(a) * R0 * 0.1,
+      x: x + Math.cos(a) * R0 * 0.1 * GK,
+      y: y + Math.sin(a) * R0 * 0.1 * GK,
       vx: Math.cos(a) * s,
       vy: Math.sin(a) * s - rand(30, 70),
       life: (L = rand(0.9, 1.6)),
@@ -135,7 +135,7 @@ export function fireball(x, y, R0) {
       drag: 3,
     });
   } // the inner billows rise and roll, rather than flying out in a star
-  GS.later.push({ t: 0.18, fn: () => flame(x, y, 5, R0 * 0.3, R0 / 40) });
+  GS.later.push({ t: 0.18, fn: () => flame(x, y, 8, R0 * 0.3 * GK, R0 / 95) }); // what's left burning where it went off: tongues the size of a man, not comets
 }
 export function ignite(e, t = 3) {
   if (e.dead || e.fireproof || (e.type === 'queen' && t < 2)) return;
@@ -219,6 +219,8 @@ export function damageCar(c, dmg) {
 }
 // how far a car's blast reaches: a truck further than a car, a rigged one half again, the fuel tanker twice
 // a car is the street's size, not the people's: so is its blast (explode() takes the old size of things, hence / GK)
+// how big a burning car's flames are, against the old size of things (a car's fire is the car's size)
+const CAR_FLAME = 0.75;
 export const carBlastR = c => (c.truck ? 150 : 125) * (c.tanker ? 2 : c.rig ? 1.45 : 1);
 function blowCar(c) {
   c.dead = true;
@@ -241,7 +243,7 @@ function blowCar(c) {
         fn: () => fireball(c.x + Math.cos(c.a) * 44 * u, c.y + Math.sin(c.a) * 44 * u, (carBlastR(c) * s) / GK),
       }); // the tank going up end to end, then the fuel in it: a fireball as wide as the blast's deadly core
   GS.trapBlast = false;
-  firePool(c.x, c.y, (c.truck ? 95 : 75) * k, c.tanker ? 14 : 7);
+  firePool(c.x, c.y, ((c.truck ? 70 : 55) * k) / GK, c.tanker ? 14 : 9); // the fuel, burning on the road round the wreck: as wide as the car (world size)
   if (c.tanker)
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * TAU + rand(-0.2, 0.2),
@@ -358,8 +360,14 @@ export function updateFire(dt) {
         for (const [u, , k] of hotSpots(c, 2))
           if (Math.random() < dt * 36 * k) {
             const d = (u - 0.5) * 60 + rand(-10, 10);
-            flame(c.x + Math.cos(c.a) * d, c.y + Math.sin(c.a) * d - 8, 1, 11 * k, rand(1.2, 1.7) * k);
-          } // many smaller tongues licking out of the car, not one sheet
+            flame(
+              c.x + Math.cos(c.a) * d,
+              c.y + Math.sin(c.a) * d - 8,
+              1,
+              11 * k,
+              (rand(1.2, 1.7) * k * CAR_FLAME) / GK
+            );
+          } // many tongues a metre or two high licking out of the car (a car is the street's size: core/scale.js)
       if (GS.state === 'play') {
         c.hp -= dt * c.max * 0.12;
         if (c.hp <= 0) blowCar(c);
@@ -368,6 +376,22 @@ export function updateFire(dt) {
   }
   for (const w of GS.wrecks) {
     w.sm = (w.sm ?? 30) - dt;
+    w.burn = (w.burn ?? (w.s > 1 ? 22 : 16)) - dt;
+    if (w.burn > 0 && Math.abs(w.x - cam.x - viewW / 2) < viewW && Math.abs(w.y - cam.y - viewH / 2) < viewH) {
+      const k = Math.min(1, w.burn / 6); // the wreck burns on: fuel, seats and tyres, dying down over its last seconds
+      for (const [u, , q] of hotSpots(w, 3))
+        if (Math.random() < dt * 30 * q * k) {
+          const d = (u - 0.5) * 66 * w.s + rand(-10, 10);
+          flame(
+            w.x + Math.cos(w.a) * d,
+            w.y + Math.sin(w.a) * d - 6,
+            1,
+            13 * q,
+            (rand(1.1, 1.8) * q * k * CAR_FLAME) / GK
+          );
+        }
+      if (Math.random() < dt * 9 * k) smoke(w.x + rand(-14, 14), w.y + rand(-8, 8), 1, 90, true); // black, from burning rubber and plastic
+    }
     if (
       w.sm > 0 &&
       Math.abs(w.x - cam.x - viewW / 2) < viewW &&

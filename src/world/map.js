@@ -2325,7 +2325,7 @@ export function init() {
   barrelSpots = [];
   crystals = [];
   grassCells = [];
-  TRAD = t => (t === 3 ? 14 : t === 8 ? 11 : t === 9 ? 13 : 20);
+  TRAD = t => (t === 3 ? 14 : t === 8 ? 11 : t === 9 ? 13 : t === 4 ? 12 : 20); // (an electrical box or a pump, at life size: 4)
   isWall = (tx, ty) => tx < 0 || ty < 0 || tx >= MW || ty >= MH || grid[ty * MW + tx] === 1;
   SUN = [9, 11];
   lamps = [];

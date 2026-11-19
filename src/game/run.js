@@ -121,6 +121,7 @@ export function newRun(forMenu = false) {
   GS.corpses = [];
   GS.pbullets = [];
   GS.ebullets = [];
+  GS.arcs = [];
   GS.darts = [];
   GS.buddies = [];
   GS.pickups = [];

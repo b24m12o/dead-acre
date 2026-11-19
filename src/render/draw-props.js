@@ -3,7 +3,7 @@ import { gunPose, rideCiv } from '../game/evac-ride.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, scaled, setH, viewH, viewW } from './sprites.js';
-import { BARREL, CRATE, GEAR, GEN, JERRY, MANHOLE, WCASE } from '../core/scale.js';
+import { BARREL, BOX, CRATE, GEAR, GEN, JERRY, MANHOLE, WCASE } from '../core/scale.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
 import { drawRanger, lampHot } from './draw-player.js';
@@ -134,6 +134,9 @@ function drawChuteDown0(h) {
   if (e > 0.05) quad(R.chutedn, x, y, h.a, h.s * (0.6 + 0.4 * e), h.s * (0.3 + 0.7 * e), 1, 1, 1, e * fade, 0, 0, 0, 0);
 }
 function drawCrystal(c) {
+  return scaled(c.x, c.y, BOX, drawCrystal0, c);
+}
+function drawCrystal0(c) {
   const g = c.grow < 1 ? c.grow * (2 - c.grow) : 1,
     f = c.flash > 0 ? 1 : 0,
     pu = Math.sin(GS.time * 5 + c.x) > 0 ? 1.6 : 0.6;

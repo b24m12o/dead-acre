@@ -19,6 +19,8 @@ export const PER_M = 20, // units to the metre
 // shopping cart 0.95 m; the coffin, the signals, the shelter, the generator already true
 // things carried, thrown and set down: grenades, molotovs, mines, flares, the brass (drawn with the hands that hold them)
 export const GEAR = PEOPLE;
+// an electrical box on the sidewalk (and a gas pump): about 1.2 m across
+export const BOX = 0.5;
 // an air-dropped supply box (about 1.2 m) and the long weapon case (about 1.5 m), with their parachutes; the generator
 // you guard; a jerrycan
 export const CRATE = 0.6,

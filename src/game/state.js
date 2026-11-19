@@ -38,6 +38,7 @@ GS.enemies = [];
 GS.corpses = [];
 GS.pbullets = [];
 GS.ebullets = [];
+GS.arcs = []; // a shorted box's current, jumping to the dead it catches (render.js)
 GS.darts = [];
 GS.buddies = [];
 GS.pickups = [];

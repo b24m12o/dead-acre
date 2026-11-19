@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { pouchDrop } from './pockets.js';
-import { CRATE, GK } from '../core/scale.js';
+import { BOX, CRATE, GK } from '../core/scale.js';
 import { boonDrop, gearK } from './boons.js';
 import { remainsFull } from '../render/remains.js';
 import { stationCatch } from './station.js';
@@ -1357,6 +1357,7 @@ function shatterCrystal(c) {
       if (!e.dead && d2(c.x, c.y, e.x, e.y) < (R0 * GK + e.r) ** 2) {
         hurtEnemy(e, 40 + GS.wave * 6, false, e.x - c.x, e.y - c.y, 3, 'crystal');
         e.slowT = 2.5;
+        if (c.hue !== 2) GS.arcs.push({ x: c.x, y: c.y - 30 * BOX, e, t0: GS.time + Math.random() * 0.12 }); // the current jumps to it
         caught++;
       }
     });

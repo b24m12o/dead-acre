@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { BOON, boonOn } from '../game/boons.js';
-import { GK } from '../core/scale.js';
+import { BOX, GK } from '../core/scale.js';
 import { roofStop } from '../world/roofs.js';
 import { camKick } from '../render/camera.js';
 import { GS } from '../core/gs.js';
@@ -40,6 +40,12 @@ import { firePool } from '../world/fire.js';
 import { LOUD, SUPP, makeNoise } from '../game/noise.js';
 import { TW } from '../game/districts.js';
 import { dynamiteBlast, startFlare } from '../game/gadgets.js';
+// a round hits an electrical box anywhere on its picture: from its foot up to its painted top (life size, scale.js)
+const boxHit = (c, x, y) => {
+  const top = c.y - 44 * BOX,
+    ny = clamp(y, top, c.y);
+  return d2(x, y, c.x, ny) < (28 * BOX) ** 2;
+};
 export function firePlayer(cwx, cwy, p, target) {
   const g = p.gun,
     G = GUNS[g],
@@ -446,7 +452,7 @@ export function updatePBullet(b, dt) {
     }
   } // the tail trails behind the chitin: get round and it takes every round
   for (const cr of crystals)
-    if (cr.alive && d2(b.x, b.y, cr.x, cr.y - 6) < (24 * GK) ** 2) {
+    if (cr.alive && boxHit(cr, b.x, b.y)) {
       hitCrystal(cr, b.dmg, b.vx, b.vy);
       b.life = 0;
       used = true;
