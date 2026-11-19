@@ -77,7 +77,7 @@ import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
 import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
 import { drawUI } from '../ui/draw-ui.js';
 import { buildVisGPU, visH, visTex, visW } from './visgpu.js';
-import { LAMPV, decorLights, drawHouseRoofs, roofShadows, streetLampHead } from './decor.js';
+import { LAMPV, POLE_H, decorLights, drawHouseRoofs, roofShadows, streetLampHead } from './decor.js';
 import { fireBeds } from '../world/fire.js';
 import { drawPuddles } from '../world/weather.js';
 import { WXV, drawFog } from '../world/weather.js';
@@ -142,14 +142,14 @@ export function render() {
   GS.SHS = 0.5;
   for (const L of lamps) {
     if (L.down) continue;
-    const lh = L.lantern ? 30 : 66;
+    const lh = L.lantern ? 30 : POLE_H;
     setH(lh);
-    lineQ(L.bx, L.by, L.hx, L.hy, L.lantern ? 3 : 2.4, 1, 1, 1, 1, 0, 0, 0, 0, R.pixel);
+    lineQ(L.bx, L.by, L.hx, L.hy, L.lantern ? 3 : 2, 1, 1, 1, 1, 0, 0, 0, 0, R.pixel);
     if (L.lantern) quad(R.lantern, L.hx, L.hy, L.a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
     else {
       const c = Math.cos(L.a),
         s = Math.sin(L.a);
-      lineQ(L.hx - c * 8, L.hy - s * 8, L.hx + c * 8, L.hy + s * 8, 7, 1, 1, 1, 1, 0, 0, 0, 0); // the head's shadow: the housing's shape
+      lineQ(L.hx - c * 7.5, L.hy - s * 7.5, L.hx + c * 7.5, L.hy + s * 7.5, 7.2, 1, 1, 1, 1, 0, 0, 0, 0); // the head's shadow: the housing's shape
     }
   }
   GS.SHS = 0.7;
@@ -688,16 +688,16 @@ export function render() {
       )
         continue;
       const by = L.hy - LAMPV(L),
-        n = L.lantern ? 9 : 18,
+        n = L.lantern ? 14 : 28,
         R0 = L.lantern ? 80 : 125;
       for (let i = 0; i < n; i++) {
         const a = ((i * 0.618 + L.ph) % 1) * Math.PI * 6.2,
           r = 18 + ((i * 37 + Math.floor(L.ph * 9)) % (R0 - 20)),
-          t = (GS.time * 2.3 + i * 0.37 + L.ph) % 1,
+          t = (GS.time * 9 + i * 0.37 + L.ph) % 1, // as fast as the rain everywhere else (weather.js): it only shows here
           x = L.hx + Math.cos(a) * r * 0.9,
-          y = by + 16 + Math.sin(a) * r * 0.5 + t * 48,
+          y = by + 16 + Math.sin(a) * r * 0.5 + t * 90,
           f = (1 - r / R0) * k * (1 - Math.abs(t - 0.5) * 1.5);
-        if (f > 0.02) lineQ(x, y, x - 3, y + 13, 1.3, 0, 0, 0, 1, 0.8 * f, 0.68 * f, 0.46 * f, 0, R.pixel);
+        if (f > 0.02) lineQ(x, y, x - 4.5, y + 18, 1.1, 0, 0, 0, 1, 0.8 * f, 0.68 * f, 0.46 * f, 0, R.pixel);
       }
     }
   for (const f of fires) {

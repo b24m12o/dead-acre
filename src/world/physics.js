@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { PROP_K, GK } from '../core/scale.js';
+import { GK, PEOPLE, PROP_K } from '../core/scale.js';
 import { occDirty } from '../render/lampocc.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, d2, rand, randi } from '../core/util.js';
@@ -496,7 +496,7 @@ export function blastWorld(x, y, R0, dmg) {
         fn: () => {
           playS('dry', 0.4, 0.4, 0, 0.3);
           shake(0.1);
-          dust(L.bx + Math.cos(L.fa) * 60, L.by + Math.sin(L.fa) * 60, 6, 60, 1, 1);
+          dust(L.bx + Math.cos(L.fa) * 100, L.by + Math.sin(L.fa) * 100, 6, 60, 1, 1); // where the head hits the street (decor.js: POLE_H)
         },
       });
     }
@@ -642,15 +642,15 @@ function footTick(dt) {
       GS.P.lastStep = st;
       const side = st & 1 ? 1 : -1,
         a = GS.P.moveA,
-        x = GS.P.x - Math.sin(a) * 6 * side,
-        y = GS.P.y + Math.cos(a) * 6 * side;
+        x = GS.P.x - Math.sin(a) * 6 * side * PEOPLE,
+        y = GS.P.y + Math.cos(a) * 6 * side * PEOPLE;
       if (GS.decals.length > 410) GS.decals.shift();
       GS.decals.push({
         reg: R.fprint,
         x,
         y,
         rot: a + Math.PI / 2,
-        s: 1,
+        s: PEOPLE, // the size of the boot that left it (core/scale.js)
         tint: [0.42, 0.04, 0.03, 0.75 * Math.min(1, GS.P.bloodSteps / 6)],
         emit: [0, 0, 0],
         life: 40,

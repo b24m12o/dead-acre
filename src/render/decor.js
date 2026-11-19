@@ -40,40 +40,138 @@ export function drawPole(x, y, h, w, col = 0.16) {
   lineQ(x, y, x, y - h, w, col, col, col * 1.08, 1, 0, 0, 0, 0, R.pixel);
 }
 export const LAMPV = L => (L.lantern ? 10 : 20); // seen from almost straight above, a lamp head sits just above its light pool, not a pole's height up the screen (the shadow still shows how tall it is)
+// A street lamp as one sees a real one from above: a square base plate bolted to the pavement, a slim galvanised
+// steel pole (about 20 cm, mid grey, lit down one side), a thin arm reaching out over the road, and a flat LED head
+// (about 70 by 30 cm) seen from its top: dark housing, a pale rim, and when lit only the light spilling round its
+// edges and the pool under it. Standing or knocked flat it is the same pole, arm and head (lampParts)
+export const POLE_H = 110; // how tall the pole stands (its shadow), and how long it lies when it comes down
+const STEEL = [0.36, 0.37, 0.39],
+  STEEL_HI = [0.6, 0.62, 0.65],
+  STEEL_LO = [0.17, 0.18, 0.19];
+function steel(x0, y0, x1, y1, w, a = 1) {
+  const dx = x1 - x0,
+    dy = y1 - y0,
+    L = Math.hypot(dx, dy) || 1,
+    nx = -dy / L,
+    ny = dx / L;
+  lineQ(x0, y0, x1, y1, w, STEEL[0], STEEL[1], STEEL[2], a, 0, 0, 0, 0, R.pixel);
+  lineQ(
+    x0 + nx * w * 0.28,
+    y0 + ny * w * 0.28,
+    x1 + nx * w * 0.28,
+    y1 + ny * w * 0.28,
+    w * 0.3,
+    ...STEEL_LO,
+    a,
+    0,
+    0,
+    0,
+    0,
+    R.pixel
+  );
+  lineQ(
+    x0 - nx * w * 0.22,
+    y0 - ny * w * 0.22,
+    x1 - nx * w * 0.22,
+    y1 - ny * w * 0.22,
+    w * 0.22,
+    ...STEEL_HI,
+    a * 0.85,
+    0,
+    0,
+    0,
+    0,
+    R.pixel
+  );
+} // a length of round steel tube: its body, the shaded side, a cold highlight down the other
+function basePlate(x, y, a = 0) {
+  quad(R.pixel, x, y + 0.5, a, 2.4, 2.4, 0.3, 0.3, 0.29, 1, 0, 0, 0, 0);
+  quad(R.pixel, x, y + 0.5, a, 2.0, 2.0, 0.38, 0.38, 0.36, 1, 0, 0, 0, 0);
+  const c = Math.cos(a),
+    sn = Math.sin(a);
+  for (const [u, v] of [
+    [-3, -3],
+    [3, -3],
+    [-3, 3],
+    [3, 3],
+  ])
+    quad(R.pixel, x + c * u - sn * v, y + 0.5 + sn * u + c * v, 0, 0.3, 0.3, 0.12, 0.12, 0.12, 1, 0, 0, 0, 0);
+} // a square steel plate, a bolt at each corner
+// the head: x, y its centre, (ux, uy) the way it points (along the arm), k how lit, broken: smashed
+export function lampHousing(x, y, ux, uy, k, broken = false) {
+  const vx = -uy,
+    vy = ux;
+  lineQ(x - ux * 7.5, y - uy * 7.5, x + ux * 7.5, y + uy * 7.5, 7.2, 0.44, 0.45, 0.47, 1, 0, 0, 0, 0); // the pale rim
+  lineQ(x - ux * 6.8, y - uy * 6.8 - 0.4, x + ux * 6.8, y + uy * 6.8 - 0.4, 5.8, 0.21, 0.22, 0.24, 1, 0, 0, 0, 0); // the top
+  lineQ(x - ux * 5, y - uy * 5 - 1.6, x + ux * 5, y + uy * 5 - 1.6, 1.1, 0.4, 0.42, 0.45, 0.7, 0, 0, 0, 0); // the moon along its ridge
+  quad(R.pixel, x - ux * 5.2, y - uy * 5.2 - 0.6, 0, 0.45, 0.45, 0.55, 0.56, 0.5, 1, 0, 0, 0, 0); // the photocell on top
+  if (k > 0.02 && !broken)
+    for (const sd of [-1, 1])
+      lineQ(
+        x - ux * 6 + vx * 3.5 * sd,
+        y - uy * 6 + vy * 3.5 * sd + 0.8,
+        x + ux * 6 + vx * 3.5 * sd,
+        y + uy * 6 + vy * 3.5 * sd + 0.8,
+        0.9,
+        0.9,
+        0.8,
+        0.6,
+        0.9 * k,
+        2.4 * k,
+        2.0 * k,
+        1.3 * k,
+        0,
+        R.pixel
+      ); // the light spilling out round the edges of the lens below
+  if (broken)
+    for (let i = 0; i < 5; i++) {
+      const t = (i * 0.37 + x * 0.013) % 1;
+      quad(
+        R.pixel,
+        x + vx * (5 + i * 1.6) + ux * (t * 12 - 6),
+        y + vy * (5 + i * 1.6) + uy * (t * 12 - 6),
+        i,
+        0.35,
+        0.25,
+        0.7,
+        0.75,
+        0.8,
+        0.8,
+        0,
+        0,
+        0,
+        0
+      );
+    } // its lens smashed out beside it
+}
 export function drawLampPole(L) {
   if (L.down) {
     if (GS.SHMODE) return;
-    const ex = L.bx + Math.cos(L.fa) * 66,
-      ey = L.by + Math.sin(L.fa) * 66;
     setH(1);
     const c0 = Math.cos(L.fa),
-      s0 = Math.sin(L.fa);
-    lineQ(L.bx + c0 * 8 + 1.5, L.by + s0 * 8 + 3, ex + 1.5, ey + 3, 7, 0, 0, 0, 0.35, 0, 0, 0, 0, R.pixel);
-    quad(R.pixel, L.bx, L.by, L.fa, 1.8, 1.8, 0.18, 0.18, 0.2, 1, 0, 0, 0, 0);
-    quad(R.pixel, L.bx + c0 * 3, L.by + s0 * 3, L.fa + 0.6, 0.9, 0.6, 0.45, 0.42, 0.38, 1, 0, 0, 0, 0);
-    lineQ(L.bx + c0 * 7, L.by + s0 * 7, ex, ey, 5.5, 0.3, 0.3, 0.33, 1, 0, 0, 0, 0, R.pixel);
-    lineQ(
-      L.bx + c0 * 7 - s0 * 1.2,
-      L.by + s0 * 7 + c0 * 1.2,
-      ex - s0 * 1.2,
-      ey + c0 * 1.2,
-      1.4,
-      0.5,
-      0.5,
-      0.52,
-      0.8,
-      0,
-      0,
-      0,
-      0,
-      R.pixel
-    ); // the snapped stump stays bolted down; the pole lies away from it, a highlight along its top
-    quad(R.lamp, ex, ey, L.fa, 1.1, 1.1, 0.85, 0.85, 0.85, 1, 0, 0, 0, 0);
+      s0 = Math.sin(L.fa),
+      ex = L.bx + c0 * POLE_H,
+      ey = L.by + s0 * POLE_H,
+      armL = Math.hypot(L.hx - L.bx, L.hy - L.by),
+      sd = Math.sin(L.ph * 3) > 0 ? 1 : -1,
+      ka = L.fa + sd * 1.25, // the arm, bent on the way down, sticks out to one side
+      kx = ex + Math.cos(L.fa + sd * 0.5) * armL * 0.35,
+      ky = ey + Math.sin(L.fa + sd * 0.5) * armL * 0.35,
+      hx = kx + Math.cos(ka) * armL * 0.65,
+      hy = ky + Math.sin(ka) * armL * 0.65;
+    lineQ(L.bx + c0 * 8 + 1.5, L.by + s0 * 8 + 3, ex + 1.5, ey + 3, 4.5, 0, 0, 0, 0.35, 0, 0, 0, 0, R.pixel); // its shadow, lying beside it
+    basePlate(L.bx, L.by);
+    steel(L.bx, L.by, L.bx + c0 * 3, L.by + s0 * 3, 4.4); // the snapped stump, still bolted down
+    quad(R.pixel, L.bx + c0 * 3.4, L.by + s0 * 3.4, L.fa + 0.6, 0.7, 0.5, 0.62, 0.6, 0.55, 1, 0, 0, 0, 0); // bright torn metal
+    steel(L.bx + c0 * 6, L.by + s0 * 6, ex, ey, 3.6);
+    steel(ex, ey, kx, ky, 1.9);
+    steel(kx, ky, hx, hy, 1.9);
+    lampHousing(hx, hy, Math.cos(ka), Math.sin(ka), 0, true);
     return;
   }
   if (GS.SHMODE) {
-    const h = L.lantern ? 30 : 66;
-    drawPole(L.bx, L.by, h, L.lantern ? 3 : 4.5);
+    const h = L.lantern ? 30 : POLE_H;
+    drawPole(L.bx, L.by, h, L.lantern ? 3 : 3.6);
     return;
   }
   const v = LAMPV(L);
@@ -83,17 +181,12 @@ export function drawLampPole(L) {
     quad(R.pixel, L.bx, L.by - v, 0, 1.1, 1.1, 0.27, 0.27, 0.3, 1, 0, 0, 0, 0);
     return;
   }
-  // a street lamp's pole from above: a round concrete footing, a galvanised steel column tapering as it rises (lit
-  // down one side, a cold highlight up the other), and a cap where the arm leaves it. About 20 cm across, like a real one
-  const P = R.pixel;
-  lineQ(L.bx - 1.8, L.by + 0.5, L.bx + 1.8, L.by + 0.5, 7, 0.2, 0.2, 0.19, 1, 0, 0, 0, 0); // the footing
-  lineQ(L.bx, L.by, L.bx, L.by - v * 0.5, 4.2, 0.2, 0.21, 0.23, 1, 0, 0, 0, 0, P);
-  lineQ(L.bx, L.by - v * 0.5, L.bx, L.by - v, 3.4, 0.2, 0.21, 0.23, 1, 0, 0, 0, 0, P);
-  lineQ(L.bx - 1.1, L.by, L.bx - 0.8, L.by - v, 0.9, 0.42, 0.44, 0.47, 0.9, 0, 0, 0, 0, P);
-  lineQ(L.bx - 1.6, L.by - v, L.bx + 1.6, L.by - v, 3.6, 0.26, 0.27, 0.29, 1, 0, 0, 0, 0);
-} // the arm and the lamp head reach out from the cap (render.js, drawn over the roofs: streetLampHead)
-// a street lamp's arm and head, high over the street: a slim arm bowing up and out from the pole's cap to a cobra-head
-// housing about 80 cm long, its lens underneath lit when the lamp is (k: how lit)
+  basePlate(L.bx, L.by);
+  steel(L.bx, L.by, L.bx, L.by - v * 0.5, 4);
+  steel(L.bx, L.by - v * 0.5, L.bx, L.by - v, 3.4);
+  lineQ(L.bx - 1.5, L.by - v, L.bx + 1.5, L.by - v, 3.6, ...STEEL, 1, 0, 0, 0, 0); // its rounded cap
+} // the arm and the head reach out from the cap over the street (render.js draws them over the roofs: streetLampHead)
+// the arm and head, high over the street: a thin tube rising a little and out from the cap, the head at its end
 export function streetLampHead(L, lh, k) {
   const dx = L.hx - L.bx,
     dy = L.hy - L.by,
@@ -102,41 +195,21 @@ export function streetLampHead(L, lh, k) {
     uy = dy / len,
     x0 = L.bx,
     y0 = L.by - lh,
-    x2 = L.hx - ux * 6,
-    y2 = L.hy - lh - uy * 6,
+    x2 = L.hx - ux * 7,
+    y2 = L.hy - lh - uy * 7,
     cx = (x0 + x2) / 2,
-    cy = (y0 + y2) / 2 - Math.min(10, len * 0.18); // the arm's bow: up, toward the viewer
+    cy = (y0 + y2) / 2 - Math.min(8, len * 0.14);
   let px = x0,
     py = y0;
-  for (let i = 1; i <= 6; i++) {
-    const t = i / 6,
+  for (let i = 1; i <= 5; i++) {
+    const t = i / 5,
       qx = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cx + t * t * x2,
-      qy = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cy + t * t * y2,
-      w = 2.6 - t * 0.8;
-    lineQ(px, py, qx, qy, w, 0.2, 0.21, 0.23, 1, 0, 0, 0, 0, R.pixel);
-    lineQ(px, py - w * 0.3, qx, qy - w * 0.3, w * 0.3, 0.42, 0.44, 0.47, 0.8, 0, 0, 0, 0, R.pixel);
+      qy = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cy + t * t * y2;
+    steel(px, py, qx, qy, 2);
     px = qx;
     py = qy;
   }
-  const hx = L.hx,
-    hy = L.hy - lh;
-  lineQ(hx - ux * 8, hy - uy * 8, hx + ux * 8, hy + uy * 8, 7, 0.2, 0.21, 0.23, 1, 0, 0, 0, 0); // the housing
-  lineQ(hx - ux * 7, hy - uy * 7 - 1.2, hx + ux * 6, hy + uy * 6 - 1.2, 1.6, 0.38, 0.4, 0.43, 0.8, 0, 0, 0, 0); // its top catching the moon
-  lineQ(
-    hx - ux * 5,
-    hy - uy * 5 + 1,
-    hx + ux * 6.5,
-    hy + uy * 6.5 + 1,
-    4,
-    0.75 + 0.25 * k,
-    0.7 + 0.2 * k,
-    0.55,
-    1,
-    2.6 * k,
-    2.2 * k,
-    1.5 * k,
-    0
-  ); // the lens: dull glass, or lit
+  lampHousing(L.hx, L.hy - lh, ux, uy, L.broken ? 0 : k);
 }
 export function drawTrunk(t) {
   if (GS.SHMODE) {

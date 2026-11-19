@@ -8,8 +8,8 @@ export function shapeVehicles() {
     `
   float sb(vec3 p, vec3 c, vec3 b, float r){ return sdBox(p,c,b-r,r); } /* a box whose half-size includes its rounding */
   float sdRR(vec2 p, vec2 b, float r){ vec2 q=abs(p)-b+r; return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r; }
-  float wheel(vec3 p, vec3 c, float r, float hw){ vec2 d=vec2(length(p.xz-c.xz)-r,abs(p.y-c.y)-hw); return min(max(d.x,d.y),0.0)+length(max(d,0.0))-0.6; } /* a tyre: a disc on its edge, axle across the car */
-  float tyres(vec3 p, int k){ float d=1e3; if(k==2||k==4){ for(int i=0;i<6;i++){ float sx=i<2?48.0:i<4?-28.0:-42.0, sy=(i%2==0)?1.0:-1.0; d=min(d,wheel(p,vec3(sx,sy*19.6,6.0),5.6,1.6)); } } else { for(int i=0;i<4;i++){ float sx=i<2?24.5:-24.0, sy=(i%2==0)?1.0:-1.0; d=min(d,wheel(p,vec3(sx,sy*17.0,5.4),k==3?4.0:4.9,1.5)); } } return d; }
+  float wheel(vec3 p, vec3 c, float r, float hw){ vec2 d=vec2(length(p.xz-c.xz)-r,abs(p.y-c.y)-hw); return min(max(d.x,d.y),0.0)+length(max(d,0.0))-0.6; } /* a tyre: a disc on its edge, axle across the car. Tucked under the body and its arches (a 65 cm tyre under a bonnet at 90): seen from above a real car shows next to none of them */
+  float tyres(vec3 p, int k){ float d=1e3; if(k==2||k==4){ for(int i=0;i<6;i++){ float sx=i<2?48.0:i<4?-28.0:-42.0, sy=(i%2==0)?1.0:-1.0; d=min(d,wheel(p,vec3(sx,sy*18.0,6.0),5.6,1.6)); } } else { for(int i=0;i<4;i++){ float sx=i<2?23.5:-24.0, sy=(i%2==0)?1.0:-1.0; d=min(d,wheel(p,vec3(sx,sy*15.6,4.0),k==3?3.6:4.0,1.5)); } } return d; }
   float cabin(vec3 p, int k){ float tw=13.2+1.6*smoothstep(15.0,9.0,p.z); float cab=sb(p,vec3(-4.0,0.0,10.6),vec3(18.0,tw,3.8),3.0);
     cab=smax(cab,(p.z-14.6)+(p.x-5.0)*0.55,1.4); cab=smax(cab,(p.z-14.6)-(p.x+14.5)*0.75,1.4); return cab; } /* the glasshouse: narrower than the body, sides leaning in, raked screens front and back */
   float sedan(vec3 p, int k){ /* a mid-size saloon from above: front at +x, a tub with rounded corners, a cabin with raked glass, tyres in the arches, mirrors, bumpers */
