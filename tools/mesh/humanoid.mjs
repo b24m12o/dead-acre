@@ -196,7 +196,7 @@ export function humanoid(P0 = {}) {
     sw: 1,
     lt: 1,
     al: 1,
-    ll: 1,
+    ll: 0.95, // a touch shorter in the leg than the first cut: lying in the street they read too long
     hs: 1,
     jaw: 0,
     belly: 0,
@@ -409,7 +409,7 @@ void attrs(vec3 p){
 // the people-shaped dead, each by its knobs (see humanoid)
 export const MODELS = {
   zombie: humanoid({ dress: 1 }), // the ordinary dead; and the listener, ashen and blind, which is only coloured differently
-  lean: humanoid({ tw: 0.86, td: 0.9, lt: 0.82, al: 1.06, ll: 1.03 }), // the runner and the climber: stripped, lean, long in the limb
+  lean: humanoid({ tw: 0.86, td: 0.9, lt: 0.82, al: 1.06, ll: 0.98 }), // the runner and the climber: stripped, lean, long in the arm
   gaunt: humanoid({ tw: 0.88, td: 0.88, lt: 0.8, hs: 1.14, jaw: 1, neck: 1.1 }), // the screamer among them: a big skull on a thin neck, the jaw hanging open
   screamer: humanoid({ tw: 1.22, td: 1.25, sw: 1.1, lt: 0.95, hs: 1.1, jaw: 1.35, neck: 1.1, scale: 1.12, mres: 1.1 }), // the screamer: a barrel chest of lungs, the jaw unhinged
   spitter: humanoid({ tw: 0.95, lt: 0.92, throat: 1, jaw: 0.35 }), // the spitter: its throat a sac of what it spits

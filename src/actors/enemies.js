@@ -175,7 +175,7 @@ export function makeEnemy(type, x, y) {
       Math.min(0.6, 0.08 + GS.wave * 0.03 + (INF(2) ? 0.15 : 0) + (GS.RUN.district === 'highway' ? 0.1 : 0))
   ) {
     e.run = true;
-    e.sp *= 2.05;
+    e.sp *= 2.5; // a sprint, not a jog (still a little under your own pace)
     e.hp *= 0.85;
     e.maxHp = e.hp;
   }

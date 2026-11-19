@@ -11,7 +11,7 @@ import { angDiff, clamp, lerp } from '../core/util.js';
 import { gl, progFinish } from './gl.js';
 import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
 import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
-import { GK, HEROIC, PER_M } from '../core/scale.js';
+import { GK, HEROIC, PER_M, strideLen } from '../core/scale.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
 
@@ -981,7 +981,7 @@ function poseZombie(e, D, o) {
     if (!ground && !e.headless) e.__ht = t;
   }
   // the legs
-  const stepL = (((run ? 15 : chg ? 17 : 9) * mvv) / (run || chg ? 1 : e.cad || 1)) * F.bl,
+  const stepL = (strideLen(e) * (chg ? 1.15 : 1) * mvv) / (4 * 0.9 * k[0]) / (run || chg ? 1 : e.cad || 1), // a quarter stride each way: the planted foot keeps pace with the street
     drag = run ? 1 : 0.55;
   const W = (lx, ly, lz) => [e.x + fwd[0] * lx + rt[0] * ly, e.y + fwd[1] * lx + rt[1] * ly, lz];
   for (const sd of [1, -1]) {
@@ -1417,10 +1417,14 @@ export function figCam(rect, size) {
 const queue = [];
 const depths = {}; // depth buffers by size (the screen's, the remains pass's), and the frame each was last cleared in
 const mode = () => (GS.SHMODE === 3 || GS.SHMODE === 4 ? 2 : GS.SHMODE === 2 ? 3 : GS.SHMODE ? 1 : 0);
+// down on the street: dead, knocked down, crawling, or what's left of one
+const onGround = e => e.dying !== undefined || e.dead || e.down > 0 || e.crawl || e.half;
 // draws e in 3D, or queues it to draw with the figures next to it; false if it can't (the picture draws instead)
 export function drawFig3D(e) {
   if (rowOf(e) < 0) return false;
   const m = mode();
+  if (m === 1 && !inking() && onGround(e)) return true; // lying on the street it throws next to no shadow (its own would cover it and black it out): the soft one under it does
+
   if (m === 2) {
     // a lamp's shadow: each figure on its own, thrown from the lamp lampshadows.js chose for it
     figFlush();

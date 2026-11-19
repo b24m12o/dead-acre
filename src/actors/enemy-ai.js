@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { heroSay } from '../audio/barks.js';
-import { GK } from '../core/scale.js';
+import { GK, strideLen } from '../core/scale.js';
 import { PILE, pileAt } from '../world/piles.js';
 import { seenFrom } from '../world/lights.js';
 import { GS } from '../core/gs.js';
@@ -939,9 +939,7 @@ export function updateEnemy(e, dt, p) {
   burnTick(e, dt);
   e.stride =
     (e.stride || 0) +
-    ((Math.hypot(e.vx, e.vy) * dt) /
-      ((e.type === 'beetle' ? 120 : e.type === 'hound' ? 70 : e.type === 'mini' ? 44 : 58) * GK)) *
-      (e.type === 'skitter' && !e.run ? e.cad || 1 : 1); // its own cadence
+    ((Math.hypot(e.vx, e.vy) * dt) / strideLen(e)) * (e.type === 'skitter' && !e.run ? e.cad || 1 : 1); // its own cadence
   if (
     e.type === 'skitter' &&
     !e.run &&

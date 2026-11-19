@@ -45,3 +45,7 @@ export function figK(e) {
   if (e.type === 'hopper' || e.type === 'egg' || e.kind === 'drag') return BIG;
   return PEOPLE;
 }
+// how far one full stride carries it (two steps): a runner's are long, a walker's short; the 3D pose swings its feet
+// to match (render/fig3d.js), so they plant instead of skating
+export const strideLen = e =>
+  (e.type === 'beetle' ? 120 : e.type === 'hound' ? 70 : e.type === 'mini' ? 44 : e.run ? 112 : 58) * GK;

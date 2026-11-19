@@ -211,21 +211,22 @@ export function bakeRemains() {
     const draw = shade => {
       for (const d of M) drawMark(d);
       for (const e of B) if (HUMAN[e.type]) bodyAO(e, 0.26);
+      if (shade) {
+        // the shadow it lies in: its own shapes in black, pushed off along the moonlight as the shadow pass does, and
+        // under the body (drawn over it, a body lying flat came out black: its shadow barely moves off it)
+        flush();
+        GS.SHMODE = true;
+        GS.SHS = REMAINS.shade;
+        inkMode(true);
+        for (const e of B) drawEnemy(e);
+        figFlush();
+        flush();
+        inkMode(false);
+        GS.SHMODE = false;
+        setH(0);
+      }
       for (const e of B) drawEnemy(e);
       figFlush();
-      if (!shade) return;
-      // the shadow it lay in, and under: its own shapes in black, pushed off along the moonlight as the shadow pass
-      // does. Without it a body brightens the moment it becomes ground
-      flush();
-      GS.SHMODE = true;
-      GS.SHS = REMAINS.shade;
-      inkMode(true);
-      for (const e of B) drawEnemy(e);
-      figFlush();
-      flush();
-      inkMode(false);
-      GS.SHMODE = false;
-      setH(0);
     };
     GS.camX = box[0];
     GS.camY = box[1];

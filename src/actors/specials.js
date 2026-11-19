@@ -50,7 +50,7 @@ export function makeSpecial(kind, x, y) {
   if (kind === 'climb') {
     e.v = 16;
     e.run = true;
-    e.sp *= 1.85;
+    e.sp *= 2.3;
     e.hp *= 0.8;
   } else if (kind === 'spore') {
     e.v = 16; // bare, swollen, yellowing skin
