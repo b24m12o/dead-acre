@@ -160,7 +160,7 @@ function bossDefense(e, dmg, src, hx, hy) {
     tankHit(e, dmg, hx, hy);
   } // the air pack on its back
   if (tag && (b || src === 'fire') && thr('btag' + tag[0], tag[0] === 'Armoured' ? 2600 : 1600)) {
-    floatText(e.x, e.y - (e.z || 0) - e.r - 34, tag[0], tag[1], 15);
+    floatText(e.x, e.y - (e.z || 0) - e.r - 34 * GK, tag[0], tag[1], 15);
     GS.texts[GS.texts.length - 1].nf = true;
     GS.texts[GS.texts.length - 1].life = 1.1;
   } // tells you what is working (above the boss, never faded by the cursor)
@@ -196,8 +196,8 @@ export function releaseGrab(push = 1) {
     const dx = e.x - GS.P.x,
       dy = e.y - GS.P.y,
       dl = Math.hypot(dx, dy) || 1;
-    e.kx += (dx / dl) * 160 * push;
-    e.ky += (dy / dl) * 160 * push;
+    e.kx += (dx / dl) * 160 * GK * push;
+    e.ky += (dy / dl) * 160 * GK * push;
   }
 }
 export const SIGHT = () => (GS.ev === 'fog' ? 330 : GS.ev === 'blackout' ? 420 : 640); // how far the dead can see you: fog and a dead grid hide you, so you can slip past or pick your moment
@@ -255,8 +255,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   if (e.dead) return;
   if (hx === undefined || hy === undefined) {
     const kl = Math.hypot(kx, ky) || 1;
-    hx = e.x - (kx / kl) * (e.r || 14);
-    hy = e.y - (ky / kl) * (e.r || 14);
+    hx = e.x - (kx / kl) * (e.r || 14 * GK);
+    hy = e.y - (ky / kl) * (e.r || 14 * GK);
   } // no hit point given: it came from the side the push came from, never 'due east'
   if (e.type === 'flower' && e.st === 'closed') dmg *= 0.45;
   if (e.type === 'beetle' && e.st === 'stun') dmg *= 2;
@@ -292,8 +292,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       if (thr('shieldTing', 70)) playS('dry', 0.12, 2.2 + rand(0, 0.4), 0, 0.1);
       e.aw = Math.max(e.aw || 0, 8);
       const kl = Math.hypot(kx, ky) || 1;
-      e.kx += (kx / kl) * 30 * kb;
-      e.ky += (ky / kl) * 30 * kb;
+      e.kx += (kx / kl) * 30 * GK * kb;
+      e.ky += (ky / kl) * 30 * GK * kb;
       e.wob = 0.4;
       if (!(GS.meta.tips && GS.meta.tips.shield)) {
         GS.meta.tips = GS.meta.tips || {};
@@ -354,8 +354,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
   if (e.type === 'queen') {
     const kl = Math.hypot(kx, ky) || 1;
     const hk = clamp(dmg / (e.maxHp * 0.012), 0.25, 2.2); // how hard: buckshot nudges it, a rifle round or a blast rocks it
-    e.rvx = (e.rvx || 0) + (kx / kl) * 46 * hk;
-    e.rvy = (e.rvy || 0) + (ky / kl) * 46 * hk; // a hit rocks the upper body back on its legs (a spring: queen.js)
+    e.rvx = (e.rvx || 0) + (kx / kl) * 46 * GK * hk;
+    e.rvy = (e.rvy || 0) + (ky / kl) * 46 * GK * hk; // a hit rocks the upper body back on its legs (a spring: queen.js)
     e.twv = (e.twv || 0) + Math.sign(Math.sin(angDiff(e.a, Math.atan2(-ky, -kx))) || 1) * 1.4 * hk; // and twists it, round the side that was hit
     e.stg = (e.stg || 0) + dmg;
     if (e.stg > e.maxHp * 0.05 && GS.time > (e.stgCd || 0) && !(e.stunT > 0) && !(e.spinT > 0) && STAGGERABLE[e.st]) {
@@ -418,8 +418,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       e.cfall = 0.32;
       const a = e.a + Math.PI;
       gib(
-        e.x + Math.cos(a) * 18,
-        e.y + Math.sin(a) * 18,
+        e.x + Math.cos(a) * 18 * GK,
+        e.y + Math.sin(a) * 18 * GK,
         R.g_leg,
         pantsOf(e) || ZSKIN[e.sk || 0],
         bloodOf(e),
@@ -474,8 +474,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       if (e.type !== 'beetle' && hk > 0.22 && Math.random() < 0.3) {
         e.stag = 0.5;
         const sa = Math.atan2(ky, kx) + (Math.random() < 0.5 ? 1.4 : -1.4);
-        e.kx += Math.cos(sa) * 70;
-        e.ky += Math.sin(sa) * 70;
+        e.kx += Math.cos(sa) * 70 * GK;
+        e.ky += Math.sin(sa) * 70 * GK;
       }
       if (
         e.type === 'skitter' &&
@@ -519,8 +519,8 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
               : e.type === 'flower'
                 ? 0.5
                 : 1;
-  e.kx += (kx / kl) * 170 * kb * mass;
-  e.ky += (ky / kl) * 170 * kb * mass;
+  e.kx += (kx / kl) * 170 * GK * kb * mass;
+  e.ky += (ky / kl) * 170 * GK * kb * mass;
   if (opt.dmgNums && src !== 'fire' && (crit || dmg >= 60)) {
     const tt = GS.texts.find(t => t.eid === e.id && t.life > 0.35);
     if (tt) {
@@ -592,8 +592,8 @@ export function shoveEnemy(e, kx, ky) {
     armd = e.trait === 'armored',
     mass = boss ? 0.05 : brute ? 0.25 : e.type === 'hopper' ? 0.4 : e.type === 'flower' ? 0.5 : 1,
     push = SHOVE_KB * (armd ? 0.25 : 1) * (front ? 0.35 : 1);
-  e.kx += ux * 170 * push * mass;
-  e.ky += uy * 170 * push * mass;
+  e.kx += ux * 170 * GK * push * mass;
+  e.ky += uy * 170 * GK * push * mass;
   e.aw = Math.max(e.aw || 0, 8);
   e.heardT = GS.time;
   e.flash = 0.05;
@@ -649,7 +649,7 @@ function gibAll(e, dx, dy, col) {
   const ex = e.x,
     ey = e.y,
     big = e.type === 'beetle' ? 1.6 : 1,
-    sp = 280 * big;
+    sp = 280 * GK * big;
   if (HUMAN[e.type]) {
     if (!e.headless) gib(ex, ey, R.g_head, [1, 1, 1], col, sp, dx, dy);
     for (let i = 0; i < 2; i++) if (!e.lost || !e.lost[i]) gib(ex, ey, R.g_arm, [1, 1, 1], col, sp, dx, dy, 0.85);
@@ -829,7 +829,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       }
     } else {
       const spd = Math.hypot(e.vx || 0, e.vy || 0),
-        towards = spd > 110 && ((e.vx || 0) * dx + (e.vy || 0) * dy) / spd < 0.3;
+        towards = spd > 110 * GK && ((e.vx || 0) * dx + (e.vy || 0) * dy) / spd < 0.3;
       fallK =
         e.type !== 'skitter' || src === 'boom'
           ? 0
@@ -873,11 +873,11 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
         carry = fallK === 2 ? 0.95 : 0.3;
       e.rvx = ux * imp + (e.vx || 0) * carry;
       e.rvy = uy * imp + (e.vy || 0) * carry;
-      e.rw = (rand(-1, 1) * imp) / 90;
+      e.rw = (rand(-1, 1) * imp) / (90 * GK);
       e.limbs = null;
       e.lr = null;
       e.kx = e.ky = 0;
-      e.vz = src === 'boom' || imp > 330 ? imp * 0.45 : 0;
+      e.vz = src === 'boom' || imp > 330 * GK ? imp * 0.45 : 0;
     }
     GS.corpses.push(e);
     {
@@ -931,14 +931,14 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     GS.pools.push({
       x: e.x,
       y: e.y,
-      r: 70,
+      r: 70 * GK,
       life: 6,
       max: 6,
       dmg: 7 * (1 + 0.04 * GS.wave),
       rot: rand(0, TAU),
       v: randi(0, 3),
     });
-    if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (95 + GS.P.r) ** 2)
+    if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (95 * GK + GS.P.r) ** 2)
       hurtPlayer(16 * (1 + 0.04 * GS.wave), e.x, e.y, 'a bloater');
   }
   if (e.type === 'hopper') {
@@ -965,23 +965,23 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     GS.pools.push({
       x: e.x,
       y: e.y,
-      r: 64,
+      r: 64 * GK,
       life: 6,
       max: 6,
       dmg: 7 * (1 + 0.04 * GS.wave),
       rot: rand(0, TAU),
       v: randi(0, 3),
     });
-    if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (100 + GS.P.r) ** 2)
+    if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (100 * GK + GS.P.r) ** 2)
       hurtPlayer(16 * (1 + 0.04 * GS.wave), e.x, e.y, 'a bloater');
     query(e.x, e.y, 110 * GK, o => {
       if (!o.dead && o !== e && d2(e.x, e.y, o.x, o.y) < (100 * GK) ** 2)
         hurtEnemy(o, 30, false, o.x - e.x, o.y - e.y, 2, 'boom');
     });
     for (const s of [-1, 1]) {
-      const m = makeEnemy('mini', e.x + s * 16, e.y + rand(-8, 8));
+      const m = makeEnemy('mini', e.x + s * 16 * GK, e.y + rand(-8, 8) * GK);
       m.emerge = 0.6;
-      m.kx = s * 160;
+      m.kx = s * 160 * GK;
     }
   }
   GS.xp += src === 'truck' ? 0 : e.cvy && GS.P.ride ? e.xp * 0.5 : e.xp; // the bumper's kills are the driver's; your gun's pay half on a ride
@@ -1022,8 +1022,8 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
       GS.later.push({
         t: i * 0.14,
         fn: () => {
-          const x = e.x + rand(-70, 70),
-            y = e.y + rand(-70, 70);
+          const x = e.x + rand(-70, 70) * GK,
+            y = e.y + rand(-70, 70) * GK;
           bleed(x, y, 30, rand(-1, 1), rand(-1, 1), 20, BLOOD, 420, 1.4);
           for (let k = 0; k < 4; k++) gib(x, y, R['g_meat' + randi(0, 1)], [1, 1, 1], BLOOD, 380);
           gib(x, y, R.g_bone, [1, 1, 1], BLOOD, 380);
@@ -1131,8 +1131,8 @@ export function hurtPlayer(dmg, sx, sy, why, bump = false) {
   GS.combo = 0;
   if (sx !== undefined) {
     const a = Math.atan2(GS.P.y - sy, GS.P.x - sx);
-    GS.P.vx += Math.cos(a) * 380;
-    GS.P.vy += Math.sin(a) * 380;
+    GS.P.vx += Math.cos(a) * 380 * GK;
+    GS.P.vy += Math.sin(a) * 380 * GK;
   }
   if (GS.P.hp <= 0) gameOver();
 }
@@ -1197,7 +1197,7 @@ export function passSolid(b, dt) {
   b.pierce = 0;
   sparks(px, py, [1, 0.9, 0.6], 6, 380, Math.atan2(b.vy, b.vx), 0.5);
   if (GS.P && thr('ric', 90)) {
-    const v = clamp(1 - Math.hypot(px - GS.P.x, py - GS.P.y) / 900, 0, 1);
+    const v = clamp(1 - Math.hypot(px - GS.P.x, py - GS.P.y) / (900 * GK), 0, 1);
     if (v > 0) tone(rand(1900, 2700), 0.24, 'sine', 0.03 * v, 0.42, 0, 4200);
   }
   return true;
@@ -1239,7 +1239,7 @@ export function explode(x, y, R0, dmg, hurtsPlayer = true, core = 0) {
       t: 0.9,
       fn: () => {
         if (GS.kills - k0 >= 3) {
-          const b = nearestUp(x, y, 650);
+          const b = nearestUp(x, y, 650 * GK);
           if (b) bark(b, 'boom');
         }
       },
@@ -1352,8 +1352,8 @@ function shatterCrystal(c) {
   decal(R.scorch, c.x, c.y, 1, [1, 1, 1, 0.9], [0, 0, 0], 40);
   if (GS.state === 'play') {
     let caught = 0;
-    query(c.x, c.y, R0 + 40, e => {
-      if (!e.dead && d2(c.x, c.y, e.x, e.y) < (R0 + e.r) ** 2) {
+    query(c.x, c.y, (R0 + 40) * GK, e => {
+      if (!e.dead && d2(c.x, c.y, e.x, e.y) < (R0 * GK + e.r) ** 2) {
         hurtEnemy(e, 40 + GS.wave * 6, false, e.x - c.x, e.y - c.y, 3, 'crystal');
         e.slowT = 2.5;
         caught++;
@@ -1374,7 +1374,7 @@ export function dropCrate(gun, alt, kits, note, alt2) {
   } // a kit case looks like a weapon case
   for (let k = 0; k < 40; k++) {
     const a = rand(0, TAU),
-      d = gun ? rand(170, 320) : rand(240, 480),
+      d = (gun ? rand(170, 320) : rand(240, 480)) * GK,
       x = clamp(GS.P.x + Math.cos(a) * d, 4 * TILE, WW - 4 * TILE),
       y = clamp(GS.P.y + Math.sin(a) * d, 4 * TILE, WH - 4 * TILE);
     if (blockPt(x, y) || blockPt(x + 20, y) || blockPt(x - 20, y) || blockPt(x, y + 20) || blockPt(x, y - 20)) continue;

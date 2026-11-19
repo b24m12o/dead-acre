@@ -593,7 +593,7 @@ function pickAmmoKind() {
   return ts[ts.length - 1];
 }
 export function dropAmmo(x, y, v, spd = 80) {
-  GS.pickups.push({ k: 'ammo', at: pickAmmoKind(), v, x, y, vx: rand(-spd, spd), vy: rand(-spd, spd), t: 0 });
+  GS.pickups.push({ k: 'ammo', at: pickAmmoKind(), v, x, y, vx: rand(-spd, spd) * GK, vy: rand(-spd, spd) * GK, t: 0 });
 }
 export function ammoRoomFor(k) {
   return k.at ? (ammoMax(k.at) - GS.P.ammo[k.at]) / Math.max(1, AMMO_BOX[k.at] * 1.5) : ammoRoomK();

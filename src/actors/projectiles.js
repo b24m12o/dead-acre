@@ -54,7 +54,8 @@ export function shellBoom(x, y, R0, dmg, main) {
       b.hp = 0;
       GS.later.push({ t: 0.1, fn: () => blowBarrel(b) });
     }
-  for (const c of crystals) if (c.alive && d2(x, y, c.x, c.y) < (Rg + 16 * GK) ** 2) hitCrystal(c, dmg, c.x - x, c.y - y);
+  for (const c of crystals)
+    if (c.alive && d2(x, y, c.x, c.y) < (Rg + 16 * GK) ** 2) hitCrystal(c, dmg, c.x - x, c.y - y);
   if (main && S.bomblets)
     for (let i = 0; i < S.bomblets; i++) {
       const a = rand(0, TAU),

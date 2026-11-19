@@ -143,8 +143,9 @@ export function ignite(e, t = 3) {
   if (!(e.burn > 0)) e.burnT = 0.1;
   e.burn = Math.max(e.burn || 0, t);
 }
+// r at the old size of things (core/scale.js)
 export function firePool(x, y, r, life) {
-  GS.firePools.push({ x, y, r, life, max: life });
+  GS.firePools.push({ x, y, r: r * GK, life, max: life });
   decal(R.scorch, x, y, r / 50, [1, 1, 1, 0.9], [0, 0, 0], 50);
 }
 export function buildCarMap() {
