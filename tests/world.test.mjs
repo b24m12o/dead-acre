@@ -60,7 +60,7 @@ export async function run(b) {
     for (let t = 0; t < 400 && !spot; t++) { const a = Math.random() * 6.283, d = 700 + Math.random() * 120, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d; if (x > 100 && y > 100 && x < WW - 100 && y < WH - 100 && !blockPt(x, y)) spot = [x, y]; }
     GS.P.x = spot[0]; GS.P.y = spot[1]; const hp0 = GS.P.hp = S.maxHp;
     const zs = [];
-    for (let t = 0; t < 300 && zs.length < 12; t++) { const a = Math.random() * 6.283, d = Math.random() * 150, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d; if (blockPt(x, y)) continue; const e = makeEnemy('skitter', x, y); e.emerge = 1; zs.push(e); }
+    for (let t = 0; t < 300 && zs.length < 12; t++) { const a = Math.random() * 6.283, d = Math.random() * 150, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d; if (blockPt(x, y)) continue; const e = makeEnemy('skitter', x, y); e.emerge = 1; e.sp = 0; zs.push(e); } // standing there (a runner used to sprint off the forecourt before it went up)
     const lampsNear = lamps.filter(l => !l.down && !l.lantern && Math.hypot(l.bx - cx, l.by - cy) < 400).length;
     hitCrystal(ps[0], 999, 1, 0);
     const pin = () => { for (const e of zs) if (!e.dead) { e.x = e.x0; e.y = e.y0; } }; // held on the forecourt: the blast is what's tested, not who walks off it in the warning
