@@ -3,6 +3,7 @@
 // at the other pumps, then the whole station goes up: the biggest blast in the game, the canopy gone, the forecourt
 // burning, the lamps round it flattened. Lure them onto the forecourt first and it takes the lot. It happens once
 // a run: a Continue at the gas station later finds it a burnt-out shell.
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { TAU, d2, rand } from '../core/util.js';
 import { MW, TILE, crystals, grid, lamps, roofs, ttype } from '../world/map.js';
@@ -57,13 +58,13 @@ function blow(S) {
       ttype[p.ty * MW + p.tx] = 0;
     }
   GS.flowTile = -1;
-  explode(S.x, S.y, STATION.r, 320 + 34 * w, true, 0.4); // the tanks: the whole forecourt and well beyond it
+  explode(S.x, S.y, STATION.r / GK, 320 + 34 * w, true, 0.4); // the tanks: the whole forecourt and well beyond it (the street's size, like a car's blast: explode() takes the old size of things)
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * TAU + rand(-0.4, 0.4),
       d = rand(90, 170);
     GS.later.push({
       t: 0.12 + i * 0.13,
-      fn: () => explode(S.x + Math.cos(a) * d, S.y + Math.sin(a) * d, 120, 0, false, 0.5),
+      fn: () => explode(S.x + Math.cos(a) * d, S.y + Math.sin(a) * d, 120 / GK, 0, false, 0.5),
     }); // and the rolling after-blasts round it (fire and noise; the damage was the first)
   }
   shake(1.3);
@@ -77,7 +78,7 @@ function blow(S) {
   for (let i = 0; i < 9; i++) {
     const a = rand(0, TAU),
       d = rand(0, STATION.r * 0.7);
-    firePool(S.x + Math.cos(a) * d, S.y + Math.sin(a) * d, rand(50, 80), rand(14, 26));
+    firePool(S.x + Math.cos(a) * d, S.y + Math.sin(a) * d, rand(50, 80) / GK, rand(14, 26));
   } // the forecourt burns
   GS.later.push({ t: 0.6, fn: () => smoke(S.x, S.y, 16, STATION.r, true) });
   const rf = roofOf();
