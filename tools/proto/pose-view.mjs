@@ -149,8 +149,14 @@ try {
         g2.viewport(((i % PER) * 2 + j) * W, (ROWS - 1 - Math.floor(i / PER)) * H, W, H);
         g2.uniformMatrix3fv(g2.getUniformLocation(prog, 'uV'), true, V);
         g2.uniform3f(g2.getUniformLocation(prog, 'uC'), e.x, e.y - 4, j ? 0 : 22);
-        const MV = VA[modelOf(e)] || VA.zombie; g2.bindVertexArray(MV.vao);
-        g2.drawElements(g2.TRIANGLES, MV.ni, g2.UNSIGNED_SHORT, 0);
+        const mn = VA[modelOf(e)] ? modelOf(e) : 'zombie', kn = FIG.models[mn].kn || [1, 1, 0, 1, 0, 0, 0];
+        for (const nm2 of [mn, ...(e._kits || []).map(k => (VA[mn + '+' + k] ? mn + '+' + k : 'zombie+' + k))]) {
+          const MV = VA[nm2]; if (!MV) continue;
+          const kb = (nm2.includes('+') && FIG.models[nm2.split('+')[0]].kn) || kn; // a worn thing fitted to this head
+          g2.uniform3f(g2.getUniformLocation(prog, 'uKp'), kb[4], kb[5], kb[6]);
+          g2.uniform4f(g2.getUniformLocation(prog, 'uKt'), kn[4] - kb[4], kn[5] - kb[5], kn[6] - kb[6], kn[3] / kb[3]);
+          g2.bindVertexArray(MV.vao); g2.drawElements(g2.TRIANGLES, MV.ni, g2.UNSIGNED_SHORT, 0);
+        }
       }
     });
     return cv.toDataURL('image/png');

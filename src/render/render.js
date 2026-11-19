@@ -68,7 +68,7 @@ import { bakeRemains, bodyAO } from './remains.js';
 import { atmosLights, drawAsh, drawAshGlow, shaftGlow } from '../world/wear.js';
 import { lampShadowPass } from './lampshadows.js';
 import { primeBoss3D } from './boss3d.js';
-import { fig3dFrame } from './fig3d.js';
+import { fig3dFrame, is3D } from './fig3d.js';
 import { occTex } from './lampocc.js';
 import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
 import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
@@ -762,7 +762,7 @@ export function render() {
   // Eyes are authored into head atlas textures so face details share the sprite
   // transform, scale, shadows and shading. Keep only the restrained elite marker here.
   for (const e of GS.enemies)
-    if (!e.dead && !e.dormant && e.elite && (e.sv ?? 1) >= 0.55 && !(e.down > 0) && e.__ht === GS.time) {
+    if (!e.dead && !e.dormant && e.elite && (e.sv ?? 1) >= 0.55 && !(e.down > 0) && e.__ht === GS.time && !is3D(e)) {
       const v = e.sv ?? 1,
         a = e.__ha ?? e.a,
         hx = e.__hx,
@@ -781,7 +781,8 @@ export function render() {
     }
   if (GS.P && GS.state !== 'menu')
     for (const e of GS.enemies) {
-      if (e.dead || e.dormant || e.elite || !(e.__ht === GS.time) || e.down > 0 || e.type === 'queen') continue;
+      if (e.dead || e.dormant || e.elite || !(e.__ht === GS.time) || e.down > 0 || e.type === 'queen' || is3D(e))
+        continue; // the 3D ones' eyes shine in their own shader
       const dx = e.x - GS.P.x,
         dy = e.y - GS.P.y,
         d = Math.hypot(dx, dy);

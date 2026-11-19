@@ -10,7 +10,7 @@ import { opt } from '../core/settings.js';
 import { angDiff, clamp, lerp } from '../core/util.js';
 import { gl, progFinish } from './gl.js';
 import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
-import { downEl, lyState, supOK } from './draw-bodies.js';
+import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
 
 const NB = 14, // bones in a figure's skeleton (tools/mesh/zombie.mjs)
   TW = NB * 3 + 8, // texels in a figure's row: three for each bone's matrix, then its looks
@@ -54,6 +54,7 @@ export function meshArrived(buf) {
         rest: m.bones.map(b => b[2]),
         ends: m.bones.map(b => b[3]),
         scale: m.scale || 1,
+        kn: m.kn || null,
       };
     }
     // each build against the ordinary zombie's: how wide its shoulders and hips, how long its arms and legs, how tall,
@@ -89,13 +90,15 @@ const rowBuf = () => {
 const VS = shadow => `#version 300 es
 precision highp float; precision highp int;
 layout(location=0) in vec3 aP; layout(location=1) in vec2 aN; layout(location=2) in uvec2 aB; layout(location=3) in vec4 aW; layout(location=4) in float aRow;
-uniform highp sampler2D uBones; uniform vec4 uCam; uniform int uMode; uniform vec2 uSun; uniform vec4 uLight;
-out vec3 vC; out vec3 vN; out vec3 vO; out float vAO; out float vZ; out float vS; flat out vec4 vK; flat out float vPat;
+uniform highp sampler2D uBones; uniform vec4 uCam; uniform int uMode; uniform vec2 uSun; uniform vec4 uLight; uniform vec4 uKt; uniform vec3 uKp;
+out vec3 vC; out vec3 vN; out vec3 vO; out float vAO; out float vZ; out float vS; out vec4 vM; flat out vec4 vK; flat out float vPat; flat out vec3 vE; flat out vec3 vH; flat out vec3 vSk; flat out float vSty;
 vec4 T(int x, int r){ return texelFetch(uBones,ivec2(x,r),0); }
+const vec3 HAT[16]=vec3[16](vec3(0.55,0.1,0.08),vec3(0.8,0.78,0.72),vec3(0.1,0.12,0.2),vec3(0.06,0.06,0.07),vec3(0.86,0.7,0.1),vec3(0.86,0.38,0.07),vec3(0.82,0.82,0.78),vec3(0.2,0.32,0.2),
+  vec3(0.4,0.4,0.42),vec3(0.36,0.1,0.12),vec3(0.6,0.48,0.18),vec3(0.16,0.26,0.48),vec3(0.75,0.6,0.15),vec3(0.5,0.46,0.34),vec3(0.3,0.22,0.16),vec3(0.62,0.12,0.1));
 vec3 oct(vec2 e){ vec3 v=vec3(e,1.0-abs(e.x)-abs(e.y)); if(v.z<0.0) v.xy=(1.0-abs(v.yx))*vec2(v.x>=0.0?1.0:-1.0,v.y>=0.0?1.0:-1.0); return normalize(v); }
 void main(){
   int r=int(aRow+0.5);
-  vec3 p=aP/256.0, n=oct(aN);
+  vec3 p=uKp+(aP/256.0-uKp)*uKt.w+uKt.xyz, n=oct(aN);
   int b0=int(aB.x)*3, b1=int(aB.y)*3;
   vec4 a0=T(b0,r), a1=T(b0+1,r), a2=T(b0+2,r), c0=T(b1,r), c1=T(b1+1,r), c2=T(b1+2,r);
   vec3 w0=vec3(dot(a0.xyz,p)+a0.w,dot(a1.xyz,p)+a1.w,dot(a2.xyz,p)+a2.w), w1=vec3(dot(c0.xyz,p)+c0.w,dot(c1.xyz,p)+c1.w,dot(c2.xyz,p)+c2.w);
@@ -113,10 +116,10 @@ void main(){
   gl_Position=vec4(s.x*2.0-1.0,1.0-s.y*2.0,clamp(0.5-W.z/160.0,-1.0,1.0),1.0);
   ${
     shadow
-      ? 'vC=vec3(0.0); vS=0.0; vPat=0.0;'
+      ? 'vC=vec3(0.0); vS=0.0; vPat=0.0; vM=vec4(0.0); vE=vec3(0.0); vH=vec3(0.0); vSk=vec3(0.0); vSty=0.0;'
       : `// its colour: what this corner is (region), in this figure's own skin, shirt, trousers, hair and shoes
   int reg=int(aW.y*255.0+0.5); float u=aW.z;
-  vec4 SK=T(${NB * 3 + 1},r), SH=T(${NB * 3 + 2},r), PA=T(${NB * 3 + 3},r), HA=T(${NB * 3 + 4},r), TI=T(${NB * 3 + 5},r);
+  vec4 SK=T(${NB * 3 + 1},r), SH=T(${NB * 3 + 2},r), PA=T(${NB * 3 + 3},r), HA=T(${NB * 3 + 4},r), TI=T(${NB * 3 + 5},r), X6=T(${NB * 3 + 6},r), X7=T(${NB * 3 + 7},r);
   vec3 c=SK.rgb; float shirt=0.0;
   if(reg==1) c=SK.w>0.5?HA.rgb:SK.rgb*0.92;
   else if(reg==3||reg==4) shirt=SH.w>-0.5?1.0:0.0;
@@ -124,7 +127,7 @@ void main(){
   else if(reg==7) shirt=SH.w>1.5&&u<0.92?1.0:0.0;
   if(shirt>0.5) c=SH.rgb;
   // a stump: raw and dark where a lost limb (or its head) was torn away
-  int lostM=int(T(${NB * 3 + 6},r).x+0.5);
+  int lostM=int(X6.x+0.5);
   bool l0=((lostM>>int(aB.x))&1)==1, l1=((lostM>>int(aB.y))&1)==1;
   if(l0||l1){ float bw=l0?1.0:clamp((1.0-aW.x)*2.4,0.0,1.0); c=mix(c,vec3(0.32,0.04,0.035),bw); shirt*=1.0-bw; }
   else if(reg==5||reg==9) c=PA.rgb;
@@ -134,21 +137,99 @@ void main(){
   else if(reg==13) c=vec3(0.22,0.05,0.05);
   else if(reg==14) c=vec3(0.17,0.18,0.16); // a plate carrier
   else if(reg==15) c=vec3(0.12,0.13,0.15); // a helmet
-  else if(reg==16) c=vec3(0.26,0.29,0.33); // a riot shield, scuffed
+  else if(reg==16) c=vec3(0.07,0.075,0.085); // a riot shield, black and scuffed
+  else if(reg==18) c=HAT[int(X6.y)&15]; // a hat, in its own colours
+  else if(reg==19) c=HAT[(int(X6.y)>>4)&15];
+  else if(reg==20) c=vec3(0.66,0.54,0.24); // brass: a badge
+  else if(reg==21) c=vec3(0.8,0.8,0.76); // the white band across a riot shield
+  else if(reg==22) c=vec3(0.04,0.05,0.06); // its window
+  else if(reg==23) { c=SH.rgb*0.35; shirt=0.0; } // a hood's edge round the face, in its shadow
   else if(reg==17) c=TI.w<-0.5?vec3(0.3,0.1,0.08):SK.rgb*vec3(1.08,0.96,0.7); // raw flesh (on a dog), or swollen, stretched and veined
-  vC=c*TI.rgb; vS=shirt; vPat=TI.w;`
+  vC=c*TI.rgb; vS=shirt; vPat=TI.w;
+  bool hd=aB.x==3u&&aW.x>0.5; // on the head
+  vM=vec4(reg==5||reg==9||reg==10?1.0:0.0, hd&&reg==1?1.0:0.0, hd&&reg==0?1.0:0.0, reg==12?1.0:0.0); // trousers, scalp, face, eyes
+  vE=X7.xyz; vH=HA.rgb; vSk=SK.rgb; vSty=X6.z;`
   }
 }`;
 const NOISE = `
 float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
 float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x), f.y); }
 float fbm(vec2 p){ float s=0.0, a=0.5; for(int i=0;i<3;i++){ s+=a*vn(p); p=p*2.03+vec2(17.1,9.2); a*=0.5; } return s*1.15; }`;
+const DRESS = `
+float hsh(float x){ return fract(sin(x*91.7)*43758.5); }
+// what it died in, painted on the body as it was cut (o: the body's own place, made to the ordinary build): the
+// uniforms with their badges and bands, the jackets, the hoodie's pocket, a tie, a cardigan's buttons
+float inb(vec2 p, vec2 c, vec2 h){ vec2 d=abs(p-c)-h; return step(max(d.x,d.y),0.0); }
+vec3 dress(vec3 c, vec3 o, int v, float sm, float pm, float seed){
+  float ay=abs(o.y), z=o.z, tor=step(ay,6.9)*step(29.0,z), fr=smoothstep(0.3,1.3,o.x), bk=smoothstep(-0.3,-1.3,o.x), arm=step(7.4,ay);
+  vec3 s=c, pc=c;
+  vec3 refl=vec3(0.86,0.76,0.2), silv=vec3(0.8,0.8,0.78);
+  if(v==2){ // a work shirt: two chest pockets, a placket, stains
+    float pk=fr*inb(vec2(ay,z),vec2(2.4,41.6),vec2(1.15,1.4)); s=mix(s,s*0.78,pk); s=mix(s,s*0.6,fr*inb(vec2(ay,z),vec2(2.4,43.0),vec2(1.2,0.12)));
+    s=mix(s,s*0.62,fr*step(ay,0.12)*tor); s=mix(s,s*vec3(0.75,0.68,0.5),smoothstep(0.6,0.75,vn(o.yz*0.5+seed))); }
+  else if(v==3){ // a police uniform: badge, name tag, shoulder patches, the placket; a duty belt
+    s=mix(s,vec3(0.72,0.6,0.26),fr*step(length(vec2(o.y+2.6,(z-42.4)*0.9)),0.75));
+    s=mix(s,vec3(0.7,0.66,0.48),fr*inb(vec2(o.y,z),vec2(2.6,42.1),vec2(0.95,0.28)));
+    s=mix(s,vec3(0.5,0.42,0.2),arm*step(abs(o.x),1.7)*inb(vec2(ay,z),vec2(9.6,40.2),vec2(1.4,1.4)));
+    s=mix(s,s*0.55,fr*step(ay,0.14)*tor);
+    float belt=step(30.7,z)*step(z,32.7); pc=mix(pc,vec3(0.05,0.05,0.055),belt); pc=mix(pc,vec3(0.6,0.5,0.25),belt*fr*step(ay,0.8));
+    pc=mix(pc,vec3(0.04),belt*inb(vec2(o.y,o.x),vec2(-5.0,0.0),vec2(1.0,2.0))); } // its holster, empty
+  else if(v==4){ // scrubs: a V at the neck, a badge clipped to the pocket
+    s=mix(s,vSk*0.86,fr*step(41.2,z)*step(ay,(z-41.2)*0.55)); s=mix(s,vec3(0.88,0.88,0.85),fr*inb(vec2(o.y,z),vec2(-2.6,41.0),vec2(0.85,0.55)));
+    s=mix(s,s*0.7,fr*step(abs(z-39.6),0.08)*step(abs(o.y+2.6),1.2)); }
+  else if(v==5){ // a firefighter's turnout coat and trousers: yellow bands with silver down their middle
+    float b=max(max(step(abs(z-40.2),0.75),step(abs(z-33.4),0.75))*tor,arm*step(abs(z-28.4),0.7)); float m=b*step(abs(fract(z*0.5)-0.5),0.0);
+    s=mix(s,refl,b); s=mix(s,silv,b*(step(abs(z-40.2),0.25)+step(abs(z-33.4),0.25)+step(abs(z-28.4),0.25))*(1.0-m));
+    float pb=step(abs(z-8.2),0.7); pc=mix(pc,refl,pb); pc=mix(pc,silv,pb*step(abs(z-8.2),0.25)); }
+  else if(v==6){ // a road crew's hi-vis vest over a grey tee: bands round the middle, braces over the shoulders
+    float vest=tor*step(ay,6.3)*step(31.3,z)*(1.0-fr*step(ay,0.55));
+    float bands=(step(abs(z-36.6),0.42)+step(abs(z-40.0),0.42)+step(41.0,z)*step(abs(ay-2.5),0.45)*max(fr,bk))*vest;
+    s=mix(s,vec3(0.94,0.42,0.07),vest); s=mix(s,silv,min(bands,1.0)); }
+  else if(v==7){ // a trucker's denim jacket, its sherpa collar
+    s=mix(s,vec3(0.84,0.78,0.66)*(0.85+0.3*vn(o.yz*3.0)),tor*step(44.2,z)); s=mix(s,s*0.6,fr*step(abs(o.y-0.3),0.12)*tor);
+    s=mix(s,s*0.75,fr*inb(vec2(ay,z),vec2(2.6,41.5),vec2(1.2,1.1))); }
+  else if(v==8){ // a biker's leather cut over a pale shirt, the club's patch on its back
+    float cut=tor*step(ay,6.5)*step(31.0,z)*(1.0-fr*step(ay,1.5)); s=mix(s,vec3(0.07,0.065,0.065),cut);
+    float pt=bk*inb(vec2(ay,z),vec2(0.0,40.2),vec2(3.3,3.0)), rk=bk*step(ay,3.6)*(step(abs(z-44.0),0.5)+step(abs(z-36.4),0.5));
+    s=mix(s,vec3(0.52,0.14,0.08),pt); s=mix(s,vec3(0.78,0.7,0.52),min(rk,1.0)*cut); }
+  else if(v==9){ // a funeral suit: the white shirt in the V of the jacket, a black tie
+    float vv=fr*step(37.4,z)*step(z,45.6)*step(ay,(z-37.4)*0.42); s=mix(s,vec3(0.8,0.8,0.76),vv);
+    s=mix(s,vec3(0.06,0.04,0.05),vv*step(ay,0.36+(45.0-z)*0.025)*step(36.0,z)); s=mix(s,s*1.6,fr*step(abs(ay-(z-37.4)*0.42-0.5),0.1)*step(37.4,z)*step(z,44.5)); }
+  else if(v==10){ // burial clothes: pale linen, grave dirt in it
+    s*=mix(vec3(1.0),vec3(0.55,0.47,0.36),smoothstep(0.45,0.75,fbm(o.yz*0.35+o.x*0.2+seed))); }
+  else if(v==11){ // a groundskeeper's coveralls: the zip down the front, a chest pocket
+    s=mix(s,vec3(0.2,0.2,0.18),fr*step(ay,0.18)*step(30.0,z)*step(z,45.2)); s=mix(s,s*0.72,fr*inb(vec2(o.y,z),vec2(-2.5,41.6),vec2(1.2,1.2)));
+    pc=mix(pc,pc*0.62,step(abs(z-31.8),0.35)); }
+  else if(v==12){ // a hoodie: the pocket across its belly, the drawstrings
+    float pk=fr*inb(vec2(ay,z),vec2(0.0,34.2),vec2(3.4,1.7)); s=mix(s,s*0.78,pk); s=mix(s,s*0.6,fr*step(abs(ay-3.4),0.15)*step(abs(z-34.2),1.7));
+    s=mix(s,vec3(0.76,0.74,0.68),fr*step(abs(ay-0.9),0.13)*step(40.6,z)*step(z,45.0)); s=mix(s,s*0.7,step(abs(z-30.5),0.5)); }
+  else if(v==13){ // a stone-washed denim jacket: orange topstitching, the yoke, the pockets
+    s*=0.82+0.36*fbm(o.yz*0.7+seed); vec3 st=vec3(0.78,0.46,0.16);
+    s=mix(s,st,tor*step(abs(z-43.2),0.11)); s=mix(s,st,fr*step(abs(ay-0.7),0.09)*tor);
+    s=mix(s,st,fr*(1.0-inb(vec2(ay,z),vec2(2.7,41.5),vec2(1.0,1.0)))*inb(vec2(ay,z),vec2(2.7,41.5),vec2(1.15,1.15))); }
+  else if(v==14){ // a quilted puffer jacket: fat baffles all over, a dirty sheen
+    s*=0.66+0.42*smoothstep(-0.9,0.9,sin(z*1.75)); }
+  else if(v==15){ // an office shirt, the tie still knotted at the throat, sweat under the arms
+    float tie=fr*step(ay,0.34+(45.2-z)*0.035)*step(35.0,z)*step(z,45.4); vec3 tc=hsh(seed)>0.5?vec3(0.36,0.08,0.1):vec3(0.1,0.14,0.3);
+    s=mix(s,mix(tc,tc*1.5,step(0.5,fract((o.y+z)*0.7))),tie); s=mix(s,s*vec3(0.84,0.82,0.7),tor*step(4.4,ay)*step(abs(z-40.6),1.8));
+    s=mix(s,s*1.12,fr*step(44.6,z)*step(ay,2.6)); }
+  else if(v==16){ // an undershirt: the arms bare to the shoulder, a scooped neck
+    s=mix(s,vSk*0.86,tor*step(4.6,ay)*step(41.0,z)); s=mix(s,vSk*0.86,fr*step(43.6,z)*step(ay,2.6)); }
+  else if(v==17){ // a cardigan, knitted, open on a pale shirt, buttons down its edge
+    s*=0.9+0.12*sin(z*6.0); float op=fr*step(ay,1.5)*tor; s=mix(s,vec3(0.72,0.7,0.62),op);
+    s=mix(s,vec3(0.12,0.1,0.08),fr*step(abs(o.y+1.85),0.3)*step(fract(z/2.3),0.22)*tor*step(z,44.0)); }
+  else if(v==18){ // a black dress for a funeral, a grey knitted shawl over the shoulders
+    float sw=max(tor*step(42.4,z),arm*step(37.5,z)); s=mix(s,vec3(0.46,0.45,0.48)*(0.9+0.14*sin(o.y*5.0+z*2.0)),sw); }
+  return mix(mix(c,s,sm),pc,pm*step(0.5,1.0-sm));
+}
+`;
 const FS = shadow => `#version 300 es
 precision highp float; precision highp int;
 uniform float uShA; uniform int uInk;
-in vec3 vC; in vec3 vN; in vec3 vO; in float vAO; in float vZ; in float vS; flat in vec4 vK; flat in float vPat;
+in vec3 vC; in vec3 vN; in vec3 vO; in float vAO; in float vZ; in float vS; in vec4 vM; flat in vec4 vK; flat in float vPat; flat in vec3 vE; flat in vec3 vH; flat in vec3 vSk; flat in float vSty;
+uniform vec4 uB; uniform vec4 uHC; uniform int uKit;
 ${shadow ? 'layout(location=0) out vec4 o0;' : 'layout(location=0) out vec4 o0; layout(location=1) out vec4 o1; layout(location=2) out vec4 o2;'}
-${shadow ? '' : NOISE}
+${shadow ? '' : NOISE + DRESS}
 void main(){
   if(vZ<-0.6) discard; // under the street (climbing out of it)
   float a=vK.x;
@@ -166,11 +247,18 @@ void main(){
     else if(pat==3){ float open=step(3.0,o.x)*step(abs(o.y),2.6+max(0.0,30.0-o.z)*0.12)*step(24.0,o.z); c=mix(c,mix(c*0.42,vec3(0.62,0.6,0.55),open),vS); } // a dark jacket hanging open on a pale shirt
     else if(pat==4){ float vest=step(abs(o.y),9.0)*step(26.0,o.z)*step(abs(o.y),7.0+step(0.0,-o.x)*3.0); c=mix(c,mix(c,vec3(0.7,0.68,0.6),vest),vS); } // a vest's pale body, the arms its sleeves
   }
+  if(pat>=10&&uKit==0) c=dress(c,vec3(vO.x/uB.x,vO.y/uB.y,vO.z-uB.z),pat-10,vS,vM.x,seed); // a uniform, a jacket, a dress: who it was
+  // its head: a beard, stubble, a bandana over the scalp
+  int sty=int(vSty+0.5);
+  if(sty>0&&uKit==0){ vec3 q=(vO-uHC.xyz)/uHC.w;
+    if(sty==1||sty==2) c=mix(c,vH*0.8,vM.z*step(0.9,q.x)*step(q.z,-0.4)*step(-4.4,q.z)*(0.75+0.25*vn(q.yz*6.0)));
+    if(sty==2) c=mix(c,mix(vec3(0.5,0.09,0.07),vec3(0.82,0.76,0.64),step(0.68,vn(q.yz*3.2+q.x))),vM.y);
+    if(sty==3) c=mix(c,vSk*0.62*(0.8+0.4*vn(q.yz*9.0)),vM.y); }
   c*=0.8+0.34*fbm(vO.yz*0.42+vO.x*0.3+seed); // dirt, wear, the cloth's weave and the skin's mottling
   float bl=smoothstep(0.58,0.7,fbm(vO.xz*0.16+vO.y*0.11+seed*1.7))*vK.w; // old blood, soaked in
   c=mix(c,vec3(0.21,0.03,0.025),bl*0.9);
   float sh=(0.46+0.54*pow(nz,1.2))*mix(1.0,vAO,0.7)*mix(0.62,1.0,smoothstep(0.0,26.0,vZ));
-  vec3 em=vec3(0.5,0.64,0.82)*pow(1.0-nz,1.7)*0.3+vec3(vK.y);
+  vec3 em=vec3(0.5,0.64,0.82)*pow(1.0-nz,1.7)*0.3+vec3(vK.y)+vE*vM.w; // the moon on its edges; a hit's flare; its eyes, if they shine
   o0=vec4(c*sh*a,a); o1=vec4(em*a,a); o2=vec4((n.xy*0.5+0.5)*a,0.1*a,a);`
   }
 }`;
@@ -507,6 +595,110 @@ function lostOf(e) {
 }
 
 // ---------- the ordinary zombie, posed from what it is doing (the same numbers and states its pictures move by) ----------
+// ---------- what the ordinary dead wear: who they were (e.v, the 2D pictures' outfit; e.hv, their head) ----------
+const DRESSED = { zombie: 1, lean: 1, gaunt: 1, bloat: 1 },
+  LONG = { 0: 1, 1: 1, 2: 1, 3: 1, 5: 1, 7: 1, 8: 1, 9: 1, 11: 1, 12: 1, 13: 1, 14: 1, 17: 1, 18: 1 }, // sleeves to the wrist
+  FULL = { 3: 1, 4: 1, 5: 1, 6: 1, 9: 1, 11: 1 }, // uniforms: full-length trousers
+  CAPS = [0, 2, 3, 7, 8, 9, 11, 13], // a cap's colours (the shader's HAT list)
+  KNITS = [3, 8, 9, 7, 10, 11, 2, 0];
+// e's look for this model, worked out once: its pattern or outfit, sleeves, trousers, hair, what it wears on its head
+function lookOf(e, name, id) {
+  if (e._lk && e._lk.m === name) return e._lk;
+  const kd = e.kind,
+    v = e.v || 0,
+    // the head to go with a uniform: the biker's bandana, the trucker's cap, combed for the funeral, the groundskeeper's cap
+    hv = v === 8 ? 9 : v === 7 ? 8 : v === 9 ? 10 : v === 11 ? 7 : e.hv || 0,
+    dressed = DRESSED[name] && !kd && (e.type === 'skitter' || e.type === 'mini'),
+    L = { m: name, kits: null, pat: 0, slv: 1, pa: null, paw: 1.1, ha: null, bald: false, sty: 0, hat: 0 };
+  L.ha = HAIR[Math.floor(hsh(id, 33) * HAIR.length)];
+  L.bald = hsh(id, 37) >= 0.7;
+  if (!dressed) {
+    if (name === 'riot') L.kits = ['shield'];
+    return (e._lk = L);
+  }
+  L.pat = v === 0 ? Math.floor(hsh(id, 47) * 5) : v === 1 ? 1 : 10 + v;
+  L.slv = v === 16 ? 0 : LONG[v] ? 2 : 1;
+  const pc = pantsOf(e);
+  L.pa = Array.isArray(pc) ? pc : PANTS[Math.floor(hsh(id, 31) * PANTS.length)];
+  L.paw = v === 18 ? 0 : FULL[v] || hsh(id, 39) >= 0.25 ? 1.1 : 0.62;
+  // the head: a hat for the job, or what it wore that day; hair long or up, a beard, a shaved head, a bandana
+  const r = hsh(id, 51);
+  let head = null;
+  if (hv === 3) head = 'police';
+  else if (hv === 5) head = 'fire';
+  else if (hv === 6) head = 'hard';
+  else if (hv === 7 || hv === 8) head = 'cap';
+  else if (hv === 11) head = 'long';
+  else if (hv === 12) head = 'beanie';
+  else if (hv === 15) head = 'bun';
+  else if (hv === 16) head = 'capb';
+  else if (hv === 17) head = 'hood';
+  else if (hv === 9 || hv === 10 || hv === 13) head = null;
+  else head = r < 0.2 ? 'long' : r < 0.26 ? 'bun' : r < 0.36 ? 'cap' : r < 0.42 ? 'beanie' : null;
+  if (v === 18 && !head) head = r < 0.6 ? 'long' : 'bun'; // the mourners
+  const c1 = CAPS[Math.floor(hsh(id, 53) * CAPS.length)];
+  L.hat =
+    head === 'police'
+      ? 2 + 16 * 3
+      : head === 'fire'
+        ? (hsh(id, 55) < 0.5 ? 3 : 12) + 16 * 3
+        : head === 'hard'
+          ? [4, 5, 6][Math.floor(hsh(id, 55) * 3)]
+          : head === 'cap' && v === 11
+            ? 7 + 16 * 7 // a groundskeeper's: green
+            : head === 'cap' && (hv === 7 || hv === 8)
+              ? 0 + 16 * 1 // a trucker's cap: red front, white mesh back
+              : head === 'beanie'
+                ? KNITS[Math.floor(hsh(id, 55) * KNITS.length)]
+                : c1 + 16 * c1;
+  if (hv === 15) L.ha = [0.6, 0.6, 0.58];
+  else if (hv === 14) L.ha = [0.62, 0.5, 0.3];
+  else if (hv === 10) L.ha = [0.12, 0.1, 0.09];
+  if (head === 'long' || head === 'bun' || hv === 10 || hv === 14 || hv === 15) L.bald = false;
+  L.sty = hv === 9 ? 2 : hv === 13 ? 3 : head !== 'long' && head !== 'bun' && v !== 18 && hsh(id, 57) < 0.18 ? 1 : 0;
+  if (hv === 13) L.bald = true;
+  const kits = [];
+  if (head) kits.push(head);
+  if (v === 12 && head !== 'hood') kits.push('hoodd');
+  L.kits = kits.length ? kits : null;
+  return (e._lk = L);
+}
+// its eyes, lit: an elite's catch the light like an animal's (amber, blinking now and then); the others' throw back
+// your flashlight when they look straight down it at you
+function eyeGlow(e, out) {
+  out[0] = out[1] = out[2] = 0;
+  if (e.dead || e.dormant || e.dying !== undefined || e.down > 0) return out;
+  const v = e.sv ?? 1;
+  if (e.elite) {
+    if (v < 0.55) return out;
+    const bl = Math.sin(GS.time * 0.9 + (e.id || 0) * 1.7) > 0.96 ? 0.15 : 1;
+    out[0] = 0.9 * v * bl;
+    out[1] = 0.42 * v * bl;
+    out[2] = 0.08 * v * bl;
+    return out;
+  }
+  const P = GS.P;
+  if (!P || GS.state === 'menu') return out;
+  const dx = e.x - P.x,
+    dy = e.y - P.y,
+    d = Math.hypot(dx, dy);
+  if (d > 560 || d < 40) return out;
+  const da = Math.atan2(dy, dx),
+    off = Math.abs(angDiff(P.aimA, da)),
+    face = Math.abs(angDiff(e.__ha ?? e.a, da + Math.PI));
+  if (off > 0.42 || face > 0.9) return out;
+  const k = (1 - off / 0.42) * (1 - face / 0.9) * (1 - d / 560) * v * 1.6;
+  out[0] = k;
+  out[1] = k * 0.95;
+  out[2] = k * 0.78;
+  return out;
+}
+const EYE = [0, 0, 0];
+// the game's own scale for people and animals: the models are true to life (a grown man 55 tall), the game's world is
+// drawn with its people bigger than that against its cars and barrels (the hero, the pictures): the 3D dead are made to
+// match them
+const FIGK = 1.55,
+  DOGK = 1.6;
 function poseZombie(e, D, o) {
   poolReset();
   const name = modelOf(e) || 'zombie',
@@ -517,7 +709,8 @@ function poseZombie(e, D, o) {
   const r = REST,
     dead = e.dying !== undefined,
     id = e.id || 0,
-    k = [(e.sc || 1) * MM.scale, (e.sc || 1) * MM.scale], // its size (across, up): true to life, or its kind's
+    bs = (e.sc || 1) * MM.scale * FIGK * (e.bs || 1),
+    k = [bs * (0.5 + 0.5 * (e.bw || 1)), bs], // its size (across, up): its kind's, its own height and build
     // its build against the ordinary zombie's: across the shoulders (kw) and hips (kp), its arms' reach (ka), its legs
     // (kl), its height (kh)
     kw = k[0] * F.bw,
@@ -915,9 +1108,16 @@ function poseZombie(e, D, o) {
     const pole = nrm(add(mul(rt, sd * 0.6), [0, 0, -0.8]));
     // the riot cop's shield arm: the forearm upright before its chest, the shield's face to the front
     if (riot && sd < 0 && e.shield && !dead && !(e.stag > 0) && !ground) {
-      const elbowAt = add(sh, add(mul(fwd, 6 * ka + bash * 4), [0, 0, -9 * k[1]])),
-        handAt = add(elbowAt, add(mul(fwd, 2 + bash * 3), [0, 0, 10 * k[1]]));
-      const [, , M] = limb(D, o, ub, ub + 1, Rc, sh, handAt, nrm(add(mul(rt, -0.7), [0, 0, -0.6])), k);
+      // the upper arm down by its side and a little forward, the forearm upright through the straps: the shield from
+      // its knees to its eyes
+      const lu = len(sc3(sub(r[7], r[6]), k)),
+        elbowAt = add(sh, mul(nrm(add(mul(fwd, 0.45 + bash * 0.6), [0, 0, -0.9])), lu)),
+        handAt = add(elbowAt, add(mul(fwd, 1 + bash * 2.5), [0, 0, 9 * k[1]]));
+      // the upper arm straight to the elbow (no reaching for the hand: the forearm is set upright below)
+      const u1 = sc3(sub(r[ub + 1], r[ub]), k),
+        R1 = mm(rotTo(mv(Rc, u1), sub(elbowAt, sh)), Rc),
+        M = elbowAt;
+      bone(D, o, ub, mul3(R1, k), sh, r[ub]);
       const ta = nrm(sub(handAt, M)),
         tf = nrm(sub(fwd, mul(ta, dot(fwd, ta)))),
         dr = nrm(sub(MODEL_END[7], r[7])),
@@ -976,10 +1176,12 @@ function poseZombie(e, D, o) {
                 : (SHIRTS && SHIRTS[e.v || 0]) || [0.36, 0.44, 0.52]
     ).map(x => x * 0.72),
     tc = e.tc || [1, 1, 1],
-    pa = PANTS[Math.floor(hsh(id, 31) * PANTS.length)],
-    ha = HAIR[Math.floor(hsh(id, 33) * HAIR.length)],
-    slv =
-      e.v === 16 || kd === 'spore' || kd === 'climb'
+    LK = lookOf(e, name, id),
+    pa = LK.pa || PANTS[Math.floor(hsh(id, 31) * PANTS.length)],
+    ha = LK.ha,
+    slv = LK.pa
+      ? LK.slv
+      : e.v === 16 || kd === 'spore' || kd === 'climb'
         ? -1
         : brute || hop
           ? 1
@@ -990,18 +1192,23 @@ function poseZombie(e, D, o) {
               : hsh(id, 36) < 0.75
                 ? 1
                 : 0, // long sleeves, short, none; or no shirt at all
-    bald = brute || hop || kd === 'blind' || kd === 'climb' || hsh(id, 37) >= 0.7,
+    bald = brute || hop || kd === 'blind' || kd === 'climb' || LK.bald,
     fade = dead ? clamp(((e.keep || 0.55) - e.dying) / 1.5, 0, 1) : 1,
     fl = e.flash > 0 && !dead ? 0.12 * Math.min(1, e.flash / 0.05) : 0,
     gT = e.lurk === 'lie' ? 0.62 : 1 - (dead ? 0.25 * Math.min(1, e.dying / 0.6) : 0); // its own, not the pictures' (GS.gT and the rest belong to whichever was drawn last)
   D.set([e.x, e.y + 40, fade * (0.3 + 0.7 * (e.sv ?? 1)), fl], q);
   D.set([sk[0] * 0.86, sk[1] * 0.86, sk[2] * 0.86, bald ? 0 : 1], q + 4);
   D.set([shc[0] * tc[0], shc[1] * tc[1], shc[2] * tc[2], slv], q + 8);
-  D.set([pa[0], pa[1], pa[2], hsh(id, 39) < 0.25 ? 0.62 : 1.1], q + 12);
+  D.set([pa[0], pa[1], pa[2], LK.pa ? LK.paw : hsh(id, 39) < 0.25 ? 0.62 : 1.1], q + 12);
   D.set([ha[0], ha[1], ha[2], hsh(id, 41) < 0.12 ? 1 : 0], q + 16);
-  D.set([gT, gT, gT, brute || hop || riot || name === 'armored' ? 0 : Math.floor(hsh(id, 47) * 5)], q + 20);
-  D.set([lost, 0, 0, 0.35 + hsh(id, 43) * 0.65 + (e.wounds || 0) * 0.15 + (lost ? 0.4 : 0)], q + 24);
-  D.set([0, 0, 0, hsh(id, 45)], q + 28);
+  D.set(
+    [gT, gT, gT, brute || hop || riot || name === 'armored' ? 0 : LK.pa ? LK.pat : Math.floor(hsh(id, 47) * 5)],
+    q + 20
+  );
+  D.set([lost, LK.hat, LK.sty, 0.35 + hsh(id, 43) * 0.65 + (e.wounds || 0) * 0.15 + (lost ? 0.4 : 0)], q + 24);
+  eyeGlow(e, EYE);
+  D.set([EYE[0], EYE[1], EYE[2], hsh(id, 45)], q + 28);
+  e._kits = LK.kits;
 }
 // ---------- the dog: a gallop, a crouch, a leap; dead, on its side ----------
 const FURS = [
@@ -1013,6 +1220,7 @@ const FURS = [
 ];
 function poseDog(e, D, o) {
   poolReset();
+  e._kits = null;
   const MM = FIG.models.dog;
   REST = MM.rest;
   MODEL_END = MM.ends;
@@ -1020,7 +1228,7 @@ function poseDog(e, D, o) {
     dead = e.dying !== undefined,
     id = e.id || 0,
     t = GS.time,
-    k = [(e.sc || 1) * MM.scale, (e.sc || 1) * MM.scale],
+    k = [(e.sc || 1) * MM.scale * DOGK, (e.sc || 1) * MM.scale * DOGK],
     D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]),
     yaw = e.a || 0,
     mvv = dead ? 0 : Math.min(1, Math.hypot(e.vx || 0, e.vy || 0) / 180),
@@ -1036,8 +1244,8 @@ function poseDog(e, D, o) {
     Rp = mm(Rroll, mm(Rz(yaw), Ryb(pitch))),
     lift = (Math.abs(Math.sin(ph)) * 1.6 * mvv - crouch * 5 + leap * 9) * k[1],
     Jp = [
-      e.x - Math.cos(yaw) * 4,
-      e.y - Math.sin(yaw) * 4,
+      e.x - Math.cos(yaw) * 7 * k[0], // its hips behind it: the middle of its body over its spot
+      e.y - Math.sin(yaw) * 7 * k[0],
       r[0][2] * k[1] * (1 - fl) + 4.5 * k[0] * fl + lift * (1 - fl),
     ];
   const flex = Math.sin(ph * 2) * 0.12 * mvv, // the back flexes and stretches with each stride
@@ -1119,6 +1327,7 @@ function poseDog(e, D, o) {
 // ---------- the egg sac: it breathes, and swells as it comes to hatch ----------
 function poseEgg(e, D, o) {
   poolReset();
+  e._kits = null;
   const MM = FIG.models.egg;
   REST = MM.rest;
   MODEL_END = MM.ends;
@@ -1127,7 +1336,7 @@ function poseEgg(e, D, o) {
     dead = e.dying !== undefined,
     sw = clamp(1 - (e.hatch ?? 6) / 1.2, 0, 1), // the last moments before it splits
     beat = 1 + Math.sin(t * (2.2 + sw * 9) + id) * (0.035 + sw * 0.06) + sw * 0.14,
-    k = (e.sc || 1) * MM.scale,
+    k = (e.sc || 1) * MM.scale * FIGK,
     col = dead ? Math.max(0, 1 - e.dying * 2.5) : 1, // shot, it bursts and sags
     R = mul3(Rz((e.a || 0) + hsh(id, 71) * 6), [k * beat, k * beat * (0.25 + 0.75 * col)]);
   bone(D, o, 0, R, [e.x, e.y, 0], REST[0]);
@@ -1236,17 +1445,29 @@ export function figFlush() {
   for (const e of queue) {
     const d = Pl ? Math.hypot(e.x - Pl.x, e.y - Pl.y) : 0,
       full = d < 460 && FIG.drawn + near < 90,
-      key = (modelOf(e) || 'zombie') + (full ? '' : '@1');
+      mn = modelOf(e) || 'zombie',
+      key = mn + (full ? '' : '@1');
     if (full) near++;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(e);
+    // and what it wears over its body (one mesh each, near and far), riding the same bones
+    if (e._kits)
+      for (const k of e._kits) {
+        const km = FIG.models[mn + '+' + k] ? mn + '+' + k : 'zombie+' + k, // its own, or the ordinary zombie's fitted to it
+          kk = km + '|' + mn;
+        if (!FIG.models[km]) continue;
+        if (!groups.has(kk)) groups.set(kk, []);
+        groups.get(kk).push(e);
+      }
   }
   let n = 0;
   const runs = [];
   for (const [key, L] of groups) {
-    runs.push([key, n, L.length]);
-    for (const e of L) rows[n++] = e._r3;
+    const c = Math.min(L.length, ROWS - n);
+    runs.push([key, n, c]);
+    for (let i = 0; i < c; i++) rows[n++] = L[i]._r3;
   }
+  const qn = queue.length;
   queue.length = 0;
   // the bone rows written since the last upload go up
   gl.activeTexture(gl.TEXTURE7);
@@ -1294,18 +1515,32 @@ export function figFlush() {
     gl.depthFunc(gl.LEQUAL);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   }
-  const draw = (name, from, cnt) => {
-    if (!cnt) return;
-    const M = FIG.models[name];
+  const draw = (key, from, cnt) => {
+    if (!cnt || !key) return;
+    const [name, who] = key.split('|'),
+      M = FIG.models[name],
+      kit = !!who,
+      W = FIG.models[who || name.replace(/@.*/, '')] || M,
+      kn = W.kn || [1, 1, 0, 1, 0.5, 0, 51.2],
+      kb = (kit && FIG.models[name.replace(/\+.*/, '')]?.kn) || kn;
+    // a thing worn, made for one build, fitted to another's head: moved and scaled about the head's middle
+    gl.uniform3f(u.uKp, kb[4], kb[5], kb[6]);
+    gl.uniform4f(u.uKt, kn[4] - kb[4], kn[5] - kb[5], kn[6] - kb[6], kn[3] / kb[3]);
+    if (prog === P.body) {
+      // its build, for the clothes painted onto it; and whether this is a thing it wears (painted plain)
+      gl.uniform4f(u.uB, kn[0], kn[1], kn[2], kn[3]);
+      gl.uniform4f(u.uHC, kn[4], kn[5], kn[6], kn[3]);
+      gl.uniform1i(u.uKit, kit ? 1 : 0);
+    }
     gl.bindVertexArray(M.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, RB);
     gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 4, from * 4);
     gl.drawElementsInstanced(gl.TRIANGLES, M.ni, gl.UNSIGNED_SHORT, 0, cnt);
     FIG.calls++;
   };
-  for (const [key, from, cnt] of runs) draw(FIG.models[key] ? key : 'zombie', from, cnt);
+  for (const [key, from, cnt] of runs) draw(key.includes('|') || FIG.models[key] ? key : 'zombie', from, cnt);
   if (!m) {
-    FIG.drawn += n;
+    FIG.drawn += qn;
     gl.disable(gl.DEPTH_TEST);
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, null);
   }

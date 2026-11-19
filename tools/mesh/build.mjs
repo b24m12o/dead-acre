@@ -20,8 +20,11 @@ const arg = (k, d) => {
 };
 const LODS = [+arg('--res', 1.0), +arg('--res-lo', 1.7)]; // each model twice: close up, and for a crowd
 const ONLY = arg('--only', null); // just these models (comma-separated), for a quick look
+// each model, and what its kind may wear over it (zombie+cap, riot+shield: see humanoid.mjs's KIT)
 const MODELS = Object.fromEntries(
-  Object.entries({ ...PEOPLE, dog: DOG, egg: EGG }).filter(([n]) => !ONLY || ONLY.split(',').includes(n))
+  Object.entries({ ...PEOPLE, dog: DOG, egg: EGG })
+    .flatMap(([n, M]) => [[n, M], ...Object.entries(M.kits || {}).map(([k, K]) => [n + '+' + k, K])])
+    .filter(([n]) => !ONLY || ONLY.split(',').some(o => n === o || n.startsWith(o + '+')))
 );
 const OUT = join(ROOT, 'build/mesh');
 mkdirSync(OUT, { recursive: true });
@@ -256,7 +259,7 @@ function surfaceNets(d, nx, ny, nz, org, res) {
 }
 
 // ---------- skinning: each corner's bones and weights, blending across its joints ----------
-function weights(pos, part, BONES) {
+function weights(pos, part, BONES, rigid) {
   const n = part.length,
     b0 = new Uint8Array(n),
     b1 = new Uint8Array(n),
@@ -276,10 +279,11 @@ function weights(pos, part, BONES) {
     const [s, L] = seg(p, ja, jb);
     let other = b,
       w = 1;
-    if (par >= 0 && s < ZONE) {
+    // (strapped on, it moves with its bone alone)
+    if (!rigid && par >= 0 && s < ZONE) {
       other = par;
       w = 0.5 + 0.5 * Math.max(0, Math.min(1, s / ZONE));
-    } else if (kids[b].length && s > L - ZONE) {
+    } else if (!rigid && kids[b].length && s > L - ZONE) {
       // toward the child whose joint is nearest
       let best = -1,
         bd = 1e9;
@@ -318,6 +322,7 @@ try {
   await pg.evaluate(`(${PAGE.toString()})()`);
   for (const [name0, M] of Object.entries(MODELS))
     for (const [li, RES0] of LODS.entries()) {
+      if (li && M.ONE) continue; // small things worn: one mesh does near and far
       const RES = RES0 * (M.MRES || 1), // the big ones coarser: they're scaled up anyway
         t0 = Date.now(),
         name = li ? `${name0}@${li}` : name0;
@@ -350,7 +355,7 @@ try {
         reg[i] = A[i * 4 + 1];
         u[i] = A[i * 4 + 2];
       }
-      const W = weights(pos, part, M.BONES);
+      const W = weights(pos, part, M.BONES, M.RIGID);
       built.push({ name, M, pos, nrm, ao, reg, u, idx: net.idx, W });
       console.log(
         `${name}: ${nv} corners, ${net.idx.length / 3} triangles, ${((Date.now() - t0) / 1000).toFixed(1)} s`
@@ -421,6 +426,7 @@ if (!process.argv.includes('--preview-only')) {
     head.models[m.name] = {
       bones: m.M.BONES,
       scale: m.M.SCALE || 1,
+      ...(m.M.KN ? { kn: m.M.KN } : {}),
       nv,
       ni: m.idx.length,
       vo: off,

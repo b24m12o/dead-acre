@@ -140,6 +140,6 @@ export const EGG = {
   ],
   GLSL: EGG_GLSL,
   REGION,
-  SCALE: 1,
+  SCALE: 1.5, // the size of the pictures
   MRES: 0.9,
 };
