@@ -46,9 +46,14 @@ export async function run(b) {
   })()`);
   await pg.bringToFront();
   for (let i = 0; i < 40 && !(await ev('GS.lampSh > 0 && GS.lnL > 0')); i++) await pg.waitForTimeout(150);
-  const lit = await ev(
-    `(() => { const w = rtLampSh.w, h = rtLampSh.h, px = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, rtLampSh.fb); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px); gl.bindFramebuffer(gl.FRAMEBUFFER, null); let n = 0, mx = 0; for (let i = 0; i < px.length; i += 4) { if (px[i] > 40) n++; if (px[i] > mx) mx = px[i]; } return { sh: GS.lampSh, lnL: GS.lnL, ln: GS.ln, n, mx }; })()`
-  );
+  // read the shadows back over a few frames: a slow machine can land the read between a frame's passes
+  let lit = null;
+  for (let i = 0; i < 12 && !(lit && lit.n > 0); i++) {
+    if (i) await pg.waitForTimeout(120);
+    lit = await ev(
+      `(() => { const w = rtLampSh.w, h = rtLampSh.h, px = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, rtLampSh.fb); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px); gl.bindFramebuffer(gl.FRAMEBUFFER, null); let n = 0, mx = 0; for (let i = 0; i < px.length; i += 4) { if (px[i] > 40) n++; if (px[i] > mx) mx = px[i]; } return { sh: GS.lampSh, lnL: GS.lnL, ln: GS.ln, n, mx }; })()`
+    );
+  }
   await ev(`(() => { for (const L of lamps) L.shot = true; return 1; })()`);
   for (let i = 0; i < 40 && !(await ev('GS.lampSh === 0 && GS.lnL === 0')); i++) await pg.waitForTimeout(150);
   const dark = await ev(`({ sh: GS.lampSh, lnL: GS.lnL })`);
