@@ -72,7 +72,7 @@ function giantWedge(e, dt) {
       }
 }
 // what the dead see: a wide cone ahead of them, and anything right at their back
-export const SIGHT = { half: 1.92, behind: 60 };
+export const SIGHT = { half: 1.92, behind: 60 * GK };
 // one of the dead going for the siege house, while there is still a siege: once it's over (won or lost) they are
 // just the night's dead again, and any that can't reach you come round nearer like the rest (a siege-bound straggler
 // used to wander the map for good, and the last lurkers lay waiting on it, so the night never ended)

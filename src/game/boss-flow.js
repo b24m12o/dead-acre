@@ -111,14 +111,15 @@ export function freeAround(x, y, r = 22) {
     !blockPt(x, y - r)
   );
 }
+// d0, d1 at the old size of things (core/scale.js)
 function stageSpot(d0, d1) {
   for (let k = 0; k < 80; k++) {
     const a = rand(0, TAU),
-      r = rand(d0, d1);
+      r = rand(d0, d1) * GK;
     if (k < 50 && Math.abs(Math.sin(a)) > 0.55) continue; // the screen is wider than tall: arrive from the side where it can be seen
     const x = GS.P.x + Math.cos(a) * r,
       y = GS.P.y + Math.sin(a) * r;
-    if (!freeAround(x, y, 30)) continue;
+    if (!freeAround(x, y, 30 * GK)) continue;
     const tx = Math.floor(x / TILE),
       ty = Math.floor(y / TILE);
     if (flow && !(flow[ty * MW + tx] < 65535)) continue;

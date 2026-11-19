@@ -200,7 +200,7 @@ export function releaseGrab(push = 1) {
     e.ky += (dy / dl) * 160 * GK * push;
   }
 }
-export const SIGHT = () => (GS.ev === 'fog' ? 330 : GS.ev === 'blackout' ? 420 : 640); // how far the dead can see you: fog and a dead grid hide you, so you can slip past or pick your moment
+export const SIGHT = () => (GS.ev === 'fog' ? 330 : GS.ev === 'blackout' ? 420 : 640) * GK; // how far the dead can see you: fog and a dead grid hide you, so you can slip past or pick your moment
 export function shieldUp(e) {
   return e.shield && !(e.stag > 0) && !(e.down > 0) && e.st !== 'bash';
 }
@@ -679,7 +679,7 @@ function killStop(e, src) {
   else if (e.type === 'beetle') t = Math.max(t, 0.06);
   if (g === 'shotgun' && GS.P && d2(e.x, e.y, GS.P.x, GS.P.y) < (160 * GK) ** 2) t = Math.max(t, 0.03);
   if (e.headless) t = Math.max(t, 0.025);
-  if (!t || (GS.time >= GS.killStopT && GS.time - GS.killStopT < 0.18)) return;
+  if (!t || (GS.P && GS.P.ride) || (GS.time >= GS.killStopT && GS.time - GS.killStopT < 0.18)) return; // not on the ride out: the door gun's kills would stutter the flight
   GS.killStopT = GS.time;
   GS.hitstop = Math.max(GS.hitstop, t);
 }
@@ -867,6 +867,7 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
           d2(e.x, e.y, GS.P.x, GS.P.y) < (160 * GK) ** 2, // buckshot up close throws the body, whichever pellet was the last
         imp =
           (src === 'boom' ? 480 : buck ? 440 : 120 + Math.min(360, dmg * 4)) *
+          GK *
           rand(0.8, 1.2) *
           (e.type === 'beetle' ? 0.35 : big ? 0 : 1) *
           (fallK ? 0.25 : 1),

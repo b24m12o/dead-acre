@@ -27,7 +27,7 @@ export async function run(b) {
     const q0 = GS.queue.length + GS.enemies.length;
     // crowded close: eight of them round you that cannot reach you
     const crowd = [];
-    const hold = () => { for (const [e, a] of crowd) { e.x = P.x + Math.cos(a) * 120; e.y = P.y + Math.sin(a) * 120; e.vx = e.vy = 0; e.dmg = 0; } };
+    const hold = () => { for (const [e, a] of crowd) { e.x = P.x + Math.cos(a) * 120 * GK; e.y = P.y + Math.sin(a) * 120 * GK; e.vx = e.vy = 0; e.dmg = 0; } };
     for (let i = 0; i < 8; i++) { const e = makeEnemy('skitter', P.x, P.y); e.emerge = 1; e.hp = e.maxHp = 1e6; crowd.push([e, (i / 8) * TAU]); }
     let peakAt = -1, relaxAt = -1;
     for (let i = 0; i < 60 * 12 && relaxAt < 0; i++) { fr(1, hold); if (peakAt < 0 && GS.dir.ph === 'peak') peakAt = i / 60; if (GS.dir.ph === 'relax') relaxAt = i / 60; }
@@ -35,7 +35,7 @@ export async function run(b) {
     // in the breather: the queue waits
     const qa = GS.queue.length; fr(60 * 3, hold); out.held = qa > 0 && GS.queue.length === qa && GS.dir.ph === 'relax';
     // and the far crowd, out of sight, closes in slower; near you, or in sight, at its own
-    out.slow = DIR.slow; out.paceFar = dirPace({ los: false }, 700 * 700); out.paceSeen = dirPace({ los: true }, 700 * 700); out.paceNear = dirPace({ los: false }, 200 * 200);
+    out.slow = DIR.slow; out.paceFar = dirPace({ los: false }, (700 * GK) ** 2); out.paceSeen = dirPace({ los: true }, (700 * GK) ** 2); out.paceNear = dirPace({ los: false }, (200 * GK) ** 2);
     // still crowded: the breather ends at its limit all the same
     let endAt = -1; for (let i = 0; i < 60 * 16 && endAt < 0; i++) { fr(1, hold); if (GS.dir.ph !== 'relax') endAt = i / 60; }
     out.limitEnd = endAt >= 0 && GS.dir.held <= DIR.relaxMax + 0.2;
@@ -54,7 +54,7 @@ export async function run(b) {
     out.q0 = q0;
     // a boss's night: the director keeps out of it
     for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.nightLive = false; GS.nightDone = true;
-    GS.wave = 7; startWave(); out.bossSg = !!GS.RUN.sg; out.bossPace = dirPace({ los: false }, 900 * 900); out.bossHold = dirHold(GS.RUN.sg);
+    GS.wave = 7; startWave(); out.bossSg = !!GS.RUN.sg; out.bossPace = dirPace({ los: false }, (900 * GK) ** 2); out.bossHold = dirHold(GS.RUN.sg);
     return out;
   })()`);
   await pg.close();

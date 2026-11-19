@@ -23,7 +23,7 @@ export async function run(b) {
     out.tab = openLevel() && GS.state === 'levelup'; GS.luOpenT = 0; choose(0); GS.state = 'play';
     // a pouch from the dead: capped at two a night
     const p0 = POUCH.chance; POUCH.chance = 1;
-    const kill = () => { const e = makeEnemy('skitter', P.x + 60, P.y); e.emerge = 1; e.v = 0; killEnemy(e, 999, 'bolt'); };
+    const kill = () => { const e = makeEnemy('skitter', P.x + 60 * GK, P.y); e.emerge = 1; e.v = 0; killEnemy(e, 999, 'bolt'); };
     const s0 = { dmg: S.dmg, rate: S.rate, reloadK: S.reloadK, maxHp: S.maxHp, ammoK: S.ammoK };
     kill(); kill(); kill(); out.dropped = GS.pickups.filter(k => k.k === 'pouch').length;
     for (let i = 0; i < 120; i++) { hold(); fr(1); }

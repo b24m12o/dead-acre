@@ -28,7 +28,7 @@ const FIGHT = (district, night) => `(() => {
   const q = GS.boss, out = { spawned: true, bt: q.btype, ph0: q.ph, name: bossName(), want: bossType() };
   if (q.btype === 'chief') { // its charge shows its line on the ground first, then goes down that line
     for (let i = 0; i < 600 && (q.emerge < 1 || q.busyT > 0 || q.st !== 'move'); i++) step(1);
-    q.x = GS.P.x + 300; q.y = GS.P.y; q.rushT = 0; q.mortT = q.extT = q.tailT = q.summonT = 99; q.los = true;
+    q.x = GS.P.x + 300 * GK; q.y = GS.P.y; q.rushT = 0; q.mortT = q.extT = q.tailT = q.summonT = 99; q.los = true;
     const w0 = GS.warns.length; step(1);
     out.brace = q.st; out.lane = GS.warns.slice(w0).some(w => w.lane && Math.abs(w.a - q.ra) < 1e-6);
     const a = q.ra; for (let i = 0; i < 90 && q.st === 'brace'; i++) step(1);

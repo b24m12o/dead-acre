@@ -17,7 +17,7 @@ export async function run(b) {
     const fr = s => { for (let i = 0; i < s * 60; i++) { update(1 / 60); tickWorld(1 / 60); P.hp = S.maxHp; P.held = null; if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } out.most = Math.max(out.most || 0, GS.crowd.n); } };
     const ring = (n, lo = 300, hi = 850, f = (x, y) => makeEnemy('skitter', x, y)) => {
       let m = 0;
-      for (let t = 0; m < n && t < n * 40; t++) { const a = Math.random() * 6.283, d = lo + Math.random() * (hi - lo), x = P.x + Math.cos(a) * d, y = P.y + Math.sin(a) * d; if (blockPt(x, y)) continue; const e = f(x, y); e.emerge = 1; e.aw = 9; e.hp = e.maxHp = 5000; m++; }
+      for (let t = 0; m < n && t < n * 40; t++) { const a = Math.random() * 6.283, d = (lo + Math.random() * (hi - lo)) * GK, x = P.x + Math.cos(a) * d, y = P.y + Math.sin(a) * d; if (blockPt(x, y)) continue; const e = f(x, y); e.emerge = 1; e.aw = 9; e.hp = e.maxHp = 5000; m++; }
       return m;
     };
     const clear = () => { for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; };
@@ -29,7 +29,7 @@ export async function run(b) {
     ring(1, 350, 450, (x, y) => makeSpecial('climb', x, y));
     ring(1, 350, 450, (x, y) => makeSpecial('drag', x, y));
     ring(1, 980, 1040, (x, y) => { const e = makeSpecial('spore', x, y); e.sp = 0; e.dormant = false; return e; });
-    for (let i = 0; i < 300; i++) { for (const e of GS.enemies) if (e.kind === 'spore') { e.vx = e.vy = 0; const a = Math.atan2(e.y - P.y, e.x - P.x); if (Math.hypot(e.x - P.x, e.y - P.y) < 950) { e.x = P.x + Math.cos(a) * 1000; e.y = P.y + Math.sin(a) * 1000; } } fr(1 / 60); }
+    for (let i = 0; i < 300; i++) { for (const e of GS.enemies) if (e.kind === 'spore') { e.vx = e.vy = 0; const a = Math.atan2(e.y - P.y, e.x - P.x); if (Math.hypot(e.x - P.x, e.y - P.y) < 950 * GK) { e.x = P.x + Math.cos(a) * 1000; e.y = P.y + Math.sin(a) * 1000; } } fr(1 / 60); }
     out.near = { ...GS.tells };
     clear(); GS.tells = { climb: 0, spore: 0, drag: 0 };
     ring(1, 350, 450, (x, y) => makeSpecial('spore', x, y)); fr(5);

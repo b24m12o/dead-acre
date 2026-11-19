@@ -24,27 +24,27 @@ export async function run(b) {
     P.vx = P.vy = 0; fr(45);
     out.braced = braced(); out.bDmg = heroGun('rifle').dmg; out.bPierce = heroGun('rifle').pierce; out.bSpread = heroGun('rifle').spread;
     out.bOther = heroGun('shotgun').dmg; // any gun, braced
-    for (let i = 0; i < 12; i++) { P.vx = 200; fr(1); }
+    for (let i = 0; i < 12; i++) { P.vx = 200 * GK; fr(1); }
     out.moved = braced(); out.mDmg = heroGun('rifle').dmg; out.mPierce = heroGun('rifle').pierce;
     // his own picks: Dug In and Planted Feet
     out.poolS = upgradePool().filter(u => u.hero).map(u => u.id).sort().join();
     LV.dugin = 2; P.vx = P.vy = 0; fr(45);
     out.dugin = heroGun('rifle').dmg;
-    LV.setfeet = 1; P.vx = 200; fr(2); P.vx = P.vy = 0; fr(20);
+    LV.setfeet = 1; P.vx = 200 * GK; fr(2); P.vx = P.vy = 0; fr(20);
     out.setfeet = braced();
     // the Deputy
     P = start('breacher');
     out.cd = shoveCd() / SHOVE.cd;
-    const e = makeEnemy('skitter', P.x + 40, P.y); e.emerge = 1; e.hp = e.maxHp = 500; e.aw = 9; e.shield = null; e.trait = null;
+    const e = makeEnemy('skitter', P.x + 40 * GK, P.y); e.emerge = 1; e.hp = e.maxHp = 500; e.aw = 9; e.shield = null; e.trait = null;
     P.aimA = 0; P.shoveCd = 0; tryShove();
     out.shoveDmg = 500 - e.hp; out.cdSet = P.shoveCd;
     out.noBrace = braced();
     out.poolD = upgradePool().filter(u => u.hero).map(u => u.id).sort().join();
     // Riot Line reaches one a plain shove can't; Grit gives health back for each one hit
-    const far = makeEnemy('skitter', P.x + SHOVE.reach + 14 + 10, P.y); far.emerge = 1; far.hp = far.maxHp = 500; far.aw = 9; far.shield = null; far.trait = null;
+    const far = makeEnemy('skitter', P.x + SHOVE.reach + (14 + 10) * GK, P.y); far.emerge = 1; far.hp = far.maxHp = 500; far.aw = 9; far.shield = null; far.trait = null;
     GS.enemies.length = 0; GS.enemies.push(far);
     P.aimA = 0; P.shoveCd = 0; out.reach0 = tryShove();
-    LV.riotline = 1; LV.grit = 2; P.hp = 50; far.x = P.x + SHOVE.reach + 14 + 10; far.y = P.y; far.down = 0; far.stag = 0;
+    LV.riotline = 1; LV.grit = 2; P.hp = 50; far.x = P.x + SHOVE.reach + (14 + 10) * GK; far.y = P.y; far.down = 0; far.stag = 0;
     P.aimA = 0; P.shoveCd = 0; P.shoveT = 0; out.reach1 = tryShove(); out.grit = P.hp;
     GS.enemies.length = 0;
     // the Gunslinger

@@ -3,6 +3,7 @@
 // touched. A second shove has to wait its turn. It doesn't spoil a reload, it tears you free of a grab, and an
 // armoured elite barely gives.
 import { openGame, check } from './lib/harness.mjs';
+import { GK } from '../src/core/scale.js';
 
 export const name = 'shove: throws back what is in front, frees you, waits its turn';
 export async function run(b) {
@@ -22,7 +23,7 @@ export async function run(b) {
       if (ok) { P.x = x; P.y = y; break; }
     }
     P.vx = P.vy = 0; P.aimA = 0; P.dashT = 0; P.shoveCd = 0;
-    const at = (a, d, t = 'skitter') => { const e = makeEnemy(t, P.x + Math.cos(a) * d, P.y + Math.sin(a) * d); e.emerge = 1; e.hp = e.maxHp = 500; return e; };
+    const at = (a, d, t = 'skitter') => { d *= GK; const e = makeEnemy(t, P.x + Math.cos(a) * d, P.y + Math.sin(a) * d); e.emerge = 1; e.hp = e.maxHp = 500; return e; };
     const front = [-0.5, -0.25, 0, 0.25, 0.5].map((a, i) => at(a, 42 + i * 4)),
       back = [Math.PI - 0.3, Math.PI + 0.3].map(a => at(a, 45));
     const d0 = front.map(e => Math.hypot(e.x - P.x, e.y - P.y));
@@ -78,8 +79,8 @@ export async function run(b) {
   check(/Shift roll/.test(k2.hint) && /Space shove/.test(k2.hint), 'the hint line should name the keys: ' + k2.hint);
   check(o.caught === 5, `all five in front should be caught: ${o.caught}`);
   check(
-    o.gained >= 60,
-    `each of the five should end up at least 60 px further away in 0.4 s: the least gained ${Math.round(o.gained)} px`
+    o.gained >= 60 * GK,
+    `each of the five should end up at least ${Math.round(60 * GK)} px further away in 0.4 s: the least gained ${Math.round(o.gained)} px`
   );
   check(o.down >= 3, `at least three of the five should be knocked down: ${o.down}`);
   check(o.backTouched === 0, `the two behind should not be touched: ${o.backTouched} were`);

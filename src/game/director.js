@@ -8,6 +8,7 @@
 // crowd already out, which is most of a night (the queue empties fast): in a breather the far ones, out of sight, close
 // in at half pace; while you cruise they come on a little quicker. Those near you, or that see you, are never touched.
 // It works inside the surges (surges.js), on the nights that have them: not on a boss's night, a horde's, or the tutorial.
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, rand } from '../core/util.js';
 import { S } from './state.js';
@@ -17,14 +18,14 @@ export const DIR = {
   peak: 0.6, // the intensity that makes a peak
   calm: 0.35, // a breather ends once it has fallen below this (or at relaxMax)
   cruise: 0.12, // below this you are cruising
-  near: 220, // "close": within this many px of you
+  near: 220 * GK, // "close": within this many px of you
   peakT: [3, 5], // a peak runs on this long
   relaxT: [4, 7], // then the breather, at least this long
   relaxMax: 9, // and never longer than this: a night must not stall
   cruiseT: 10, // cruising this long brings a special forward
   pullGap: 20, // at most one every this many seconds
   quick: 0.8, // and the rest come this much quicker while you cruise
-  far: 450, // the crowd's pace is only ever changed this far from you, and out of sight
+  far: 450 * GK, // the crowd's pace is only ever changed this far from you, and out of sight
   slow: 0.7, // in a breather they close in at this pace
   hurry: 1.15, // and at this while you cruise
 };

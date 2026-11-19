@@ -26,13 +26,13 @@ export async function run(b) {
       let ok = true;
       for (let dx = -80; dx <= 360 && ok; dx += 20) for (let dy = -60; dy <= 200 && ok; dy += 20) if (blockPt(x + dx, y + dy)) ok = false;
       for (const [dx, dy] of LOOK) if (ok && !los(x, y, x + dx, y + dy)) ok = false; // and nothing thin in the way of a look
-      if (ok && !los(x + 260, y, x + 60, y + 170)) ok = false;
+      if (ok && !los(x + 260 * GK, y, x + 60 * GK, y + 170 * GK)) ok = false;
       if (ok) spot = [x, y];
     }
     if (!spot) return { err: 'no open ground' };
     const home = () => { P.x = spot[0]; P.y = spot[1]; P.vx = P.vy = 0; P.aimA = 0; };
     home(); crowd();
-    const mk = (dx, dy, a, t = 'skitter') => { const e = makeEnemy(t, P.x + dx, P.y + dy); e.emerge = 1; e.a = a; e.hp = e.maxHp = 60; e.run = false; e.lurk = null; e.shield = null; e.trait = null; e.elite = false; return e; };
+    const mk = (dx, dy, a, t = 'skitter') => { const e = makeEnemy(t, P.x + dx * GK, P.y + dy * GK); e.emerge = 1; e.a = a; e.hp = e.maxHp = 60; e.run = false; e.lurk = null; e.shield = null; e.trait = null; e.elite = false; return e; };
     const still = e => { const x = e.x, y = e.y, a = e.a; return () => { e.x = x; e.y = y; e.a = a; e.vx = e.vy = 0; }; };
     // 1. backs turned: at 150 px in the open, the one facing you sees you, the one facing away doesn't
     const toward = mk(150, -40, Math.PI), away = mk(150, 40, 0);
@@ -41,7 +41,7 @@ export async function run(b) {
     out.seenFront = toward.aw > 0; out.seenBack = away.aw > 0;
     out.dbg1 = { state: GS.state, los: toward.los, aw: toward.aw, d: Math.hypot(toward.x - P.x, toward.y - P.y), em: toward.emerge, sr: seenFrom(), lure: !!toward.lure, n: GS.enemies.length, q: GS.queue.length, time: GS.time, hp: P.hp, ride: !!P.ride, unaw: toward.unaw };
     // ...until you are right at its back
-    away.x = P.x + 50; away.y = P.y; const h3 = still(away);
+    away.x = P.x + 50 * GK; away.y = P.y; const h3 = still(away);
     fr(30, h3);
     out.seenClose = away.aw > 0;
     out.dbg = { los: away.los, aw: away.aw, d: Math.hypot(away.x - P.x, away.y - P.y), a: away.a, down: away.down, dead: away.dead, em: away.emerge, sr: seenFrom(), lure: !!away.lure, kind: away.kind, st: away.st };
@@ -59,12 +59,12 @@ export async function run(b) {
     // 3. one that has seen you is only thrown down; the next shove finishes it where it lies
     const w = mk(60, 0, Math.PI);
     fr(30);
-    w.x = P.x + 60; w.y = P.y;
+    w.x = P.x + 60 * GK; w.y = P.y;
     out.awake = w.aw > 0;
     shove(Math.atan2(w.y - P.y, w.x - P.x));
     out.downed = w.down > 0 && w.hp > 0;
     fr(20);
-    P.x = w.x - 50; P.y = w.y; // thrown back out of reach: a step up to it
+    P.x = w.x - 50 * GK; P.y = w.y; // thrown back out of reach: a step up to it
     out.stillDown = w.down > 0;
     shove(0);
     out.finished = w.dead === true || !(w.hp > 0);
@@ -81,48 +81,48 @@ export async function run(b) {
     let L;
     for (let k = 0; k < 4; k++) {
       clear(); home();
-      L = makeSpecial('blind', P.x + 260, P.y); L.emerge = 1; L.a = Math.PI;
+      L = makeSpecial('blind', P.x + 260 * GK, P.y); L.emerge = 1; L.a = Math.PI;
       const lx = L.x, ly = L.y, n0 = NOISE.t;
       fr(180);
       out.stood = Math.hypot(L.x - lx, L.y - ly) < 6 && !(L.aw > 0) && P.hp === S.maxHp;
       if (out.stood || NOISE.t === n0) break;
     }
     // a noise off to one side: it runs there, not at you, and you (standing still) are left alone
-    const nx = P.x + 60, ny = P.y + 170;
+    const nx = P.x + 60 * GK, ny = P.y + 170 * GK;
     makeNoise(nx, ny, 700, false, false);
-    let t = 0; while (Math.hypot(L.x - nx, L.y - ny) > 40 && t < 300) { fr(1); t++; }
-    out.reached = Math.hypot(L.x - nx, L.y - ny) <= 40; out.took = t / 60;
+    let t = 0; while (Math.hypot(L.x - nx, L.y - ny) > 40 * GK && t < 300) { fr(1); t++; }
+    out.reached = Math.hypot(L.x - nx, L.y - ny) <= 40 * GK; out.took = t / 60;
     out.spared = P.hp === S.maxHp;
     fr(60 * 4);
     out.lostIt = !(L.hot > 0);
     // run past it and it has you
     const hp0 = P.hp;
-    L.x = P.x + 120; L.y = P.y; L.hot = 0;
+    L.x = P.x + 120 * GK; L.y = P.y; L.hot = 0;
     for (let i = 0; i < 150; i++) { P.vx = i < 40 ? 200 : 0; P.vy = 0; fr(1); }
-    out.heardFeet = P.hp < hp0 || Math.hypot(L.x - P.x, L.y - P.y) < 60;
+    out.heardFeet = P.hp < hp0 || Math.hypot(L.x - P.x, L.y - P.y) < 60 * GK;
     clear(); home();
     // 6. a clock pulls it like the rest, back turned, and then one shove does it
-    const L2 = makeSpecial('blind', P.x + 200, P.y); L2.emerge = 1;
-    startFlare(P.x + 330, P.y, true);
+    const L2 = makeSpecial('blind', P.x + 200 * GK, P.y); L2.emerge = 1;
+    startFlare(P.x + 330 * GK, P.y, true);
     fr(150);
-    out.lured = !!L2.lure && Math.hypot(L2.x - (P.x + 330), L2.y - P.y) < 110;
-    P.x = L2.x - 66; P.y = L2.y; P.aimA = 0; P.vx = P.vy = 0;
+    out.lured = !!L2.lure && Math.hypot(L2.x - (P.x + 330 * GK), L2.y - P.y) < 110 * GK;
+    P.x = L2.x - 66 * GK; P.y = L2.y; P.aimA = 0; P.vx = P.vy = 0;
     fr(6);
     out.lureUnaw = L2.unaw === true;
     shove(Math.atan2(L2.y - P.y, L2.x - P.x));
     out.lureKill = L2.dead === true || !(L2.hp > 0);
     // 7. the last of a night: five playing dead and one that can't see. The five don't count, so it comes for you by scent
     for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; home(); P.hp = S.maxHp;
-    for (let i = 0; i < 5; i++) makeLurker(P.x + 60 + i * 40, P.y + 170);
+    for (let i = 0; i < 5; i++) makeLurker(P.x + 60 * GK + i * 40, P.y + 170 * GK);
     for (const f of GS.flares) f.alarm = 0; // the clock from the step before is done
-    const L3 = makeSpecial('blind', P.x + 330, P.y); L3.emerge = 1; L3.hnT = NOISE.t;
+    const L3 = makeSpecial('blind', P.x + 330 * GK, P.y); L3.emerge = 1; L3.hnT = NOISE.t;
     fr(300);
-    out.lastBlind = P.hp < S.maxHp || Math.hypot(L3.x - P.x, L3.y - P.y) < 110;
+    out.lastBlind = P.hp < S.maxHp || Math.hypot(L3.x - P.x, L3.y - P.y) < 110 * GK;
     out.lastAt = Math.round(Math.hypot(L3.x - P.x, L3.y - P.y));
     // 8. a riot cop at the generator leans on it like the rest: the shove is kept for you
     clear(); home();
-    GS.obj = { type: 'gen', x: P.x + 330, y: P.y, hp: 9000, max: 9000 };
-    const cop = makeShield(makeEnemy('skitter', P.x + 250, P.y)); cop.emerge = 1; cop.a = Math.PI; cop.aw = 9;
+    GS.obj = { type: 'gen', x: P.x + 330 * GK, y: P.y, hp: 9000, max: 9000 };
+    const cop = makeShield(makeEnemy('skitter', P.x + 250 * GK, P.y)); cop.emerge = 1; cop.a = Math.PI; cop.aw = 9;
     let bashed = 0;
     fr(900, () => { cop.aw = 9; if (cop.st === 'bashW' || cop.st === 'bash') bashed++; });
     out.copBashed = bashed; out.copGen = Math.round(9000 - GS.obj.hp); out.copAt = Math.round(Math.hypot(cop.x - GS.obj.x, cop.y - GS.obj.y));

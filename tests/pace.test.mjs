@@ -3,6 +3,7 @@
 // out of sight come round, and no two runs open the same way (the first nights' trouble drawn at random, Hale on
 // either night at the gas station).
 import { openGame, check } from './lib/harness.mjs';
+import { GK } from '../src/core/scale.js';
 
 export const name = 'pace: they come in just out of sight, and no two runs open the same';
 export async function run(b) {
@@ -16,8 +17,8 @@ export async function run(b) {
     for (let i = 0; i < 200; i++) {
       const [x, y] = spawnRing(), d = Math.hypot(x - P.x, y - P.y);
       if (x > cam.x && x < cam.x + viewW && y > cam.y && y < cam.y + viewH) seen++;
-      if (d < 540) near++;
-      if (d > 1000) far++;
+      if (d < 540 * GK) near++;
+      if (d > 1000 * GK) far++;
       if (!reachPt(x, y)) stuck++;
     }
     Object.assign(out, { seen, near, far, stuck });
@@ -41,14 +42,17 @@ export async function run(b) {
       update(1 / 60); tickWorld(1 / 60); updateCamera(1 / 60);
       if (GS.state === 'cine') cineSkip();
       if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } P.hp = S.maxHp; P.inv = 9;
-      if (Math.hypot(e.x - P.x, e.y - P.y) < 700) at = i / 60;
+      if (Math.hypot(e.x - P.x, e.y - P.y) < 700 * GK) at = i / 60;
     }
     out.st = GS.state + ' ' + e.st + ' ' + (e.dead ? 'dead' : 'alive'); out.back = at; out.backD = Math.round(Math.hypot(e.x - P.x, e.y - P.y));
     return out;
   })()`);
   await pg.close();
   check(!o.seen, `a spawn came up in sight of you: ${o.seen} of 200`);
-  check(!o.near && !o.far, `spawns should be 560-980 px from you: ${o.near} nearer, ${o.far} farther`);
+  check(
+    !o.near && !o.far,
+    `spawns should be ${Math.round(560 * GK)}-${Math.round(980 * GK)} px from you: ${o.near} nearer, ${o.far} farther`
+  );
   check(!o.stuck, `a spawn where it can't walk out: ${o.stuck}`);
   check(o.sigs.length >= 3, 'night 2 should not always bring the same trouble: ' + o.sigs.join(', '));
   check(
@@ -59,7 +63,7 @@ export async function run(b) {
     o.back > 0 && o.back < 6,
     `one of the last few hanging back out of sight should come round soon: ${o.back} s (${o.st})`
   );
-  check(o.backD < 700, `and come round near you: ${o.backD} px`);
+  check(o.backD < 700 * GK, `and come round near you: ${o.backD} px`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));
-  return `spawns 560-980 px off, none in sight; night 2: ${o.sigs.join(', ')}; Hale on 6 or 7; a straggler back after ${o.back.toFixed(1)} s, ${o.backD} px off`;
+  return `spawns ${Math.round(560 * GK)}-${Math.round(980 * GK)} px off, none in sight; night 2: ${o.sigs.join(', ')}; Hale on 6 or 7; a straggler back after ${o.back.toFixed(1)} s, ${o.backD} px off`;
 }

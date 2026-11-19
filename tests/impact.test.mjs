@@ -13,7 +13,7 @@ export async function run(b) {
     const P = GS.P, shake0 = opt.shake;
     opt.shake = true;
     const kill = (gun, far = 400) => {
-      const e = makeEnemy('skitter', P.x + far, P.y); e.emerge = 1;
+      const e = makeEnemy('skitter', P.x + far * GK, P.y); e.emerge = 1;
       GS.HITB = { gun };
       try { killEnemy(e, 5, 'bolt', 1, 0, false); } finally { GS.HITB = null; }
       return e;
@@ -40,12 +40,12 @@ export async function run(b) {
     } // clear ground for the row to stand on and the body to fly across
     const row = (gun, dmg) => {
       for (const o of GS.enemies) o.dead = true; GS.enemies.length = 0; GS.corpses = []; GS.time += 5;
-      const v = makeEnemy('skitter', P.x + 120, P.y); v.emerge = 1; v.hp = 1; v.maxHp = 200; v.vx = v.vy = 0; v.crawl = v.half = false;
-      const behind = [-14, 0, 14].map(dy => { const o = makeEnemy('skitter', P.x + 150, P.y + dy); o.emerge = 1; o.hp = o.maxHp = 400; o.run = false; return o; });
+      const v = makeEnemy('skitter', P.x + 120 * GK, P.y); v.emerge = 1; v.hp = 1; v.maxHp = 200; v.vx = v.vy = 0; v.crawl = v.half = false;
+      const behind = [-14, 0, 14].map(dy => { const o = makeEnemy('skitter', P.x + 150 * GK, P.y + dy * GK); o.emerge = 1; o.hp = o.maxHp = 400; o.run = false; return o; });
       GS.HITB = { gun };
       try { killEnemy(v, dmg, 'bolt', 1, 0, false); } finally { GS.HITB = null; }
       let down = 0;
-      for (let i = 0; i < 40; i++) { update(1 / 60); tickWorld(1 / 60); for (const o of behind) { o.x = P.x + 150; if (o.down > 0 && !o.cnt) { o.cnt = 1; down++; } } }
+      for (let i = 0; i < 40; i++) { update(1 / 60); tickWorld(1 / 60); for (const o of behind) { o.x = P.x + 150 * GK; if (o.down > 0 && !o.cnt) { o.cnt = 1; down++; } } }
       return down;
     };
     out.heavy = row('hunter', 90); out.light = row('pistol', 12);

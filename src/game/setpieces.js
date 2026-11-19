@@ -25,7 +25,7 @@ export function placeStage(bt) {
   const x = s[0] * TILE,
     y = s[1] * TILE,
     d = Math.sqrt(d2(x, y, GS.P.x, GS.P.y));
-  return d > 300 * GK && d < 1300 * GK && reachPt(x, y) ? [x, y] : null; // too close, or cut off: it comes the usual way
+  return d > 300 * GK && d < 1300 && reachPt(x, y) ? [x, y] : null; // too close, or cut off: it comes the usual way
 }
 // the quarry at night: most of the dead come up out of the pit, from out of sight on its floor
 export function pitSpot(minD) {
