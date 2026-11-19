@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { GK } from '../core/scale.js';
+import { GK, PEOPLE } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { SOFT3, clamp } from '../core/util.js';
 import { TS, TSH } from '../core/settings.js';
@@ -157,7 +157,7 @@ export const lampNow = () => [LSX, LSY, LSH];
 let LSX = 0,
   LSY = 0,
   LSH = 120;
-const LSMAX = 120; // no lamp shadow runs longer than this
+const LSMAX = 120 * PEOPLE; // no lamp shadow runs longer than this
 // the lamp the next shadows are thrown from (SHMODE 4): where its head is, and how high
 export function lampFrom(x, y, h) {
   LSX = x;
@@ -219,13 +219,13 @@ export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
     const dx = x - LSX,
       dy = y - LSY,
       d = Math.hypot(dx, dy) || 1,
-      off = Math.min(LSMAX, (SHH * d) / Math.max(34, LSH - SHH)),
-      n = Math.min(10, Math.ceil(off / 8));
-    if (off < 6) return; // right under the lamp: nothing to throw
+      off = Math.min(LSMAX, (SHH * d) / Math.max(34 * PEOPLE, LSH - SHH)),
+      n = Math.min(10, Math.ceil(off / (8 * PK)));
+    if (off < 6 * PK) return; // right under the lamp: nothing to throw
     GS.SHMODE = 3;
     for (let i = 1; i <= n; i++) {
       const k = i / n;
-      if (off * k < 9 && i < n) continue; // not on top of the figure itself: its shadow starts where it stops
+      if (off * k < 9 * PK && i < n) continue; // not on top of the figure itself: its shadow starts where it stops
       quad(
         r,
         x + (dx / d) * off * k,

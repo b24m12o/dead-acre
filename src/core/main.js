@@ -52,6 +52,7 @@ function frame(now) {
   } // CSS hides the banner and callouts behind pause, cards and end screens
   padTick(dt);
   wheelTick();
+  if (GS.P && GS.P.ride && GS.state === 'play') GS.hitstop = GS.slowmo = 0; // the ride out never freezes or slows: the door gun's kills would stutter the flight
   const sdt = WHEEL.open ? dt * 0.1 : GS.slowmo > 0 ? dt * 0.3 : dt;
   if (GS.slowmo > 0 && !WHEEL.open) GS.slowmo -= dt;
   if (GS.state === 'play') {

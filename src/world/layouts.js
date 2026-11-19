@@ -41,7 +41,7 @@ function highway() {
 function room(k, x, y, w, h, o = {}) {
   const doors = o.doors || [],
     p = o.p ?? 1,
-    gap = (side, i) => doors.some(([s, a, wd = 2]) => s === side && i >= a && i < a + wd),
+    gap = (side, i) => doors.some(([s, a, wd = 1]) => s === side && i >= a && i < a + wd),
     wall = (tx, ty, isGap) => {
       if (isGap) k.clear(tx, ty);
       else if (Math.random() < p) k.set(tx, ty, 5);
@@ -153,7 +153,7 @@ function houses(k, n, x0, y0, x1, y1, p = 0.8) {
       if (k.houses.some(o => x < o.x + o.w + 2 && x + w + 2 > o.x && y < o.y + o.h + 2 && y + h + 2 > o.y))
         return false;
       const door = randi(0, 3),
-        mid = s => (s % 2 ? Math.floor(h / 2) - 1 : Math.floor(w / 2) - 1);
+        mid = s => (s % 2 ? Math.floor(h / 2) : Math.floor(w / 2));
       room(k, x, y, w, h, { p, doors: [[door, mid(door), 2]] });
       return true;
     },
@@ -292,20 +292,20 @@ export const LAYOUTS = {
     streetY(30);
     paint(21, 22, 46, 27, 3); // the clinic car park
     paint(21, 33, 53, 34, 2); // the school's front walk
-    room(k, 22, 8, 12, 8, { style: 'store', doors: [[2, 5, 2]] }); // offices
+    room(k, 22, 8, 12, 8, { style: 'store', doors: [[2, 5, 1]] }); // offices
     room(k, 22, 15, 12, 7, {
       style: 'store',
       doors: [
         [2, 5, 3],
-        [0, 5, 2],
-        [1, 3, 2],
+        [0, 5, 1],
+        [1, 3, 1],
       ],
     }); // the lobby
     room(k, 33, 8, 10, 14, {
       style: 'store',
       doors: [
-        [3, 10, 2],
-        [2, 4, 2],
+        [3, 10, 1],
+        [2, 4, 1],
       ],
     }); // the ward
     for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) k.set(36 + j * 3, 11 + i * 4, 2); // beds and cabinets knocked about the ward
@@ -313,17 +313,17 @@ export const LAYOUTS = {
       if (Math.random() < 0.65) car(k, x, 23, { vert: true, flip: Math.random() < 0.5 });
     car(k, 43, 23, { vert: true, truck: true, amb: true, col: '#e6e4dc', burnt: false }); // the ambulance, still where it was left
     for (const x of [22, 28, 34]) {
-      const doors = [[2, 2, 2]];
-      if (x === 28) doors.push([0, 3, 2]); // the front door, off the walk
-      if (x === 34) doors.push([1, 2, 2]); // through to the gym
+      const doors = [[2, 2, 1]];
+      if (x === 28) doors.push([0, 3, 1]); // the front door, off the walk
+      if (x === 34) doors.push([1, 2, 1]); // through to the gym
       room(k, x, 36, 7, 7, { style: 'store', doors });
     } // classrooms
     room(k, 40, 35, 12, 11, {
       style: 'store',
       doors: [
-        [3, 3, 2],
-        [2, 5, 2],
-        [0, 5, 2],
+        [3, 3, 1],
+        [2, 5, 1],
+        [0, 5, 1],
       ],
     }); // the gym
     fence(k, 20, 47, 35, true, [
@@ -355,7 +355,7 @@ export const LAYOUTS = {
     room(k, 40, 9, 7, 8, {
       style: 'store',
       doors: [
-        [2, 3, 2],
+        [2, 3, 1],
         [3, 3, 1],
       ],
     }); // the office
@@ -389,7 +389,7 @@ export const LAYOUTS = {
     paint(8, 18, 50, 27, 4);
     paint(28, 32, 32, 36, 4);
     paint(9, 37, 51, 56, 4);
-    room(k, 10, 10, 8, 7, { style: 'store', doors: [[2, 3, 2]] }); // the office
+    room(k, 10, 10, 8, 7, { style: 'store', doors: [[2, 3, 1]] }); // the office
     room(k, 34, 10, 12, 8, { style: 'store', p: 0.9, doors: [[2, 2, 8]] }); // the equipment shed, open at the front
     for (let x = 8; x <= 52; x++)
       if (x < 28 || x > 32) {
@@ -458,7 +458,7 @@ export const LAYOUTS = {
     } // a tile is water where its middle is in the river: the banks are drawn on the same curves
     car(k, 28, 29, { truck: true, col: '#c8c8c0', jit: 0.42, burnt: false }); // jack-knifed across the bridge
     car(k, 32, 32, { flip: true, burnt: true });
-    room(k, 41, 18, 7, 6, { style: 'store', doors: [[2, 2, 2]] }); // the bait shop
+    room(k, 41, 18, 7, 6, { style: 'store', doors: [[2, 2, 1]] }); // the bait shop
     houses(k, 3, 3, 3, 22, 24);
     houses(k, 3, 3, 37, 22, 56);
     houses(k, 3, 38, 37, 56, 56);
@@ -484,25 +484,25 @@ export const LAYOUTS = {
     room(k, 12, 8, 13, 14, {
       style: 'store',
       doors: [
-        [1, 8, 2],
-        [2, 5, 2],
+        [1, 8, 1],
+        [2, 5, 1],
       ],
     }); // west wing
     for (let y = 9; y <= 20; y++) if (y < 14 || y > 15) k.set(18, y, 5); // wards along the west wing
     room(k, 24, 12, 11, 10, {
       style: 'store',
       doors: [
-        [3, 4, 2],
-        [1, 4, 2],
+        [3, 4, 1],
+        [1, 4, 1],
         [2, 4, 3],
       ],
     }); // the lobby
     room(k, 34, 8, 13, 14, {
       style: 'store',
       doors: [
-        [3, 8, 2],
-        [1, 3, 2],
-        [2, 6, 2],
+        [3, 8, 1],
+        [1, 3, 1],
+        [2, 6, 1],
       ],
     }); // east wing
     for (let y = 9; y <= 20; y++) if (y < 14 || y > 15) k.set(40, y, 5);
@@ -513,7 +513,7 @@ export const LAYOUTS = {
       if (Math.random() < 0.6) car(k, x, 23, { vert: true, flip: Math.random() < 0.5 });
     car(k, 27, 23, { vert: true, truck: true, amb: true, col: '#e6e4dc', burnt: false });
     car(k, 31, 23, { vert: true, truck: true, amb: true, col: '#e6e4dc', burnt: Math.random() < 0.5 }); // the ambulance bay
-    room(k, 34, 37, 12, 8, { style: 'store', doors: [[0, 4, 2]] }); // the annex
+    room(k, 34, 37, 12, 8, { style: 'store', doors: [[0, 4, 1]] }); // the annex
     paint(10, 36, 30, 37, 4);
     paint(19, 38, 20, 52, 4); // the garden paths
     fence(k, 8, 34, 24, true, [[9, 13]]);

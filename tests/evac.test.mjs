@@ -15,8 +15,8 @@ export async function run(b) {
     for (let i = 0; i < 60 * 60 && !e.ride; i++) { GS.P.x = e.x; GS.P.y = e.y; if (i < 30) for (const q of GS.buddies) { q.x = e.x + 40 * GK; q.y = e.y + 30 * GK; } GS.enemies.length = 0; GS.queue = []; ${fr} } // your people start at the landing zone with you: it's the cabin under test, not their run to it
     if (!e.ride) return { err: 'never took off' };
     const r = e.ride, o = { aboard: GS.RUN.aboard.length, minV: 1e9, lowest: 999 };
-    let px = e.hx, py = e.hy;
-    for (let i = 0; i < 60 * 120 && GS.state === 'play'; i++) { ${aim} ${fr} if (r.t > 6 && !r.done) { o.minV = Math.min(o.minV, Math.hypot(e.hx - px, e.hy - py) * 60); o.lowest = Math.min(o.lowest, e.z); } px = e.hx; py = e.hy; }
+    let ps = r.s; // how far along its route: the straight line between two frames cuts the route's corners short
+    for (let i = 0; i < 60 * 120 && GS.state === 'play'; i++) { ${aim} ${fr} if (r.t > 6 && !r.done) { o.minV = Math.min(o.minV, (r.s - ps) * 60); o.lowest = Math.min(o.lowest, e.z); } ps = r.s; }
     mouse.down = false;
     return Object.assign(o, { state: GS.state, kills: r.kills, crew: r.crewKills, saved: r.saved, lost: r.lost, groups: r.groups.length, txt: $('wCrew').textContent });
   })()`);

@@ -57,11 +57,11 @@ export async function run(b) {
     out.mine = GS.tthrows.length === n0 + 1 && inH(t.tx, t.ty);
     // molotovs and pipe bombs of your own: not at one the roof hides, yes at one in the doorway's line
     S.molo = 1; GS.molos = [];
-    const z = makeEnemy('skitter', px + ax * 240, py + ay * 240); z.emerge = 1; z.hp = z.maxHp = 9999; z.sp = 0; z.aw = 0; GS.enemies.push(z);
-    if (roofStop(px, py, z.x, z.y) === null) { z.x = px - ax * 240; z.y = py - ay * 240; }
+    const z = makeEnemy('skitter', px + ax * 240 * GK, py + ay * 240 * GK); z.emerge = 1; z.hp = z.maxHp = 9999; z.sp = 0; z.aw = 0; GS.enemies.push(z);
+    if (roofStop(px, py, z.x, z.y) === null) { z.x = px - ax * 240 * GK; z.y = py - ay * 240 * GK; }
     rebuildHash();
     out.moloHidden = throwMolotov(P);
-    z.x = D.x + D.nx * 170; z.y = D.y + D.ny * 170; rebuildHash();
+    z.x = D.x + D.nx * 170 * GK; z.y = D.y + D.ny * 170 * GK; rebuildHash();
     out.moloDoor = throwMolotov(P);
     // a ruin with no roof: over the wall it goes
     const ruin = houses.find(h => !h.roof && !h.open && h.w >= 4);

@@ -6,6 +6,7 @@
 // ground in it keeps its colour. Under two lamps each shadow is fainter, by that lamp's share of the light there.
 // Only the nearest figures get the full treatment (the preset says how many); the rest get a soft smear.
 import { GS } from '../core/gs.js';
+import { PEOPLE } from '../core/scale.js';
 import { R } from './atlas.js';
 import { gfxPreset, lampFrom, quad, setH, viewH, viewW } from './sprites.js';
 import { lamps } from '../world/map.js';
@@ -31,7 +32,13 @@ export function lampShadowPass() {
       continue;
     const k = lampK(L);
     if (k < 0.3) continue;
-    lit.push({ x: L.hx, y: L.hy, R: L.lantern ? 200 : 320, H: L.lantern ? LAMP_SH.lantern : LAMP_SH.pole, k });
+    lit.push({
+      x: L.hx,
+      y: L.hy,
+      R: L.lantern ? 200 : 320,
+      H: (L.lantern ? LAMP_SH.lantern : LAMP_SH.pole) * PEOPLE,
+      k,
+    }); // figures are drawn at PEOPLE: the lamp's head with them
   }
   if (!lit.length) return 0;
   const on = o =>

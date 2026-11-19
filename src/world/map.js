@@ -320,7 +320,7 @@ export function generateMap() {
           [y, 0],
           [y + h - 1, 2],
         ]) {
-          const gap = sd === door && Math.abs(k - w / 2) < 1.2;
+          const gap = sd === door && k === Math.floor(w / 2);
           if (!gap && Math.random() < 0.8) set(x + k, yy, 5);
         }
       for (let j = 1; j < h - 1; j++)
@@ -328,7 +328,7 @@ export function generateMap() {
           [x, 3],
           [x + w - 1, 1],
         ]) {
-          const gap = sd === door && Math.abs(j - h / 2) < 1.2;
+          const gap = sd === door && j === Math.floor(h / 2);
           if (!gap && Math.random() < 0.8) set(xx, y + j, 5);
         }
       i++;
@@ -530,7 +530,7 @@ export function generateMap() {
           [y, 0],
           [y + h - 1, 2],
         ]) {
-          const gap = sd === door && Math.abs(k - w / 2) < 1.2;
+          const gap = sd === door && k === Math.floor(w / 2);
           if (!gap && Math.random() < 0.75) set(x + k, yy, 5);
         }
       for (let j = 1; j < h - 1; j++)
@@ -538,7 +538,7 @@ export function generateMap() {
           [x, 3],
           [x + w - 1, 1],
         ]) {
-          const gap = sd === door && Math.abs(j - h / 2) < 1.2;
+          const gap = sd === door && j === Math.floor(h / 2);
           if (!gap && Math.random() < 0.75) set(xx, y + j, 5);
         }
       i++;

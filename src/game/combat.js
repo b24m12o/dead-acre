@@ -679,7 +679,7 @@ function killStop(e, src) {
   else if (e.type === 'beetle') t = Math.max(t, 0.06);
   if (g === 'shotgun' && GS.P && d2(e.x, e.y, GS.P.x, GS.P.y) < (160 * GK) ** 2) t = Math.max(t, 0.03);
   if (e.headless) t = Math.max(t, 0.025);
-  if (!t || (GS.P && GS.P.ride) || (GS.time >= GS.killStopT && GS.time - GS.killStopT < 0.18)) return; // not on the ride out: the door gun's kills would stutter the flight
+  if (!t || (GS.time >= GS.killStopT && GS.time - GS.killStopT < 0.18)) return;
   GS.killStopT = GS.time;
   GS.hitstop = Math.max(GS.hitstop, t);
 }

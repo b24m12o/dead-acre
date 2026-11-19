@@ -423,7 +423,7 @@ export function updateFire(dt) {
 }
 export function throwMolotov(p) {
   const r = 62 + 16 * S.molo,
-    clear = r + p.r + 40; // never where its own fire would reach you: it used to land on crowds 90 px out, led toward you
+    clear = (r + 40) * GK + p.r; // never where its own fire would reach you: it used to land on crowds 90 px out, led toward you
   let best = null,
     bn = 0;
   query(p.x, p.y, 470 * GK, e => {
