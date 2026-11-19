@@ -4,7 +4,7 @@ import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp, rand } from '../core/util.js';
 import { S } from '../game/state.js';
 import { GUNS, HEROES } from '../game/arsenal.js';
-import { lineQ, quad, scaled, setH } from './sprites.js';
+import { RIM, lineQ, quad, scaled, setH, setRim } from './sprites.js';
 import { PEOPLE } from '../core/scale.js';
 import { R } from './atlas.js';
 import { lamps } from '../world/map.js';
@@ -159,9 +159,20 @@ const GPOSE = {
 };
 // you, a shade lighter and cooler than the lamp-lit street: easy to find in a crowd
 export const YOU_TINT = [1.06, 1.08, 1.13];
+export const CHEM = { r: 60, c: [0.3, 0.66, 1.0], k: 1.1 }; // your chemlight: how far it lights the ground (3 m), its colour and strength
 // drawn at life size (scale.js)
+// you, the one figure found at a glance in a crowd: the night catches your edges harder than anyone's, and your blue
+// chemlight lights the ground round you. Your people get the rim the dead get
+export const YOU_RIM = 0.8,
+  THEM_RIM = 0.42;
 export function drawRanger(p) {
-  return scaled(p.x, p.y, PEOPLE, drawRanger0, p);
+  const r0 = RIM;
+  setRim(GS.SHMODE || GS.state === 'menu' ? r0 : p.npc ? THEM_RIM : YOU_RIM);
+  try {
+    return scaled(p.x, p.y, PEOPLE, drawRanger0, p);
+  } finally {
+    setRim(r0);
+  }
 }
 function drawRanger0(p) {
   const fl = p.hurt > 0 ? 1 : 0,
@@ -543,14 +554,16 @@ function drawRanger0(p) {
     hsc = 0.9 * (1 - rp * 0.06);
   setH(32);
   quad(R['hh' + look], lx + bc * hf + jx * 0.5, ly + bs * hf - 1 + jy * 0.5, ha, hsc, hsc, 1, 1, 1, 1, 1, 1, 1, fl);
-  if (p.npc && !GS.SHMODE && !dn) {
+  if (!GS.SHMODE && !dn && GS.state !== 'menu') {
     const sx = lx - bs * 8.5 - bc * 1.5,
       sy = ly + bc * 8.5 - bs * 1.5,
-      g = 0.85 + 0.15 * Math.sin(GS.time * 2 + (p.x % 7));
+      g = 0.85 + 0.15 * Math.sin(GS.time * 2 + (p.x % 7)),
+      c = p.npc ? [0.14, 0.65, 0.24] : CHEM.c;
     setH(31);
-    quad(R.glow, sx, sy, 0, 0.2, 0.2, 0, 0, 0, 1, 0.14 * g, 0.65 * g, 0.24 * g, 0);
-    quad(R.pixel, sx, sy, ba, 0.62, 0.34, 0.4, 1, 0.5, 1, 0.5 * g, 2.4 * g, 0.75 * g, 0);
-  } // a green chemlight taped to a survivor's shoulder: the living, at a glance, in the dark
+    quad(R.glow, sx, sy, 0, 0.2, 0.2, 0, 0, 0, 1, c[0] * g, c[1] * g, c[2] * g, 0);
+    quad(R.pixel, sx, sy, ba, 0.62, 0.34, 0.4, 1, 0.5, 1, c[0] * 3.6 * g, c[1] * 3.6 * g, c[2] * 3.6 * g, 0);
+  } // a chemlight taped to the shoulder: the living, at a glance, in the dark. Your people's green; yours blue, and it
+  // lights the ground round you (render.js)
   GS.gA = 1;
 }
 

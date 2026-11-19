@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { BARREL, GK } from '../core/scale.js';
+import { BARREL, GK, PEOPLE } from '../core/scale.js';
 import { boonBlink } from '../game/boons.js';
 import { GS } from '../core/gs.js';
 import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';
@@ -64,7 +64,7 @@ import { S, cam } from '../game/state.js';
 import { HUMAN } from './effects.js';
 import { WCOL } from '../actors/bosses.js';
 import { shakeOff } from './camera.js';
-import { NIGHT, lampHot, lampK } from './draw-player.js';
+import { CHEM, NIGHT, lampHot, lampK } from './draw-player.js';
 import { BILE, GIANT } from './draw-enemies.js';
 import { bakeRemains, bodyAO } from './remains.js';
 import { atmosLights, drawAsh, drawAshGlow, shaftGlow } from '../world/wear.js';
@@ -1073,6 +1073,8 @@ export function render() {
       GS.ev === 'fog' || GS.ev === 'blackout' ? 0.45 : 0.31,
       GS.ev === 'fog' || GS.ev === 'blackout' ? 0.43 : 0.3
     );
+    const cl = CHEM.k * (0.94 + 0.06 * Math.sin(GS.time * 1.7)); // your chemlight (draw-player.js): a small cold-blue pool of light round you, no lamp's colour nor your people's green, so you are the one you find first in a crowd
+    addLight(GS.P.x, GS.P.y - 6 * PEOPLE, CHEM.r, CHEM.c[0] * cl, CHEM.c[1] * cl, CHEM.c[2] * cl);
   }
   for (const e of GS.enemies)
     if (e.type === 'queen') {
