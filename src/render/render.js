@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { BARREL } from '../core/scale.js';
+import { BARREL, GK } from '../core/scale.js';
 import { boonBlink } from '../game/boons.js';
 import { GS } from '../core/gs.js';
 import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';
@@ -36,6 +36,7 @@ import {
   rtLight,
   rtScene,
   rtShadow,
+  scaleAbout,
   setH,
   viewH,
   viewW,
@@ -192,8 +193,8 @@ export function render() {
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   if (GS.P && GS.state !== 'over' && GS.state !== 'menu') {
-    GS.FLX = GS.P.x + Math.cos(GS.P.aimA) * 8;
-    GS.FLY = GS.P.y + Math.sin(GS.P.aimA) * 8;
+    GS.FLX = GS.P.x + Math.cos(GS.P.aimA) * 8 * GK;
+    GS.FLY = GS.P.y + Math.sin(GS.P.aimA) * 8 * GK;
     GS.SHMODE = 2;
     GS.NOHERO = true;
     GS.SHS = 0.85;
@@ -351,6 +352,7 @@ export function render() {
           );
       }
   for (const k of GS.pickups) {
+    scaleAbout(k.x, k.y, GK); // things to pick up, at life size (core/scale.js)
     const bob = Math.sin(k.t * 5 + k.x) * 2.5,
       hot = lampHot(k.x, k.y),
       dm = 1 / (1 + 3.2 * hot); // right under a lamp the light pool is several times brighter than the street: dim the paint there so the kit keeps its colour
@@ -390,12 +392,15 @@ export function render() {
         0.45,
         0
       ); /* a modest self-glow: under a streetlamp they no longer burn out to a white square */
+    scaleAbout(0, 0, 1);
   }
   for (const k of GS.boonDrops || []) {
+    scaleAbout(k.x, k.y, GK);
     const bob = Math.sin(k.t * 5 + k.x) * 2.5,
       dm = 1 / (1 + 3.2 * lampHot(k.x, k.y)),
       al = boonBlink(k); // what one of the dead in uniform dropped (game/boons.js): it flickers in its last seconds
     quad(R['bn_' + k.id] || R.medkit, k.x, k.y - 8 + bob, 0, 1.3, 1.3, dm, dm, dm, al, 0.55, 0.5, 0.42, 0);
+    scaleAbout(0, 0, 1);
   }
   for (const q of GS.parts)
     if (q.k >= 3 && q.k !== 10 && q.k !== 11 && q.k !== 13) {
@@ -733,12 +738,12 @@ export function render() {
     else if (!m.rock) quad(R.glow, m.x, m.y - m.z, 0, 0.6, 0.6, 0, 0, 0, 1, 0.35, 0.7, 0.08, 0);
   for (const b of GS.pbullets) {
     if (b.shell) {
-      if (b.t >= 0) quad(R.glow, b.x, b.y - b.z, 0, 0.3, 0.3, 0, 0, 0, 1, 1.2, 0.6, 0.2, 0);
+      if (b.t >= 0) quad(R.glow, b.x, b.y - b.z, 0, 0.3 * GK, 0.3 * GK, 0, 0, 0, 1, 1.2, 0.6, 0.2, 0);
       continue;
     }
     if (b.mz && d2(b.x, b.y, b.sx, b.sy) < b.mz * b.mz) continue; // the round is only seen once it has left the barrel
     const a = Math.atan2(b.vy, b.vx),
-      sc = b.small ? 0.65 : b.pellet ? 0.55 : b.heavy ? 1.6 : 1,
+      sc = (b.small ? 0.65 : b.pellet ? 0.55 : b.heavy ? 1.6 : 1) * GK, // a round's streak, at life size (core/scale.js)
       gc = S.evo.gold && !b.small ? [2.8, 2.2, 0.8] : b.pellet ? [2.4, 1.6, 0.7] : [2.8, 1.7, 0.6];
     if (b.tr === undefined) b.tr = S.evo.gold || Math.random() < (b.pellet ? 0.12 : b.small ? 0.2 : 0.3);
     const tk = b.tr ? 1 : 0.32;
@@ -968,9 +973,24 @@ export function render() {
     }
   }
   for (const f of GS.flashes) {
-    if (f.reg) quad(f.reg, f.x, f.y, f.rot, f.fs, f.fs, 0, 0, 0, f.life / f.max, 3.6, 2.3, 0.9, 0);
+    if (f.reg) quad(f.reg, f.x, f.y, f.rot, f.fs * GK, f.fs * GK, 0, 0, 0, f.life / f.max, 3.6, 2.3, 0.9, 0);
     else
-      quad(R.muzzle, f.x, f.y, f.rot, f.big ? 1.7 : 1.1, f.big ? 1.5 : 1.1, 0, 0, 0, f.life / f.max, 3.4, 2.1, 0.8, 0);
+      quad(
+        R.muzzle,
+        f.x,
+        f.y,
+        f.rot,
+        (f.big ? 1.7 : 1.1) * GK,
+        (f.big ? 1.5 : 1.1) * GK,
+        0,
+        0,
+        0,
+        f.life / f.max,
+        3.4,
+        2.1,
+        0.8,
+        0
+      );
   }
   for (const r of GS.rings) {
     const t = 1 - r.life / r.max,
@@ -1032,14 +1052,23 @@ export function render() {
     addLight(f.x, f.y, 300 * fk, 1.25 * fk, 0.6 * fk, 0.2 * fk);
   }
   if (GS.P && GS.state !== 'over') {
-    GS.FLX = GS.P.x + Math.cos(GS.P.aimA) * 8;
-    GS.FLY = GS.P.y + Math.sin(GS.P.aimA) * 8;
+    GS.FLX = GS.P.x + Math.cos(GS.P.aimA) * 8 * GK;
+    GS.FLY = GS.P.y + Math.sin(GS.P.aimA) * 8 * GK;
     const bk = beamK();
-    addLight(GS.FLX, GS.FLY, 620, 1.05 * bk, 1.0 * bk, 0.84 * bk, beamA(), 0.86);
+    addLight(
+      GS.FLX,
+      GS.FLY,
+      620 * GK * 1.3, // the torch: 16 m of street
+      1.05 * bk,
+      1.0 * bk,
+      0.84 * bk,
+      beamA(),
+      0.86
+    );
     addLight(
       GS.P.x,
       GS.P.y,
-      260,
+      260 * GK,
       GS.ev === 'fog' || GS.ev === 'blackout' ? 0.46 : 0.32,
       GS.ev === 'fog' || GS.ev === 'blackout' ? 0.45 : 0.31,
       GS.ev === 'fog' || GS.ev === 'blackout' ? 0.43 : 0.3

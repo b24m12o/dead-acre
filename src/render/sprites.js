@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { SOFT3, clamp } from '../core/util.js';
 import { TS, TSH } from '../core/settings.js';
@@ -188,8 +189,8 @@ export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
     const dx = x - GS.FLX,
       dy = y - GS.FLY,
       d = Math.hypot(dx, dy) || 1;
-    if (d > 760 || SHH < 1) return;
-    const off = SHH * (0.55 + d / 150);
+    if (d > 760 * GK || SHH < 1) return;
+    const off = SHH * (0.55 + d / (150 * GK)); // (the torch reaches as far as the people are big: core/scale.js)
     GS.SHMODE = 3;
     for (const k of SOFT3)
       quad(
