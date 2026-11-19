@@ -30,12 +30,12 @@ export const SPECIAL = {
   blind: { name: 'Listener', tip: 'Blind · it runs at whatever makes a noise: a shot, running feet, a clock' },
 };
 export const BLIND = {
-  feet: 170, // it hears you moving within this many px
-  roll: 300, // and a roll from further
-  still: 55, // moving slower than this (px/s) is silent
+feet: 170 * GK, // it hears you moving within this many px
+  roll: 300 * GK, // and a roll from further
+  still: 55 * GK, // moving slower than this (px/s) is silent
   hot: 6, // seconds it stays on a noise
   listen: 1.6, // seconds it stands at the spot, head up, before it loses interest
-  touch: 64, // within this of you it has you, noise or no noise
+  touch: 64 * GK, // within this of you it has you, noise or no noise
   run: 2.35, // its run, in walker speeds
   walk: 0.3,
 };
@@ -94,7 +94,7 @@ export function specialTip(e) {
 const wallAt = (x, y) => !!grid[Math.floor(y / TILE) * MW + Math.floor(x / TILE)];
 // a wall within a step of it: only then does it go up and over (on open street it runs like any other)
 const nearWall = e => {
-  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (wallAt(e.x + i * 30, e.y + j * 30)) return true;
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (wallAt(e.x + i * 30 * GK, e.y + j * 30 * GK)) return true;
   return false;
 };
 // away from you along the streets: the neighbouring tile furthest from you by the path, not a straight line into a wall
@@ -134,9 +134,9 @@ function kin(e, dt) {
     k = 0.45;
   }
   const kl = Math.hypot(e.kx || 0, e.ky || 0);
-  if (kl > 900) {
-    e.kx *= 900 / kl;
-    e.ky *= 900 / kl;
+  if (kl > 900 * GK) {
+    e.kx *= (900 * GK) / kl;
+    e.ky *= (900 * GK) / kl;
   }
   e.x += (e.kx || 0) * dt;
   e.y += (e.ky || 0) * dt;
@@ -387,7 +387,7 @@ function dragTick(e, dt, p) {
     e.x += e.vx * dt;
     e.y += e.vy * dt;
     collide(e);
-    if (dist < e.r + (b.r || 14) + 6) {
+    if (dist < e.r + (b.r || 14 * GK) + 6 * GK) {
       b.hp = 0; // down: buddyHurt lays them out next tick
       e.carry = b;
       e.carryT = 0;
@@ -413,8 +413,8 @@ function dragTick(e, dt, p) {
   e.x += e.vx * dt;
   e.y += e.vy * dt;
   collide(e);
-  b.x = e.x - ux * 22;
-  b.y = e.y - uy * 22;
+  b.x = e.x - ux * 22 * GK;
+  b.y = e.y - uy * 22 * GK;
   if (Math.random() < dt * 6)
     part({
       k: 2,
@@ -431,7 +431,7 @@ function dragTick(e, dt, p) {
       vr: 0,
       c: [0.35, 0.3, 0.26],
     });
-  if (al > 760 || e.carryT > 13) {
+  if (al > 760 * GK || e.carryT > 13) {
     b.down = Math.min(b.down || 1, 0.02); // out of reach: they're gone
     b.gone = true;
     e.carry = null;
@@ -451,15 +451,15 @@ export function dragPlayer(e, dt, p) {
   const ax = e.x - p.x,
     ay = e.y - p.y,
     al = Math.hypot(ax, ay) || 1;
-  if (GS.state !== 'play' || al > e.r + p.r + 20) {
+  if (GS.state !== 'play' || al > e.r + p.r + 20 * GK) {
     releaseGrab(0.3);
     return;
   } // a wall between you, or a blast that threw it off: the grip is gone
-  e.x += (ax / al) * 26 * dt;
-  e.y += (ay / al) * 26 * dt;
+  e.x += (ax / al) * 26 * GK * dt;
+  e.y += (ay / al) * 26 * GK * dt;
   collide(e);
-  p.x += (ax / al) * 26 * dt;
-  p.y += (ay / al) * 26 * dt;
+  p.x += (ax / al) * 26 * GK * dt;
+  p.y += (ay / al) * 26 * GK * dt;
   e.gT = (e.gT || 0) - dt;
   if (e.gT <= 0) {
     e.gT = 0.6;
@@ -468,7 +468,7 @@ export function dragPlayer(e, dt, p) {
 }
 // a spore's death: the cloud
 export function sporeBurst(e) {
-  GS.spores.push({ x: e.x, y: e.y, r: 120, t: 7, max: 7 });
+  GS.spores.push({ x: e.x, y: e.y, r: 120 * GK, t: 7, max: 7 });
   sfx.groan(e.x, e.y);
   for (let i = 0; i < 26; i++) {
     const a = rand(0, TAU),

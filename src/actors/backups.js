@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { bandaged } from '../game/routes.js';
-import { GK } from '../core/scale.js';
+import { GK, PEOPLE } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, d2, damp, lerp, pick, rand } from '../core/util.js';
 import { TS } from '../core/settings.js';
@@ -94,11 +94,20 @@ export function budPerk(s, dt, pd) {
       s.scT = 28;
       const ts = ammoTypes().sort((a, b) => ammoFill(a) - ammoFill(b));
       if (GS.P.hp < S.maxHp * 0.6 && !TW('nomeds') && Math.random() < 0.35) {
-        GS.pickups.push({ k: 'hp', v: 20, x: s.x, y: s.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
+        GS.pickups.push({ k: 'hp', v: 20, x: s.x, y: s.y, vx: rand(-60, 60) * GK, vy: rand(-60, 60) * GK, t: 0 });
         floatText(s.x, s.y - 40, `${s.nm} found a medkit`, '#8ef0b8', 14);
         bark(s, 'found');
       } else if (ts.length && ammoFill(ts[0]) < 0.95) {
-        GS.pickups.push({ k: 'ammo', at: ts[0], v: 1, x: s.x, y: s.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0 });
+        GS.pickups.push({
+          k: 'ammo',
+          at: ts[0],
+          v: 1,
+          x: s.x,
+          y: s.y,
+          vx: rand(-60, 60) * GK,
+          vy: rand(-60, 60) * GK,
+          t: 0,
+        });
         floatText(s.x, s.y - 40, `${s.nm} found rounds`, '#ffd08a', 14);
         bark(s, 'found');
       } else s.scT = 6;
@@ -132,7 +141,7 @@ export function buddyShoot(s, dt, slow) {
   const ready = !(s.rl > 0);
   const mm = s.tr === 'marksman',
     cop = s.tr === 'cop',
-    rng = mm ? 600 : cop ? 300 : 420;
+    rng = (mm ? 600 : cop ? 300 : 420) * GK;
   let tgt = null,
     bd = rng * rng * (mm ? 4 : 1);
   query(s.x, s.y, rng, e => {
@@ -176,10 +185,10 @@ export function buddyShoot(s, dt, slow) {
     if (mm) {
       s.cd = S.buddyCd * 2;
       GS.pbullets.push({
-        x: s.x + c * 34,
-        y: s.y + sn * 34,
-        vx: c * 1500,
-        vy: sn * 1500,
+        x: s.x + c * 34 * GK,
+        y: s.y + sn * 34 * GK,
+        vx: c * 1500 * GK,
+        vy: sn * 1500 * GK,
         life: 0.5,
         dmg: gd() * 1.6 * (s.dk || 1),
         pierce: 1,
@@ -188,8 +197,8 @@ export function buddyShoot(s, dt, slow) {
         small: true,
       });
       GS.flashes.push({
-        x: s.x + c * 40,
-        y: s.y + sn * 40,
+        x: s.x + c * 40 * GK,
+        y: s.y + sn * 40 * GK,
         rot: s.aim,
         life: 0.06,
         max: 0.06,
@@ -201,10 +210,10 @@ export function buddyShoot(s, dt, slow) {
       s.cd = S.buddyCd * 1.3;
       for (let k = 0; k < 4; k++) {
         const a = s.aim + rand(-0.16, 0.16),
-          v = rand(900, 1050);
+          v = rand(900, 1050) * GK;
         GS.pbullets.push({
-          x: s.x + c * 32,
-          y: s.y + sn * 32,
+          x: s.x + c * 32 * GK,
+          y: s.y + sn * 32 * GK,
           vx: Math.cos(a) * v,
           vy: Math.sin(a) * v,
           life: 0.3,
@@ -217,8 +226,8 @@ export function buddyShoot(s, dt, slow) {
         });
       }
       GS.flashes.push({
-        x: s.x + c * 36,
-        y: s.y + sn * 36,
+        x: s.x + c * 36 * GK,
+        y: s.y + sn * 36 * GK,
         rot: s.aim,
         life: 0.06,
         max: 0.06,
@@ -236,10 +245,10 @@ export function buddyShoot(s, dt, slow) {
     if (ready && s.cd <= 0 && !mm && !cop) {
       s.cd = S.buddyCd * 0.87;
       GS.pbullets.push({
-        x: s.x + Math.cos(s.aim) * 30,
-        y: s.y + Math.sin(s.aim) * 30,
-        vx: Math.cos(s.aim) * 1000,
-        vy: Math.sin(s.aim) * 1000,
+        x: s.x + Math.cos(s.aim) * 30 * GK,
+        y: s.y + Math.sin(s.aim) * 30 * GK,
+        vx: Math.cos(s.aim) * 1000 * GK,
+        vy: Math.sin(s.aim) * 1000 * GK,
         life: 0.6,
         dmg: gd() * 0.6,
         pierce: 0,
@@ -250,8 +259,8 @@ export function buddyShoot(s, dt, slow) {
       s.recoil = 4;
       if (thr('bnoise', 400)) makeNoise(s.x, s.y, 480, true);
       GS.flashes.push({
-        x: s.x + Math.cos(s.aim) * 34,
-        y: s.y + Math.sin(s.aim) * 34,
+        x: s.x + Math.cos(s.aim) * 34 * GK,
+        y: s.y + Math.sin(s.aim) * 34 * GK,
         rot: s.aim,
         life: 0.05,
         max: 0.05,
@@ -271,7 +280,7 @@ export function budLook(s, p, dt, spd) {
   const alert = GS.nightLive && !GS.nightDone;
   s.gazeT = (s.gazeT ?? rand(0.3, 1.5)) - dt;
   let rate = 3;
-  if (spd > 70) {
+  if (spd > 70 * GK) {
     if (s.gazeT <= 0) {
       s.gazeT = rand(0.8, 2.2);
       s.walkGl = Math.random() < (alert ? 0.35 : 0.2) ? rand(-1.1, 1.1) : 0;
@@ -391,7 +400,7 @@ export function buddyHurt(s, p, dt) {
     return true;
   }
   if (Math.random() < dt * 2) bleed(s.x, s.y, 10, rand(-1, 1), rand(-1, 1), 1, BLOOD, 40);
-  s.recoil = Math.max(0, (s.recoil || 0) - dt * 40);
+  s.recoil = Math.max(0, (s.recoil || 0) - dt * 40 * GK);
   s.aimA = s.aim;
   s.bodyA += angDiff(s.bodyA, s.aim) * damp(6, dt);
   buddyShoot(s, dt, 2);
@@ -404,17 +413,17 @@ export function buddySlot(p, s, i, taken) {
   const pref = p.formA + Math.PI + (i - (GS.buddies.length - 1) / 2) * 0.95;
   let best = null,
     bs = 1e9;
-  for (const R of [84, 64, 48])
+  for (const R of [84 * GK, 64 * GK, 48 * GK])
     for (let k = 0; k < 16; k++) {
       const a = pref + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (TAU / 16),
         x = p.x + Math.cos(a) * R,
         y = p.y + Math.sin(a) * R;
       if (
         blockPt(x, y) ||
-        blockPt(x + 13, y) ||
-        blockPt(x - 13, y) ||
-        blockPt(x, y + 13) ||
-        blockPt(x, y - 13) ||
+        blockPt(x + 13 * GK, y) ||
+        blockPt(x - 13 * GK, y) ||
+        blockPt(x, y + 13 * GK) ||
+        blockPt(x, y - 13 * GK) ||
         !los(p.x, p.y, x, y)
       )
         continue;
@@ -422,7 +431,7 @@ export function buddySlot(p, s, i, taken) {
       if (s.avoid && GS.time < s.avoid.t && d2(s.avoid.x, s.avoid.y, x, y) < (30 * GK) ** 2) continue;
       const sc =
         Math.abs(angDiff(pref, a)) * 40 +
-        (84 - R) * 0.6 +
+        (84 * GK - R) * 0.6 +
         Math.hypot(s.x - x, s.y - y) * (pspdOf(p) > 60 * GK ? 0.15 : 0.4) +
         (los(s.x, s.y, x, y) ? 0 : 60);
       if (sc < bs) {
@@ -451,7 +460,7 @@ export function budTag(s, x, y) {
 export function budBoard(s, dt) {
   // to the side door; aboard, they are out of the fight and fly out with you
   const e = GS.evac,
-    gx = e.x - 34,
+    gx = e.x - 34 * GK,
     gy = e.y + 8,
     dx = gx - s.x,
     dy = gy - s.y,
@@ -497,24 +506,28 @@ export function budBoard(s, dt) {
   } // round the walls by your own path: you are at the chopper
   const ox = s.x,
     oy = s.y,
-    v = Math.min(280, dd * 6);
+    v = Math.min(280 * GK, dd * 6);
   s.x += ux * v * dt;
   s.y += uy * v * dt;
   collide(s);
   const spd = Math.hypot(s.x - ox, s.y - oy) / Math.max(dt, 1e-4);
-  if (spd > 20) s.moveA += angDiff(s.moveA, Math.atan2(s.y - oy, s.x - ox)) * damp(10, dt);
-  s.strideAmp = lerp(s.strideAmp, Math.min(1, spd / 250), damp(10, dt));
-  s.stride += (spd * dt) / 76;
+  if (spd > 20 * GK) s.moveA += angDiff(s.moveA, Math.atan2(s.y - oy, s.x - ox)) * damp(10, dt);
+  s.strideAmp = lerp(s.strideAmp, Math.min(1, spd / (250 * GK)), damp(10, dt));
+  s.stride += (spd * dt) / (76 * GK);
   s.aim = s.aimA = s.moveA;
   s.bodyA += angDiff(s.bodyA, s.moveA) * damp(8, dt);
-  s.recoil = Math.max(0, (s.recoil || 0) - dt * 40);
+  s.recoil = Math.max(0, (s.recoil || 0) - dt * 40 * GK);
   return true;
 }
 // an open spot beside you, in plain sight of you and on ground that walks to you: where a survivor who joins you
 // stands, never inside a barricade, a fence or a wall you happen to be next to
 export function spotNear(p, r0 = 40, r1 = 90) {
   const open = (x, y) =>
-    !blockPt(x, y) && !blockPt(x + 14, y) && !blockPt(x - 14, y) && !blockPt(x, y + 14) && !blockPt(x, y - 14);
+    !blockPt(x, y) &&
+    !blockPt(x + 14 * GK, y) &&
+    !blockPt(x - 14 * GK, y) &&
+    !blockPt(x, y + 14 * GK) &&
+    !blockPt(x, y - 14 * GK);
   for (let k = 0; k < 40; k++) {
     const a = rand(0, TAU),
       r = rand(r0, r1 + k * 4),
@@ -530,7 +543,13 @@ export function spotNear(p, r0 = 40, r1 = 90) {
 export function regroupSpot(p, i) {
   const back = p.formA + Math.PI,
     open = (x, y) => {
-      if (blockPt(x, y) || blockPt(x + 16, y) || blockPt(x - 16, y) || blockPt(x, y + 16) || blockPt(x, y - 16))
+      if (
+        blockPt(x, y) ||
+        blockPt(x + 16 * GK, y) ||
+        blockPt(x - 16 * GK, y) ||
+        blockPt(x, y + 16 * GK) ||
+        blockPt(x, y - 16 * GK)
+      )
         return false;
       let hot = false;
       query(x, y, 70 * GK, e => {
@@ -546,7 +565,7 @@ export function regroupSpot(p, i) {
         Math.abs(c) > 0.01 ? viewW / 2 / Math.abs(c) : 1e9,
         Math.abs(sn) > 0.01 ? viewH / 2 / Math.abs(sn) : 1e9
       ),
-      r = edge + rand(40, 110),
+      r = edge + rand(40, 110) * GK,
       x = p.x + c * r,
       y = p.y + sn * r;
     if (x < 2 * TILE || y < 2 * TILE || x > WW - 2 * TILE || y > WH - 2 * TILE || !open(x, y)) continue;
@@ -555,7 +574,7 @@ export function regroupSpot(p, i) {
   }
   for (let k = 0; k < 16; k++) {
     const a = back + rand(-0.8, 0.8),
-      r = rand(70, 130),
+      r = rand(70, 130) * GK,
       x = p.x + Math.cos(a) * r,
       y = p.y + Math.sin(a) * r;
     if (open(x, y) && los(p.x, p.y, x, y)) return [x, y];
@@ -565,13 +584,16 @@ export function regroupSpot(p, i) {
 // an open, reachable spot minD to maxD from you. away: also out of sight when it is chosen, so it never pops up
 // on screen. A spot that would fall off the map is tried again elsewhere rather than pushed back in (which could
 // land it right next to you); if no throw lands, the best open tile in range is taken from a full scan
+// (minD and maxD at the old size of things: core/scale.js)
 export function freeSpot(minD, maxD, away = false) {
+  minD *= GK;
+  maxD *= GK;
   const open = (tx, ty) => {
       for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (isWall(tx + i, ty + j)) return false;
       return flow[ty * MW + tx] < 65535;
     },
     seen = (x, y) =>
-      Math.abs(x - cam.x - viewW / 2) < viewW / 2 + 90 && Math.abs(y - cam.y - viewH / 2) < viewH / 2 + 90,
+      Math.abs(x - cam.x - viewW / 2) < viewW / 2 + 90 * GK && Math.abs(y - cam.y - viewH / 2) < viewH / 2 + 90 * GK,
     lo = 4 * TILE;
   for (let k = 0; k < 120; k++) {
     const a = rand(0, TAU),
@@ -600,7 +622,7 @@ export function freeSpot(minD, maxD, away = false) {
         best = [cx, cy];
       }
     }
-  return best || [GS.P.x + rand(-120, 120), GS.P.y + rand(-120, 120)];
+  return best || [GS.P.x + rand(-120, 120) * GK, GS.P.y + rand(-120, 120) * GK];
 }
 export const NPC_TINTS = [
   [1, 1, 1],
@@ -615,7 +637,7 @@ export function makeSurvivor(x, y) {
     y,
     vx: 0,
     vy: 0,
-    r: 14,
+    r: 14 * PEOPLE,
     hp: mh,
     max: mh,
     moveA: 0,
