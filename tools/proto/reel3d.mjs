@@ -1,7 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // A test tool, not part of the game: a captioned reel of the 3D zombies, one thing at a time, close up on open ground,
 // filmed through the test build's own renderer (deaths in slow motion). --2d films the same reel with the pictures.
-//   node tools/proto/reel3d.mjs [out.mp4] [--fps 12] [--2d]
+// --types films each kind of the dead instead, coming on and shot down.
+//   node tools/proto/reel3d.mjs [out.mp4] [--fps 12] [--2d] [--types]
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -18,7 +19,7 @@ rmSync(DIR, { recursive: true, force: true });
 mkdirSync(DIR, { recursive: true });
 // each segment: caption, seconds, speed (1 real time, 0.5 slow), zoom, how many zombies and where (an arc this far off
 // in front of you), what to do at the start, and each step (i: the frame)
-const SEGS = [
+let SEGS = [
   { cap: 'Walking in', secs: 4, n: 5, r: 210, zoom: 3 },
   {
     cap: 'Shot, not killed: a hit shoves it the way the round goes',
@@ -45,6 +46,25 @@ const SEGS = [
   { cap: 'Legs shot off: it comes on, on its hands', secs: 4, n: 1, r: 120, zoom: 3.6, act: 'legs' },
   { cap: 'A crowd', secs: 5, n: 26, r: 260, zoom: 2.2, fire: true, spread: true },
 ];
+const T = (cap, ty, set, more) => ({ cap, ty, set, secs: 4.5, n: 3, r: 230, zoom: 3.2, fire: true, late: 2, ...more });
+if (process.argv.includes('--types'))
+  SEGS = [
+    T('Ordinary', 'skitter', ''),
+    T('Runner', 'skitter', "e.trait = 'runner';"),
+    T('Screamer', 'flower', ''),
+    T('Spitter', 'wasp', ''),
+    T('Armored', 'skitter', "e.trait = 'armored';"),
+    T('Riot shield', 'skitter', 'e.shield = { hp: 6, max: 6 };'),
+    T('Bloater elite', 'skitter', "e.trait = 'bloater'; e.sc = 1.12;"),
+    T('Spore carrier', 'skitter', "e.kind = 'spore';"),
+    T('Dragger', 'skitter', "e.kind = 'drag';"),
+    T('Climber', 'skitter', "e.kind = 'climb';"),
+    T('Listener (blind)', 'skitter', "e.kind = 'blind';"),
+    T('Brute', 'beetle', '', { n: 1, secs: 6, late: 3 }),
+    T('Bloater', 'hopper', '', { n: 2, secs: 5 }),
+    T('Dogs', 'hound', '', { r: 330, zoom: 2.8 }),
+    T('Egg sac, hatching', 'egg', 'e.hatch = 2.2;', { n: 1, r: 110, fire: false, free: true, secs: 4 }),
+  ];
 const b = await browser();
 try {
   const { pg, errs, ev } = await openGame(b, { noFrames: true });
@@ -66,7 +86,8 @@ try {
       window.__mine = [];
       for (let i = 0; i < S.n; i++) {
         const a = S.spread ? -Math.PI / 2 + (Math.random() - 0.5) * 2.2 : -Math.PI / 2 + (i - (S.n - 1) / 2) * 0.45, r = S.r + (S.spread ? Math.random() * 120 : (i % 2) * 25);
-        const e = makeEnemy('skitter', P.x + Math.cos(a) * r, P.y + Math.sin(a) * r); e.emerge = 1; e.trait = null; e.elite = false; e.shield = null; e.kind = null; e.aw = 9;
+        const e = makeEnemy(S.ty || 'skitter', P.x + Math.cos(a) * r, P.y + Math.sin(a) * r); e.emerge = 1; e.trait = null; e.elite = false; e.shield = null; e.kind = null; e.aw = 9;
+        if (S.set) new Function('e', S.set)(e);
         e.a = Math.atan2(P.y - e.y, P.x - e.x); if (S.tough) e.hp = e.maxHp = 99999; GS.enemies.push(e); __mine.push(e);
       }
       window.__seg = S; window.__t = 0; window.__did = false; window.__cx = null; return 1; })()`);
@@ -74,7 +95,7 @@ try {
     for (let k = 0; k < frames; k++) {
       await ev(`(() => { const S = __seg, P = GS.P, dt = 1 / 60, n = Math.round(60 / ${FPS} * (S.speed || 1));
         for (let j = 0; j < n; j++) {
-          GS.enemies = GS.enemies.filter(e => __mine.includes(e)); GS.queue.length = 0; P.hp = 999; P.x = __spot[0]; P.y = __spot[1]; P.vx = P.vy = 0;
+          if (!S.free) GS.enemies = GS.enemies.filter(e => __mine.includes(e)); else for (const o of GS.enemies) if (!__mine.includes(o)) __mine.push(o); GS.queue.length = 0; P.hp = 999; P.x = __spot[0]; P.y = __spot[1]; P.vx = P.vy = 0;
           const e = __mine[0];
           if (!__did && e && (S.kill || S.act) && __t > (S.kill ? 0.35 : 0.8)) { __did = true;
             if (S.kill === 'slump' || S.kill === 'head') { killEnemy(e, 5, 'bolt', 0, 1, false); const u = Math.atan2(e.y - P.y, e.x - P.x); e.rvx = Math.cos(u) * 190; e.rvy = Math.sin(u) * 190; if (S.kill === 'head') { e.headless = true; gib(e.x, e.y - 4, R.g_head, [1, 1, 1], [0.4, 0.03, 0.02], 240, 0, -1); } }
@@ -84,7 +105,7 @@ try {
             if (S.act === 'legs') { e.crawl = true; e.sup = false; e.down = 0; e.fallA = e.a; e.lyG = 0; e.cfall = 0.32; }
           }
           if (S.fire) { const near = GS.enemies.filter(o => !o.dead && o.dying === undefined).sort((a, b) => Math.hypot(a.x - P.x, a.y - P.y) - Math.hypot(b.x - P.x, b.y - P.y))[0];
-            if (near) P.aimA = Math.atan2(near.y - P.y, near.x - P.x); mouse.down = !!near && Math.hypot(near.x - P.x, near.y - P.y) < 170 && (Math.floor(__t * 8) % 3) === 0; }
+            if (near) P.aimA = Math.atan2(near.y - P.y, near.x - P.x); mouse.down = !!near && __t > (S.late || 0) && Math.hypot(near.x - P.x, near.y - P.y) < 170 && (Math.floor(__t * 8) % 3) === 0; }
           if (S.act === 'trip' || S.act === 'arm' || S.act === 'legs' || S.kill) for (const o of __mine) if (o.dying === undefined && Math.hypot(o.x - P.x, o.y - P.y) < 70) { o.x -= o.vx * dt; o.y -= o.vy * dt; } // kept off you, so you see it
           update(dt); tickWorld(dt); __t += dt;
           if (GS.state === 'levelup') { GS.luOpenT = 0; choose(0); }

@@ -7,6 +7,33 @@
 import { writeFileSync } from 'node:fs';
 import { browser, openGame } from '../../tests/lib/harness.mjs';
 const OUT = process.argv[2] || '/tmp/pose-view.png';
+// --types: one of each kind of the dead, in its own moves (each: label, type, setup)
+const TYPES = [
+  ['ordinary', 'skitter', 'e.vy = -40; e.stride = 0.25;'],
+  ['runner', 'skitter', "e.trait = 'runner'; e.run = true; e.v = 16; e.vy = -200; e.stride = 0.3;"],
+  ['screamer elite, drawing breath', 'skitter', "e.trait = 'screamer'; e.scrIn = 0.2;"],
+  ['screamer, screaming', 'flower', "e.st = 'open'; e.open = 1;"],
+  ['spitter, spitting', 'wasp', 'e.charging = 0.3;'],
+  ['armored', 'skitter', "e.trait = 'armored'; e.vy = -40; e.stride = 0.6;"],
+  ['riot shield', 'skitter', 'e.shield = { hp: 1, max: 1 }; e.vy = -30; e.stride = 0.1;'],
+  ['bloater elite', 'skitter', "e.trait = 'bloater'; e.sc = 1.12; e.vy = -40; e.stride = 0.4;"],
+  ['spore', 'skitter', "e.kind = 'spore'; e.vy = -40; e.stride = 0.7;"],
+  ['dragger', 'skitter', "e.kind = 'drag'; e.vy = -40; e.stride = 0.2;"],
+  ['climber', 'skitter', "e.kind = 'climb'; e.vy = -60; e.stride = 0.3;"],
+  ['listener', 'skitter', "e.kind = 'blind';"],
+  ['brute', 'beetle', 'e.vy = -50; e.stride = 0.3;'],
+  ['brute rearing', 'beetle', "e.st = 'rear'; e.stT = 0.1;"],
+  ['brute charging', 'beetle', "e.st = 'charge'; e.vy = -300; e.stride = 0.5;"],
+  ['bloater', 'hopper', 'e.vy = -30; e.stride = 0.4;'],
+  ['bloater swelling', 'hopper', "e.st = 'swell'; e.swell = 0.8;"],
+  ['half a body', 'mini', 'e.half = true; e.lyG = 1;'],
+  ['dog', 'hound', 'e.vx = 0; e.vy = -220; e.stride = 0.2;'],
+  ['dog, later in its stride', 'hound', 'e.vx = 0; e.vy = -220; e.stride = 0.6;'],
+  ['dog crouching', 'hound', "e.st = 'crouch'; e.stT = 0.2;"],
+  ['dog leaping', 'hound', "e.st = 'leap'; e.stT = 0.15;"],
+  ['dog dead', 'hound', 'e.dying = 1; e.keep = 99;'],
+  ['egg sac', 'egg', 'e.hatch = 0.5;'],
+];
 const ONLY = process.argv.includes('--rise')
   ? 'rise'
   : process.argv.includes('--fall')
@@ -39,7 +66,7 @@ const STATES0 = [
   ['half', 'e.half = true; e.lyG = 1;'],
   ['lying in wait', "e.lurk = 'lie'; e.down = 1.55 - 0.9; e.fallA = Math.PI / 2;"],
 ];
-const STATES = ['--rise', '--fall', '--death'].some(f => process.argv.includes(f)) ? [] : STATES0;
+const STATES = ['--rise', '--fall', '--death', '--types'].some(f => process.argv.includes(f)) ? [] : STATES0;
 if (ONLY === 'rise') {
   STATES.length = 0;
   for (let el = 0.4; el <= 1.56; el += 0.1)
@@ -71,6 +98,7 @@ else if (ONLY === 'death') {
   ])
     STATES.push([nm, `e.flT = 0.15; [e.fdx, e.fdy] = [${d}]; e.flS = 1;`]);
 }
+if (process.argv.includes('--types')) for (const [nm, ty, set] of TYPES) STATES.push([nm, set, ty]);
 if (ONLY) STATES.splice(0, ONLY === 'fall' ? STATES.length - 20 : 0);
 const b = await browser();
 try {
@@ -78,11 +106,11 @@ try {
   for (let i = 0; i < 40 && !(await ev('fig3dOn()')); i++) await pg.waitForTimeout(250);
   const png = await ev(`(() => {
     initAudio(); GS.meta.tutDone = true; begin(); GS.P.x = 99999; // you far away: nobody reaches for you
-    const W = 200, H = 200, cv = document.createElement('canvas'); cv.width = W * 2 * ${STATES.length}; cv.height = H;
+    const W = 200, H = 200, cv = document.createElement('canvas'); PER = 6, ROWS = Math.ceil(${STATES.length} / PER); cv.width = W * 2 * Math.min(PER, ${STATES.length}); cv.height = H * ROWS; // in rows: a canvas only goes 8192 wide
     const g2 = cv.getContext('webgl2'); if (!g2) return 'no webgl2';
     // the game's own vertex shader, with its camera swapped for this one
     const vs = VS(false).replace(/vec2 g;[\\s\\S]*?gl_Position=vec4\\(s\\.x\\*2\\.0-1\\.0,1\\.0-s\\.y\\*2\\.0,clamp\\(0\\.5-W\\.z\\/160\\.0,-1\\.0,1\\.0\\),1\\.0\\);/,
-      'vec3 q=uV*(W-uC); gl_Position=vec4(q.x/34.0,q.y/34.0,-q.z/200.0,1.0);').replace('uniform vec4 uLight;', 'uniform vec4 uLight; uniform mat3 uV; uniform vec3 uC;');
+      'vec3 q=uV*(W-uC); gl_Position=vec4(q.x/46.0,q.y/46.0,-q.z/300.0,1.0);').replace('uniform vec4 uLight;', 'uniform vec4 uLight; uniform mat3 uV; uniform vec3 uC;');
     if (vs === VS(false)) return 'the camera did not swap';
     const fs = '#version 300 es\\nprecision highp float; in vec3 vC; in vec3 vN; in float vZ; out vec4 o; void main(){ vec3 n=normalize(vN); float l=0.35+0.65*max(dot(n,normalize(vec3(-0.3,0.5,0.8))),0.0); o=vec4(vC*l*(vZ<0.0?0.4:1.0),1.0); }';
     const prog = g2.createProgram();
@@ -91,15 +119,19 @@ try {
     g2.useProgram(prog);
     // the mesh, from the game's copy of the file
     const b64 = atob(window.__DA_DATA.mesh), M = new Uint8Array(b64.length).map((_, i) => b64.charCodeAt(i)).buffer;
-    const dv = new DataView(M), hl = dv.getUint32(0, true), head = JSON.parse(new TextDecoder().decode(new Uint8Array(M, 4, hl))), m = head.models.zombie, base = 4 + hl;
-    const vao = g2.createVertexArray(); g2.bindVertexArray(vao);
-    const vb = g2.createBuffer(); g2.bindBuffer(g2.ARRAY_BUFFER, vb); g2.bufferData(g2.ARRAY_BUFFER, new Uint8Array(M, base + m.vo, m.nv * 16), g2.STATIC_DRAW);
-    g2.enableVertexAttribArray(0); g2.vertexAttribPointer(0, 3, g2.SHORT, false, 16, 0);
-    g2.enableVertexAttribArray(1); g2.vertexAttribPointer(1, 2, g2.BYTE, true, 16, 6);
-    g2.enableVertexAttribArray(2); g2.vertexAttribIPointer(2, 2, g2.UNSIGNED_BYTE, 16, 8);
-    g2.enableVertexAttribArray(3); g2.vertexAttribPointer(3, 4, g2.UNSIGNED_BYTE, true, 16, 10);
-    g2.vertexAttrib1f(4, 0);
-    const ib = g2.createBuffer(); g2.bindBuffer(g2.ELEMENT_ARRAY_BUFFER, ib); g2.bufferData(g2.ELEMENT_ARRAY_BUFFER, new Uint16Array(M, base + m.io, m.ni), g2.STATIC_DRAW);
+    const dv = new DataView(M), hl = dv.getUint32(0, true), head = JSON.parse(new TextDecoder().decode(new Uint8Array(M, 4, hl))), base = 4 + hl;
+    const VA = {};
+    for (const [nm, m] of Object.entries(head.models)) {
+      const vao = g2.createVertexArray(); g2.bindVertexArray(vao);
+      const vb = g2.createBuffer(); g2.bindBuffer(g2.ARRAY_BUFFER, vb); g2.bufferData(g2.ARRAY_BUFFER, new Uint8Array(M, base + m.vo, m.nv * 16), g2.STATIC_DRAW);
+      g2.enableVertexAttribArray(0); g2.vertexAttribPointer(0, 3, g2.SHORT, false, 16, 0);
+      g2.enableVertexAttribArray(1); g2.vertexAttribPointer(1, 2, g2.BYTE, true, 16, 6);
+      g2.enableVertexAttribArray(2); g2.vertexAttribIPointer(2, 2, g2.UNSIGNED_BYTE, 16, 8);
+      g2.enableVertexAttribArray(3); g2.vertexAttribPointer(3, 4, g2.UNSIGNED_BYTE, true, 16, 10);
+      g2.vertexAttrib1f(4, 0);
+      const ib = g2.createBuffer(); g2.bindBuffer(g2.ELEMENT_ARRAY_BUFFER, ib); g2.bufferData(g2.ELEMENT_ARRAY_BUFFER, new Uint16Array(M, base + m.io, m.ni), g2.STATIC_DRAW);
+      VA[nm] = { vao, ni: m.ni };
+    }
     const tex = g2.createTexture(); g2.activeTexture(g2.TEXTURE0); g2.bindTexture(g2.TEXTURE_2D, tex); g2.texStorage2D(g2.TEXTURE_2D, 1, g2.RGBA32F, FIG.tw, 1);
     g2.texParameteri(g2.TEXTURE_2D, g2.TEXTURE_MIN_FILTER, g2.NEAREST); g2.texParameteri(g2.TEXTURE_2D, g2.TEXTURE_MAG_FILTER, g2.NEAREST);
     g2.uniform1i(g2.getUniformLocation(prog, 'uBones'), 0);
@@ -107,17 +139,18 @@ try {
     // side: looking along +x (the zombie faces up the screen, -y); above: straight down. Rows of uV: screen x, screen y, toward the eye
     const side = [0, -1, 0, 0, 0, 1, -1, 0, 0], top = [1, 0, 0, 0, -1, 0, 0, 0, 1];
     const row = new Float32Array(FIG.tw * 4);
-    ${JSON.stringify(STATES)}.forEach(([nm, setup], i) => {
-      const e = makeEnemy('skitter', 1000, 1000); e.emerge = 1; e.trait = null; e.elite = false; e.shield = null; e.kind = null; e.a = -Math.PI / 2; e.vx = e.vy = 0; e.pose = 0;
+    ${JSON.stringify(STATES)}.forEach(([nm, setup, ty], i) => {
+      const e = makeEnemy(ty || 'skitter', 1000, 1000); e.emerge = 1; e.trait = null; e.elite = false; e.shield = null; e.kind = null; e.a = -Math.PI / 2; e.vx = e.vy = 0; e.pose = 0;
       new Function('e', setup)(e);
       if (e.down > 0 || e.dying !== undefined) e.lyG = lyState(e).g;
       POSE(e, row, 0);
       g2.texSubImage2D(g2.TEXTURE_2D, 0, 0, 0, FIG.tw, 1, g2.RGBA, g2.FLOAT, row);
       for (const [j, V] of [[0, side], [1, top]]) {
-        g2.viewport((i * 2 + j) * W, 0, W, H);
+        g2.viewport(((i % PER) * 2 + j) * W, (ROWS - 1 - Math.floor(i / PER)) * H, W, H);
         g2.uniformMatrix3fv(g2.getUniformLocation(prog, 'uV'), true, V);
         g2.uniform3f(g2.getUniformLocation(prog, 'uC'), e.x, e.y - 4, j ? 0 : 22);
-        g2.drawElements(g2.TRIANGLES, m.ni, g2.UNSIGNED_SHORT, 0);
+        const MV = VA[modelOf(e)] || VA.zombie; g2.bindVertexArray(MV.vao);
+        g2.drawElements(g2.TRIANGLES, MV.ni, g2.UNSIGNED_SHORT, 0);
       }
     });
     return cv.toDataURL('image/png');

@@ -11,14 +11,18 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { browser, ROOT } from '../../tests/lib/harness.mjs';
 import { SDF_LIB } from '../../src/render/sdf-lib.js';
-import * as ZOMBIE from './zombie.mjs';
+import { MODELS as PEOPLE } from './humanoid.mjs';
+import { DOG, EGG } from './creatures.mjs';
 
 const arg = (k, d) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : d;
 };
 const LODS = [+arg('--res', 1.0), +arg('--res-lo', 1.7)]; // each model twice: close up, and for a crowd
-const MODELS = { zombie: ZOMBIE };
+const ONLY = arg('--only', null); // just these models (comma-separated), for a quick look
+const MODELS = Object.fromEntries(
+  Object.entries({ ...PEOPLE, dog: DOG, egg: EGG }).filter(([n]) => !ONLY || ONLY.split(',').includes(n))
+);
 const OUT = join(ROOT, 'build/mesh');
 mkdirSync(OUT, { recursive: true });
 
@@ -130,7 +134,7 @@ void main(){ vec3 p=texelFetch(uPos,ivec2(gl_FragCoord.xy),0).xyz;
       return res;
     },
     // a look at the mesh from a few sides, coloured by what each part is
-    preview(posB64, nrmB64, regB64, idxB64, views, size) {
+    preview(posB64, nrmB64, regB64, idxB64, views, size, ctr, ext) {
       const pos = unb64(posB64),
         nrm = unb64(nrmB64),
         reg = unb64(regB64),
@@ -148,14 +152,14 @@ void main(){ vec3 p=texelFetch(uPos,ivec2(gl_FragCoord.xy),0).xyz;
       sh(
         gl.VERTEX_SHADER,
         `#version 300 es
-in vec3 aP; in vec3 aN; in float aR; uniform mat3 uV; uniform float uS; out vec3 vN; out float vR;
-void main(){ vec3 q=uV*(aP-vec3(1.0,0.0,24.0)); gl_Position=vec4(q.x/uS,q.y/uS,-q.z/100.0,1.0); vN=uV*aN; vR=aR; }`
+in vec3 aP; in vec3 aN; in float aR; uniform mat3 uV; uniform float uS; uniform vec3 uC; out vec3 vN; out float vR;
+void main(){ vec3 q=uV*(aP-uC); gl_Position=vec4(q.x/uS,q.y/uS,-q.z/100.0,1.0); vN=uV*aN; vR=aR; }`
       );
       sh(
         gl.FRAGMENT_SHADER,
         `#version 300 es
 precision highp float; in vec3 vN; in float vR; out vec4 o;
-void main(){ int r=int(vR+0.5); vec3 c=r==0?vec3(0.62,0.66,0.52):r==1?vec3(0.2,0.17,0.14):r==2?vec3(0.58,0.62,0.5):r<=4?vec3(0.36,0.44,0.52):r==5?vec3(0.22,0.22,0.26):r==6?vec3(0.36,0.44,0.52):r<=8?vec3(0.62,0.66,0.52):r<=10?vec3(0.22,0.22,0.26):r==11?vec3(0.12,0.1,0.09):vec3(0.3,0.03,0.02);
+void main(){ int r=int(vR+0.5); vec3 c=r==0?vec3(0.62,0.66,0.52):r==1?vec3(0.2,0.17,0.14):r==2?vec3(0.58,0.62,0.5):r<=4?vec3(0.36,0.44,0.52):r==5?vec3(0.22,0.22,0.26):r==6?vec3(0.36,0.44,0.52):r<=8?vec3(0.62,0.66,0.52):r<=10?vec3(0.22,0.22,0.26):r==11?vec3(0.12,0.1,0.09):r==14?vec3(0.2,0.22,0.2):r==15?vec3(0.14,0.15,0.17):r==16?vec3(0.35,0.4,0.45):r==17?vec3(0.5,0.42,0.3):vec3(0.3,0.03,0.02);
   vec3 n=normalize(vN); float l=0.3+0.7*max(dot(n,normalize(vec3(0.4,0.6,0.7))),0.0); o=vec4(c*l,1.0); }`
       );
       gl.linkProgram(p);
@@ -181,7 +185,8 @@ void main(){ int r=int(vR+0.5); vec3 c=r==0?vec3(0.62,0.66,0.52):r==1?vec3(0.2,0
       views.forEach((v, i) => {
         gl.viewport(i * size, 0, size, size);
         gl.uniformMatrix3fv(gl.getUniformLocation(p, 'uV'), false, v);
-        gl.uniform1f(gl.getUniformLocation(p, 'uS'), 30);
+        gl.uniform1f(gl.getUniformLocation(p, 'uS'), ext);
+        gl.uniform3f(gl.getUniformLocation(p, 'uC'), ...ctr);
         gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_INT, 0);
       });
       return cv.toDataURL('image/png');
@@ -312,8 +317,9 @@ try {
   await pg.goto('about:blank');
   await pg.evaluate(`(${PAGE.toString()})()`);
   for (const [name0, M] of Object.entries(MODELS))
-    for (const [li, RES] of LODS.entries()) {
-      const t0 = Date.now(),
+    for (const [li, RES0] of LODS.entries()) {
+      const RES = RES0 * (M.MRES || 1), // the big ones coarser: they're scaled up anyway
+        t0 = Date.now(),
         name = li ? `${name0}@${li}` : name0;
       const [lo, hi] = M.BOUNDS,
         nx = Math.ceil((hi[0] - lo[0]) / RES) + 1,
@@ -367,13 +373,15 @@ try {
         return [R[0][0], R[1][0], R[2][0], R[0][1], R[1][1], R[2][1], R[0][2], R[1][2], R[2][2]];
       };
       const png = await pg.evaluate(
-        ([p, n, r, i, v]) => window.MESH.preview(p, n, r, i, v, 400),
+        ([p, n, r, i, v, c, x]) => window.MESH.preview(p, n, r, i, v, 400, c, x),
         [
           b64f(pos),
           b64f(nrm),
           b64f(reg),
           b64f(new Float32Array(net.idx.buffer)),
           [view(0, 0.1), view(Math.PI / 2, 0.1), view(Math.PI, 0.1), view(0, 1.5), view(0.7, 0.7)],
+          [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2],
+          (Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2) * 1.05,
         ]
       );
       writeFileSync(join(OUT, name + '.png'), Buffer.from(png.split(',')[1], 'base64'));
@@ -412,6 +420,7 @@ if (!process.argv.includes('--preview-only')) {
     if (nv > 65535) throw new Error(m.name + ': too many corners for 16-bit indices');
     head.models[m.name] = {
       bones: m.M.BONES,
+      scale: m.M.SCALE || 1,
       nv,
       ni: m.idx.length,
       vo: off,
