@@ -6,6 +6,7 @@
 export const PER_M = 20, // units to the metre
   PEOPLE = 0.3, // the hero, survivors, the ordinary dead, the dogs: their pictures against life size
   BIG = 0.5, // the big dead
+  BRUTE = 0.68, // and the brute: a hulk 2.6 m tall, over the people
   BARREL = 0.45, // an oil drum: 0.6 m across
   MANHOLE = 0.6; // a manhole lid: 0.7 m
 // the street's things against their pictures, by what they are across in life: a hydrant 0.6 m with its nozzles, a
@@ -25,6 +26,7 @@ export const PROP_K = {
 // how much smaller than its picture this one is drawn
 export function figK(e) {
   if (e.type === 'queen') return 1;
-  if (e.type === 'beetle' || e.type === 'hopper' || e.type === 'egg' || e.kind === 'drag') return BIG;
+  if (e.type === 'beetle') return BRUTE;
+  if (e.type === 'hopper' || e.type === 'egg' || e.kind === 'drag') return BIG;
   return PEOPLE;
 }

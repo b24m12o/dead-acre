@@ -715,7 +715,7 @@ function poseZombie(e, D, o) {
       MM.scale *
       FIGK *
       (e.bs || 1) *
-      (name === 'brute' || name === 'hopper' || name === 'drag' ? BIGK : 1),
+      (name === 'brute' ? BIGK * 1.35 : name === 'hopper' || name === 'drag' ? BIGK : 1),
     k = [bs * (0.5 + 0.5 * (e.bw || 1)), bs], // its size (across, up): its kind's, its own height and build
     // its build against the ordinary zombie's: across the shoulders (kw) and hips (kp), its arms' reach (ka), its legs
     // (kl), its height (kh)
