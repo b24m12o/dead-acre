@@ -38,7 +38,7 @@ export function ragKick(e, ux, uy, imp, pop) {
   // throw a body
   e.rvx = (e.rvx || 0) + ux * imp;
   e.rvy = (e.rvy || 0) + uy * imp;
-  e.rw = (e.rw || 0) + (rand(-1, 1) * imp) / 80;
+  e.rw = (e.rw || 0) + (rand(-1, 1) * imp) / (80 * GK);
   if (pop) e.vz = Math.max(e.vz || 0, imp * 0.55);
   if (e.limbs)
     for (const L of e.limbs) {
@@ -47,8 +47,8 @@ export function ragKick(e, ux, uy, imp, pop) {
     }
 }
 export const KNOCK = {
-  v: 200, // a body moving faster than this (px/s) knocks down what it hits: buckshot up close, a heavy rifle, a blast
-  reach: 30,
+  v: 200 * GK, // a body moving faster than this (px/s) knocks down what it hits: buckshot up close, a heavy rifle, a blast
+  reach: 30 * GK,
   max: 2, // how many one body can bowl over
   time: 1.1, // only in the moment after the kill
 };
@@ -63,7 +63,7 @@ function corpsePhys(e, dt) {
   }
   if (e.vz || e.z > 0) {
     e.vz = e.vz || 0;
-    e.vz -= 900 * dt;
+    e.vz -= 900 * GK * dt;
     e.z = (e.z || 0) + e.vz * dt;
     if (e.z <= 0) {
       e.z = 0;
@@ -81,7 +81,7 @@ function corpsePhys(e, dt) {
   e.rw *= Math.exp(-(air ? 0.5 : 4) * dt);
   const nx = e.x + e.rvx * dt,
     ny = e.y + e.rvy * dt,
-    lb = LYB[e.type] ? (e.type === 'beetle' ? 1.9 : 1) * 50 : 0,
+    lb = LYB[e.type] ? (e.type === 'beetle' ? 1.9 : 1) * 50 * GK : 0,
     lc = Math.cos(e.fallA ?? 0) * lb,
     ls = Math.sin(e.fallA ?? 0) * lb;
   if ((solidPt(nx, ny) || (lb && (solidPt(nx + lc, ny + ls) || solidPt(nx - lc, ny - ls)))) && !solidPt(e.x, e.y)) {
@@ -91,13 +91,13 @@ function corpsePhys(e, dt) {
       sp = Math.hypot(e.rvx, e.rvy);
     if (bx || !by) e.rvx *= -0.3;
     if (by || !bx) e.rvy *= -0.3;
-    e.rw += rand(-2, 2) * Math.min(1, sp / 200);
-    if (sp > 90) {
+    e.rw += rand(-2, 2) * Math.min(1, sp / (200 * GK));
+    if (sp > 90 * GK) {
       dust(nx, ny, 2, 30, 0.6, 0.5);
       if (HUMAN[e.type]) {
         bleed(nx, ny, 10, -e.rvx, -e.rvy, 4, bloodOf(e), 120);
       }
-      if (sp > 200 && thr('thud', 60)) {
+      if (sp > 200 * GK && thr('thud', 60)) {
         playS('dry', 0.12, 0.45, 0, 0);
         shake(0.04);
       }
@@ -113,12 +113,12 @@ function corpsePhys(e, dt) {
     HUMAN[e.type] &&
     (e.bowl || 0) < KNOCK.max &&
     e.dying < KNOCK.time &&
-    e.z < 30 &&
+    e.z < 30 * GK &&
     e.rvx * e.rvx + e.rvy * e.rvy > KNOCK.v * KNOCK.v
   )
     query(e.x, e.y, KNOCK.reach, o => {
       if ((e.bowl || 0) >= KNOCK.max || o.dead || o.emerge < 1) return;
-      if (d2(o.x, o.y, e.x, e.y) > (KNOCK.reach + (o.r || 14)) ** 2) return;
+      if (d2(o.x, o.y, e.x, e.y) > (KNOCK.reach + (o.r || 14 * GK)) ** 2) return;
       if (!tripOver(o, Math.atan2(e.rvy, e.rvx))) return;
       e.bowl = (e.bowl || 0) + 1;
       o.kx = (o.kx || 0) + e.rvx * 0.45;
@@ -143,7 +143,7 @@ function corpsePhys(e, dt) {
     const dd = d2(e.x, e.y, GS.P.x, GS.P.y);
     if (dd < (18 * GK) ** 2) {
       const sp = Math.hypot(GS.P.vx, GS.P.vy);
-      if (sp > 170 && !(e.shoveT > GS.time)) {
+      if (sp > 170 * GK && !(e.shoveT > GS.time)) {
         e.shoveT = GS.time + 0.8;
         e.rvx += GS.P.vx * 0.3;
         e.rvy += GS.P.vy * 0.3;
@@ -161,7 +161,7 @@ function corpsePhys(e, dt) {
         vy: e.rvy * rand(0.2, 1.4) + rand(-90, 90),
       }));
     const dmp = Math.exp(-5 * dt),
-      mx = (e.type === 'beetle' ? 1.9 : 1) * 8;
+      mx = (e.type === 'beetle' ? 1.9 : 1) * 8; // (in the picture's own size: drawn scaled, core/scale.js)
     for (let i = 0; i < 4; i++) {
       const L = e.limbs[i],
         [tx, ty] = e.lr[i];
@@ -223,16 +223,16 @@ function propsTick(dt) {
         o.x -= ux * pen * (1 - share);
         o.y -= uy * pen * (1 - share);
         const vn = Math.max(0, (o.vx || 0) * ux + (o.vy || 0) * uy);
-        if (D.fixed || vn < 40) return;
+        if (D.fixed || vn < 40 * GK) return;
         d.vx += (ux * vn * k) / D.m;
         d.vy += (uy * vn * k) / D.m;
-        d.va += (rand(-2, 2) * vn) / 400;
+        d.va += (rand(-2, 2) * vn) / (400 * GK);
         if (D.tip && (vn * k) / D.m > D.tip && !d.down) tipProp(d, ux, uy);
       }
     };
     if (GS.P && GS.state === 'play') bump(GS.P, 0.55, 1.2);
-    query(d.x, d.y, D.r + 40, e => {
-      if (!e.dead && !e.fly && e.z < 10) bump(e, e.type === 'beetle' ? 1.4 : 0.35, e.type === 'beetle' ? 5 : 0.6);
+    query(d.x, d.y, D.r + 40 * GK, e => {
+      if (!e.dead && !e.fly && e.z < 10 * GK) bump(e, e.type === 'beetle' ? 1.4 : 0.35, e.type === 'beetle' ? 5 : 0.6);
     });
     const f = Math.exp(-D.fr * dt);
     d.vx *= f;
@@ -305,7 +305,7 @@ export function propShot(b) {
     const sp = Math.hypot(b.vx, b.vy) || 1,
       ux = b.vx / sp,
       uy = b.vy / sp,
-      k = (b.heavy ? 260 : b.pellet ? 70 : 120) / D.m;
+      k = ((b.heavy ? 260 : b.pellet ? 70 : 120) * GK) / D.m;
     d.vx = (d.vx || 0) + ux * k;
     d.vy = (d.vy || 0) + uy * k;
     d.va = (d.va || 0) + rand(-8, 8);
@@ -368,7 +368,15 @@ export function breakTile(i, quiet = false) {
     chips(x, y, 16, null, 4, 300);
     smoke(x, y, 4, 60);
     for (let k = 0; k < 7; k++)
-      decal(R.rockchip, x + rand(-18, 18), y + rand(-18, 18), rand(1.4, 2.6), [0.62, 0.48, 0.42, 1], [0, 0, 0], 300);
+      decal(
+        R.rockchip,
+        x + rand(-18, 18) * GK,
+        y + rand(-18, 18) * GK,
+        rand(1.4, 2.6),
+        [0.62, 0.48, 0.42, 1],
+        [0, 0, 0],
+        300
+      );
     sfx.crunch(x, y);
     shake(0.15);
   }
@@ -453,7 +461,8 @@ export function blastWorld(x, y, R0, dmg) {
       dx = e.x - x,
       dy = e.y - y,
       d = Math.hypot(dx, dy);
-    if (m < Infinity && d < R0 * 1.5 && d > 0.1) ragKick(e, dx / d, dy / d, (460 * (1 - d / (R0 * 1.5))) / m, m < 2);
+    if (m < Infinity && d < R0 * 1.5 && d > 0.1)
+      ragKick(e, dx / d, dy / d, (460 * GK * (1 - d / (R0 * 1.5))) / m, m < 2);
   }
   for (const d of GS.decor) {
     const D = PUSH[d.kind];
@@ -462,7 +471,7 @@ export function blastWorld(x, y, R0, dmg) {
         dy = d.y - y,
         dl = Math.hypot(dx, dy);
       if (dl < R0 * 2 && dl > 0.1) {
-        const k = (560 * (1 - dl / (R0 * 2))) / D.m;
+        const k = (560 * GK * (1 - dl / (R0 * 2))) / D.m;
         d.vx = (d.vx || 0) + (dx / dl) * k;
         d.vy = (d.vy || 0) + (dy / dl) * k;
         d.va = (d.va || 0) + rand(-10, 10);
@@ -512,8 +521,8 @@ function fencePressure() {
     const a0 = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
     for (const da of [0, -0.8, 0.8]) {
       const a = a0 + da,
-        tx = Math.floor((e.x + Math.cos(a) * (e.r + 14)) / TILE),
-        ty = Math.floor((e.y + Math.sin(a) * (e.r + 14)) / TILE);
+        tx = Math.floor((e.x + Math.cos(a) * (e.r + 14 * GK)) / TILE),
+        ty = Math.floor((e.y + Math.sin(a) * (e.r + 14 * GK)) / TILE);
       if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) continue;
       const i = ty * MW + tx;
       if (ttype[i] === 9) {
@@ -553,7 +562,7 @@ export function grassIgnite(x, y, r, chance = 1) {
 function grassTick(dt) {
   for (const fp of GS.firePools) grassIgnite(fp.x, fp.y, fp.r + 6, dt * 6);
   for (const c of cars) if (c.fire && !c.dead) grassIgnite(c.x, c.y, 60, dt * 3);
-  for (const e of GS.enemies) if (e.burn > 0 && !e.dead) grassIgnite(e.x, e.y, 16, dt * 4);
+  for (const e of GS.enemies) if (e.burn > 0 && !e.dead) grassIgnite(e.x, e.y, 16 * GK, dt * 4);
   for (const g of GS.grassFire) {
     g.burn -= dt * (GS.ev === 'storm' ? 3 : 1);
     g.sp -= dt;
@@ -597,7 +606,7 @@ function grassTick(dt) {
         hurtPlayer(3 + GS.wave * 0.2, g.x, g.y, 'fire');
       if (Math.random() < dt * 4)
         query(g.x, g.y, 30 * GK, e => {
-          if (!e.dead && e.z < 10 && d2(e.x, e.y, g.x, g.y) < (e.r * 0.6 + 8) ** 2) ignite(e, 1.6);
+          if (!e.dead && e.z < 10 && d2(e.x, e.y, g.x, g.y) < (e.r * 0.6 + 8 * GK) ** 2) ignite(e, 1.6);
         });
     }
     if (g.burn <= 0) {
@@ -618,8 +627,8 @@ function footTick(dt) {
       if (
         d.blood &&
         d.life > 6 &&
-        Math.abs(d.x - GS.P.x) < 40 &&
-        Math.abs(d.y - GS.P.y) < 40 &&
+        Math.abs(d.x - GS.P.x) < 40 * GK &&
+        Math.abs(d.y - GS.P.y) < 40 * GK &&
         d2(d.x, d.y, GS.P.x, GS.P.y) < (d.s * 26) ** 2
       ) {
         GS.P.bloodSteps = 12;

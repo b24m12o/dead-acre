@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
-import { GK } from '../core/scale.js';
+import { GK, figK } from '../core/scale.js';
 import { TAU, clamp, d2, lerp, rand, randi } from '../core/util.js';
 import { R } from '../render/atlas.js';
 import { crystals, lamps } from '../world/map.js';
@@ -26,11 +26,13 @@ import { blowBarrel, bossOf, crushCrystals, hitCrystal, hurtEnemy, hurtPlayer } 
 import { interruptBoss } from './bosses.js';
 import { BILE } from '../render/draw-enemies.js';
 import { DOWN_T, lyAngle, supOK } from '../render/draw-bodies.js';
+// R0 at the old size of things: the effects scale themselves, its reach (Rg) is brought to life size
 export function shellBoom(x, y, R0, dmg, main) {
-  if (GS.boss && GS.boss.signAt && d2(x, y, GS.boss.signAt.x, GS.boss.signAt.y) < (R0 + 20) ** 2)
+  const Rg = R0 * GK;
+  if (GS.boss && GS.boss.signAt && d2(x, y, GS.boss.signAt.x, GS.boss.signAt.y) < (Rg + 20 * GK) ** 2)
     hitSign(GS.boss, dmg * 1.5);
   sfx.boom2(x, y);
-  shake((main ? 0.14 : 0.05) * (GS.P ? clamp(1.25 - Math.hypot(x - GS.P.x, y - GS.P.y) / 600, 0.2, 1) : 1));
+  shake((main ? 0.14 : 0.05) * (GS.P ? clamp(1.25 - Math.hypot(x - GS.P.x, y - GS.P.y) / (600 * GK), 0.2, 1) : 1));
   distort(x, y, main ? 0.02 : 0.01, 0.8, 0.35);
   flashLight(x, y, R0 * 2.6, [2.2, 1.2, 0.8], 0.3);
   glowBurst(x, y, [1, 0.5, 0.6], main ? 22 : 10, R0 * 4, 0.45, 0.7);
@@ -38,25 +40,25 @@ export function shellBoom(x, y, R0, dmg, main) {
   dust(x, y, main ? 8 : 4, R0, 1.3, 1.2);
   decal(R.scorch, x, y, R0 / 60, [1, 1, 1, 0.75], [0, 0, 0], 20);
   ring(x, y, 8, R0, 0.28, [2.4, 1.2, 1.4], 1);
-  query(x, y, R0 + 70, e => {
+  query(x, y, Rg + 70 * GK, e => {
     if (e.dead) return;
     const dd = Math.sqrt(d2(x, y, e.x, e.y));
-    if (dd < R0 + e.r) {
+    if (dd < Rg + e.r) {
       const crit = Math.random() < S.crit;
-      hurtEnemy(e, dmg * (crit ? 2.5 : 1) * (1 - 0.35 * Math.min(1, dd / R0)), crit, e.x - x, e.y - y, 1.6, 'shell');
+      hurtEnemy(e, dmg * (crit ? 2.5 : 1) * (1 - 0.35 * Math.min(1, dd / Rg)), crit, e.x - x, e.y - y, 1.6, 'shell');
       if (S.evo.stun && !e.dead) e.slowT = Math.max(e.slowT || 0, 0.8);
     }
   });
   for (const b of GS.barrels)
-    if (!b.dead && d2(x, y, b.x, b.y) < (R0 + 10) ** 2) {
+    if (!b.dead && d2(x, y, b.x, b.y) < (Rg + 10 * GK) ** 2) {
       b.hp = 0;
       GS.later.push({ t: 0.1, fn: () => blowBarrel(b) });
     }
-  for (const c of crystals) if (c.alive && d2(x, y, c.x, c.y) < (R0 + 16) ** 2) hitCrystal(c, dmg, c.x - x, c.y - y);
+  for (const c of crystals) if (c.alive && d2(x, y, c.x, c.y) < (Rg + 16 * GK) ** 2) hitCrystal(c, dmg, c.x - x, c.y - y);
   if (main && S.bomblets)
     for (let i = 0; i < S.bomblets; i++) {
       const a = rand(0, TAU),
-        d = rand(50, 90),
+        d = rand(50, 90) * GK,
         bx = x + Math.cos(a) * d,
         by = y + Math.sin(a) * d;
       GS.pbullets.push({
@@ -109,11 +111,12 @@ export function pumpDrop(e, b) {
   e.ky += b.vy * 0.12;
 }
 export function fragBurst(x, y, b, skipId) {
-  const R0 = (34 + S.frag * 14) * (b.pellet ? 0.6 : 1);
+  const R0 = (34 + S.frag * 14) * (b.pellet ? 0.6 : 1),
+    Rg = R0 * GK;
   glowBurst(x, y, [0.5, 1, 1], 6, 180, 0.25, 0.4);
   ring(x, y, 4, R0, 0.18, [0.8, 1.8, 1.8], 0.6);
-  query(x, y, R0 + 30, e => {
-    if (!e.dead && e.id !== skipId && d2(x, y, e.x, e.y) < (R0 + e.r) ** 2)
+  query(x, y, Rg + 30 * GK, e => {
+    if (!e.dead && e.id !== skipId && d2(x, y, e.x, e.y) < (Rg + e.r) ** 2)
       hurtEnemy(e, b.dmg * (0.12 + 0.16 * S.frag) * (b.pellet ? 0.5 : 1), false, e.x - x, e.y - y, 0.4, 'frag');
   });
 }
@@ -140,7 +143,9 @@ export function queenTail(e) {
     } // rearing to hose: the tail arcs up over its back so the mouth hangs above its shoulders
   return pts;
 }
+// a point on its body (in its picture's own size) in the world: drawn life size, so it is (core/scale.js)
 export function toWorld(e, lx, ly, sc = 1) {
+  sc *= figK(e);
   const c = Math.cos(e.a),
     s = Math.sin(e.a);
   return [e.x + (lx * c - ly * s) * sc, e.y + (lx * s + ly * c) * sc];
@@ -158,12 +163,12 @@ function tireProj(b, dt, p) {
     b.life -= dt;
     const sp = Math.hypot(b.vx, b.vy);
     b.ph = b.ph ?? rand(0, TAU);
-    b.spin = (b.spin || 0) + (dt * sp) / 13;
-    b.lean = Math.sin(GS.time * 5 + b.ph) * 0.1 * (1.6 - Math.min(1, sp / 340));
+    b.spin = (b.spin || 0) + (dt * sp) / (13 * GK);
+    b.lean = Math.sin(GS.time * 5 + b.ph) * 0.1 * (1.6 - Math.min(1, sp / (340 * GK)));
     if (solidPt(b.x, b.y)) {
       b.x = ox;
       b.y = oy;
-      if (b.bounces > 0 && sp > 150) {
+      if (b.bounces > 0 && sp > 150 * GK) {
         b.bounces--;
         if (solidPt(ox + b.vx * dt, oy)) b.vx = -b.vx * 0.5;
         else b.vy = -b.vy * 0.5;
@@ -177,13 +182,13 @@ function tireProj(b, dt, p) {
         b.vy *= 0.2;
       }
     }
-    if (!(b.flat > 0) && (sp < 115 || b.life <= 0)) b.flat = 1e-4; // too slow to stay up
+    if (!(b.flat > 0) && (sp < 115 * GK || b.life <= 0)) b.flat = 1e-4; // too slow to stay up
     if (Math.random() < dt * 8) dust(b.x, b.y, 1, 20, 0.5, 0.4);
     if (!(b.flat > 0) && d2(b.x, b.y, p.x, p.y) < (b.r + p.r - 3) ** 2 && p.inv <= 0) {
       hurtPlayer(b.dmg, b.x, b.y, b.owner && b.owner.type === 'queen' ? bossOf(b.owner) : 'a tyre');
       const l = Math.hypot(b.vx, b.vy) || 1;
-      p.vx += (b.vx / l) * 320;
-      p.vy += (b.vy / l) * 320;
+      p.vx += (b.vx / l) * 320 * GK;
+      p.vy += (b.vy / l) * 320 * GK;
       const s2 = Math.random() < 0.5 ? -1 : 1;
       b.vx = b.vx * 0.3 - b.vy * 0.25 * s2;
       b.vy = b.vy * 0.3 + b.vx * 0.25 * s2;
@@ -285,7 +290,7 @@ export function bossProj(b, dt, p) {
   b.x += b.vx * dt;
   b.y += b.vy * dt;
   b.life -= dt;
-  b.spin = (b.spin || 0) + dt * (b.k === 'sign' ? 22 : Math.hypot(b.vx, b.vy) / 13);
+  b.spin = (b.spin || 0) + dt * (b.k === 'sign' ? 22 : Math.hypot(b.vx, b.vy) / (13 * GK));
   if (solidPt(b.x, b.y)) {
     if (b.k === 'tire' && b.bounces > 0) {
       b.bounces--;
@@ -321,8 +326,8 @@ export function bossProj(b, dt, p) {
       b.owner && b.owner.type === 'queen' ? bossOf(b.owner) : b.hose ? 'the Abomination' : 'spitter acid'
     );
     const l = Math.hypot(b.vx, b.vy) || 1;
-    p.vx += (b.vx / l) * 380;
-    p.vy += (b.vy / l) * 380;
+    p.vx += (b.vx / l) * 380 * GK;
+    p.vy += (b.vy / l) * 380 * GK;
     if (b.k === 'tire') {
       b.vx *= -0.5;
       b.vy *= -0.5;

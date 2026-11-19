@@ -56,8 +56,8 @@ function giantWedge(e, dt) {
     cy = Math.floor(e.y / TILE),
     i = cy * MW + cx,
     bad = gblk[i] || flowBig[i] >= 65535;
-  const far = !GS.P || Math.hypot(GS.P.x - e.x, GS.P.y - e.y) > e.r * (e.sc || 1) * 2.2 + 60; // not just standing over you, fighting
-  e.wgN = (e.st === 'move' || !e.st) && (bad || (moved < 18 && far)) && !(e.stunT > 0) ? (e.wgN || 0) + 1 : 0;
+  const far = !GS.P || Math.hypot(GS.P.x - e.x, GS.P.y - e.y) > e.r * (e.sc || 1) * 2.2 + 60 * GK; // not just standing over you, fighting
+  e.wgN = (e.st === 'move' || !e.st) && (bad || (moved < 18 * GK && far)) && !(e.stunT > 0) ? (e.wgN || 0) + 1 : 0;
   if (e.wgN < (bad ? 2 : 3)) return;
   e.wgN = 0;
   for (let r = 1; r <= 9; r++)
@@ -106,7 +106,7 @@ export function updateEnemy(e, dt, p) {
     if (Math.random() < dt * 20) dust(e.x, e.y, 1, 30, 0.6, 0.6);
   }
   if (!GS.queue.length && GS.enemies.length <= 3 && e.type !== 'flower' && e.type !== 'queen' && !e.big)
-    e.sp = Math.max(e.sp, ET[e.type].sp * 1.25); // the last stragglers hurry; a boss keeps its own pace
+    e.sp = Math.max(e.sp, ET[e.type].sp * GK * 1.25); // the last stragglers hurry; a boss keeps its own pace
   e.losT -= dt;
   if (e.losT <= 0) {
     e.losT = 0.25;
@@ -138,7 +138,7 @@ export function updateEnemy(e, dt, p) {
   if (e.kind && specialTick(e, dt, p)) return; // the special infected move themselves (see actors/specials.js)
   let lure = e.lure;
   if (lure && (lure.dead || !(lure.alarm > 0))) lure = e.lure = null;
-  if (lure && sees && pd2 < (lure.flare ? 110 : 200) ** 2) {
+  if (lure && sees && pd2 < ((lure.flare ? 110 : 200) * GK) ** 2) {
     lure = e.lure = null;
     e.aw = 4;
   }
@@ -228,13 +228,13 @@ export function updateEnemy(e, dt, p) {
       bx !== cx || by !== cy
         ? Math.atan2((by + 0.5) * TILE - e.y, (bx + 0.5) * TILE - e.x)
         : Math.atan2(e.y - p.y, e.x - p.x);
-    const fs = Math.min(Math.max(e.sp * 1.4, 200), S.speed * 0.9);
+    const fs = Math.min(Math.max(e.sp * 1.4, 200 * GK), S.speed * 0.9);
     tvx = Math.cos(fa) * fs;
     tvy = Math.sin(fa) * fs;
     face = fa;
     rate = 6;
   } else if (lure && !ot) {
-    if (dist < (lure.truck ? 98 : lure.horde ? 120 : 78)) {
+    if (dist < (lure.truck ? 98 : lure.horde ? 120 : 78) * GK) {
       face = Math.atan2(lure.y - e.y, lure.x - e.x);
       if (em && !lure.flare && !lure.horde) poundCar(e, lure, dt);
     } else {
@@ -282,7 +282,7 @@ export function updateEnemy(e, dt, p) {
               e.down = Math.min(e.down, e.dT - 0.95);
               sfx.groan(e.x, e.y);
             } // shot, or the last one left: it gives up the act and gets up
-            else if (dP < 48 && !(p.dashT > 0) && !p.held && GS.state === 'play' && em) {
+            else if (dP < 48 * GK && !(p.dashT > 0) && !p.held && GS.state === 'play' && em) {
               e.lurk = 'grab';
               e.grip = 1;
               e.gT = 0;
@@ -331,8 +331,8 @@ export function updateEnemy(e, dt, p) {
               e.ly = Math.sin(e.a);
             }
           } else if (e.st === 'bash') {
-            tvx = e.lx * 360;
-            tvy = e.ly * 360;
+            tvx = e.lx * 360 * GK;
+            tvy = e.ly * 360 * GK;
             face = e.a;
             if (e.stT <= 0) {
               e.st = 'move';
@@ -359,8 +359,8 @@ export function updateEnemy(e, dt, p) {
           break;
         }
         if (e.st === 'leap') {
-          tvx = e.lx * 400;
-          tvy = e.ly * 400;
+          tvx = e.lx * 400 * GK;
+          tvy = e.ly * 400 * GK;
           face = Math.atan2(e.ly, e.lx);
           if (e.stT <= 0) {
             e.st = 'move';
@@ -386,7 +386,7 @@ export function updateEnemy(e, dt, p) {
                 : 0.6 + Math.abs(Math.sin((e.stride || 0) * Math.PI)) * 0.6;
           tvx = (ux * c - uy * s) * e.sp * lurch;
           tvy = (ux * s + uy * c) * e.sp * lurch;
-          if (em && e.los && dist < (e.run ? 120 : 64) && e.stT <= 0) {
+          if (em && e.los && dist < (e.run ? 120 : 64) * GK && e.stT <= 0) {
             e.st = 'crouch';
             e.stT = e.run ? 0.28 : 0.3;
           } /* runners get a readable beat before the lunge too */
@@ -436,7 +436,7 @@ export function updateEnemy(e, dt, p) {
           pool(e.x, e.y, 0.8, BILE, 40);
           sfx.wet(e.x, e.y);
           for (let i = 0; i < 2; i++) {
-            const c = makeEnemy('mini', e.x + rand(-10, 10), e.y + rand(-10, 10));
+            const c = makeEnemy('mini', e.x + rand(-10, 10) * GK, e.y + rand(-10, 10) * GK);
             c.emerge = 0.6;
             c.aw = 9;
           }
@@ -446,8 +446,8 @@ export function updateEnemy(e, dt, p) {
       case 'hound': {
         e.stT -= dt;
         if (e.st === 'leap') {
-          tvx = e.lx * 540;
-          tvy = e.ly * 540;
+          tvx = e.lx * 540 * GK;
+          tvy = e.ly * 540 * GK;
           face = Math.atan2(e.ly, e.lx);
           if (e.stT <= 0) {
             e.st = 'move';
@@ -502,7 +502,7 @@ export function updateEnemy(e, dt, p) {
             const [mx2, my2] = toWorld(e, 12, 0);
             for (const o of [-0.16, 0, 0.16]) {
               const a = face + o + rand(-0.04, 0.04),
-                sp = o ? 300 : 340;
+                sp = (o ? 300 : 340) * GK;
               GS.ebullets.push({
                 k: 'acid',
                 x: mx2,
@@ -586,8 +586,8 @@ export function updateEnemy(e, dt, p) {
             sfx.growl(e.x, e.y);
           }
         } else if (e.st === 'charge') {
-          tvx = e.lx * 560;
-          tvy = e.ly * 560;
+          tvx = e.lx * 560 * GK;
+          tvy = e.ly * 560 * GK;
           e.vx = tvx;
           e.vy = tvy;
           face = Math.atan2(e.ly, e.lx);
@@ -672,8 +672,8 @@ export function updateEnemy(e, dt, p) {
     if (Math.random() < dt * 3)
       decal(
         R['splat' + randi(0, 3)],
-        e.x - Math.cos(e.a) * 16,
-        e.y - Math.sin(e.a) * 16,
+        e.x - Math.cos(e.a) * 16 * GK,
+        e.y - Math.sin(e.a) * 16 * GK,
         rand(0.12, 0.2),
         [BLOOD[0] * 0.8, BLOOD[1], BLOOD[2], 0.7],
         [0, 0, 0],
@@ -711,10 +711,10 @@ export function updateEnemy(e, dt, p) {
   }
   if (e.drip > 0) {
     e.drip -= dt;
-    e.dripT = (e.dripT || 0) - dt * Math.min(1, Math.hypot(e.vx, e.vy) / 40);
+    e.dripT = (e.dripT || 0) - dt * Math.min(1, Math.hypot(e.vx, e.vy) / (40 * GK));
     if (e.dripT <= 0) {
       e.dripT = rand(0.22, 0.45);
-      pool(e.x + rand(-5, 5), e.y + rand(-5, 5), rand(0.07, 0.13), bloodOf(e), 25);
+      pool(e.x + rand(-5, 5) * GK, e.y + rand(-5, 5) * GK, rand(0.07, 0.13), bloodOf(e), 25);
     }
   } // a leg wound leaves a trail
   if (HUMAN[e.type] && e.type !== 'beetle' && !e.crawl && !e.fly && !(e.down > 0) && !(e.z > 2) && (tvx || tvy)) {
@@ -723,7 +723,8 @@ export function updateEnemy(e, dt, p) {
       const k = PILE.dead[Math.min(3, n)];
       tvx *= k;
       tvy *= k;
-      if (n >= 3 && !e.lurk && e.vx * e.vx + e.vy * e.vy > (45 * GK) ** 2 && Math.random() < PILE.trip * dt) tripOver(e);
+      if (n >= 3 && !e.lurk && e.vx * e.vx + e.vy * e.vy > (45 * GK) ** 2 && Math.random() < PILE.trip * dt)
+        tripOver(e);
     }
   } // wading through the dead (piles.js): slower, and over three or more a walker can go down
   if (e.wbT > 0 && !(e.down > 0) && (tvx || tvy)) {
@@ -814,7 +815,7 @@ export function updateEnemy(e, dt, p) {
     oy0 = e.y;
   {
     const kl = Math.hypot(e.kx, e.ky),
-      km = e.type === 'queen' ? 2000 : 900;
+      km = (e.type === 'queen' ? 2000 : 900) * GK;
     if (kl > km) {
       e.kx *= km / kl;
       e.ky *= km / kl;
@@ -824,7 +825,7 @@ export function updateEnemy(e, dt, p) {
     const dx = e.unw.x - e.x,
       dy = e.unw.y - e.y,
       d = Math.hypot(dx, dy) || 1,
-      sp = Math.max(90, (ET[e.type].sp || 84) * 1.2);
+      sp = Math.max(90, (ET[e.type].sp || 84) * 1.2) * GK;
     e.vx = (dx / d) * sp;
     e.vy = (dy / d) * sp;
     e.kx = e.ky = 0;
@@ -857,7 +858,11 @@ export function updateEnemy(e, dt, p) {
         !busy && !dirRelax() && (d > 260 * GK || !e.los) && d > (e.lastPD ?? 1e9) - 25 ? (e.noProg || 0) + 1 : 0; // far off, or near but walled off from you (two were left 240 px away behind a wall all night)
       e.lastPD = d;
       // one of the last few, out of sight and not coming: nobody hunts the last of them round the map
-      const seen = e.x > cam.x - 60 && e.x < cam.x + viewW + 60 && e.y > cam.y - 60 && e.y < cam.y + viewH + 60;
+      const seen =
+        e.x > cam.x - 60 * GK &&
+        e.x < cam.x + viewW + 60 * GK &&
+        e.y > cam.y - 60 * GK &&
+        e.y < cam.y + viewH + 60 * GK;
       e.offN = !busy && !seen && !e.lurk && lastFew() && GS.nightLive && !GS.nightDone ? (e.offN || 0) + 1 : 0;
       if ((e.noProg >= 12 || e.offN >= 3) && !GS.queue.length && GS.nightLive) {
         // stuck where it can't reach you once the night's last wave is out, or one of the last few hanging back out of
@@ -879,14 +884,14 @@ export function updateEnemy(e, dt, p) {
     } // can see you but can't get through: take the long way round for a while
     if (e.stk > 0.5) {
       const a = Math.atan2(tvy, tvx) + (Math.random() < 0.5 ? 1.6 : -1.6);
-      e.kx += Math.cos(a) * 220;
-      e.ky += Math.sin(a) * 220;
+      e.kx += Math.cos(a) * 220 * GK;
+      e.ky += Math.sin(a) * 220 * GK;
       e.stk = 0;
     }
   }
   if (
     (e.type === 'beetle' || e.type === 'queen') &&
-    (e.st === 'charge' || (e.type === 'queen' && e.st === 'leap' && (e.z || 0) < 30))
+    (e.st === 'charge' || (e.type === 'queen' && e.st === 'leap' && (e.z || 0) < 30 * GK))
   ) {
     const ca = Math.atan2(e.vy, e.vx),
       tx = Math.floor((e.x + Math.cos(ca) * (e.r * 0.8 + 8)) / TILE),
@@ -901,15 +906,15 @@ export function updateEnemy(e, dt, p) {
       ux2 = e.vx / sp,
       uy2 = e.vy / sp;
     for (const c of GS.corpses) {
-      if (d2(c.x, c.y, e.x, e.y) > (e.r + 16) ** 2) continue;
+      if (d2(c.x, c.y, e.x, e.y) > (e.r + 16 * GK) ** 2) continue;
       const m = corpseMass(c);
-      if (m < Infinity) ragKick(c, ux2, uy2, Math.min(420, sp * 0.8) / m, sp > 400);
+      if (m < Infinity) ragKick(c, ux2, uy2, Math.min(420 * GK, sp * 0.8) / m, sp > 400 * GK);
     }
   } // bodies in its path get kicked aside
   if (e.type === 'beetle' && e.st === 'charge' && hitWall) {
     {
-      const tx = Math.floor((e.x + e.lx * (e.r + 10)) / TILE),
-        ty = Math.floor((e.y + e.ly * (e.r + 10)) / TILE),
+      const tx = Math.floor((e.x + e.lx * (e.r + 10 * GK)) / TILE),
+        ty = Math.floor((e.y + e.ly * (e.r + 10 * GK)) / TILE),
         i = ty * MW + tx;
       if (tx >= 0 && ty >= 0 && tx < MW && ty < MH && ttype[i] === 6) {
         const car = cars[carAt[i]];
@@ -935,7 +940,7 @@ export function updateEnemy(e, dt, p) {
   e.stride =
     (e.stride || 0) +
     ((Math.hypot(e.vx, e.vy) * dt) /
-      (e.type === 'beetle' ? 120 : e.type === 'hound' ? 70 : e.type === 'mini' ? 44 : 58)) *
+      ((e.type === 'beetle' ? 120 : e.type === 'hound' ? 70 : e.type === 'mini' ? 44 : 58) * GK)) *
       (e.type === 'skitter' && !e.run ? e.cad || 1 : 1); // its own cadence
   if (
     e.type === 'skitter' &&
@@ -949,24 +954,24 @@ export function updateEnemy(e, dt, p) {
     Math.random() < dt * 0.06
   ) {
     const sa = Math.atan2(e.vy, e.vx) + (Math.random() < 0.5 ? 1.5 : -1.5);
-    e.kx += Math.cos(sa) * 55;
-    e.ky += Math.sin(sa) * 55;
+    e.kx += Math.cos(sa) * 55 * GK;
+    e.ky += Math.sin(sa) * 55 * GK;
     e.wbT = 0.4;
   } // now and then a foot goes wrong: a sideways step, a lurch to keep its feet
   if (e.crawl && !e.dead && e.vx * e.vx + e.vy * e.vy > (15 * GK) ** 2 && Math.random() < dt * 2.2)
-    pool(e.x + rand(-6, 6), e.y + rand(-6, 6), rand(0.08, 0.15), bloodOf(e), 25); // a crawler drags a smear behind it
+    pool(e.x + rand(-6, 6) * GK, e.y + rand(-6, 6) * GK, rand(0.08, 0.15), bloodOf(e), 25); // a crawler drags a smear behind it
   if (e.hp < e.maxHp * 0.5 && Math.random() < dt * 2.5)
     bleed(e.x, e.y, 12, rand(-1, 1), rand(-1, 1), 1, bloodOf(e), 30, 0.8);
   if (em && e.type !== 'flower' && e.dmg > 0 && e.z < 12 && !(e.down > 0)) {
     const rr2 = e.r + p.r;
-    if (!(e.lunge > 0) && d2(e.x, e.y, p.x, p.y) < (rr2 + 22) ** 2) e.lunge = 0.42;
+    if (!(e.lunge > 0) && d2(e.x, e.y, p.x, p.y) < (rr2 + 22 * GK) ** 2) e.lunge = 0.42;
     if (d2(e.x, e.y, p.x, p.y) < rr2 * rr2) {
       if (e.st === 'bash') {
         const dx = p.x - e.x,
           dy = p.y - e.y,
           dl = Math.hypot(dx, dy) || 1;
-        p.vx += (dx / dl) * 520;
-        p.vy += (dy / dl) * 520;
+        p.vx += (dx / dl) * 520 * GK;
+        p.vy += (dy / dl) * 520 * GK;
         e.st = 'move';
         e.stT = 1.6;
       }
@@ -983,8 +988,8 @@ export function updateEnemy(e, dt, p) {
         const dx = e.x - p.x,
           dy = e.y - p.y,
           dl = Math.hypot(dx, dy) || 1;
-        e.kx += (dx / dl) * 300;
-        e.ky += (dy / dl) * 300;
+        e.kx += (dx / dl) * 300 * GK;
+        e.ky += (dy / dl) * 300 * GK;
       }
       if ((e.st === 'leap' && e.type !== 'queen') || e.st === 'charge') {
         e.st = 'move';

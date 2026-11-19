@@ -2,7 +2,7 @@
 import { GS } from '../core/gs.js';
 import { clamp, lerp } from '../core/util.js';
 import { lineQ, quad, scaled, setH } from './sprites.js';
-import { figK } from '../core/scale.js';
+import { GK, figK } from '../core/scale.js';
 import { R } from './atlas.js';
 import { solidPt } from '../world/nav.js';
 import { playS, thr } from '../audio/audio.js';
@@ -97,14 +97,16 @@ function lyClear(x, y, a, len) {
   for (const t of [0.35, 0.7, 1]) if (solidPt(x + c * len * t, y + s * len * t)) return false;
   return true;
 }
+// len at the old size of things (core/scale.js)
 export function lyAngle(x, y, a, len) {
+  len *= GK;
   for (const d of [0, 0.45, -0.45, 0.9, -0.9, 1.4, -1.4, 2, -2, Math.PI]) if (lyClear(x, y, a + d, len)) return a + d;
   return a;
 } // a body falls where there is room for it, never into a wall
 export function lyMove(e, g) {
   // the waist travels out from the planted feet as the body tips over
   const K = e.type === 'beetle' ? 1.9 : 1,
-    d = (g - (e.lyG || 0)) * LY_FOOT * K * 1.2;
+    d = (g - (e.lyG || 0)) * LY_FOOT * K * 1.2 * figK(e); // as big as it is drawn (core/scale.js)
   e.lyG = g;
   if (Math.abs(d) < 1e-4) return;
   const a = e.fallA ?? e.a + Math.PI,

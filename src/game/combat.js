@@ -1224,13 +1224,15 @@ export function impact(x, y, b) {
 // core: for the blasts the world throws at you (cars, the tanker, barrels), the share of R0 that is the fireball you
 // see: inside it the full damage, then less and less out to a fifth at the very edge (a tenth and a half for you), so
 // a step back from the fire is a step back from death. 0: the old flat blast, kept for your own grenades and gadgets
+// R0 at the old size of things: the effects scale themselves, the blast's reach (Rg) is brought to life size
 export function explode(x, y, R0, dmg, hurtsPlayer = true, core = 0) {
-  const fall = (px, py, edge) => {
-    if (!core) return 1;
-    const d = Math.hypot(px - x, py - y),
-      c0 = R0 * core;
-    return d <= c0 ? 1 : 1 - (1 - edge) * clamp((d - c0) / (R0 - c0), 0, 1);
-  };
+  const Rg = R0 * GK,
+    fall = (px, py, edge) => {
+      if (!core) return 1;
+      const d = Math.hypot(px - x, py - y),
+        c0 = Rg * core;
+      return d <= c0 ? 1 : 1 - (1 - edge) * clamp((d - c0) / (Rg - c0), 0, 1);
+    };
   {
     const k0 = GS.kills;
     GS.later.push({
@@ -1244,13 +1246,14 @@ export function explode(x, y, R0, dmg, hurtsPlayer = true, core = 0) {
     });
   } // a blast that takes a bunch of them gets a cheer
   makeNoise(x, y, 1300);
-  scorchWalls(x, y, R0);
-  blastWorld(x, y, R0, dmg);
-  if (GS.boss && GS.boss.signAt && d2(x, y, GS.boss.signAt.x, GS.boss.signAt.y) < (R0 + 20) ** 2) hitSign(GS.boss, dmg);
+  scorchWalls(x, y, Rg);
+  blastWorld(x, y, Rg, dmg);
+  if (GS.boss && GS.boss.signAt && d2(x, y, GS.boss.signAt.x, GS.boss.signAt.y) < (Rg + 20 * GK) ** 2)
+    hitSign(GS.boss, dmg);
   sfx.boom(x, y);
   {
     const pd = GS.P ? Math.hypot(x - GS.P.x, y - GS.P.y) : 0;
-    shake(0.4 * clamp(1.25 - pd / 600, 0.2, 1));
+    shake(0.4 * clamp(1.25 - pd / (600 * GK), 0.2, 1));
   }
   distort(x, y, 0.022, 0.9, 0.55);
   flashLight(x, y, R0 * 2.6, [1.8, 1.05, 0.42], 0.32); // a blast across the street rumbles; one at your feet jolts
@@ -1281,26 +1284,26 @@ export function explode(x, y, R0, dmg, hurtsPlayer = true, core = 0) {
   ring(x, y, 10, R0 * 1.3, 0.22, [0.5, 0.42, 0.32], 0.22); // the shock front: a faint, quick ripple, the distortion does the rest
   if (dmg > 0) {
     const k0 = GS.kills;
-    query(x, y, R0 + 70, e => {
-      if (!e.dead && d2(x, y, e.x, e.y) < (R0 + e.r) ** 2)
+    query(x, y, Rg + 70 * GK, e => {
+      if (!e.dead && d2(x, y, e.x, e.y) < (Rg + e.r) ** 2)
         hurtEnemy(e, dmg * fall(e.x, e.y, 0.2), false, e.x - x, e.y - y, 2.5, 'boom');
     });
     const n = GS.kills - k0;
-    if (n >= 6) floatText(x, y - 50, `${n} in one blast`, '#ffcf7a', 16 + Math.min(10, n / 3));
+    if (n >= 6) floatText(x, y - 50 * GK, `${n} in one blast`, '#ffcf7a', 16 + Math.min(10, n / 3));
     hordeBlast(n);
-    if (hurtsPlayer && d2(x, y, GS.P.x, GS.P.y) < (R0 + GS.P.r) ** 2)
+    if (hurtsPlayer && d2(x, y, GS.P.x, GS.P.y) < (Rg + GS.P.r) ** 2)
       hurtPlayer(dmg * 0.3 * fall(GS.P.x, GS.P.y, 0.15), x, y, 'an explosion');
   }
   for (const b of GS.barrels)
-    if (!b.dead && d2(x, y, b.x, b.y) < (R0 + 10) ** 2) {
+    if (!b.dead && d2(x, y, b.x, b.y) < (Rg + 10 * GK) ** 2) {
       b.hp = 0;
       GS.later.push({ t: 0.1, fn: () => blowBarrel(b) });
     }
   if (dmg > 0)
     for (const c of cars)
-      if (!c.dead && d2(x, y, c.x, c.y) < (R0 + 50) ** 2) damageCar(c, dmg * 1.5 * fall(c.x, c.y, 0.2) + 40);
+      if (!c.dead && d2(x, y, c.x, c.y) < (Rg + 50) ** 2) damageCar(c, dmg * 1.5 * fall(c.x, c.y, 0.2) + 40);
   for (const c of crystals)
-    if (c.alive && d2(x, y, c.x, c.y) < (R0 + 18) ** 2) {
+    if (c.alive && d2(x, y, c.x, c.y) < (Rg + 18 * GK) ** 2) {
       const cc = c;
       GS.later.push({ t: 0.08, fn: () => hitCrystal(cc, 999, cc.x - x, cc.y - y) });
     }

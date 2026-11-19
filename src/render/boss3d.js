@@ -17,6 +17,7 @@ import { SDF_LIB } from './sdf-lib.js';
 import { GB_GLSL } from './shapes/bosses.js';
 import { SUNV, emptyVAO, flush, lampNow, viewH, viewW } from './sprites.js';
 import { queenTail } from '../actors/projectiles.js';
+import { figK } from '../core/scale.js';
 
 // two builds: the body (into the scene's three targets) and its shadow (into a shadow map's one target)
 const FS = shadow => `#version 300 es
@@ -660,8 +661,16 @@ export function drawBoss3D(e) {
     u = prog.u,
     [lx, ly, lh] = lampNow(),
     fade = e.dying !== undefined ? clamp(((e.keep || 0.55) - e.dying) / 1.5, 0, 1) : 1;
+  // drawn at its size against the world (core/scale.js): the camera closed in round it by as much as it is smaller
+  const k = figK(e),
+    ccx = S.bodyP[0],
+    ccy = S.bodyP[1],
+    camX = ccx - (ccx - GS.camX) / k,
+    camY = ccy - (ccy - GS.camY) / k,
+    vW = viewW / k,
+    vH = viewH / k;
   gl.useProgram(prog.p);
-  gl.uniform4f(u.uCam, GS.camX, GS.camY, viewW, viewH);
+  gl.uniform4f(u.uCam, camX, camY, vW, vH);
   gl.uniform2f(u.uRes, W, H);
   gl.uniform1i(u.uMode, mode);
   gl.uniform2f(u.uSun, SUNV[0], SUNV[1]);
@@ -686,8 +695,8 @@ export function drawBoss3D(e) {
   const r = mode ? 380 : 270,
     cx = S.bodyP[0],
     cy = S.bodyP[1],
-    sx = v => ((v - GS.camX) / viewW) * W,
-    sy = v => (1 - (v - GS.camY) / viewH) * H,
+    sx = v => ((v - camX) / vW) * W,
+    sy = v => (1 - (v - camY) / vH) * H,
     x0 = Math.max(0, Math.floor(sx(cx - r))),
     x1 = Math.min(W, Math.ceil(sx(cx + r))),
     y0 = Math.max(0, Math.floor(sy(cy + r))),

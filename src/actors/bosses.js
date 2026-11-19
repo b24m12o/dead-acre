@@ -1157,7 +1157,13 @@ export function bossCharge(G, bt, dt, e, ph) {
         e.bait = null;
         if (ph2 >= 1)
           for (const c2 of cars)
-            if (c2 !== car && !c2.dead && c2.hasAlarm && !c2.alarmUsed && d2(c2.x, c2.y, car.x, car.y) < (320 * GK) ** 2)
+            if (
+              c2 !== car &&
+              !c2.dead &&
+              c2.hasAlarm &&
+              !c2.alarmUsed &&
+              d2(c2.x, c2.y, car.x, car.y) < (320 * GK) ** 2
+            )
               startAlarm(c2);
         if (ph2 >= 2 && !car.dead) car.fire = 1; // the crash sets the neighbours screaming; in the last phase the wreck catches
         if (ph2 >= 2 && (e.chain || 0) < 2) {
