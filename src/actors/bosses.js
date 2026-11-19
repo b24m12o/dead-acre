@@ -185,6 +185,8 @@ export function bossDeathSfx(e) {
   } // the clicking slows and stops
 }
 // its reach at the old size of things, brought to life size (core/scale.js)
+// the Abomination's bile: gobs the size of the thing that hacks them up, a metre across, not a man's spit
+const GLOB = 6.3;
 export function bossWarn(o) {
   for (const k of ['r', 'len', 'w']) if (o[k] !== undefined) o = { ...o, [k]: o[k] * GK };
   GS.warns.push(Object.assign({ t: 0, k: 'slam', owner: GS.curBoss }, o));
@@ -494,8 +496,8 @@ export function bossAbom(dist, dt, e, lead, ph) {
             y: hy,
             vx: Math.cos(a) * v,
             vy: Math.sin(a) * v,
-            r: 7 * GK,
-            dmg: 6 * (1 + 0.04 * GS.wave),
+            r: GLOB,
+            dmg: 9 * (1 + 0.04 * GS.wave),
             life: 1.6,
             c: BILE,
             ghost: 0.2,
@@ -548,8 +550,8 @@ export function bossAbom(dist, dt, e, lead, ph) {
                 y: sy,
                 vx: Math.cos(aa) * v,
                 vy: Math.sin(aa) * v,
-                r: 6 * GK,
-                dmg: 7 * (1 + 0.04 * GS.wave),
+                r: GLOB * 0.85,
+                dmg: 10 * (1 + 0.04 * GS.wave),
                 life: clamp((hd + rand(30, 110)) / v, 0.5, 1.45),
                 c: BILE,
                 ghost: 0.3,
@@ -1287,8 +1289,8 @@ export function bossLeap(dist, dt, e, ph) {
           y: e.y + Math.sin(a) * 60 * GK,
           vx: Math.cos(a) * v,
           vy: Math.sin(a) * v,
-          r: 7 * GK,
-          dmg: 6 * (1 + 0.04 * GS.wave),
+          r: GLOB,
+          dmg: 9 * (1 + 0.04 * GS.wave),
           life: 0.85,
           c: BILE,
           ghost: 0.25,

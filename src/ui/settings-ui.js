@@ -47,7 +47,6 @@ export function updateHint() {
         `${moveKeys()} move · Mouse aim · Hold click to fire · {roll} or right-click roll · {shove} shove · {ability} ability · 1–9 or mouse wheel swap guns · {wheel} last gun, hold {wheel} for the gun wheel · {reload} reload · {trap} traps, {trapNext} switch · Esc pause · M sound · N music`
       );
   }
-  keyCard($('keyCard'), false);
   {
     const lk = $('luKeys');
     if (lk) {
@@ -63,7 +62,7 @@ export function updateHint() {
     }
   }
 }
-/* ---------- Controls: one card, read-only in Pause, editable in Settings ---------- */
+/* ---------- Controls: one card, in Settings (the pause screen keeps to your guns and gear) ---------- */
 let waiting = null; // the action whose new key we are waiting for
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 function keyCard(el, edit) {

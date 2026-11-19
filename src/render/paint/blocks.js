@@ -626,6 +626,8 @@ export function paintBlocks() {
   };
   region('car', 84, 46, (a, e) => carTop(a, e, 78, 38, false, false), 0.4, 0.3, 0.8);
   region('police', 84, 46, (a, e) => carTop(a, e, 78, 38, true, false), 0.45, 0.3, 0.8);
+  for (const n of ['hatchback', 'wagon', 'pickup', 'suv'])
+    region(n, 84, 46, (a, e) => carTop(a, e, 78, 38, false, false), 0.4, 0.3, 0.8); // (their 3D pictures replace these)
   region('truck', 124, 52, (a, e) => carTop(a, e, 118, 44, false, true), 0.4, 0.3, 0.8);
   // the fuel tanker and the fuel van: a polished round tank you can read from above, banded, with its catwalk and
   // hatches, FUEL in red down its back, flammable placards at the end, and a red cab

@@ -833,10 +833,10 @@ export function update(dt) {
           GS.pools.push({
             x: b.x,
             y: b.y,
-            r: 34 * GK,
+            r: 60 * GK, // a puddle of the Abomination's bile, a couple of metres across
             life: 3.5,
             max: 3.5,
-            dmg: 4 * (1 + 0.04 * GS.wave),
+            dmg: 6 * (1 + 0.04 * GS.wave),
             rot: rand(0, TAU),
             v: randi(0, 3),
           });

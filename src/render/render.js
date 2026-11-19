@@ -257,10 +257,10 @@ export function render() {
     // contact shadows: soft occlusion where bodies meet the ground
     const ao = (x, y, r, al, a = 0, ex = 1) => quad(R.blob, x, y, a, (r * ex) / 15, r / 15, 0, 0, 0, al, 0, 0, 0, 0);
     if (GS.P && GS.state !== 'menu') {
-      ao(GS.P.x - 1, GS.P.y + 2, 19, 0.42, GS.P.bodyA, 1.15);
-      ao(GS.P.x - 0.5, GS.P.y + 1, 12, YOU_AO.a, GS.P.bodyA, 1.1); // a darker core right under you: you stand out on a lit road
+      ao(GS.P.x - 0.5, GS.P.y + 1, 19 * PEOPLE * 1.2, 0.42, GS.P.bodyA, 1.15); // (the size of you: core/scale.js)
+      ao(GS.P.x - 0.25, GS.P.y + 0.5, 12 * PEOPLE * 1.2, YOU_AO.a, GS.P.bodyA, 1.1); // a darker core right under you: you stand out on a lit road
     }
-    for (const b of GS.buddies) ao(b.x - 1, b.y + 2, 18, 0.4, b.bodyA, 1.15);
+    for (const b of GS.buddies) ao(b.x - 0.5, b.y + 1, 18 * PEOPLE * 1.2, 0.4, b.bodyA, 1.15);
     for (const e of GS.enemies)
       if (!e.dead && !e.fly && (e.z || 0) < 10)
         ao(
@@ -567,7 +567,7 @@ export function render() {
         0
       );
     else if (b.k === 'acid' && b.hose)
-      quad(R.acid, b.x, b.y, Math.atan2(b.vy, b.vx), 1.5 * GK, 0.75 * GK, 1, 1, 1, 1, 1.9, 1.9, 1.6, 0);
+      quad(R.acid, b.x, b.y, Math.atan2(b.vy, b.vx), 1.2, 0.6, 1, 1, 1, 1, 1.9, 1.9, 1.6, 0);
     else if (b.k === 'acid')
       quad(R.acid, b.x, b.y, GS.time * 5, (b.r / 7.5) * pu, (b.r / 7.5) * pu, 1, 1, 1, 1, 1.6, 1.6, 1.6, 0);
     else if (b.k === 'rock')

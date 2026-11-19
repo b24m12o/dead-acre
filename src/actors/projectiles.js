@@ -3,7 +3,9 @@ import { GS } from '../core/gs.js';
 import { GK, figK } from '../core/scale.js';
 import { TAU, clamp, d2, lerp, rand, randi } from '../core/util.js';
 import { R } from '../render/atlas.js';
-import { crystals, lamps } from '../world/map.js';
+import { cars, crystals, lamps } from '../world/map.js';
+import { damageCar } from '../world/fire.js';
+import { blastWorld } from '../world/physics.js';
 import { query, solidPt } from '../world/nav.js';
 import { playS, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
@@ -56,6 +58,10 @@ export function shellBoom(x, y, R0, dmg, main) {
     }
   for (const c of crystals)
     if (c.alive && d2(x, y, c.x, c.y) < (Rg + 16 * GK) ** 2) hitCrystal(c, dmg, c.x - x, c.y - y);
+  // a shell does to the street what any blast does: cars it lands by take the hit (and may go up, with a car's own
+  // blast), lamps and signs come down, loose things fly (it used to leave the cars and the street untouched)
+  for (const c of cars) if (!c.dead && d2(x, y, c.x, c.y) < (Rg + 50) ** 2) damageCar(c, dmg * 1.2 + 30);
+  blastWorld(x, y, Rg, dmg);
   if (main && S.bomblets)
     for (let i = 0; i < S.bomblets; i++) {
       const a = rand(0, TAU),

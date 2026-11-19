@@ -70,7 +70,7 @@ function drawCar0(c) {
             ? R.police
             : c.truck
               ? R.truck
-              : R.car,
+              : R[c.body] || R.car,
     sc = (c.burnt || c.fire > 0.5) && c.truck ? 1.45 : 1;
   if (GS.SHMODE) {
     setH(c.truck ? 24 : 16);

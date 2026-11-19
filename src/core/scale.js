@@ -21,10 +21,10 @@ export const PER_M = 20, // units to the metre
 export const GEAR = PEOPLE;
 // an electrical box on the sidewalk (and a gas pump): about 1.2 m across
 export const BOX = 0.5;
-// an air-dropped supply box (about 1.2 m) and the long weapon case (about 1.5 m), with their parachutes; the generator
+// an air-dropped supply box (about 1 m) and the long weapon case (about 1.3 m), with their parachutes; the generator
 // you guard; a jerrycan
-export const CRATE = 0.6,
-  WCASE = 0.45,
+export const CRATE = 0.5,
+  WCASE = 0.38,
   GEN = 0.6,
   JERRY = 0.5;
 export const PROP_K = {

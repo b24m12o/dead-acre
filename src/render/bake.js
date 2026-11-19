@@ -539,6 +539,7 @@ export function init() {
   BAKE_SIZES.carburn = [84, 46];
   BAKE_SIZES.tanker = [124, 52];
   BAKE_SIZES.fuelvan = [84, 46];
+  for (const n of ['hatchback', 'wagon', 'pickup', 'suv']) BAKE_SIZES[n] = [84, 46]; // the other bodies a parked car can have
   for (let v = 0; v <= 18; v++) BAKE_SIZES['z_lu' + v] = BAKE_SIZES['z_ly' + v];
   BAKE_SIZES.z_lhipu = BAKE_SIZES.z_lhip;
   for (let v = 0; v <= 17; v++) BAKE_SIZES['z_headu' + v] = [28, 28]; // the bodies lying face up

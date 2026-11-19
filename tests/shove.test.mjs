@@ -68,12 +68,10 @@ export async function run(b) {
   await ev(`(() => { GS.P.shoveCd = 0; GS.P.shoveT = 0; GS.P.dashCd = 0; return 1; })()`);
   await pg.keyboard.press('ShiftLeft');
   const k2 = await ev(`({ shove: GS.P.shoveCd > 0, roll: GS.P.dashCd > 0, hint: $('hint').textContent })`);
-  // the Controls card on the pause screen: every row inside the panel (a long row once pushed the keys off it)
-  const over = await ev(
-    `(() => { setPause(true); const p = $('keyCard').closest('.panel').getBoundingClientRect(); return [...$('keyCard').children].filter(k => { const r = k.getBoundingClientRect(); return r.width < 2 || r.right > p.right + 1 || r.left < p.left - 1; }).length; })()`
-  );
+  // the pause screen keeps to your guns and gear: the keys live in Settings, Controls
+  const over = await ev(`(() => { setPause(true); return ($('keyCard') ? 1 : 0) + ($('keyEdit') ? 0 : 1); })()`);
   await pg.close();
-  check(over === 0, `every row of the Controls card should sit inside the pause panel: ${over} stick out`);
+  check(over === 0, 'the controls belong in Settings, not on the pause screen');
   check(k1.shove && !k1.roll, `Space should shove and not roll: ${JSON.stringify(k1)}`);
   check(k2.roll && !k2.shove, `Shift should roll and not shove: ${JSON.stringify(k2)}`);
   check(/Shift roll/.test(k2.hint) && /Space shove/.test(k2.hint), 'the hint line should name the keys: ' + k2.hint);

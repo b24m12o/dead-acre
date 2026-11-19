@@ -149,6 +149,11 @@ export function firePool(x, y, r, life) {
   decal(R.scorch, x, y, r / 50, [1, 1, 1, 0.9], [0, 0, 0], 50);
 }
 export function buildCarMap() {
+  // the body each ordinary parked car has, fixed by where it stands: saloons the most, then hatchbacks, estates, SUVs, pickups
+  const BODIES = ['car', 'car', 'car', 'hatchback', 'hatchback', 'wagon', 'suv', 'suv', 'pickup'];
+  for (const c of cars)
+    if (!c.truck && !c.tanker && !c.police && !c.amb && !c.body)
+      c.body = BODIES[Math.abs(Math.floor(c.x * 7.13 + c.y * 3.71)) % BODIES.length];
   carAt = new Int16Array(MW * MH).fill(-1);
   cars.forEach((c, i) => {
     c.hp = c.max = c.truck ? 520 : 320;

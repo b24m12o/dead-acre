@@ -10,19 +10,26 @@ export function shapeVehicles() {
   float sdRR(vec2 p, vec2 b, float r){ vec2 q=abs(p)-b+r; return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r; }
   float wheel(vec3 p, vec3 c, float r, float hw){ vec2 d=vec2(length(p.xz-c.xz)-r,abs(p.y-c.y)-hw); return min(max(d.x,d.y),0.0)+length(max(d,0.0))-0.6; } /* a tyre: a disc on its edge, axle across the car. Tucked under the body and its arches (a 65 cm tyre under a bonnet at 90): seen from above a real car shows next to none of them */
   float tyres(vec3 p, int k){ float d=1e3; if(k==2||k==4){ for(int i=0;i<6;i++){ float sx=i<2?48.0:i<4?-28.0:-42.0, sy=(i%2==0)?1.0:-1.0; d=min(d,wheel(p,vec3(sx,sy*18.0,6.0),5.6,1.6)); } } else { for(int i=0;i<4;i++){ float sx=i<2?23.5:-24.0, sy=(i%2==0)?1.0:-1.0; d=min(d,wheel(p,vec3(sx,sy*15.6,4.0),k==3?3.6:4.0,1.5)); } } return d; }
-  float cabin(vec3 p, int k){ float tw=13.2+1.6*smoothstep(15.0,9.0,p.z); float cab=sb(p,vec3(-4.0,0.0,10.6),vec3(18.0,tw,3.8),3.0);
-    cab=smax(cab,(p.z-14.6)+(p.x-5.0)*0.55,1.4); cab=smax(cab,(p.z-14.6)-(p.x+14.5)*0.75,1.4); return cab; } /* the glasshouse: narrower than the body, sides leaning in, raked screens front and back */
+  float cabin(vec3 p, int k){ /* the glasshouse per body: 6 hatchback, 7 estate, 8 pickup (a two-door cab), 9 SUV (taller and squarer) */
+    float zl=k==9?2.2:0.0; p.z-=zl; float tw=(k==9?14.4:13.2)+1.6*smoothstep(15.0,9.0,p.z);
+    vec3 cc=k==6?vec3(-7.5,0.0,10.6):k==7?vec3(-10.0,0.0,10.6):k==8?vec3(5.5,0.0,10.6):k==9?vec3(-7.0,0.0,10.6):vec3(-4.0,0.0,10.6);
+    vec3 cb=k==6?vec3(21.0,tw,3.8):k==7?vec3(25.5,tw,3.8):k==8?vec3(10.5,tw,3.8):k==9?vec3(23.5,tw,3.8):vec3(18.0,tw,3.8);
+    float cab=sb(p,cc,cb,3.0);
+    float fr=k==8?13.5:k==9?13.0:5.0, rr=k==6?-27.0:k==7?-34.0:k==8?-4.0:k==9?-29.0:-14.5, rk=k==6||k==7||k==9?2.2:k==8?6.0:0.75;
+    cab=smax(cab,(p.z-14.6)+(p.x-fr)*(k==9?0.8:0.55),1.4); cab=smax(cab,(p.z-14.6)-(p.x-rr)*rk,1.4); return cab; } /* raked screen in front; behind it a boot's slope, a hatch, an estate's upright tail or a cab's back wall */ /* the glasshouse: narrower than the body, sides leaning in, raked screens front and back */
   float sedan(vec3 p, int k){ /* a mid-size saloon from above: front at +x, a tub with rounded corners, a cabin with raked glass, tyres in the arches, mirrors, bumpers */
-    float w=18.6-1.6*smoothstep(26.0,39.0,abs(p.x));
-    float body=smax(sdRR(p.xy,vec2(38.6,w),p.x>0.0?8.0:6.5),abs(p.z-5.2)-4.0,2.6); /* rounded nose and tail in plan, soft edges in section */
-    body=smax(body,p.z-9.4+max(0.0,abs(p.x)-18.0)*(p.x>0.0?0.11:0.07)-0.6*(1.0-abs(p.y)/19.0),1.6); /* bonnet and boot fall away toward the ends and the shoulders round off */
+    float w=(k==9?19.4:18.6)-(p.x>0.0?2.4:1.4)*smoothstep(22.0,39.0,abs(p.x)); /* a modern car's plan: the nose tapers to a rounded point, the tail a little */
+    float hl=k==6?35.0:k==8?39.6:38.6, xo=k==6?3.6:k==8?-1.0:0.0, zc=k==9?6.2:5.2, zh=k==9?5.0:4.0; /* a hatchback is shorter at the back; an SUV rides higher */
+    float body=smax(sdRR(p.xy-vec2(xo,0.0),vec2(hl,w),p.x>0.0?11.0:(k==8?4.0:9.0)),abs(p.z-zc)-zh,2.8); /* rounded nose and tail in plan, soft edges in section */
+    if(k==8) body=smax(body,-sb(p,vec3(-22.0,0.0,10.4),vec3(16.0,15.6,4.6),0.8),0.6); /* the pickup's open bed, its walls left standing */
+    body=smax(body,p.z-(k==9?11.4:9.4)+max(0.0,abs(p.x)-18.0)*(p.x>0.0?0.11:(k==8?0.0:0.07))-0.6*(1.0-abs(p.y)/19.0),1.6); /* bonnet and boot fall away toward the ends and the shoulders round off */
     float cab=cabin(p,k);
     if(k==3){ cab+=0.9*smoothstep(0.0,10.0,10.0-abs(p.x+3.0))*step(13.0,p.z); cab=smax(cab,-sb(p,vec3(-3.5,0.0,12.0),vec3(13.0,13.0,3.2),1.0),0.8); } /* burnt: the roof sags, the glass is gone */
     float d=smin(body,cab,2.2);
     d+=0.22*exp(-pow(p.x-21.5,2.0)/0.25)*step(8.0,p.z)+0.22*exp(-pow(p.x+23.5,2.0)/0.25)*step(8.0,p.z); /* bonnet and boot shut lines */
     d=min(d,tyres(p,k));
     if(k!=3) for(int s=-1;s<=1;s+=2) d=min(d,sb(p,vec3(8.5,float(s)*20.0,10.0),vec3(1.5,1.5,0.9),0.6));
-    d=min(d,sb(p,vec3(37.8,0.0,3.8),vec3(1.4,16.5,1.6),0.8)); d=min(d,sb(p,vec3(-37.8,0.0,3.8),vec3(1.4,16.5,1.6),0.8));
+    /* no separate bumpers: a modern car's are moulded into the body */
     if(k==1) d=min(d,sb(p,vec3(-2.0,0.0,15.6),vec3(2.4,10.0,0.9),0.5)); /* the light-bar mount */
     if(k==3) d-=(fbm(p.xy*0.35+3.0)-0.5)*1.1; /* fire-warped panels */
     return d;
@@ -88,26 +95,29 @@ export function shapeVehicles() {
         c=hx(0x5e1c16)*(0.85+0.2*fbm(p.xy*0.5+1.0)); c=mix(c,hx(0x2e2a26),clamp((fbm(p.xy*0.3+4.0)-0.55)*1.2,0.0,0.35));
         if(big){ if(p.x>27.5&&p.z>9.0&&(p.x>45.0||abs(p.y)>15.5)&&p.z<16.5) c=hx(0x1a2228)*(0.85+0.3*smoothstep(-1.0,1.0,p.y*0.1+p.x*0.05-3.0)); }
         else if(p.x>10.0&&p.z>10.0&&n.z<0.9) c=mix(hx(0x141c24),hx(0x5a6e7c),0.4*smoothstep(0.35,0.75,fract((p.x*0.7-p.y*0.9)*0.035+0.3))); /* cab glass */
-        if(p.x>(big?56.8:37.0)) c=abs(p.y)>(big?12.0:9.0)&&abs(p.y)<(big?17.0:15.0)&&p.z>3.0?hx(0xe8e0c0):hx(0x2a2a2a);
+        if(p.x>(big?56.8:37.0)) c=abs(p.y)>(big?12.0:9.0)&&abs(p.y)<(big?17.0:15.0)&&p.z>3.0&&n.z<0.55?hx(0xe8e0c0):hx(0x2a2a2a);
       }
-      if(p.x<(big?-57.5:-39.0)&&abs(p.y)>(big?14.0:11.0)&&p.z<7.0) c=hx(0xa02020);
+      if(p.x<(big?-57.5:-39.0)&&abs(p.y)>(big?14.0:11.0)&&p.z<7.0&&n.z<0.55) c=hx(0xa02020);
     } else if(k==2){
       c=hx(0xb4b2aa)*(0.9+0.12*fbm(p.xy*0.4+2.0)); if(p.x>27.5) c=hx(0xaeaca4)*(0.9+0.12*fbm(p.xy*0.5));
       if(p.x>27.5&&p.z>9.0&&(p.x>45.0||abs(p.y)>15.5)&&p.z<16.5) c=hx(0x1a2228)*(0.85+0.3*smoothstep(-1.0,1.0,p.y*0.1+p.x*0.05-3.0)); /* cab glass */
       if(p.z>23.0&&abs(fract((p.x+57.5)/6.4)*2.0-1.0)>0.86) c*=0.9; c=mix(c,hx(0x6a6258),clamp((fbm(p.xy*0.12+4.0)-0.55)*1.0,0.0,0.25)*step(22.0,p.z)); /* rain streaks on the roof */
-      if(p.x>56.8) c=abs(p.y)>12.0&&abs(p.y)<17.0&&p.z>3.0?hx(0xe8e0c0):hx(0x2a2a2a);
-      if(p.x<-57.0&&abs(p.y)>16.0&&p.z<6.0) c=hx(0xa02020);
+      if(p.x>56.8) c=abs(p.y)>12.0&&abs(p.y)<17.0&&p.z>3.0&&n.z<0.55?hx(0xe8e0c0):hx(0x2a2a2a);
+      if(p.x<-57.0&&abs(p.y)>16.0&&p.z<6.0&&n.z<0.55) c=hx(0xa02020); /* lamps in the faces front and back: from above, barely there */
     } else {
       c=hx(0xd8d8d8)*(0.92+0.1*fbm(p.xy*0.5+uSeed)); /* paint, tinted per car in the game */
       if(k==1){ c=hx(0x1c1c20); if(p.x<20.5&&p.x>-22.5&&!(p.z>13.6)) c=hx(0xe8e6e0); if(p.z>13.6) c=hx(0xe8e6e0); } /* black-and-white: dark bonnet and boot, white doors and roof */
       bool glass=cabin(p,k)<0.45&&p.z>9.0&&n.z<0.9; /* glass is every steep face of the glasshouse; the flat top is roof */
       if(glass) c=k==3?hx(0x0e0c0c):mix(hx(0x141c24),hx(0x5a6e7c),0.55*smoothstep(0.35,0.75,fract((p.x*0.7-p.y*0.9)*0.035+0.3))); /* dark glass with a streak of sky in it */
-      if(p.x>37.0) c=abs(p.y)>9.0&&abs(p.y)<15.0&&p.z>3.0&&p.z<7.0?hx(0xe8e2c8):hx(0x262626);
-      if(p.x<-37.0) c=abs(p.y)>10.0&&abs(p.y)<16.0&&p.z>3.4?hx(0xa82020):hx(0x262626);
+      if(k==8&&p.x<-5.5&&p.x>-38.0&&abs(p.y)<15.4&&p.z<9.6) c=hx(0x262626)*(0.8+0.3*step(0.5,fract(p.y*0.45))); /* the bed's ribbed black liner */
+      if(k==0&&!glass&&n.z>0.9&&p.z>13.0&&abs(p.x+3.5)<14.5&&abs(p.y)<10.0) c=mix(hx(0x10161c),hx(0x46566a),0.5*smoothstep(0.4,0.8,fract((p.x*0.6-p.y*0.8)*0.03+0.2))); /* a panoramic glass roof */
+      if(p.x>30.0&&n.z<0.55&&n.x>0.3&&abs(p.y)>5.5&&abs(p.y)<15.0&&p.z>5.2&&p.z<7.0) c=hx(0xeceae0); /* the headlamps: slim, set in the front face, so from above you barely see them */
+      float tl=k==6?-30.0:k==8?-39.4:-37.0, tz=k==9?1.6:0.0;
+      if(p.x<tl+6.0&&n.z<0.55&&n.x<-0.3&&abs(p.y)>6.0&&abs(p.y)<15.5&&p.z>6.0+tz&&p.z<7.6+tz) c=hx(0xb01818); /* the tail lamps, in the back face the same way */
       if(abs(p.y)>18.0&&abs(p.x-8.5)<2.0&&p.z>8.6) c=hx(0x202020);
       if(k==3){ c=mix(hx(0x2c2824),hx(0x18140f),fbm(p.xy*0.4+5.0)); c=mix(c,hx(0x5e3820),clamp((fbm(p.xy*0.18+9.0)-0.5)*1.5,0.0,0.6)); c=mix(c,hx(0x5a564e),clamp((fbm(p.xy*0.35+2.0)-0.68)*1.6,0.0,0.3)); if(glass) c=hx(0x0c0a08); } /* rust and bare primer where the paint burnt off, the glass gone */
     }
-    if(tyres(p,k)<0.35) c=k==3?hx(0x5a5650):hx(0x161616); /* tyres where they show at the arches (burnt: bare rims) */
+    if(tyres(p,k)<0.35&&p.z<2.6) c=k==3?hx(0x5a5650):hx(0x161616); /* only the bit of tyre down by the road: never a black patch painted on the body over it */ /* tyres where they show at the arches (burnt: bare rims) */
     if(k!=3){ c=mix(c,hx(0x3a3228),clamp((fbm(p.xy*0.3+7.0)-0.58)*1.3,0.0,0.4)*smoothstep(8.0,2.0,p.z)); } /* road grime low down */
     return c;
   }
@@ -121,7 +131,11 @@ export function shapeVehicles() {
     ['carburn', 16],
     ['tanker', 31],
     ['fuelvan', 24],
-  ].forEach(([n, z], i) => bakePart(n, 'cr', i, z, 120 + i * 3.3));
+    ['hatchback', 16],
+    ['wagon', 16],
+    ['pickup', 16],
+    ['suv', 19],
+  ].forEach(([n, z], i) => bakePart(n, 'cr', i, z, 120 + i * 3.3, true)); // no painted glow: a car's lamps sit in its faces, barely seen from above; their beams light the road
   bakeGroup(
     'hl',
     `
