@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GK } from '../core/scale.js';
 import { clearSave, restoreRun, savedRun } from '../game/save.js';
 import { resumeDawn } from '../game/night-flow.js';
 import { TW } from '../game/districts.js';
@@ -103,7 +104,7 @@ export function copyPreview() {
   const c = $('heroPv');
   if (!c || !GS.P) return;
   const k = RW / VW,
-    sz = 88 * ZOOM * k,
+    sz = 88 * GK * ZOOM * k,
     sx = (GS.P.x - GS.camX) * ZOOM * k - sz / 2,
     sy = (GS.P.y - GS.camY - 4) * ZOOM * k - sz / 2;
   const x = c.getContext('2d');

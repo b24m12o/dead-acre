@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GK } from '../core/scale.js';
 import { BOONS, boonDrops } from '../game/boons.js';
 import { placeLights } from '../world/places.js';
 import { GS } from '../core/gs.js';
@@ -334,7 +335,7 @@ function boxPill(toS) {
     lb = 'Stand still to search';
   ui.font = `600 ${11 * k}px "JetBrains Mono", monospace`;
   const w = ui.measureText(lb).width + 16 * k;
-  return { lb, x: bx - w / 2, y: by + 24 * ZOOM + 6 * k, w, h: 20 * k };
+  return { lb, x: bx - w / 2, y: by + 24 * GK * ZOOM + 6 * k, w, h: 20 * k };
 } /* the prompt's box, shared so the pile icons can step out of its way */
 export function drawMarkersUI(toS) {
   if (GS.state === 'play')
@@ -387,7 +388,7 @@ export function drawMarkersUI(toS) {
       const k = TS(),
         x = (W.x - cam.x) * ZOOM,
         y = (W.y - cam.y) * ZOOM,
-        R0 = 74 * ZOOM;
+        R0 = 74 * GK * ZOOM;
       ui.lineWidth = 5 * k;
       ui.strokeStyle = 'rgba(20,24,29,0.7)';
       ui.beginPath();
@@ -499,10 +500,10 @@ export function drawMarkersUI(toS) {
         ui.strokeStyle = '#cfd6d9';
         ui.lineWidth = 2 * k;
         ui.beginPath();
-        ui.moveTo(bx - 5 * k, by - 30 * ZOOM);
-        ui.lineTo(bx - 1 * k, by - 30 * ZOOM + 4 * k);
-        ui.lineTo(bx + 6 * k, by - 30 * ZOOM - 4 * k);
-        if (!hit(bx, by - 30 * ZOOM)) ui.stroke();
+        ui.moveTo(bx - 5 * k, by - 30 * GK * ZOOM);
+        ui.lineTo(bx - 1 * k, by - 30 * GK * ZOOM + 4 * k);
+        ui.lineTo(bx + 6 * k, by - 30 * GK * ZOOM - 4 * k);
+        if (!hit(bx, by - 30 * GK * ZOOM)) ui.stroke();
         continue;
       }
       if (q === GS.obj.cur && q.prog > 0 && GS.obj.still) continue;
@@ -512,11 +513,11 @@ export function drawMarkersUI(toS) {
       ui.lineWidth = 2 * k;
       ui.strokeStyle = '#ffd08a';
       ui.beginPath();
-      ui.arc(bx, by, 24 * ZOOM, 0, TAU);
+      ui.arc(bx, by, 24 * GK * ZOOM, 0, TAU);
       ui.stroke();
       ui.setLineDash([]);
       const ix = bx,
-        iy = by - 24 * ZOOM - 12 * k,
+        iy = by - 24 * GK * ZOOM - 12 * k,
         ir = 5 * k;
       if (hit(ix, iy)) continue;
       ui.globalAlpha = 0.9;
@@ -553,7 +554,7 @@ export function drawMarkersUI(toS) {
   if (boxLive() && GS.obj.cur && GS.obj.cur.prog > 0) {
     const q = GS.obj.cur,
       [bx, by] = toS(q.x, q.y),
-      r = 22 * ZOOM;
+      r = 22 * GK * ZOOM;
     ui.save();
     ui.lineWidth = 5;
     ui.strokeStyle = 'rgba(20,24,29,0.7)';
@@ -574,7 +575,7 @@ export function drawMarkersUI(toS) {
     ui.lineWidth = 3;
     ui.strokeStyle = 'rgba(20,24,29,0.85)';
     if (bx > 0 && by > 0 && bx < VW && by < VH) {
-      const [lx2, ly2] = safeLabel(mk.label, bx, by - 34 * ZOOM);
+      const [lx2, ly2] = safeLabel(mk.label, bx, by - 34 * GK * ZOOM);
       ui.strokeText(mk.label, lx2, ly2);
       ui.fillStyle = mk.col;
       ui.fillText(mk.label, lx2, ly2);
@@ -594,9 +595,9 @@ export function drawMarkersUI(toS) {
     const [bx, by] = toS(GS.obj.x, GS.obj.y);
     if (bx > 0 && by > 0 && bx < VW && by < VH) {
       ui.fillStyle = 'rgba(20,24,29,0.8)';
-      ui.fillRect(bx - 30, by + 26 * ZOOM, 60, 6);
+      ui.fillRect(bx - 30, by + 26 * GK * ZOOM, 60, 6);
       ui.fillStyle = GS.obj.hp / GS.obj.max > 0.6 ? '#8ef0a0' : GS.obj.hp / GS.obj.max > 0.3 ? '#ffc04a' : '#ff5a4a';
-      ui.fillRect(bx - 29, by + 26 * ZOOM + 1, (58 * GS.obj.hp) / GS.obj.max, 4);
+      ui.fillRect(bx - 29, by + 26 * GK * ZOOM + 1, (58 * GS.obj.hp) / GS.obj.max, 4);
     }
   }
   const talk = GS.P && GS.P.say ? [GS.P, ...GS.buddies] : GS.buddies.slice(),
@@ -618,7 +619,7 @@ export function drawMarkersUI(toS) {
     const t = s.say.txt,
       hw = ui.measureText(t).width / 2 + 8,
       x = clamp(qx, hw, VW - hw); // never cut off at the screen's edge
-    let y = qy - 40 * ZOOM;
+    let y = qy - 40 * GK * ZOOM;
     for (let k = 0; k < 6 && placed.some(q => Math.abs(q.x - x) < q.hw + hw && Math.abs(q.y - y) < lh); k++)
       y = Math.min(...placed.filter(q => Math.abs(q.x - x) < q.hw + hw && Math.abs(q.y - y) < lh).map(q => q.y)) - lh;
     placed.push({ x, y, hw });
@@ -634,45 +635,45 @@ export function drawMarkersUI(toS) {
     const [bx, by] = toS(s.x, s.y);
     if (bx < 0 || by < 0 || bx > VW || by > VH) continue; // your people: a bar only once they are hurt; down, a bleed-out ring
     if (s.down > 0) {
-      const r = 15 * ZOOM;
+      const r = 15 * GK * ZOOM;
       ui.lineWidth = 3;
       ui.strokeStyle = 'rgba(20,24,29,0.8)';
       ui.beginPath();
-      ui.arc(bx, by - 4 * ZOOM, r, 0, TAU);
+      ui.arc(bx, by - 4 * GK * ZOOM, r, 0, TAU);
       ui.stroke();
       ui.strokeStyle = Math.sin(GS.time * 8) > 0 ? '#ff5a4a' : '#c23a2e';
       ui.beginPath();
-      ui.arc(bx, by - 4 * ZOOM, r, -Math.PI / 2, -Math.PI / 2 + (TAU * s.down) / (s.downMax || 12));
+      ui.arc(bx, by - 4 * GK * ZOOM, r, -Math.PI / 2, -Math.PI / 2 + (TAU * s.down) / (s.downMax || 12));
       ui.stroke();
-      budTag(s, bx, by + 22 * ZOOM);
+      budTag(s, bx, by + 22 * GK * ZOOM);
       if (s.rev > 0) {
         ui.strokeStyle = '#8ef0b8';
         ui.lineWidth = 4;
         ui.beginPath();
-        ui.arc(bx, by - 4 * ZOOM, r + 5, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, s.rev / 1));
+        ui.arc(bx, by - 4 * GK * ZOOM, r + 5, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, s.rev / 1));
         ui.stroke();
       }
       continue;
     }
     ui.fillStyle = 'rgba(20,24,29,0.8)';
-    ui.fillRect(bx - 18, by + 26 * ZOOM, 36, 5);
+    ui.fillRect(bx - 18, by + 26 * GK * ZOOM, 36, 5);
     ui.fillStyle = s.hp / s.max >= 0.5 ? '#8ef0b8' : '#ffc04a';
-    ui.fillRect(bx - 17, by + 26 * ZOOM + 1, (34 * s.hp) / s.max, 3);
-    budTag(s, bx, by + 26 * ZOOM + 15);
+    ui.fillRect(bx - 17, by + 26 * GK * ZOOM + 1, (34 * s.hp) / s.max, 3);
+    budTag(s, bx, by + 26 * GK * ZOOM + 15);
   }
   if (GS.obj && GS.obj.type === 'rescue' && GS.obj.s.hp > 0 && GS.obj.s.hp < GS.obj.s.max && !GS.obj.done) {
     const [bx, by] = toS(GS.obj.s.x, GS.obj.s.y);
     if (bx > 0 && by > 0 && bx < VW && by < VH) {
       ui.fillStyle = 'rgba(20,24,29,0.8)';
-      ui.fillRect(bx - 22, by + 26 * ZOOM, 44, 5);
+      ui.fillRect(bx - 22, by + 26 * GK * ZOOM, 44, 5);
       ui.fillStyle = '#8ef0b8';
-      ui.fillRect(bx - 21, by + 26 * ZOOM + 1, (42 * GS.obj.s.hp) / GS.obj.s.max, 3);
+      ui.fillRect(bx - 21, by + 26 * GK * ZOOM + 1, (42 * GS.obj.s.hp) / GS.obj.s.max, 3);
     }
   }
   if (GS.evac && GS.evac.t >= GS.evac.land && !GS.evac.leave && !GS.evac.ride) {
     const [bx, by] = toS(GS.evac.x, GS.evac.y),
       f = clamp(GS.evac.hold / 2.5, 0, 1),
-      r = 86 * ZOOM;
+      r = 86 * GK * ZOOM;
     ui.save();
     ui.lineWidth = 6;
     ui.strokeStyle = 'rgba(20,24,29,0.6)';

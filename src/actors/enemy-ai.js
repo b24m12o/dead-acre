@@ -509,7 +509,7 @@ export function updateEnemy(e, dt, p) {
                 y: my2,
                 vx: Math.cos(a) * sp,
                 vy: Math.sin(a) * sp,
-                r: o ? 5.5 : 7.5,
+                r: (o ? 5.5 : 7.5) * GK, // a gob of spit, not a cannonball (core/scale.js)
                 dmg: 8 * (1 + 0.05 * GS.wave),
                 life: 2.2,
                 c: BILE,

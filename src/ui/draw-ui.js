@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { TAU, clamp } from '../core/util.js';
 import { TS, opt } from '../core/settings.js';
@@ -67,7 +68,7 @@ export function drawUI() {
   const placed = [];
   for (const t of GS.state === 'play' || WHEEL.open ? GS.texts : []) {
     let [x, y] = toS(t.x, t.y);
-    const fs = t.size * Math.max(0.85, ZOOM);
+    const fs = t.size * Math.max(0.85, ZOOM * GK);
     ui.font = `600 ${fs * 0.92}px Barlow, sans-serif`;
     const w = ui.measureText(t.txt).width + 8,
       h =
@@ -138,7 +139,7 @@ export function drawUI() {
       ui.strokeStyle = 'rgba(20,24,29,0.85)';
       ui.lineWidth = 3;
       const lb = c.alt ? 'WEAPON CASE' : c.gun ? GUNS[c.gun].name.toUpperCase() : 'SUPPLY';
-      const ly = by + (c.landed ? -30 : 34) * ZOOM;
+      const ly = by + (c.landed ? -30 : 34) * GK * ZOOM;
       const ovr = ['banner', 'streak'].some(id => {
         const r = hudDomRects()[id];
         if (!r) return false;
@@ -170,12 +171,12 @@ export function drawUI() {
       ui.strokeStyle = `rgba(255,61,90,${al * 0.9})`;
       ui.lineWidth = 6;
       ui.beginPath();
-      ui.arc(px, py, 58 * Math.max(0.85, ZOOM), h.a - 0.45, h.a + 0.45);
+      ui.arc(px, py, 58 * Math.max(0.85, ZOOM * GK), h.a - 0.45, h.a + 0.45);
       ui.stroke();
       ui.strokeStyle = `rgba(255,255,255,${al * 0.5})`;
       ui.lineWidth = 2;
       ui.beginPath();
-      ui.arc(px, py, 58 * Math.max(0.85, ZOOM), h.a - 0.3, h.a + 0.3);
+      ui.arc(px, py, 58 * Math.max(0.85, ZOOM * GK), h.a - 0.3, h.a + 0.3);
       ui.stroke();
     }
   }
@@ -185,7 +186,7 @@ export function drawUI() {
   else if (GS.state === 'play' && GS.P && (GS.P.reload > 0 || (GS.P.mag && GS.P.mag[GS.P.gun] <= 0))) {
     const hx = (GS.P.x - GS.camX) * ZOOM,
       hy = (GS.P.y - GS.camY) * ZOOM,
-      r = 30 * ZOOM;
+      r = 30 * GK * ZOOM;
     ui.save();
     ui.lineWidth = 4;
     ui.strokeStyle = 'rgba(20,24,29,0.6)';

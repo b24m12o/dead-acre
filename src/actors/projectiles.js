@@ -185,7 +185,7 @@ function tireProj(b, dt, p) {
     }
     if (!(b.flat > 0) && (sp < 115 * GK || b.life <= 0)) b.flat = 1e-4; // too slow to stay up
     if (Math.random() < dt * 8) dust(b.x, b.y, 1, 20, 0.5, 0.4);
-    if (!(b.flat > 0) && d2(b.x, b.y, p.x, p.y) < (b.r + p.r - 3) ** 2 && p.inv <= 0) {
+    if (!(b.flat > 0) && d2(b.x, b.y, p.x, p.y) < (b.r + p.r - 3 * GK) ** 2 && p.inv <= 0) {
       hurtPlayer(b.dmg, b.x, b.y, b.owner && b.owner.type === 'queen' ? bossOf(b.owner) : 'a tyre');
       const l = Math.hypot(b.vx, b.vy) || 1;
       p.vx += (b.vx / l) * 320 * GK;
@@ -319,7 +319,7 @@ export function bossProj(b, dt, p) {
     }
     return;
   }
-  if (d2(b.x, b.y, p.x, p.y) < (b.r + p.r - 3) ** 2 && p.inv <= 0) {
+  if (d2(b.x, b.y, p.x, p.y) < (b.r + p.r - 3 * GK) ** 2 && p.inv <= 0) {
     hurtPlayer(
       b.dmg,
       b.x,

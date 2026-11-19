@@ -844,7 +844,7 @@ export function update(dt) {
       b.life = 0;
       continue;
     }
-    if (d2(b.x, b.y, p.x, p.y) < (b.r + p.r - 3) ** 2 && p.inv <= 0) {
+    if (d2(b.x, b.y, p.x, p.y) < (b.r + p.r - 3 * GK) ** 2 && p.inv <= 0) {
       hurtPlayer(
         b.dmg,
         b.x,

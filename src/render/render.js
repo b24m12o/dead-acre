@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { BARREL, BOSS, CRATE, GK, PEOPLE, WCASE } from '../core/scale.js';
+import { BARREL, BOSS, CRATE, GK, PEOPLE, WCASE, figK } from '../core/scale.js';
 import { boonBlink } from '../game/boons.js';
 import { GS } from '../core/gs.js';
 import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';
@@ -562,7 +562,7 @@ export function render() {
         0
       );
     else if (b.k === 'acid' && b.hose)
-      quad(R.acid, b.x, b.y, Math.atan2(b.vy, b.vx), 1.5, 0.75, 1, 1, 1, 1, 1.9, 1.9, 1.6, 0);
+      quad(R.acid, b.x, b.y, Math.atan2(b.vy, b.vx), 1.5 * GK, 0.75 * GK, 1, 1, 1, 1, 1.9, 1.9, 1.6, 0);
     else if (b.k === 'acid')
       quad(R.acid, b.x, b.y, GS.time * 5, (b.r / 7.5) * pu, (b.r / 7.5) * pu, 1, 1, 1, 1, 1.6, 1.6, 1.6, 0);
     else if (b.k === 'rock')
@@ -795,15 +795,21 @@ export function render() {
       0
     );
   }
+  // where a pictured one's head is: drawEnemy draws it scaled about where it stands (scale.js), and noted the head
+  // before that scaling
+  const headAt = e => {
+    const K = figK(e),
+      py = e.y - (e.z || 0);
+    return [e.x + (e.__hx - e.x) * K, py + (e.__hy - py) * K, K];
+  };
   // Eyes are authored into head atlas textures so face details share the sprite
   // transform, scale, shadows and shading. Keep only the restrained elite marker here.
   for (const e of GS.enemies)
     if (!e.dead && !e.dormant && e.elite && (e.sv ?? 1) >= 0.55 && !(e.down > 0) && e.__ht === GS.time && !is3D(e)) {
       const v = e.sv ?? 1,
         a = e.__ha ?? e.a,
-        hx = e.__hx,
-        hy = e.__hy,
-        k = (e.sc || 1) * 1.2 * (e.__hk || 1),
+        [hx, hy, K] = headAt(e),
+        k = (e.sc || 1) * 1.2 * (e.__hk || 1) * K,
         bl =
           Math.sin(GS.time * 0.9 + e.id * 1.7) > 0.96
             ? 0.15
@@ -822,17 +828,18 @@ export function render() {
       const dx = e.x - GS.P.x,
         dy = e.y - GS.P.y,
         d = Math.hypot(dx, dy);
-      if (d > 560 || d < 40) continue;
+      if (d > 560 * GK || d < 40 * GK) continue;
       const da = Math.atan2(dy, dx),
         off = Math.abs(angDiff(GS.P.aimA, da)),
         face = Math.abs(angDiff(e.__ha ?? e.a, da + Math.PI));
       if (off > 0.42 || face > 0.9) continue;
-      const k = (e.sc || 1) * 1.2 * (e.__hk || 1),
-        v = (1 - off / 0.42) * (1 - face / 0.9) * (1 - d / 560) * (e.sv ?? 1),
+      const [hx, hy, K] = headAt(e),
+        k = (e.sc || 1) * 1.2 * (e.__hk || 1) * K,
+        v = (1 - off / 0.42) * (1 - face / 0.9) * (1 - d / (560 * GK)) * (e.sv ?? 1),
         a = e.__ha ?? e.a;
       for (const sd of [-1, 1]) {
-        const ex = e.__hx + (Math.cos(a) * 5.2 - Math.sin(a) * sd * 2.3) * k,
-          ey = e.__hy + (Math.sin(a) * 5.2 + Math.cos(a) * sd * 2.3) * k;
+        const ex = hx + (Math.cos(a) * 5.2 - Math.sin(a) * sd * 2.3) * k,
+          ey = hy + (Math.sin(a) * 5.2 + Math.cos(a) * sd * 2.3) * k;
         quad(R.pixel, ex, ey, 0, 0.3 * k, 0.3 * k, 0, 0, 0, 1, 1.6 * v, 1.5 * v, 1.2 * v, 0);
       }
     } // caught full in the flashlight, the eyes of the ones looking at you throw it back
