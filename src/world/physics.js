@@ -498,7 +498,7 @@ export function blastWorld(x, y, R0, dmg) {
         fn: () => {
           playS('dry', 0.4, 0.4, 0, 0.3);
           shake(0.1);
-          dust(L.bx + Math.cos(L.fa) * 100, L.by + Math.sin(L.fa) * 100, 6, 60, 1, 1); // where the head hits the street (decor.js: POLE_H)
+          dust(L.bx + Math.cos(L.fa) * 66, L.by + Math.sin(L.fa) * 66, 6, 60, 1, 1); // where the head hits the street (decor.js: POLE_H)
         },
       });
     }

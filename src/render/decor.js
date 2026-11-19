@@ -43,7 +43,7 @@ export const LAMPV = L => (L.lantern ? 10 : 20); // seen from almost straight ab
 // A street lamp, kept plain: a square base, a slim grey pole, a thin arm out over the street and a flat head seen from
 // its top (about 70 by 30 cm), its lens showing as a line of light along the edge when lit. Standing, falling or lying
 // in the road it is the same pole, arm and head
-export const POLE_H = 110; // how tall the pole stands (its shadow), and how long it lies when it comes down
+export const POLE_H = 72; // how tall the pole stands (its shadow), and how long it lies when it comes down
 export const LAMP_FALL = 0.55; // seconds from the blast to the head hitting the street (physics.js times the thud to it)
 const POLE = [0.33, 0.34, 0.36];
 const tube = (x0, y0, x1, y1, w) => lineQ(x0, y0, x1, y1, w, POLE[0], POLE[1], POLE[2], 1, 0, 0, 0, 0, R.pixel);
@@ -88,8 +88,8 @@ export function drawLampPole(L) {
       sd = Math.sin(L.ph * 3) > 0 ? 1 : -1,
       down = L.fa + sd * 1.25, // lying, the arm bent off to one side
       ka = L.a + angDiff(L.a, down) * q,
-      hx = ex + Math.cos(ka) * armL * (1 - 0.25 * q),
-      hy = ey + Math.sin(ka) * armL * (1 - 0.25 * q);
+      hx = ex + Math.cos(ka) * armL * (1 - 0.4 * q),
+      hy = ey + Math.sin(ka) * armL * (1 - 0.4 * q);
     setH(1);
     if (q >= 1) lineQ(L.bx + c0 * 8 + 1.5, L.by + s0 * 8 + 3, ex + 1.5, ey + 3, 4, 0, 0, 0, 0.3, 0, 0, 0, 0, R.pixel); // its shadow, lying beside it
     basePlate(L.bx, L.by);

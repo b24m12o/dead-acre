@@ -12,6 +12,8 @@ import { gl, progFinish } from './gl.js';
 import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
 import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
 import { GK, HEROIC, PER_M } from '../core/scale.js';
+// a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
+const SH3 = 0.3;
 
 const NB = 14, // bones in a figure's skeleton (tools/mesh/zombie.mjs)
   TW = NB * 3 + 8, // texels in a figure's row: three for each bone's matrix, then its looks
@@ -111,7 +113,7 @@ void main(){
   if(uMode==0){ g=E.xy+(W.xy-E.xy)*760.0/(760.0-min(W.z,600.0)); } // seen from a camera high over it
   else if(uMode==1){ g=W.xy+uSun*max(W.z,0.0); } // the moon's shadow
   else { vec2 d=W.xy-uLight.xy; float l=max(length(d),1.0); // a lamp's (uMode 2) or your flashlight's (3), thrown away from it
-    float off=uMode==2?min(uLight.w,max(W.z,0.0)*l/max(34.0,uLight.z-W.z)):max(W.z,0.0)*(0.55+l/${(150 * GK).toFixed(2)});
+    float hz=max(W.z,0.0), off=uMode==2?min(uLight.w,hz*l/max(34.0,uLight.z-hz)):min(hz*${SH3}*(0.55+l/${(150 * GK).toFixed(2)}),hz*${SH3}+${(30 * GK).toFixed(2)}); /* the torch's: as long as the pictured figures' (sprites.js), never a ghost down the beam */
     g=W.xy+d/l*off; }
   vec2 s=(g-uCam.xy)/uCam.zw;
   gl_Position=vec4(s.x*2.0-1.0,1.0-s.y*2.0,clamp(0.5-W.z/160.0,-1.0,1.0),1.0);
@@ -1483,7 +1485,7 @@ export function figFlush() {
   gl.uniform2f(u.uSun, SUNV[0], SUNV[1]);
   if (m === 2) {
     const [lx, ly, lh] = lampNow();
-    gl.uniform4f(u.uLight, lx, ly, lh, 120);
+    gl.uniform4f(u.uLight, lx, ly, lh / SH3, 50); // the lamp's head as high over these figures as over the pictured ones (they stand taller in their own units)
   } else if (m === 3) gl.uniform4f(u.uLight, GS.FLX, GS.FLY, 0, 0);
   if (m) gl.uniform1f(u.uShA, GS.SHS || 0.6);
   if (prog === P.body) gl.uniform1i(u.uInk, ink ? 1 : 0);

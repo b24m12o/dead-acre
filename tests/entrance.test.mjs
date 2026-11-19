@@ -20,7 +20,7 @@ export async function run(b) {
     const zx = z.x, hp = P.hp, cx = cam.x + cam.y, len = CINE.end - CINE.t;
     out.len = +len.toFixed(1);
     ${step(60)}
-    out.camMoved = Math.abs(cam.x + cam.y - cx) > 40;
+    out.camMoved = Math.abs(cam.x + cam.y - cx) > 40 * GK; // (the boss comes on nearer at life size: core/scale.js)
     // a held key repeating doesn't skip it
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW', repeat: true }));
     out.heldSkip = GS.state !== 'cine';

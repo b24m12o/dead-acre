@@ -190,7 +190,7 @@ export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
       dy = y - GS.FLY,
       d = Math.hypot(dx, dy) || 1;
     if (d > 760 * GK || SHH < 1) return;
-    const off = SHH * (0.55 + d / (150 * GK)); // (the torch reaches as far as the people are big: core/scale.js)
+    const off = Math.min(SHH * (0.55 + d / (150 * GK)), SHH + 30 * GK); // (the torch reaches as far as the people are big: core/scale.js); never a ghost metres long down the beam
     GS.SHMODE = 3;
     for (const k of SOFT3)
       quad(

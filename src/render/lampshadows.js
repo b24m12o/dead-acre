@@ -16,7 +16,7 @@ import { drawRanger } from './draw-player.js';
 
 export const LAMP_SH = {
   dark: 0.94, // how much of a lone lamp's light its shadow keeps off, right under it
-  second: 0.3, // a second lamp throws its own shadow too if it gives at least this share of the light
+  second: 2, // a second lamp's shadow too, past this share of the light: never (crossed shadows read as a mess)
   pole: 84, // how high a street lamp's head is, in the units figures are tall in (lower than the pole is drawn: the shadows are meant to be seen),
   lantern: 46, // and a hung lantern's
 };
