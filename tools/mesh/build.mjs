@@ -257,7 +257,7 @@ function weights(pos, part, BONES) {
     b1 = new Uint8Array(n),
     w0 = new Uint8Array(n),
     kids = BONES.map((_, i) => BONES.map((b, j) => (b[1] === i ? j : -1)).filter(j => j >= 0)),
-    ZONE = 3.2;
+    ZONE = 2.4; // how far either side of a joint the skin blends between its two bones
   const seg = (p, a, b) => {
     const ba = [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
       L = Math.hypot(...ba),

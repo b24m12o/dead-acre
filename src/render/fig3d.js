@@ -489,13 +489,13 @@ function poseZombie(e, D, o) {
   const r = REST,
     dead = e.dying !== undefined,
     id = e.id || 0,
-    k = [(e.sc || 1) * 1.2, (e.sc || 1) * 0.86], // its size: as broad as its pictures, stockier than life (as they are)
+    k = [e.sc || 1, e.sc || 1], // its size (across, up): true to life
     t = GS.time,
     lost = lostOf(e),
     // on the ground: dying, knocked down (or playing dead), crawling on its hands, or half a body
     ground = dead || e.down > 0 || e.crawl || e.half,
     H = r[0][2] * k[1], // its hips' height, standing
-    hipT = 5.2 * k[0], // ... and lying, on its front or its back
+    hipT = 3.6 * k[0], // ... and lying, on its front or its back
     D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]);
   let yaw = e.a || 0,
     Rp, // the hips' turn
@@ -549,8 +549,8 @@ function poseZombie(e, D, o) {
     yaw = hd;
     uprightK = s4;
     // its waist: where the game keeps it (it travels out from the feet as it goes over), at its height
-    const zLie = sup ? 6.2 * k[0] : hipT,
-      zKneel = 11.2 * k[1],
+    const zLie = sup ? 4.1 * k[0] : hipT,
+      zKneel = 13.6 * k[1],
       z0 = zLie + (H - zLie) * Math.cos((g * Math.PI) / 2),
       z1 = sup ? lerp(z0, zLie + 1, s2) : lerp(z0, zKneel, s2),
       z2 = lerp(z1, zKneel + 1, s3);
@@ -567,14 +567,14 @@ function poseZombie(e, D, o) {
     const hdF = [Math.cos(hd), Math.sin(hd), 0],
       hdR = [-Math.sin(hd), Math.cos(hd), 0],
       G = (base, f, s, z) => [base[0] + hdF[0] * f + hdR[0] * s, base[1] + hdF[1] * f + hdR[1] * s, z],
-      gz = 2.4 * k[0],
+      gz = 1.4 * k[0],
       sp = e.splay ?? 0.6;
     if (g > 0.02 || s4 < 1) {
       feet = [1, -1].map(sd => {
-        const ly = sd * (5.5 + sp * 5) * k[0],
+        const ly = sd * (3.8 + sp * 4) * k[0],
           lie = G(Jp, sup ? H * 0.98 : -H * 0.98, ly, gz), // straight out from the hips
-          knee = sup ? G(Jp, 11 * k[0], ly * 0.8, gz) : G(Jp, -10.5 * k[0], ly * 0.75, gz), // drawn up: knees up (on its back), shins flat behind (kneeling)
-          stand = G(Jp, (sd === (id % 2 ? 1 : -1) ? 4 : -1) * k[0], sd * 6.2 * k[0], r[10][2] * k[1]),
+          knee = sup ? G(Jp, 14 * k[0], ly * 0.8, gz) : G(Jp, -12.5 * k[0], ly * 0.75, gz), // drawn up: knees up (on its back), shins flat behind (kneeling)
+          stand = G(Jp, (sd === (id % 2 ? 1 : -1) ? 4 : -1) * k[0], sd * 4.3 * k[0], r[10][2] * k[1]),
           f1 = [0, 1, 2].map(i => lerp(lie[i], knee[i], s2));
         return [0, 1, 2].map(i => lerp(f1[i], stand[i], s4));
       });
@@ -584,11 +584,7 @@ function poseZombie(e, D, o) {
           fr = [-fd[1], fd[0], 0];
         feet = feet.map((f, i) => {
           const sd = i ? -1 : 1,
-            st0 = [
-              e.x - fd[0] * Math.sin((g * Math.PI) / 2) * H * 0.0 + fr[0] * sd * 6.2 * k[0],
-              e.y + fr[1] * sd * 6.2 * k[0],
-              r[10][2] * k[1],
-            ];
+            st0 = [e.x + fr[0] * sd * 4.3 * k[0], e.y + fr[1] * sd * 4.3 * k[0], r[10][2] * k[1]];
           return [0, 1, 2].map(j => lerp(st0[j], f[j], g * g));
         });
       }
@@ -599,13 +595,13 @@ function poseZombie(e, D, o) {
           const rc = Math.sin(cph + (sd > 0 ? Math.PI : 0));
           return G(
             Jp,
-            (34 + 9 * rc) * k[1],
-            sd * (15 - 3 * rc) * k[0],
+            (27 + 7 * rc) * k[1],
+            sd * (10 - 2 * rc) * k[0],
             gz + Math.max(0, Math.cos(cph + (sd > 0 ? Math.PI : 0))) * 4
           );
         });
       } else if (!dead && e.lurk === 'grab' && GS.P) {
-        hands = [1, -1].map(sd => (sd > 0 ? [GS.P.x, GS.P.y, gz] : G(Jp, 20 * k[1], -13 * k[0], gz))); // it has your ankle
+        hands = [1, -1].map(sd => (sd > 0 ? [GS.P.x, GS.P.y, gz] : G(Jp, 16 * k[1], -9 * k[0], gz))); // it has your ankle
       } else {
         const pose = e.apose ?? 1,
           tw =
@@ -617,11 +613,11 @@ function poseZombie(e, D, o) {
             out = pose === 3,
             along = sup ? -1 : 1, // its head's way, in the heading's terms
             lyingAt = up
-              ? G(Jp, along * 40 * k[1], sd * 10 * k[0], gz)
+              ? G(Jp, along * 36 * k[1], sd * 6 * k[0], gz)
               : out
-                ? G(Jp, along * 26 * k[1], sd * 30 * k[0], gz)
-                : G(Jp, along * 5 * k[1], sd * 15 * k[0], gz),
-            planted = sup ? G(Jp, -2 * k[1], sd * 15 * k[0], gz) : G(Jp, 23 * k[1], sd * 13 * k[0], gz); // by its shoulders to push up; by its hips to sit up
+                ? G(Jp, along * 16 * k[1], sd * 24 * k[0], gz)
+                : G(Jp, along * 2 * k[1], sd * 10 * k[0], gz),
+            planted = sup ? G(Jp, -2 * k[1], sd * 10 * k[0], gz) : G(Jp, 16 * k[1], sd * 8 * k[0], gz); // by its shoulders to push up; by its hips to sit up
           let h = [0, 1, 2].map(i => lerp(lyingAt[i], planted[i], s1));
           h[1] += tw * sd;
           return h;
@@ -656,7 +652,7 @@ function poseZombie(e, D, o) {
     yaw += Math.sin(t * 40) * (e.wob || 0) * 0.08 + (1 - mvv) * Math.sin(t * 1.2 + id) * 0.06;
     Rp = Rz(yaw);
     // climbing out of the ground: it hauls itself up out of the street (the street hides what's still under it)
-    Jp = [e.x, e.y, (r[0][2] - (crouch * 3 + lk * 2) + bob * 0.5) * k[1] + (e.z || 0) - (1 - em) * (1 - em) * 52];
+    Jp = [e.x, e.y, (r[0][2] - (crouch * 5 + lk * 2.5) + bob * 0.6) * k[1] + (e.z || 0) - (1 - em) * (1 - em) * 52];
   }
   const fwd = [Math.cos(yaw), Math.sin(yaw), 0],
     rt = [-Math.sin(yaw), Math.cos(yaw), 0];
@@ -688,17 +684,17 @@ function poseZombie(e, D, o) {
     loll = (hsh(id, 7) - 0.5) * 0.5 + Math.sin(t * 0.9 + id) * 0.08 * (dead ? 0 : 1),
     Rh = mm(Rc, mm(Rz(look * 0.8), mm(Ryb(droop - lean * 0.4), Rxb(loll)))),
     Jh = add(Jc, mv(Rc, sc3(sub(r[3], r[2]), k)));
-  bone(D, o, 3, mul3(Rh, [k[0] * 1.14, k[1] * 1.22]), Jh, r[3]); // a bigger head: from above it is what you read first
+  D3(3, Rh, Jh);
   // where its head is, for the eyes the flashlight catches and the breath a lurker gives itself away by
   {
-    const hc = add(Jh, mv(Rh, sc3([0.7, 0, 5.1], [k[0] * 1.14, k[1] * 1.22]))),
+    const hc = add(Jh, mv(Rh, sc3([0.3, 0, 4.8], k))),
       p = 760 / (760 - hc[2]);
     e.__hx = e.x + (hc[0] - e.x) * p;
     e.__hy = e.y + 40 + (hc[1] - e.y - 40) * p;
     e.__lhx = e.__hx;
     e.__lhy = e.__hy;
     e.__ha = Math.atan2(Rh[3], Rh[0]);
-    e.__hk = 1;
+    e.__hk = 0.53 * k[0]; // a life-size head: its eyes are closer together than the pictures'
     if (!ground && !e.headless) e.__ht = t;
   }
   // the legs
@@ -717,7 +713,7 @@ function poseZombie(e, D, o) {
         lift = Math.max(0, Math.cos(ph + (sd > 0 ? Math.PI : 0))) * (run ? 6 : bad ? 0.6 : 2.6) * mvv;
       foot = W(
         f * k[0] * 0.9 + (crouch ? -3 : 0),
-        sd * 6.2 * k[0] + (bad ? 1.5 : 0),
+        sd * 4.3 * k[0] + (bad ? 1.2 : 0),
         r[ti + 2][2] * k[1] + lift - (1 - em) * 30
       );
       if (em < 1) foot = W(-3 * k[0], sd * 6 * k[0], Jp[2] - 18 * k[1]); // still under the street, hanging below it
@@ -781,13 +777,14 @@ function poseZombie(e, D, o) {
       sh = add(Jc, mv(Rc, sc3(sub(r[ub], r[2]), k))),
       up = clamp((h2[0] - 6) / 14, 0, 1),
       bodyZ = Jc[2];
+    // the pictures' hands (lx forward, ly out) on a life-size body: reaching, about as far as its arms go, a little in from
+    // its shoulders, at their height; hanging, by its thighs
     let hand = W(
-      h2[0] * 0.95,
-      h2[1],
-      lerp(bodyZ - 9 * k[1], bodyZ + 2 * k[1], up) + Math.sin(t * 3 + id + sd) * 0.6 * (dead ? 0 : 1)
+      lerp(h2[0] - 6, h2[0] * 0.92, up) * k[0],
+      h2[1] * 0.6 * k[0],
+      lerp(bodyZ - 10 * k[1], bodyZ + 2.5 * k[1], up) + Math.sin(t * 3 + id + sd) * 0.6 * (dead ? 0 : 1)
     );
-    if (em < 1)
-      hand = W(10 * k[0], sd * 12 * k[0], Math.max(2, Jp[2] + 22 * k[1] * (0.6 + 0.4 * Math.sin(t * 6 + sd)))); // clawing up out of the ground
+    if (em < 1) hand = W(8 * k[0], sd * 8 * k[0], Math.max(2, Jp[2] + 24 * k[1] * (0.6 + 0.4 * Math.sin(t * 6 + sd)))); // clawing up out of the ground
     if (hands) {
       const g0 = hands[sd > 0 ? 0 : 1];
       hand = [0, 1, 2].map(i => lerp(g0[i], hand[i], uprightK));
