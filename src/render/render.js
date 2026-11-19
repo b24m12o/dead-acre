@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { BARREL } from './scale.js';
 import { boonBlink } from '../game/boons.js';
 import { GS } from '../core/gs.js';
 import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';
@@ -657,7 +658,7 @@ export function render() {
     }
   for (const f of fires) {
     const fk = 0.75 + Math.sin(GS.time * 17 + f.ph) * 0.15 + Math.sin(GS.time * 7.3 + f.ph) * 0.1;
-    quad(R.glow, f.x, f.y - 26, 0, 0.7 * fk, 0.9 * fk, 0, 0, 0, 1, 0.55 * fk, 0.25 * fk, 0.07, 0);
+    quad(R.glow, f.x, f.y - 26 * BARREL, 0, 0.5 * fk, 0.62 * fk, 0, 0, 0, 1, 0.55 * fk, 0.25 * fk, 0.07, 0); // over a drum's mouth
   }
   for (const w of GS.warns) {
     // a steady outline that fills in as the moment nears, and brightens only in the last instant

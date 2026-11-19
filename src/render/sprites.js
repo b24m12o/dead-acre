@@ -54,7 +54,7 @@ export function resize() {
   const ud = Math.min(window.devicePixelRatio || 1, 2);
   uic.width = Math.round(VW * ud);
   uic.height = Math.round(VH * ud);
-  ZOOM = window.__Z || clamp(Math.min(VW / 1.5, VH) / 370, 1.24, 2.6); // close in: the people are life size in the street
+  ZOOM = window.__Z || clamp(Math.min(VW / 1.5, VH) / 337, 1, 4.5); // about 30 m of street across the screen, whatever its size: people life size, and big enough to read
   viewW = VW / ZOOM;
   viewH = VH / ZOOM;
   const gk = RW + 'x' + RH + ':' + gp.lightDiv + ':' + gp.bloomLevels;

@@ -6,7 +6,22 @@
 export const PER_M = 20, // units to the metre
   PEOPLE = 0.3, // the hero, survivors, the ordinary dead, the dogs: their pictures against life size
   BIG = 0.5, // the big dead
-  BARREL = 0.45; // an oil drum: 0.6 m across
+  BARREL = 0.45, // an oil drum: 0.6 m across
+  MANHOLE = 0.6; // a manhole lid: 0.7 m
+// the street's things against their pictures, by what they are across in life: a hydrant 0.6 m with its nozzles, a
+// bin 0.6 m, a mailbox 0.5 m, a newspaper box 0.5 m, a bench 1.8 m, a cone 0.36 m, a tyre 0.65 m, a dumpster 2 m, a
+// shopping cart 0.95 m; the coffin, the signals, the shelter, the generator already true
+export const PROP_K = {
+  hydrant: 0.55,
+  trash: 0.67,
+  mailbox: 0.65,
+  news: 0.7,
+  bench: 0.9,
+  cone: 0.52,
+  tire: 0.7,
+  dumpster: 0.87,
+  cart: 0.6,
+};
 // how much smaller than its picture this one is drawn
 export function figK(e) {
   if (e.type === 'queen') return 1;

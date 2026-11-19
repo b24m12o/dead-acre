@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { PROP_K } from '../render/scale.js';
 import { occDirty } from '../render/lampocc.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, d2, rand, randi } from '../core/util.js';
@@ -32,6 +33,7 @@ const PUSH = {
   tire: { m: 1.2, r: 11, fr: 3.5, roll: true },
   news: { m: 4, r: 12, fr: 9, tip: 600, fixed: true },
 };
+for (const [k, D] of Object.entries(PUSH)) D.r *= PROP_K[k] || 1; // as big as they are drawn (render/scale.js)
 export function ragKick(e, ux, uy, imp, pop) {
   // throw a body
   e.rvx = (e.rvx || 0) + ux * imp;

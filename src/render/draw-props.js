@@ -3,7 +3,7 @@ import { gunPose, rideCiv } from '../game/evac-ride.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, scaled, setH, viewH, viewW } from './sprites.js';
-import { BARREL } from './scale.js';
+import { BARREL, MANHOLE } from './scale.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
 import { drawRanger, lampHot } from './draw-player.js';
@@ -644,6 +644,9 @@ GS.PARTREG = null;
 GS.WETV = 0.42;
 // a manhole: its lid, or once shoved off, the black hole and the lid lying beside it
 function drawHatch(h) {
+  return scaled(h.x, h.y, MANHOLE, drawHatch0, h);
+}
+function drawHatch0(h) {
   setH(0);
   if (h.open > 0) quad(R.hatchhole, h.x, h.y, h.a, 1.1, 1.1, 1, 1, 1, h.open, 0, 0, 0, 0);
   const d = h.open * 30;

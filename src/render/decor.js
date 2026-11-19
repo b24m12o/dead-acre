@@ -1,7 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, pick, rand, randi } from '../core/util.js';
-import { SUNV, addLight, lineQ, quad, setH, viewH, viewW } from './sprites.js';
+import { SUNV, addLight, lineQ, quad, scaled, setH, viewH, viewW } from './sprites.js';
+import { PROP_K } from './scale.js';
 import { R } from './atlas.js';
 import { GARAGE, MH, MW, ROAD, RX, RY, TILE, cars, grid, houses, ttype } from '../world/map.js';
 import { query } from '../world/nav.js';
@@ -281,7 +282,11 @@ function tlightState(d) {
   const t = (GS.time + d.ph) % 14;
   return t < 6 ? 2 : t < 8 ? 1 : 0;
 }
+// each at its size in life (scale.js)
 export function drawDecor(d) {
+  return scaled(d.x, d.y, PROP_K[d.kind] || 1, drawDecor0, d);
+}
+function drawDecor0(d) {
   const k = d.kind;
   if (d.down && (k === 'tlight' || k === 'stop')) {
     if (GS.SHMODE) return;
