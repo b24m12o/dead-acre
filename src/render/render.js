@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { BARREL, GK, PEOPLE } from '../core/scale.js';
+import { BARREL, BOSS, CRATE, GK, PEOPLE, WCASE } from '../core/scale.js';
 import { boonBlink } from '../game/boons.js';
 import { GS } from '../core/gs.js';
 import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';
@@ -37,6 +37,7 @@ import {
   rtScene,
   rtShadow,
   scaleAbout,
+  scaled,
   setH,
   viewH,
   viewW,
@@ -268,9 +269,11 @@ export function render() {
     for (const c of GS.crates)
       if (!c.landed) {
         const k = clamp(c.z / 640, 0, 1),
-          g = chuteGeom(c);
-        ao(c.x + (c.sx || 0), c.y, 16 + k * 26, 0.55 - k * 0.35);
-        if ((c.dep || 0) > 0.3) ao(g.cx, c.y + 6, (c.gun ? 62 : 52) * (1 + k * 0.4), 0.2 - k * 0.1);
+          g = chuteGeom(c),
+          ck = c.gun ? WCASE : CRATE; // drawn at life size, about the load (draw-props.js)
+        ao(c.x + (c.sx || 0) * ck, c.y, (16 + k * 26) * ck, 0.55 - k * 0.35);
+        if ((c.dep || 0) > 0.3)
+          ao(c.x + (g.cx - c.x) * ck, c.y + 6, (c.gun ? 62 : 52) * (1 + k * 0.4) * ck, 0.2 - k * 0.1);
       }
     for (const e of GS.corpses)
       if (HUMAN[e.type] && !(e.z > 2)) bodyAO(e, 0.26 * clamp(((e.keep || 0.55) - e.dying) / 1.5, 0, 1)); // a long soft shadow under the whole body
@@ -460,7 +463,7 @@ export function render() {
     const sa = GS.boss.signAt,
       hk = 0.5 + 0.4 * clamp((sa.hp ?? 1) / (sa.max || 1), 0, 1);
     setH(3);
-    quad(R.rk_sign, sa.x, sa.y, sa.a, 1.05, 1.05, hk, hk, hk, 1, 0.2, 0.2, 0.2, 0);
+    scaled(sa.x, sa.y, BOSS, quad, R.rk_sign, sa.x, sa.y, sa.a, 1.05, 1.05, hk, hk, hk, 1, 0.2, 0.2, 0.2, 0);
   } // the STOP sign stuck in the road, waiting for it to come back
   for (const b of GS.ebullets) {
     const pu = 1 + Math.sin(GS.time * 18 + b.x) * 0.08;
@@ -468,7 +471,11 @@ export function render() {
       if (!(b.flat > 0)) {
         setH(14);
         const a = Math.atan2(b.vy, b.vx);
-        quad(
+        scaled(
+          b.x,
+          b.y,
+          BOSS,
+          quad,
           R['tire_up' + (Math.floor(b.spin * 1.3) & 1)],
           b.x,
           b.y - 13,
@@ -489,7 +496,11 @@ export function render() {
           w = Math.sin(b.flat * 34) * 0.35 * (1 - k);
         setH(14 * (1 - k) + 2);
         if (k < 1)
-          quad(
+          scaled(
+            b.x,
+            b.y,
+            BOSS,
+            quad,
             R['tire_up0'],
             b.x,
             b.y - 13 * (1 - k),
@@ -505,13 +516,32 @@ export function render() {
             0.12,
             0
           );
-        quad(R.p_tire, b.x, b.y, b.fa + w, 1.9, 1.9 * (0.35 + 0.65 * k), 1.1, 1.1, 1.1, k, 0.1, 0.1, 0.1, 0);
+        scaled(
+          b.x,
+          b.y,
+          BOSS,
+          quad,
+          R.p_tire,
+          b.x,
+          b.y,
+          b.fa + w,
+          1.9,
+          1.9 * (0.35 + 0.65 * k),
+          1.1,
+          1.1,
+          1.1,
+          k,
+          0.1,
+          0.1,
+          0.1,
+          0
+        );
       }
       continue;
     } // upright and rolling; then it tips, wobbling down like a dropped coin, and lies flat
     if (b.k === 'sign') {
       setH(20);
-      quad(R.rk_sign, b.x, b.y - 14, b.spin, 1.05, 1.05, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0);
+      scaled(b.x, b.y, BOSS, quad, R.rk_sign, b.x, b.y - 14, b.spin, 1.05, 1.05, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0);
       continue;
     }
     if (b.k === 'sonic')
@@ -808,12 +838,28 @@ export function render() {
     } // caught full in the flashlight, the eyes of the ones looking at you throw it back
   for (const c of GS.crates)
     if (c.landed) {
-      const pu = 0.6 + Math.sin(GS.time * 4) * 0.25;
-      quad(R.glow, c.x, c.y, 0, 1.2 * pu, 1.2 * pu, 0, 0, 0, 1, c.gun ? 0.5 : 0.32, c.gun ? 0.36 : 0.22, 0.08, 0);
+      const pu = 0.6 + Math.sin(GS.time * 4) * 0.25,
+        ck = c.gun ? WCASE : CRATE;
+      quad(
+        R.glow,
+        c.x,
+        c.y,
+        0,
+        1.2 * pu * ck,
+        1.2 * pu * ck,
+        0,
+        0,
+        0,
+        1,
+        c.gun ? 0.5 : 0.32,
+        c.gun ? 0.36 : 0.22,
+        0.08,
+        0
+      );
       if (c.flare > 0) {
         const fk = Math.min(1, c.flare / 1.5) * (0.75 + Math.random() * 0.25);
-        quad(R.glow, c.x + 20, c.y + 12, 0, 0.16, 0.16, 0, 0, 0, 1, 3 * fk, 1.1 * fk, 0.8 * fk, 0);
-        quad(R.glow, c.x + 20, c.y + 12, 0, 0.6, 0.6, 0, 0, 0, 1, 0.7 * fk, 0.12 * fk, 0.08 * fk, 0);
+        quad(R.glow, c.x + 20 * ck, c.y + 12 * ck, 0, 0.16, 0.16, 0, 0, 0, 1, 3 * fk, 1.1 * fk, 0.8 * fk, 0);
+        quad(R.glow, c.x + 20 * ck, c.y + 12 * ck, 0, 0.6, 0.6, 0, 0, 0, 1, 0.7 * fk, 0.12 * fk, 0.08 * fk, 0);
       }
     }
   for (const b of GS.ebullets)
@@ -1121,7 +1167,7 @@ export function render() {
     if (c.flare > 0) {
       const fk =
         Math.min(1, c.flare / 1.5) * (0.8 + Math.sin(GS.time * 23 + c.x) * 0.12 + Math.sin(GS.time * 9.1) * 0.08);
-      addLight(c.x + 20, c.y + 12, 230, 1.15 * fk, 0.26 * fk, 0.16 * fk);
+      addLight(c.x + 20 * CRATE, c.y + 12 * CRATE, 230, 1.15 * fk, 0.26 * fk, 0.16 * fk);
     }
   const visNeed = !!(GS.P && GS.state !== 'menu' && GS.state !== 'over');
   if (visNeed) buildVisGPU(GS.P.x, GS.P.y); // what you can see from where you stand: walls stop the beam and your sight

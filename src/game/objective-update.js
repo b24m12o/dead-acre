@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
-import { GK } from '../core/scale.js';
+import { GEN, GK } from '../core/scale.js';
 import { siegeTarget, tickSiege } from './siege.js';
 import { angDiff, d2, damp, lerp, randi } from '../core/util.js';
 import { viewH, viewW } from '../render/sprites.js';
@@ -115,7 +115,7 @@ export function updateObjective(dt) {
   else if (GS.obj.type === 'gen') {
     for (const o of [GS.P, ...GS.enemies]) {
       if (o.dead) continue;
-      const rr2 = 24 + (o.cr || o.r),
+      const rr2 = 24 * GEN + (o.cr || o.r), // the generator's footprint, at life size (core/scale.js)
         dd = d2(o.x, o.y, GS.obj.x, GS.obj.y);
       if (dd < (rr2 + 4) * (rr2 + 4) && dd > 0.01) {
         if (dd < rr2 * rr2) {

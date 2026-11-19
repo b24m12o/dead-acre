@@ -3,7 +3,7 @@ import { gunPose, rideCiv } from '../game/evac-ride.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, scaled, setH, viewH, viewW } from './sprites.js';
-import { BARREL, MANHOLE } from '../core/scale.js';
+import { BARREL, CRATE, GEAR, GEN, JERRY, MANHOLE, WCASE } from '../core/scale.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
 import { drawRanger, lampHot } from './draw-player.js';
@@ -18,7 +18,12 @@ import { truckCans } from '../game/journey.js';
 const DQ = [];
 const MOON_CAP = 90; // past this many zombies on screen, the furthest throw a simple shadow
 const FL_CAP = 48; // zombies whose shadows the flashlight throws, nearest first: each costs three smeared copies of the body
+// a crate and its parachute at life size (core/scale.js): the long weapon case a little smaller than the supply box
+const crateK = c => (c && c.gun ? WCASE : CRATE);
 function drawCrate(c) {
+  return scaled(c.x, c.y - c.z, crateK(c), drawCrate0, c);
+}
+function drawCrate0(c) {
   if (GS.SHMODE && !c.landed) return;
   setH(c.landed ? 10 : 0);
   const sq = c.squash > 0 ? Math.sin(c.squash * Math.PI) * 0.12 : 0,
@@ -58,29 +63,34 @@ export function chuteGeom(c) {
 } // the canopy rides the wind; the load swings beneath it
 export function drawChutes() {
   // overhead: the canopy breathes, the load swings under it on a fan of lines
-  for (const c of GS.crates)
-    if (!c.landed) {
-      const { cx, cy, br, op } = chuteGeom(c),
-        s0 = c.gun ? 1.2 : 1,
-        s = s0 * Math.max(0.12, op),
-        sx = s * (1 + br * 0.035) * (op < 1 ? 0.7 + 0.3 * op : 1),
-        sy = s * (1 - br * 0.03),
-        RC = 54,
-        kx = c.x + (c.sx || 0),
-        ky = c.y - c.z + (c.sy || 0) - 14,
-        rot = c.rot || 0;
-      for (let i = 0; i < 14; i++) {
-        const g = (i / 14) * TAU + rot,
-          px = cx + Math.cos(g) * RC * 0.94 * sx,
-          py = cy + Math.sin(g) * RC * 0.94 * sy;
-        if (py < cy - RC * 0.2 * sy) continue;
-        lineQ(px, py, kx, ky, 1.0, 0.3, 0.31, 0.24, 0.8, 0, 0, 0, 0, R.pixel);
-      }
-      for (const o of [-9, 9]) lineQ(kx, ky, kx + o, ky + 10, 1.1, 0.2, 0.2, 0.14, 0.9, 0, 0, 0, 0, R.pixel);
-      quad(R.chute2, cx, cy, rot, sx, sy, 1, 1, 1, 1, 0, 0, 0, 0);
+  for (const c of GS.crates) if (!c.landed) scaled(c.x, c.y - c.z, crateK(c), drawChute, c);
+}
+function drawChute(c) {
+  {
+    const { cx, cy, br, op } = chuteGeom(c),
+      s0 = c.gun ? 1.2 : 1,
+      s = s0 * Math.max(0.12, op),
+      sx = s * (1 + br * 0.035) * (op < 1 ? 0.7 + 0.3 * op : 1),
+      sy = s * (1 - br * 0.03),
+      RC = 54,
+      kx = c.x + (c.sx || 0),
+      ky = c.y - c.z + (c.sy || 0) - 14,
+      rot = c.rot || 0;
+    for (let i = 0; i < 14; i++) {
+      const g = (i / 14) * TAU + rot,
+        px = cx + Math.cos(g) * RC * 0.94 * sx,
+        py = cy + Math.sin(g) * RC * 0.94 * sy;
+      if (py < cy - RC * 0.2 * sy) continue;
+      lineQ(px, py, kx, ky, 1.0, 0.3, 0.31, 0.24, 0.8, 0, 0, 0, 0, R.pixel);
     }
+    for (const o of [-9, 9]) lineQ(kx, ky, kx + o, ky + 10, 1.1, 0.2, 0.2, 0.14, 0.9, 0, 0, 0, 0, R.pixel);
+    quad(R.chute2, cx, cy, rot, sx, sy, 1, 1, 1, 1, 0, 0, 0, 0);
+  }
 }
 function drawChuteDown(h) {
+  return scaled(h.cx, h.cy, crateK(h.crate), drawChuteDown0, h);
+}
+function drawChuteDown0(h) {
   // the canopy comes down after the load, flattens and lies crumpled downwind of it, then is gone
   const f = clamp(h.t / 1.1, 0, 1),
     e = f * f * (3 - 2 * f),
@@ -260,6 +270,9 @@ function drawDoor(b) {
   }
 }
 function drawGen() {
+  return scaled(GS.obj.x, GS.obj.y, GEN, drawGen0);
+}
+function drawGen0() {
   if (GS.SHMODE && propShadow('o_gen', GS.obj.x, GS.obj.y)) return;
   if (GS.SHMODE) {
     setH(18);
@@ -296,6 +309,9 @@ function drawGen() {
   lamp(GS.obj.x + 13, GS.obj.y - 10);
 }
 function drawCan(c) {
+  return scaled(c.x, c.y, JERRY, drawCan0, c);
+}
+function drawCan0(c) {
   setH(14);
   quad(
     R[c.reg || 'fuelcan'],
@@ -415,20 +431,83 @@ export function drawCasters() {
   } // a boss standing over you, alive or dead, never hides you: you show through it, faintly
   for (const g of GS.bangs) {
     setH(g.z + 3);
-    if (g.dyn) quad(R.pipebomb, g.x, g.y - g.z, g.spin, 1.05, 1.2, 0.85, 0.3, 0.24, 1, 0.3, 0.1, 0.05, 0);
-    else if (g.flare) quad(R.pipebomb, g.x, g.y - g.z, g.spin, 0.8, 0.6, 1, 0.35, 0.3, 1, 2.2, 0.5, 0.35, 0);
-    else quad(R.flashbang, g.x, g.y - g.z, g.spin, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0);
+    if (g.dyn)
+      scaled(
+        g.x,
+        g.y - g.z,
+        GEAR,
+        quad,
+        R.pipebomb,
+        g.x,
+        g.y - g.z,
+        g.spin,
+        1.05,
+        1.2,
+        0.85,
+        0.3,
+        0.24,
+        1,
+        0.3,
+        0.1,
+        0.05,
+        0
+      );
+    else if (g.flare)
+      scaled(
+        g.x,
+        g.y - g.z,
+        GEAR,
+        quad,
+        R.pipebomb,
+        g.x,
+        g.y - g.z,
+        g.spin,
+        0.8,
+        0.6,
+        1,
+        0.35,
+        0.3,
+        1,
+        2.2,
+        0.5,
+        0.35,
+        0
+      );
+    else scaled(g.x, g.y - g.z, GEAR, quad, R.flashbang, g.x, g.y - g.z, g.spin, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0);
   }
   for (const f of GS.flares) {
     if (f.noise) continue;
     setH(3);
     const fl = 0.8 + 0.2 * Math.sin(f.t * 31);
-    quad(R.pipebomb, f.x, f.y, 0.6, 0.8, 0.6, 1, 0.35, 0.3, 1, 1.4, 0.3, 0.2, 0);
-    quad(R.glow, f.x + 6, f.y - 2, 0, 0.35 * fl, 0.35 * fl, 0, 0, 0, 1, 3 * fl, 1.2 * fl, 0.8 * fl, 0);
+    scaled(f.x, f.y, GEAR, quad, R.pipebomb, f.x, f.y, 0.6, 0.8, 0.6, 1, 0.35, 0.3, 1, 1.4, 0.3, 0.2, 0);
+    scaled(
+      f.x,
+      f.y,
+      GEAR,
+      quad,
+      R.glow,
+      f.x + 6,
+      f.y - 2,
+      0,
+      0.35 * fl,
+      0.35 * fl,
+      0,
+      0,
+      0,
+      1,
+      3 * fl,
+      1.2 * fl,
+      0.8 * fl,
+      0
+    );
   } // a burning road flare: the stick and its white-hot tip
   for (const g of GS.tthrows) {
     setH(g.z + 3);
-    quad(
+    scaled(
+      g.x,
+      g.y - g.z,
+      GEAR,
+      quad,
       R.pipebomb,
       g.x,
       g.y - g.z,
@@ -447,19 +526,20 @@ export function drawCasters() {
   } // a mine or a noise maker in the air
   for (const m of GS.lmines) {
     setH(3);
-    quad(R.pixel, m.x, m.y, 0, 3.6, 2.6, 0.32, 0.36, 0.28, 1, 0, 0, 0, 0);
-    quad(R.pixel, m.x, m.y - 1, 0, 2, 1.4, 0.45, 0.5, 0.4, 1, 0, 0, 0, 0);
+    scaled(m.x, m.y, GEAR, quad, R.pixel, m.x, m.y, 0, 3.6, 2.6, 0.32, 0.36, 0.28, 1, 0, 0, 0, 0);
+    scaled(m.x, m.y, GEAR, quad, R.pixel, m.x, m.y - 1, 0, 2, 1.4, 0.45, 0.5, 0.4, 1, 0, 0, 0, 0);
     if (m.arm <= 0 && Math.sin(GS.time * 7 + m.x) > 0.4)
-      quad(R.glow, m.x, m.y - 2, 0, 0.07, 0.07, 0, 0, 0, 1, 2.8, 0.25, 0.15, 0);
+      scaled(m.x, m.y, GEAR, quad, R.glow, m.x, m.y - 2, 0, 0.07, 0.07, 0, 0, 0, 1, 2.8, 0.25, 0.15, 0);
   } // a land mine, dug in flat, its light blinking once armed
   for (const f of GS.flares)
     if (f.noise) {
       setH(5);
       const sh = Math.sin(GS.time * 60) * 0.6;
-      quad(R.pixel, f.x + sh, f.y, 0, 2.6, 2.6, 0.75, 0.72, 0.62, 1, 0, 0, 0, 0);
-      quad(R.pixel, f.x + sh - 3, f.y - 4, 0, 1.2, 1.2, 0.8, 0.75, 0.4, 1, 0, 0, 0, 0);
-      quad(R.pixel, f.x + sh + 3, f.y - 4, 0, 1.2, 1.2, 0.8, 0.75, 0.4, 1, 0, 0, 0, 0);
-      if (Math.sin(GS.time * 10) > 0) quad(R.glow, f.x, f.y - 1, 0, 0.12, 0.12, 0, 0, 0, 1, 1.4, 1.2, 0.6, 0);
+      scaled(f.x, f.y, GEAR, quad, R.pixel, f.x + sh, f.y, 0, 2.6, 2.6, 0.75, 0.72, 0.62, 1, 0, 0, 0, 0);
+      scaled(f.x, f.y, GEAR, quad, R.pixel, f.x + sh - 3, f.y - 4, 0, 1.2, 1.2, 0.8, 0.75, 0.4, 1, 0, 0, 0, 0);
+      scaled(f.x, f.y, GEAR, quad, R.pixel, f.x + sh + 3, f.y - 4, 0, 1.2, 1.2, 0.8, 0.75, 0.4, 1, 0, 0, 0, 0);
+      if (Math.sin(GS.time * 10) > 0)
+        scaled(f.x, f.y, GEAR, quad, R.glow, f.x, f.y - 1, 0, 0.12, 0.12, 0, 0, 0, 1, 1.4, 1.2, 0.6, 0);
     } // the alarm clock, rattling as it rings
   for (const b of GS.barrels)
     if (b.gas && !b.dead) {
@@ -484,40 +564,102 @@ export function drawCasters() {
   for (const c of cars)
     if (c.rig && !c.dead) {
       setH(30);
-      quad(R.pipebomb, c.x, c.y - 4, c.a + 0.3, 0.9, 0.9, 0.5, 0.55, 0.4, 1, 0, 0, 0, 0);
-      if (Math.sin(GS.time * 7) > 0.3) quad(R.glow, c.x + 6, c.y - 6, 0, 0.1, 0.1, 0, 0, 0, 1, 3, 0.2, 0.15, 0);
+      scaled(c.x, c.y, GEAR, quad, R.pipebomb, c.x, c.y - 4, c.a + 0.3, 0.9, 0.9, 0.5, 0.55, 0.4, 1, 0, 0, 0, 0);
+      if (Math.sin(GS.time * 7) > 0.3)
+        scaled(c.x, c.y, GEAR, quad, R.glow, c.x + 6, c.y - 6, 0, 0.1, 0.1, 0, 0, 0, 1, 3, 0.2, 0.15, 0);
     } // a charge taped to the roof, its light blinking
   for (const m of GS.mines) {
     setH(4);
-    quad(R.pipebomb, m.x, m.y, m.a + Math.PI / 2, 1.3, 0.75, 0.55, 0.62, 0.42, 1, 0, 0, 0, 0);
+    scaled(m.x, m.y, GEAR, quad, R.pipebomb, m.x, m.y, m.a + Math.PI / 2, 1.3, 0.75, 0.55, 0.62, 0.42, 1, 0, 0, 0, 0);
     if (m.arm <= 0 && Math.sin(GS.time * 6 + m.x) > 0.6)
-      quad(R.glow, m.x, m.y, 0, 0.08, 0.08, 0, 0, 0, 1, 2.5, 0.2, 0.15, 0);
+      scaled(m.x, m.y, GEAR, quad, R.glow, m.x, m.y, 0, 0.08, 0.08, 0, 0, 0, 1, 2.5, 0.2, 0.15, 0);
   } // a claymore, curved face out, its arming light blinking
   for (const m of GS.molos) {
     setH(m.z);
-    quad(R.molotov, m.x, m.y - m.z, m.spin, 1, 1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);
+    scaled(m.x, m.y - m.z, GEAR, quad, R.molotov, m.x, m.y - m.z, m.spin, 1, 1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);
   }
   for (const b of GS.pbullets)
     if (b.shell && b.t >= 0) {
       setH(b.z);
-      quad(R.grenade, b.x, b.y - b.z, b.spin, b.mini ? 0.7 : 1, b.mini ? 0.7 : 1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);
+      scaled(
+        b.x,
+        b.y - b.z,
+        GEAR,
+        quad,
+        R.grenade,
+        b.x,
+        b.y - b.z,
+        b.spin,
+        b.mini ? 0.7 : 1,
+        b.mini ? 0.7 : 1,
+        1,
+        1,
+        1,
+        1,
+        1.5,
+        1.5,
+        1.5,
+        0
+      );
     }
   for (const m of GS.darts)
     if (m.t >= 0) {
       setH(m.z + 4);
-      quad(R.pipebomb, m.x, m.y - m.z, m.spin, 1, 1, 1, 1, 1, 1, 1.4, 1.4, 1.4, 0);
+      scaled(m.x, m.y - m.z, GEAR, quad, R.pipebomb, m.x, m.y - m.z, m.spin, 1, 1, 1, 1, 1, 1, 1.4, 1.4, 1.4, 0);
     }
   for (const e of GS.enemies) if (e.fly) drawEnemy(e);
   for (const m of GS.mortars) {
     setH(m.z);
     if (m.slab) {
-      quad(R['grave' + m.gk], m.x, m.y - m.z, GS.time * 6, 1.25, 1.25, 1, 1, 1, 1, 0, 0, 0, 0);
+      scaled(
+        m.x,
+        m.y - m.z,
+        GEAR,
+        quad,
+        R['grave' + m.gk],
+        m.x,
+        m.y - m.z,
+        GS.time * 6,
+        1.25,
+        1.25,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      );
       continue;
     }
     if (m.walker) {
       const a = GS.time * 9;
-      quad(R['z_torso' + Math.min(2, m.walker.v || 0)], m.x, m.y - m.z, a, 1.15, 1.15, 1, 1, 1, 1, 0.6, 0.6, 0.6, 0);
-      quad(
+      scaled(
+        m.x,
+        m.y - m.z,
+        GEAR,
+        quad,
+        R['z_torso' + Math.min(2, m.walker.v || 0)],
+        m.x,
+        m.y - m.z,
+        a,
+        1.15,
+        1.15,
+        1,
+        1,
+        1,
+        1,
+        0.6,
+        0.6,
+        0.6,
+        0
+      );
+      scaled(
+        m.x,
+        m.y - m.z,
+        GEAR,
+        quad,
         R['z_head' + Math.min(2, m.walker.hv || 0)],
         m.x + Math.cos(a) * 18,
         m.y - m.z + Math.sin(a) * 18,
@@ -536,12 +678,53 @@ export function drawCasters() {
       continue;
     }
     if (m.flare) {
-      quad(R.pixel, m.x, m.y - m.z, GS.time * 9, 5, 1.6, 0.8, 0.12, 0.1, 1, 2.6, 0.5, 0.35, 0);
+      scaled(
+        m.x,
+        m.y - m.z,
+        GEAR,
+        quad,
+        R.pixel,
+        m.x,
+        m.y - m.z,
+        GS.time * 9,
+        5,
+        1.6,
+        0.8,
+        0.12,
+        0.1,
+        1,
+        2.6,
+        0.5,
+        0.35,
+        0
+      );
       continue;
     }
-    if (m.ext) quad(R.cf_ext, m.x, m.y - m.z, GS.time * 7, 1.6, 1.6, 1, 1, 1, 1, 0, 0, 0, 0);
-    else if (m.rock) quad(R.rockchip, m.x, m.y - m.z, GS.time * 5, 3.4, 3.4, 0.62, 0.6, 0.56, 1, 0, 0, 0, 0);
-    else quad(R.acid, m.x, m.y - m.z, GS.time * 6, 1.4, 1.4, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);
+    if (m.ext)
+      scaled(m.x, m.y - m.z, GEAR, quad, R.cf_ext, m.x, m.y - m.z, GS.time * 7, 1.6, 1.6, 1, 1, 1, 1, 0, 0, 0, 0);
+    else if (m.rock)
+      scaled(
+        m.x,
+        m.y - m.z,
+        GEAR,
+        quad,
+        R.rockchip,
+        m.x,
+        m.y - m.z,
+        GS.time * 5,
+        3.4,
+        3.4,
+        0.62,
+        0.6,
+        0.56,
+        1,
+        0,
+        0,
+        0,
+        0
+      );
+    else
+      scaled(m.x, m.y - m.z, GEAR, quad, R.acid, m.x, m.y - m.z, GS.time * 6, 1.4, 1.4, 1, 1, 1, 1, 1.5, 1.5, 1.5, 0);
   }
   for (const b of GS.butterflies) {
     setH(b.z);
@@ -606,7 +789,7 @@ export function heliCrew(e) {
       y = lerp(k.y0, k.y, q * q),
       sc = (0.7 - q * 0.25) * S;
     setH(lerp(e.z + 60, 4, q));
-    quad(R.shell, x, y, k.rot + k.t * 22, sc, sc, 1, 0.85, 0.5, 1, 0.12, 0.1, 0.04, 0);
+    scaled(x, y, GEAR, quad, R.shell, x, y, k.rot + k.t * 22, sc, sc, 1, 0.85, 0.5, 1, 0.12, 0.1, 0.04, 0);
   } // the brass, out of the door and down to the street
 }
 export function heliRotor(e) {

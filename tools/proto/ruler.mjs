@@ -2,7 +2,8 @@
 // A test tool, not part of the game: the street with a metre grid laid over it (fine lines every metre, heavy every
 // five), to check how big everything is drawn against life. It picks the spots with the most street furniture, puts a
 // person (the hero) and a few of the dead among it, and films each close up.
-//   node tools/proto/ruler.mjs [outdir] [--zoom 4] [--n 3] [--district town|highway|cemetery]
+//   node tools/proto/ruler.mjs [outdir] [--zoom 4] [--n 3] [--district town|highway|cemetery] [--drop]
+// --drop: a supply box and a weapon case come down by the hero first, and lie there with their parachutes
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -14,7 +15,8 @@ const arg = (k, d) => {
 const OUT = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : '/tmp/ruler',
   ZOOM = +arg('--zoom', 4),
   N = +arg('--n', 3),
-  DIST = arg('--district', null);
+  DIST = arg('--district', null),
+  DROP = process.argv.includes('--drop');
 mkdirSync(OUT, { recursive: true });
 const b = await browser();
 try {
@@ -38,6 +40,10 @@ try {
       const P = GS.P; let px = ${x} + 30, py = ${y} + 30; for (let t = 0; t < 400 && blockPt(px, py); t++) { px = ${x} + (Math.random() - 0.5) * 200; py = ${y} + (Math.random() - 0.5) * 120; }
       P.x = px; P.y = py; P.vx = P.vy = 0; P.aimA = Math.PI / 2;
       for (let k = 0; k < 3; k++) { let ex = px + 40 + k * 26, ey = py + 10 - k * 14; if (blockPt(ex, ey)) continue; const e = makeEnemy('skitter', ex, ey); e.emerge = 1; e.trait = null; e.elite = false; e.kind = null; e.shield = null; e.vx = e.vy = 0; e.a = Math.PI; e.aw = 0; }
+      if (${DROP}) { GS.crates.length = 0; GS.chutesDown.length = 0;
+        for (const [g, dx] of [[null, -70], ['shotgun', 90]]) { const c = dropCrate(g, g ? 'smg' : null); if (!c) continue; c.x = px + dx; c.y = py - 60; }
+        for (let t = 0; t < 60 * 9; t++) { P.x = px; P.y = py; P.hp = S.maxHp; update(1 / 60); tickWorld(1 / 60); for (const e of GS.enemies) if (!e.__keep) e.dead = true; if (GS.state !== 'play') GS.state = 'play'; }
+        P.x = px; P.y = py; }
       cam.x = ${x} - viewW / 2; cam.y = ${y} - viewH / 2; render();
       return JSON.stringify({ cx: cam.x, cy: cam.y, z: VW / viewW }); })()`)
     );

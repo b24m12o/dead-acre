@@ -17,6 +17,14 @@ export const PER_M = 20, // units to the metre
 // the street's things against their pictures, by what they are across in life: a hydrant 0.6 m with its nozzles, a
 // bin 0.6 m, a mailbox 0.5 m, a newspaper box 0.5 m, a bench 1.8 m, a cone 0.36 m, a tyre 0.65 m, a dumpster 2 m, a
 // shopping cart 0.95 m; the coffin, the signals, the shelter, the generator already true
+// things carried, thrown and set down: grenades, molotovs, mines, flares, the brass (drawn with the hands that hold them)
+export const GEAR = PEOPLE;
+// an air-dropped supply box (about 1.2 m) and the long weapon case (about 1.5 m), with their parachutes; the generator
+// you guard; a jerrycan
+export const CRATE = 0.6,
+  WCASE = 0.45,
+  GEN = 0.6,
+  JERRY = 0.5;
 export const PROP_K = {
   hydrant: 0.55,
   trash: 0.67,

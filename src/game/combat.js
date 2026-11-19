@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { pouchDrop } from './pockets.js';
-import { GK } from '../core/scale.js';
+import { CRATE, GK } from '../core/scale.js';
 import { boonDrop, gearK } from './boons.js';
 import { remainsFull } from '../render/remains.js';
 import { stationCatch } from './station.js';
@@ -1478,7 +1478,7 @@ export function updateCrates(dt) {
         makeNoise(c.x, c.y, 560); // a road flare strapped to the crate pops on landing: you can find it, and so can they
         chips(c.x, c.y, 5, [0.55, 0.5, 0.42], 4, 160);
         for (const e of GS.enemies)
-          if (!e.dead && e.type !== 'queen' && d2(e.x, e.y, c.x, c.y) < (e.r + 20) ** 2) {
+          if (!e.dead && e.type !== 'queen' && d2(e.x, e.y, c.x, c.y) < (e.r + 20 * CRATE) ** 2) {
             hurtEnemy(e, 60 + GS.wave * 4, false, e.x - c.x, e.y - c.y, 2.5, 'boom');
             if (!e.dead && HUMAN[e.type] && e.type !== 'beetle') {
               e.down = 1.15;
@@ -1486,7 +1486,7 @@ export function updateCrates(dt) {
               e.splay = 1;
             }
           } // nothing survives a crate on the head
-        if (GS.P && d2(GS.P.x, GS.P.y, c.x, c.y) < (GS.P.r + 20) ** 2) {
+        if (GS.P && d2(GS.P.x, GS.P.y, c.x, c.y) < (GS.P.r + 20 * CRATE) ** 2) {
           const dx = GS.P.x - c.x,
             dy = GS.P.y - c.y,
             dl = Math.hypot(dx, dy) || 1;
@@ -1633,8 +1633,8 @@ export function updateCrates(dt) {
     if (c.squash > 0) c.squash = Math.max(0, c.squash - dt * 5);
     if (c.flare > 0) {
       c.flare -= dt;
-      const fx = c.x + 20,
-        fy = c.y + 12;
+      const fx = c.x + 20 * CRATE,
+        fy = c.y + 12 * CRATE; // the flare strapped to its corner (the box at life size: core/scale.js)
       if (Math.random() < dt * 14)
         part({
           k: 2,
