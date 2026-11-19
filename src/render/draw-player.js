@@ -4,7 +4,8 @@ import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp, rand } from '../core/util.js';
 import { S } from '../game/state.js';
 import { GUNS, HEROES } from '../game/arsenal.js';
-import { lineQ, quad, setH } from './sprites.js';
+import { lineQ, quad, scaled, setH } from './sprites.js';
+import { PEOPLE } from './scale.js';
 import { R } from './atlas.js';
 import { lamps } from '../world/map.js';
 import { ik2 } from '../actors/legs.js';
@@ -158,7 +159,11 @@ const GPOSE = {
 };
 // you, a shade lighter and cooler than the lamp-lit street: easy to find in a crowd
 export const YOU_TINT = [1.06, 1.08, 1.13];
+// drawn at life size (scale.js)
 export function drawRanger(p) {
+  return scaled(p.x, p.y, PEOPLE, drawRanger0, p);
+}
+function drawRanger0(p) {
   const fl = p.hurt > 0 ? 1 : 0,
     blink = p.inv > 0 && p.dashT <= 0 && Math.sin(GS.time * 40) < -0.3 ? 0.55 : 1;
   const pv = !p.npc && HPV.on && GS.state === 'menu',

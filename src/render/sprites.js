@@ -54,7 +54,7 @@ export function resize() {
   const ud = Math.min(window.devicePixelRatio || 1, 2);
   uic.width = Math.round(VW * ud);
   uic.height = Math.round(VH * ud);
-  ZOOM = window.__Z || clamp(Math.min(VW / 1.5, VH) / 740, 0.62, 1.3);
+  ZOOM = window.__Z || clamp(Math.min(VW / 1.5, VH) / 370, 1.24, 2.6); // close in: the people are life size in the street
   viewW = VW / ZOOM;
   viewH = VH / ZOOM;
   const gk = RW + 'x' + RH + ':' + gp.lightDiv + ':' + gp.bloomLevels;
@@ -95,7 +95,29 @@ let sIBO;
 let bAdd;
 let SHX, SHY, SHH;
 export let SUNV;
+// everything drawn from here on scaled about (x, y) by k (1: as drawn): a figure painted at the pictures' size, drawn at
+// its true size in the world
+let PK = 1,
+  PX = 0,
+  PY = 0,
+  inPK = false;
+export function scaleAbout(x, y, k) {
+  PX = x;
+  PY = y;
+  PK = k;
+}
+// draws fn(...a) scaled about (x, y) by k; inside another scaling it is already the size it should be
+export function scaled(x, y, k, fn, ...a) {
+  if (PK !== 1 || k === 1) return fn(...a);
+  scaleAbout(x, y, k);
+  try {
+    return fn(...a);
+  } finally {
+    PK = 1;
+  }
+}
 export function setH(h) {
+  h *= PK;
   SHX = SUNV[0] * h;
   SHY = SUNV[1] * h;
   SHH = h;
@@ -155,6 +177,12 @@ export function inkMode(on) {
 export let RIM = 0;
 export const setRim = k => (RIM = k);
 export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
+  if (PK !== 1 && !inPK) {
+    inPK = true;
+    quad(r, PX + (x - PX) * PK, PY + (y - PY) * PK, rot, sx * PK, sy * PK, tr, tg, tb, ta, er, eg, eb, ef);
+    inPK = false;
+    return;
+  }
   if (GS.SHMODE === 2) {
     // flashlight shadows: smear each silhouette away from the light, longer the further it stands
     const dx = x - GS.FLX,

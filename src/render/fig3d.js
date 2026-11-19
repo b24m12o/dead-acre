@@ -11,6 +11,7 @@ import { angDiff, clamp, lerp } from '../core/util.js';
 import { gl, progFinish } from './gl.js';
 import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
 import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
+import { PER_M } from './scale.js';
 
 const NB = 14, // bones in a figure's skeleton (tools/mesh/zombie.mjs)
   TW = NB * 3 + 8, // texels in a figure's row: three for each bone's matrix, then its looks
@@ -694,11 +695,11 @@ function eyeGlow(e, out) {
   return out;
 }
 const EYE = [0, 0, 0];
-// the game's own scale for people and animals: the models are true to life (a grown man 55 tall), the game's world is
-// drawn with its people bigger than that against its cars and barrels (the hero, the pictures): the 3D dead are made to
-// match them
-const FIGK = 1.55,
-  DOGK = 1.6;
+// life size in the street (scale.js: 20 units to the metre): the models are a grown man 55 tall, so 0.64 of that is
+// 1.75 m; a big dog 1.1 m from nose to tail; the big dead bigger than their models (the pictures' BIG against PEOPLE)
+const FIGK = (1.75 * PER_M) / 55,
+  BIGK = 1.21,
+  DOGK = 0.45;
 function poseZombie(e, D, o) {
   poolReset();
   const name = modelOf(e) || 'zombie',
@@ -709,7 +710,12 @@ function poseZombie(e, D, o) {
   const r = REST,
     dead = e.dying !== undefined,
     id = e.id || 0,
-    bs = (e.sc || 1) * MM.scale * FIGK * (e.bs || 1),
+    bs =
+      (e.sc || 1) *
+      MM.scale *
+      FIGK *
+      (e.bs || 1) *
+      (name === 'brute' || name === 'hopper' || name === 'drag' ? BIGK : 1),
     k = [bs * (0.5 + 0.5 * (e.bw || 1)), bs], // its size (across, up): its kind's, its own height and build
     // its build against the ordinary zombie's: across the shoulders (kw) and hips (kp), its arms' reach (ka), its legs
     // (kl), its height (kh)

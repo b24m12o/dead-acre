@@ -2,7 +2,8 @@
 import { gunPose, rideCiv } from '../game/evac-ride.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
-import { lineQ, quad, setH, viewH, viewW } from './sprites.js';
+import { lineQ, quad, scaled, setH, viewH, viewW } from './sprites.js';
+import { BARREL } from './scale.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
 import { drawRanger, lampHot } from './draw-player.js';
@@ -140,6 +141,9 @@ function drawCrystal(c) {
   quad(R['crystal' + c.hue], c.x, c.y - 20 * g, c.rot, c.s * g, c.s * g, 1, 1, 1, 1, pu, pu, pu, f);
 } // plain metal sides rising to the painted top: no stack of repeated hazard stripes
 function drawBurnBarrel(f) {
+  return scaled(f.x, f.y, BARREL, drawBurnBarrel0, f);
+}
+function drawBurnBarrel0(f) {
   if (GS.SHMODE && propShadow('o_burn', f.x, f.y)) return;
   if (GS.SHMODE) {
     setH(18);
@@ -155,6 +159,9 @@ function drawBurnBarrel(f) {
   quad(R.bbtop, f.x, f.y - 18, f.ph, 1, 1, 1, 1, 1, 1, 1.6 * fk, 1.2 * fk, 1 * fk, 0);
 }
 function drawBarrel(b) {
+  return scaled(b.x, b.y, BARREL, drawBarrel0, b);
+}
+function drawBarrel0(b) {
   if (GS.SHMODE && propShadow('o_drum', b.x, b.y)) return;
   if (GS.SHMODE) {
     setH(16);
@@ -456,8 +463,23 @@ export function drawCasters() {
     } // the alarm clock, rattling as it rings
   for (const b of GS.barrels)
     if (b.gas && !b.dead) {
-      setH(26);
-      quad(R.pixel, b.x, b.y - 14, Math.PI / 4, 2.2, 2.2, 0.95, 0.75, 0.1, 1, 0.25, 0.18, 0, 0);
+      setH(26 * BARREL);
+      quad(
+        R.pixel,
+        b.x,
+        b.y - 14 * BARREL,
+        Math.PI / 4,
+        2.2 * BARREL,
+        2.2 * BARREL,
+        0.95,
+        0.75,
+        0.1,
+        1,
+        0.25,
+        0.18,
+        0,
+        0
+      );
     } // a hazard mark on your gas drums, so you know which to shoot
   for (const c of cars)
     if (c.rig && !c.dead) {

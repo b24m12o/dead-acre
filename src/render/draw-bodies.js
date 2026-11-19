@@ -1,7 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { clamp, lerp } from '../core/util.js';
-import { lineQ, quad, setH } from './sprites.js';
+import { lineQ, quad, scaled, setH } from './sprites.js';
+import { figK } from './scale.js';
 import { R } from './atlas.js';
 import { solidPt } from '../world/nav.js';
 import { playS, thr } from '../audio/audio.js';
@@ -119,6 +120,9 @@ function armW(sx, sy, hx, hy, L, w1, w2, side, skin, sleeve, fl, hs, ls = 0, cx 
   armSeg(sx, sy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, hs, ls);
 }
 export function drawBody(e, fl, _f, em, skin, shirt) {
+  return scaled(e.x, e.y, figK(e), drawBody0, e, fl, _f, em, skin, shirt);
+}
+function drawBody0(e, fl, _f, em, skin, shirt) {
   // a body going down, lying face down, or getting back up
   const st = lyState(e),
     brute = e.type === 'beetle',

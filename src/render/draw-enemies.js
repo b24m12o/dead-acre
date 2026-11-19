@@ -1,7 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, lerp, rand } from '../core/util.js';
-import { RIM, lineQ, quad, setH, setRim } from './sprites.js';
+import { RIM, lineQ, quad, scaled, setH, setRim } from './sprites.js';
+import { figK } from './scale.js';
 import { R } from './atlas.js';
 import { drawLegs, ik2 } from '../actors/legs.js';
 import { dust, part } from './effects.js';
@@ -178,7 +179,11 @@ function zArm(W, sh, hand, L, w1, w2, side, skin, sleeve, fl, handSc, gone, ls =
     [ex, ey] = nat ? natElbow(shx, shy, hx, hy, L, ...W(-2, 0)) : ik2(shx, shy, hx, hy, L, L, -side);
   armSeg(shx, shy, ex, ey, hx, hy, w1, w2, side, skin, sleeve, fl, handSc, ls);
 }
+// each drawn at its size against the world (scale.js)
 export function drawEnemy(e) {
+  return scaled(e.x, e.y - (e.z || 0), figK(e), drawEnemyAt, e);
+}
+function drawEnemyAt(e) {
   if (is3D(e)) {
     if (drawFig3D(e)) return;
   } else figFlush(); // the figures drawn in 3D before it go down first (fig3d.js)
