@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { roofStop } from './roofs.js';
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, lerp, rand } from '../core/util.js';
 import { quad, viewH, viewW } from '../render/sprites.js';
@@ -209,7 +210,8 @@ export function damageCar(c, dmg) {
     if (c.hp > 0) {
       c.warn = floatText(c.x, c.y - 30, "It's going to blow!", '#ffb070', 15); // only while there's still time to get clear
       const b = nearestUp(c.x, c.y, 500);
-      if (b && GS.P && (d2(c.x, c.y, GS.P.x, GS.P.y) < 260 * 260 || d2(c.x, c.y, b.x, b.y) < 200 * 200)) bark(b, 'car');
+      if (b && GS.P && (d2(c.x, c.y, GS.P.x, GS.P.y) < (260 * GK) ** 2 || d2(c.x, c.y, b.x, b.y) < (200 * GK) ** 2))
+        bark(b, 'car');
     }
   }
   if (c.hp <= 0) blowCar(c);
@@ -267,7 +269,7 @@ function fireAudio(dt) {
     best = 1e9;
   const near = (x, y, k) => {
     const d = Math.hypot(x - GS.P.x, y - GS.P.y);
-    if (d > 560) return;
+    if (d > 560 * GK) return;
     I += k * clamp(1 - d / 560, 0, 1);
     if (d < best) {
       best = d;
@@ -422,11 +424,11 @@ export function throwMolotov(p) {
     clear = r + p.r + 40; // never where its own fire would reach you: it used to land on crowds 90 px out, led toward you
   let best = null,
     bn = 0;
-  query(p.x, p.y, 470, e => {
+  query(p.x, p.y, 470 * GK, e => {
     if (e.dead || e.emerge < 1 || d2(e.x + e.vx * 0.3, e.y + e.vy * 0.3, p.x, p.y) < clear * clear) return;
     let n = 0;
-    query(e.x, e.y, 95, o => {
-      if (!o.dead && d2(o.x, o.y, e.x, e.y) < 95 * 95) n++;
+    query(e.x, e.y, 95 * GK, o => {
+      if (!o.dead && d2(o.x, o.y, e.x, e.y) < (95 * GK) ** 2) n++;
     });
     if (n > bn) {
       bn = n;

@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { cineTick } from '../game/cine.js';
+import { GK } from '../core/scale.js';
 import { DAWN_IDLE, dawnBusy } from '../game/night-flow.js';
 import { takePouch } from '../game/pockets.js';
 import { BOON, boonOn, tickBoons } from '../game/boons.js';
@@ -78,8 +79,8 @@ import { leaveStop } from '../game/night-flow.js';
 import { hatchFor, openHatch, tickHatches } from '../world/sewers.js';
 // Bodies shove each other apart, the lighter giving way. A fine grid of its own (cells as wide as two walkers) in flat
 // arrays: a horde of 400 packed round you is ~30 neighbours each to check, not ~120 through a callback
-const SEP = 40,
-  SEP_R = 20; // walkers up to this size use the 3 × 3 cells round them; anything bigger searches further
+const SEP = 40 * GK,
+  SEP_R = 20 * GK; // walkers up to this size use the 3 × 3 cells round them; anything bigger searches further
 let sepHead = null,
   sepNext = new Int32Array(512),
   sepW = 0,
@@ -155,7 +156,8 @@ export function update(dt) {
   p.shoveT = Math.max(0, (p.shoveT || 0) - dt);
   if (!(GS.meta.tips && GS.meta.tips.shove) && GS.state === 'play' && !GS.RUN.tut && !p.ride && p.hp > 0) {
     let n = 0;
-    for (const e of GS.enemies) if (!e.dead && e.emerge >= 1 && d2(e.x, e.y, p.x, p.y) < 70 * 70 && ++n >= 3) break;
+    for (const e of GS.enemies)
+      if (!e.dead && e.emerge >= 1 && d2(e.x, e.y, p.x, p.y) < (70 * GK) ** 2 && ++n >= 3) break;
     if (n >= 3) {
       GS.meta.tips = GS.meta.tips || {};
       GS.meta.tips.shove = 1;
@@ -197,7 +199,8 @@ export function update(dt) {
   const [mx, my] = moveInput();
   if (p.dashT > 0) {
     p.dashT -= dt;
-    if (Math.random() < dt * 40) dust(p.x - Math.cos(p.dashA) * 10, p.y - Math.sin(p.dashA) * 10, 1, 30, 0.7, 0.6);
+    if (Math.random() < dt * 40)
+      dust(p.x - Math.cos(p.dashA) * 10 * GK, p.y - Math.sin(p.dashA) * 10 * GK, 1, 30, 0.7, 0.6);
     if (p.dashT <= 0) {
       p.vx *= 0.4;
       p.vy *= 0.4;
@@ -214,7 +217,7 @@ export function update(dt) {
       dvx = tvx - p.vx,
       dvy = tvy - p.vy,
       dl = Math.hypot(dvx, dvy),
-      acc = (mx || my ? 2000 : 2400) * dt;
+      acc = (mx || my ? 2000 : 2400) * GK * dt;
     if (dl <= acc) {
       p.vx = tvx;
       p.vy = tvy;
@@ -227,15 +230,15 @@ export function update(dt) {
   p.y += p.vy * dt;
   collide(p);
   const spd = Math.hypot(p.vx, p.vy);
-  if (spd > 20) p.moveA += angDiff(p.moveA, Math.atan2(p.vy, p.vx)) * damp(12, dt);
+  if (spd > 20 * GK) p.moveA += angDiff(p.moveA, Math.atan2(p.vy, p.vx)) * damp(12, dt);
   p.strideAmp = lerp(p.strideAmp, Math.min(1, spd / S.speed), damp(10, dt));
   const ps = p.stride;
-  p.stride += (spd * dt) / 76;
-  if (spd > 60 && Math.floor(ps * 2) !== Math.floor(p.stride * 2)) {
+  p.stride += (spd * dt) / (76 * GK);
+  if (spd > 60 * GK && Math.floor(ps * 2) !== Math.floor(p.stride * 2)) {
     sfx.step();
-    if (Math.random() < 0.5) dust(p.x - Math.cos(p.moveA) * 8, p.y - Math.sin(p.moveA) * 8, 1, 12, 0.35, 0.5);
+    if (Math.random() < 0.5) dust(p.x - Math.cos(p.moveA) * 8 * GK, p.y - Math.sin(p.moveA) * 8 * GK, 1, 12, 0.35, 0.5);
   }
-  p.recoil = Math.max(0, p.recoil - dt * 40);
+  p.recoil = Math.max(0, p.recoil - dt * 40 * GK);
   p.heat = Math.max(
     0,
     (p.heat || 0) - dt * 1.2
@@ -245,7 +248,7 @@ export function update(dt) {
     target = p.aimA;
   const cwx = cam.x + mouse.x / ZOOM,
     cwy = cam.y + mouse.y / ZOOM;
-  if (d2(cwx, cwy, p.x, p.y) > 40 * 40) target = Math.atan2(cwy - p.y, cwx - p.x);
+  if (d2(cwx, cwy, p.x, p.y) > (40 * GK) ** 2) target = Math.atan2(cwy - p.y, cwx - p.x);
   firing = mouse.down;
   if (WHEEL.open) {
     target = p.aimA;
@@ -309,15 +312,16 @@ export function update(dt) {
     p.dartT -= dt;
     if (p.dartT <= 0) {
       const tg = [];
-      query(p.x, p.y, 430, e => {
-        if (!e.dead && e.emerge >= 1 && d2(e.x, e.y, p.x, p.y) > 70 * 70 && !roofStop(p.x, p.y, e.x, e.y)) tg.push(e); // not through a roof (roofs.js)
+      query(p.x, p.y, 430 * GK, e => {
+        if (!e.dead && e.emerge >= 1 && d2(e.x, e.y, p.x, p.y) > (70 * GK) ** 2 && !roofStop(p.x, p.y, e.x, e.y))
+          tg.push(e); // not through a roof (roofs.js)
       });
       if (tg.length) {
         p.dartT = S.dartCd;
         for (let i = 0; i < S.darts; i++) {
           const e = pick(tg),
-            tx = e.x + e.vx * 0.4 + rand(-20, 20),
-            ty = e.y + e.vy * 0.4 + rand(-20, 20),
+            tx = e.x + e.vx * 0.4 + rand(-20, 20) * GK,
+            ty = e.y + e.vy * 0.4 + rand(-20, 20) * GK,
             d = Math.hypot(tx - p.x, ty - p.y);
           GS.darts.push({
             x0: p.x,
@@ -327,7 +331,7 @@ export function update(dt) {
             tx,
             ty,
             t: -i * 0.12,
-            dur: clamp(d / 480, 0.35, 0.9),
+            dur: clamp(d / (480 * GK), 0.35, 0.9),
             z: 0,
             spin: rand(0, TAU),
             fuse: 0.45,
@@ -343,11 +347,11 @@ export function update(dt) {
     if (p.pulseT <= 0) {
       let best = null,
         bn = 0;
-      query(p.x, p.y, 320, e => {
+      query(p.x, p.y, 320 * GK, e => {
         if (e.dead || e.emerge < 1) return;
         let n = 0;
-        query(e.x, e.y, 110, o => {
-          if (!o.dead && d2(o.x, o.y, e.x, e.y) < 110 * 110) n++;
+        query(e.x, e.y, 110 * GK, o => {
+          if (!o.dead && d2(o.x, o.y, e.x, e.y) < (110 * GK) ** 2) n++;
         });
         if (n > bn) {
           bn = n;
@@ -368,7 +372,7 @@ export function update(dt) {
           tx,
           ty,
           t: 0,
-          dur: clamp(d / 520, 0.25, 0.6),
+          dur: clamp(d / (520 * GK), 0.25, 0.6),
           z: 0,
           spin: rand(0, TAU),
           fuse: 0.4,
@@ -390,8 +394,8 @@ export function update(dt) {
   // formation trails the way you walk, not the way you aim, and holds still while you stand
   const pspd = Math.hypot(p.vx, p.vy);
   if (p.formA === undefined) p.formA = p.moveA;
-  if (pspd > 60) p.formA += angDiff(p.formA, p.moveA) * damp(2.5, dt);
-  const setOff = pspd > 60 && (p.spdWas || 0) <= 60; // you just started walking: each of your people takes a moment to react
+  if (pspd > 60 * GK) p.formA += angDiff(p.formA, p.moveA) * damp(2.5, dt);
+  const setOff = pspd > 60 * GK && (p.spdWas || 0) <= 60 * GK; // you just started walking: each of your people takes a moment to react
   p.spdWas = pspd;
   {
     p.__slots = [];
@@ -408,12 +412,12 @@ export function update(dt) {
     let sl = s.slot;
     const bad =
       !sl ||
-      Math.hypot(p.x - sl.px, p.y - sl.py) > (pspd > 60 ? 0 : 30) ||
+      Math.hypot(p.x - sl.px, p.y - sl.py) > (pspd > 60 * GK ? 0 : 30 * GK) ||
       solidPt(sl.x, sl.y) ||
       (s.coneT = sl && Math.abs(angDiff(p.aimA, Math.atan2(sl.y - p.y, sl.x - p.x))) < 0.4 ? (s.coneT || 0) + dt : 0) >
         0.35 ||
       (s.stuckT || 0) > 0.8 ||
-      taken.some(q => d2(q[0], q[1], sl.x, sl.y) < 40 * 40);
+      taken.some(q => d2(q[0], q[1], sl.x, sl.y) < (40 * GK) ** 2);
     if (bad) {
       const stuck = (s.stuckT || 0) > 0.8 && sl;
       if (stuck) {
@@ -426,23 +430,23 @@ export function update(dt) {
       s.stuckT = 0;
       s.pgD = undefined;
     } // can't get to any spot: it simply stands where it is
-    if (pspd < 20 && Math.hypot(sl.x - s.x, sl.y - s.y) < 22) {
+    if (pspd < 20 && Math.hypot(sl.x - s.x, sl.y - s.y) < 22 * GK) {
       s.idleT = (s.idleT ?? rand(3, 8)) - dt;
       if (s.idleT <= 0) {
         s.idleT = rand(5, 11);
         const a = rand(0, TAU),
-          r = rand(14, 30),
+          r = rand(14, 30) * GK,
           nx = sl.x + Math.cos(a) * r,
           ny = sl.y + Math.sin(a) * r;
         if (
           !solidPt(nx, ny) &&
-          !solidPt(nx + 13, ny) &&
-          !solidPt(nx - 13, ny) &&
-          !solidPt(nx, ny + 13) &&
-          !solidPt(nx, ny - 13) &&
-          Math.hypot(nx - p.x, ny - p.y) > 44 &&
+          !solidPt(nx + 13 * GK, ny) &&
+          !solidPt(nx - 13 * GK, ny) &&
+          !solidPt(nx, ny + 13 * GK) &&
+          !solidPt(nx, ny - 13 * GK) &&
+          Math.hypot(nx - p.x, ny - p.y) > 44 * GK &&
           Math.abs(angDiff(p.aimA, Math.atan2(ny - p.y, nx - p.x))) > 0.6 &&
-          !taken.some(q => d2(q[0], q[1], nx, ny) < 44 * 44) &&
+          !taken.some(q => d2(q[0], q[1], nx, ny) < (44 * GK) ** 2) &&
           los(p.x, p.y, nx, ny)
         ) {
           sl.x = nx;
@@ -463,10 +467,10 @@ export function update(dt) {
       pd = Math.hypot(p.x - s.x, p.y - s.y);
     let dvx = 0,
       dvy = 0;
-    if (dd > 22 && !(s.react > 0 && dd < 160)) {
+    if (dd > 22 * GK && !(s.react > 0 && dd < 160 * GK)) {
       let ux = dx / dd,
         uy = dy / dd;
-      if (pd > 110 && (s.flowT > 0 || !los(s.x, s.y, tx, ty))) {
+      if (pd > 110 * GK && (s.flowT > 0 || !los(s.x, s.y, tx, ty))) {
         const cx = Math.floor(s.x / TILE), // the flow field leads to you, so it only helps from further out
           cy = Math.floor(s.y / TILE);
         let best = flow[cy * MW + cx],
@@ -496,7 +500,7 @@ export function update(dt) {
           qy = p.y - s.y,
           along = qx * ux + qy * uy,
           side = qx * uy - qy * ux;
-        if (along > 0 && along < dd && Math.abs(side) < 40) {
+        if (along > 0 && along < dd && Math.abs(side) < 40 * GK) {
           const sg = side >= 0 ? 1 : -1,
             nx = ux - uy * sg * 1.3,
             ny = uy + ux * sg * 1.3,
@@ -508,23 +512,23 @@ export function update(dt) {
       const v = Math.min(Math.max(S.speed * 1.15, pspd * 1.1), dd * 5);
       dvx = ux * v;
       dvy = uy * v;
-      if (pspd > 60) {
+      if (pspd > 60 * GK) {
         const fx = p.vx / pspd,
           fy = p.vy / pspd,
           ax = s.x - p.x,
           ay = s.y - p.y,
           ahead = ax * fx + ay * fy,
           side = ax * fy - ay * fx;
-        if (ahead > 10) {
+        if (ahead > 10 * GK) {
           const back = dvx * fx + dvy * fy;
           if (back < 0) {
             dvx -= back * fx;
             dvy -= back * fy;
           }
-          if (Math.abs(side) < 46) {
+          if (Math.abs(side) < 46 * GK) {
             const sg = side >= 0 ? 1 : -1;
-            dvx += fy * sg * 150;
-            dvy -= fx * sg * 150;
+            dvx += fy * sg * 150 * GK;
+            dvy -= fx * sg * 150 * GK;
           }
         }
       } // you turned round and they are in front of you now: they step out of your way and let you pass, then fall in behind, instead of running back through you
@@ -541,14 +545,15 @@ export function update(dt) {
       s.chkT = 0.5;
       const closed = (s.lastPd ?? pd) - pd;
       s.lastPd = pd;
-      if (dd > 60 && closed < 15) {
+      if (dd > 60 * GK && closed < 15) {
         s.flowT = 1.5;
       }
-      if (pd > 280 && closed < 30) s.lostT = (s.lostT || 0) + 0.5;
+      if (pd > 280 * GK && closed < 30) s.lostT = (s.lostT || 0) + 0.5;
       else s.lostT = 0;
-      s.stuckT = dd > 50 && closed < 8 && pd <= 280 && !s.ride ? (s.stuckT || 0) + 0.5 : 0; // near, wanting to come, going nowhere: walled in
+      s.stuckT = dd > 50 * GK && closed < 8 && pd <= 280 * GK && !s.ride ? (s.stuckT || 0) + 0.5 : 0; // near, wanting to come, going nowhere: walled in
     }
-    const onScr = s.x > cam.x - 30 && s.x < cam.x + viewW + 30 && s.y > cam.y - 50 && s.y < cam.y + viewH + 30;
+    const onScr =
+      s.x > cam.x - 30 * GK && s.x < cam.x + viewW + 30 * GK && s.y > cam.y - 50 * GK && s.y < cam.y + viewH + 30 * GK;
     if (s.stuckT >= 4) {
       const [nx, ny] = spotNear(p);
       s.x = nx;
@@ -557,7 +562,7 @@ export function update(dt) {
       s.lastPd = Math.hypot(p.x - s.x, p.y - s.y);
       s.flowT = 0;
     } // stuck in something just by you (a barricade it was dropped in, say): out beside you
-    if (pd > 950 || (s.lostT >= 2 && !onScr) || s.lostT >= 4) {
+    if (pd > 950 * GK || (s.lostT >= 2 && !onScr) || s.lostT >= 4) {
       const sp = regroupSpot(p, i);
       if (sp) {
         s.x = sp[0];
@@ -572,9 +577,9 @@ export function update(dt) {
         const ex = s.x - o.x,
           ey = s.y - o.y,
           el = Math.hypot(ex, ey);
-        if (el < 42 && el > 0.01) {
-          s.x += (ex / el) * (42 - el) * 0.5;
-          s.y += (ey / el) * (42 - el) * 0.5;
+        if (el < 42 * GK && el > 0.01) {
+          s.x += (ex / el) * (42 * GK - el) * 0.5;
+          s.y += (ey / el) * (42 * GK - el) * 0.5;
         }
       }
     {
@@ -587,9 +592,9 @@ export function update(dt) {
         ey = Math.sin(a2);
         el = 1;
       }
-      if (el < 34) {
-        s.x = p.x + (ex / el) * 34;
-        s.y = p.y + (ey / el) * 34;
+      if (el < 34 * GK) {
+        s.x = p.x + (ex / el) * 34 * GK;
+        s.y = p.y + (ey / el) * 34 * GK;
       }
     } // a survivor never stands inside you: always at least a shoulder's width away
     collide(s);
@@ -598,7 +603,7 @@ export function update(dt) {
       s.pgT = (s.pgT || 0) + dt;
       if (s.pgT >= 0.4) {
         const gain = (s.pgD ?? nd) - nd;
-        s.stuckT = (s.wantV || 0) > 30 && gain < 18 ? (s.stuckT || 0) + s.pgT : 0;
+        s.stuckT = (s.wantV || 0) > 30 * GK && gain < 18 * GK ? (s.stuckT || 0) + s.pgT : 0;
         s.pgT = 0;
         s.pgD = nd;
       }
@@ -606,12 +611,12 @@ export function update(dt) {
     const vx = (s.x - ox) / Math.max(dt, 1e-4),
       vy = (s.y - oy) / Math.max(dt, 1e-4),
       spd = Math.hypot(vx, vy);
-    if (spd > 20) s.moveA += angDiff(s.moveA, Math.atan2(vy, vx)) * damp(10, dt);
-    s.strideAmp = lerp(s.strideAmp, Math.min(1, spd / 250), damp(10, dt));
-    s.stride += (spd * dt) / 76;
+    if (spd > 20 * GK) s.moveA += angDiff(s.moveA, Math.atan2(vy, vx)) * damp(10, dt);
+    s.strideAmp = lerp(s.strideAmp, Math.min(1, spd / (250 * GK)), damp(10, dt));
+    s.stride += (spd * dt) / (76 * GK);
     s.aimA = s.aim;
     s.bodyA += angDiff(s.bodyA, s.aim) * damp(8, dt);
-    s.recoil = Math.max(0, s.recoil - dt * 40);
+    s.recoil = Math.max(0, s.recoil - dt * 40 * GK);
     buddyShoot(s, dt, 1);
     budLook(s, p, dt, spd);
   });
@@ -623,7 +628,13 @@ export function update(dt) {
     for (const e of GS.enemies) {
       if (e.dead || e.type === 'flower') continue;
       n++;
-      if (e.x > cam.x - 80 && e.x < cam.x + viewW + 80 && e.y > cam.y - 80 && e.y < cam.y + viewH + 80) seen = true;
+      if (
+        e.x > cam.x - 80 * GK &&
+        e.x < cam.x + viewW + 80 * GK &&
+        e.y > cam.y - 80 * GK &&
+        e.y < cam.y + viewH + 80 * GK
+      )
+        seen = true;
     }
     GS.blankT = n && n <= 12 && !seen ? (GS.blankT || 0) + dt : 0;
     if (GS.blankT >= 8) {
@@ -680,7 +691,7 @@ export function update(dt) {
               })()
             : t === 'shield'
               ? makeShield(makeEnemy('skitter', sx, sy))
-              : makeEnemy(t, sx + (i ? rand(-16, 16) : 0), sy + (i ? rand(-16, 16) : 0));
+              : makeEnemy(t, sx + (i ? rand(-16, 16) * GK : 0), sy + (i ? rand(-16, 16) * GK : 0));
         if (
           GS.wave >= 3 &&
           t !== 'queen' &&
@@ -745,13 +756,13 @@ export function update(dt) {
     GS.aiTick = (GS.aiTick || 0) + 1;
     const vcx = cam.x + viewW / 2,
       vcy = cam.y + viewH / 2,
-      fx = viewW / 2 + 260,
-      fy = viewH / 2 + 260;
+      fx = viewW / 2 + 260 * GK,
+      fy = viewH / 2 + 260 * GK;
     for (const e of GS.enemies) {
       if (
         !e.big &&
         !e.dead &&
-        Math.abs(e.kx || 0) + Math.abs(e.ky || 0) < 40 &&
+        Math.abs(e.kx || 0) + Math.abs(e.ky || 0) < 40 * GK &&
         (Math.abs(e.x - vcx) > fx || Math.abs(e.y - vcy) > fy)
       ) {
         if ((e.id + GS.aiTick) & 1) continue;
@@ -785,7 +796,7 @@ export function update(dt) {
       const k = Math.min(1, m.t / m.dur);
       m.x = lerp(m.x0, m.tx, k);
       m.y = lerp(m.y0, m.ty, k);
-      m.z = Math.sin(k * Math.PI) * (30 + m.dur * 110);
+      m.z = Math.sin(k * Math.PI) * (30 + m.dur * 110) * GK;
       m.spin += dt * 14;
       if (k >= 1) {
         m.z = 0;
@@ -822,7 +833,7 @@ export function update(dt) {
           GS.pools.push({
             x: b.x,
             y: b.y,
-            r: 34,
+            r: 34 * GK,
             life: 3.5,
             max: 3.5,
             dmg: 4 * (1 + 0.04 * GS.wave),
@@ -866,7 +877,7 @@ export function update(dt) {
     } /* full: leave it for later instead of wasting it, and don't let it run out while it waits */
     if (!full && !p.ride && ((dd < S.magnet && k.t > 0.25) || k.pull)) {
       k.pull = true;
-      const s = 650 + k.t * 250,
+      const s = (650 + k.t * 250) * GK,
         ux = (p.x - k.x) / (dd || 1),
         uy = (p.y - k.y) / (dd || 1);
       k.vx += (ux * s - k.vx) * damp(9, dt);
@@ -885,7 +896,7 @@ export function update(dt) {
     k.x += k.vx * dt;
     k.y += k.vy * dt;
     if (!k.pull && solidPt(k.x, k.y)) {
-      out: for (let r = 10; r <= 90; r += 10)
+      out: for (let r = 10 * GK; r <= 90 * GK; r += 10 * GK)
         for (let a = 0; a < 8; a++) {
           const x = k.x + Math.cos((a * Math.PI) / 4) * r,
             y = k.y + Math.sin((a * Math.PI) / 4) * r;
@@ -897,7 +908,7 @@ export function update(dt) {
           }
         }
     } // thrown into a wall: it comes out on the nearest open ground, where you can get to it
-    if (!full && dd < p.r + 10) {
+    if (!full && dd < p.r + 10 * GK) {
       k.got = true;
       if (k.k === 'ammo') {
         if (k.at) addAmmoType(k.at, k.v);
@@ -992,7 +1003,7 @@ export function update(dt) {
     let near = killing;
     if (!near)
       for (const e of GS.enemies)
-        if (!e.dead && !e.dormant && e.aw > 0 && d2(e.x, e.y, p.x, p.y) < 520 * 520) {
+        if (!e.dead && !e.dormant && e.aw > 0 && d2(e.x, e.y, p.x, p.y) < (520 * GK) ** 2) {
           near = true;
           break;
         }

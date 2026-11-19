@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { TAU, clamp, d2, lerp, rand, randi } from '../core/util.js';
 import { R } from '../render/atlas.js';
 import { crystals, lamps } from '../world/map.js';
@@ -332,7 +333,7 @@ export function bossProj(b, dt, p) {
 export function bossSlam(e) {
   const R0 = 150;
   for (const L of lamps)
-    if (!L.down && !L.lantern && d2(L.bx, L.by, e.x, e.y) < 230 * 230) {
+    if (!L.down && !L.lantern && d2(L.bx, L.by, e.x, e.y) < (230 * GK) ** 2) {
       L.down = true;
       L.fa = Math.atan2(L.by - e.y, L.bx - e.x) + rand(-0.3, 0.3);
       sparks(L.hx, L.hy, [1, 0.9, 0.6], 14, 300);

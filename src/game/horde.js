@@ -5,6 +5,7 @@
 // and it doesn't let go. It flows like water: one shared route for all of it, spreading into the side streets when
 // the main one clogs. Kill every last one and the convoy drops supplies.
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, pick, rand, angDiff } from '../core/util.js';
 import { LAYOUT, MH, MW, TILE, WH, WW, grid } from '../world/map.js';
@@ -117,7 +118,7 @@ function arrive(H) {
     const ends = [
         [3.5 * TILE, 30.5 * TILE],
         [(MW - 3.5) * TILE, 30.5 * TILE],
-      ].filter(P => Math.hypot(P[0] - GS.P.x, P[1] - GS.P.y) > 700), // never on top of you: an end you're holding is out
+      ].filter(P => Math.hypot(P[0] - GS.P.x, P[1] - GS.P.y) > 700 * GK), // never on top of you: an end you're holding is out
       W = ends[0] || [GS.P.x < WW / 2 ? (MW - 3.5) * TILE : 3.5 * TILE, 30.5 * TILE],
       E = ends[1] || W;
     H.ents = ends.length > 1 ? [W, E] : [W]; // holding one end: they all come from the other
@@ -393,7 +394,7 @@ function massAt(H, G, dt) {
     H.grp.length > 1 &&
     H.grp[0].n &&
     H.grp[1].n &&
-    d2(H.grp[0].sx, H.grp[0].sy, H.grp[1].sx, H.grp[1].sy) < 380 * 380
+    d2(H.grp[0].sx, H.grp[0].sy, H.grp[1].sx, H.grp[1].sy) < (380 * GK) ** 2
   ) {
     const [a, b] = H.grp,
       n = a.n + b.n;

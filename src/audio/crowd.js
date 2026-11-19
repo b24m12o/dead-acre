@@ -7,8 +7,9 @@ import { GS } from '../core/gs.js';
 import { clamp, d2, rand } from '../core/util.js';
 import { AC, SBV, sfxBus, sfxRev } from './audio.js';
 import { viewW } from '../render/sprites.js';
+import { GK } from '../core/scale.js';
 
-export const CROWD = { near: 900, lo: 10, hi: 80, gain: 0.22, slew: 1 / 1.5, maxTakes: 7 };
+export const CROWD = { near: 900 * GK, lo: 10, hi: 80, gain: 0.22, slew: 1 / 1.5, maxTakes: 7 };
 GS.crowd = { level: 0, n: 0, takes: 0 };
 let B = null,
   acc = 0;

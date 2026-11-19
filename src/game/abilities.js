@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { roofStop } from '../world/roofs.js';
+import { GK } from '../core/scale.js';
 import { heroSay } from '../audio/barks.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, rand } from '../core/util.js';
@@ -200,7 +201,7 @@ function fanShot(a0) {
     bd = 1e12;
   const used = (GS.P.__fan = GS.P.__fan && GS.time - GS.P.__fanT < 1 ? GS.P.__fan : []);
   GS.P.__fanT = GS.time;
-  query(GS.P.x, GS.P.y, 520, e => {
+  query(GS.P.x, GS.P.y, 520 * GK, e => {
     if (e.dead || e.emerge < 1) return;
     const ea = Math.atan2(e.y - GS.P.y, e.x - GS.P.x);
     if (Math.abs(angDiff(a0, ea)) > 0.62) return;

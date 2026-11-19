@@ -2,7 +2,7 @@
 import { GS } from '../core/gs.js';
 import { TAU, clamp, d2, pick, rand, randi } from '../core/util.js';
 import { SUNV, addLight, lineQ, quad, scaled, setH, viewH, viewW } from './sprites.js';
-import { PROP_K } from './scale.js';
+import { PROP_K } from '../core/scale.js';
 import { R } from './atlas.js';
 import { GARAGE, MH, MW, ROAD, RX, RY, TILE, cars, grid, houses, ttype } from '../world/map.js';
 import { query } from '../world/nav.js';

@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { CINE, cinePlay } from './cine.js';
+import { GK } from '../core/scale.js';
 import { clawOut } from '../actors/legs.js';
 import { CLIP_END, boss3dOn, clipAbom } from '../render/boss3d.js';
 import { placeStage } from './setpieces.js';
@@ -526,7 +527,7 @@ const ENTRANCE = {
     // a car alarm starts screaming down the road, the car rocks harder and harder, and it bursts out of the wreck
     const dd = c => Math.hypot(c.x - GS.P.x, c.y - GS.P.y),
       car = cars
-        .filter(c => !c.dead && !c.burnt && dd(c) > 380 && dd(c) < 820)
+        .filter(c => !c.dead && !c.burnt && dd(c) > 380 * GK && dd(c) < 820 * GK)
         .sort((a, b) => Math.abs(dd(a) - 560) - Math.abs(dd(b) - 560))[0];
     if (!car) return ENTRANCE.walk(bt);
     const steps = [[0.25, () => startAlarm(car)]];
@@ -612,7 +613,7 @@ const ENTRANCE = {
         ]) {
           if (!freeAround(x, y, 22)) continue;
           const d = Math.hypot(x - GS.P.x, y - GS.P.y);
-          if (d < 420 || d > 950) continue;
+          if (d < 420 * GK || d > 950 * GK) continue;
           const sc = Math.abs(d - 600) + Math.abs(y - GS.P.y) * 0.6;
           if (sc < bs) {
             bs = sc;
@@ -738,7 +739,7 @@ export function arenaPhase(e, ph, skip) {
   } // it feeds on the grid: first the block goes dark, then the lights all over town start to stutter
   else if (bt === 'roadkill') {
     const dd = c => d2(c.x, c.y, GS.P.x, GS.P.y),
-      pool2 = cars.filter(c => !c.dead && !c.fire && !c.burnt && dd(c) > 260 * 260 && dd(c) < 900 * 900);
+      pool2 = cars.filter(c => !c.dead && !c.fire && !c.burnt && dd(c) > (260 * GK) ** 2 && dd(c) < (900 * GK) ** 2);
     for (let i = 0; i < (ph === 1 ? 1 : 3) && pool2.length; i++) {
       const c = pool2.splice(randi(0, pool2.length - 1), 1)[0];
       GS.later.push({

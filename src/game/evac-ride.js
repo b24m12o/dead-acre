@@ -6,6 +6,7 @@
 // way there are survivors in the open with the dead closing on them: whoever is still standing when you have flown
 // past made it, and the convoy behind picks them up. The end screen counts what you did from the door.
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { bump } from './challenges.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, rand } from '../core/util.js';
 import { MH, MW, TILE, WH, WW, grid } from '../world/map.js';
@@ -238,8 +239,8 @@ function crewGuns(e, r, dt) {
     b.hcd = (b.hcd ?? 0.5) - dt;
     if (b.hcd > 0) return;
     let tg = null,
-      bd = 480 * 480;
-    query(e.hx, e.hy, 480, z => {
+      bd = (480 * GK) ** 2;
+    query(e.hx, e.hy, 480 * GK, z => {
       if (z.dead || z.dying !== undefined || !(z.emerge >= 1) || z.type === 'queen') return;
       const dd = d2(z.x, z.y, e.hx, e.hy);
       if ((z.x - e.hx) * lx + (z.y - e.hy) * ly < -40 || dd > bd) return;
@@ -327,8 +328,8 @@ function doorGun(e, r, dt) {
   } // the brass goes out of the door and falls to the street below
   if (!playS('lmg', 0.42, 0.8, 0, 0.45)) noise(0.06, 0.12, 2200, 500, 'bandpass');
   let best = null,
-    bd = 30 * 30;
-  query(tx, ty, 40, z => {
+    bd = (30 * GK) ** 2;
+  query(tx, ty, 40 * GK, z => {
     if (z.dead || z.dying !== undefined || z.type === 'queen') return;
     const dd = d2(z.x, z.y, tx, ty);
     if (dd < bd) {
@@ -415,7 +416,7 @@ function groups(e, r, dt) {
       if (s.hp <= 0) continue;
       let near = null,
         nd = 1e12;
-      query(s.x, s.y, 60, z => {
+      query(s.x, s.y, 60 * GK, z => {
         if (z.dead || !(z.emerge >= 1)) return;
         const dd = d2(z.x, z.y, s.x, s.y);
         if (dd < nd) {
@@ -436,8 +437,8 @@ function groups(e, r, dt) {
       if (s.cd <= 0) {
         s.cd = rand(0.5, 0.75);
         let tg = null,
-          td = 260 * 260;
-        query(s.x, s.y, 260, z => {
+          td = (260 * GK) ** 2;
+        query(s.x, s.y, 260 * GK, z => {
           if (z.dead || !(z.emerge >= 1)) return;
           const dd = d2(z.x, z.y, s.x, s.y);
           if (dd < td) {

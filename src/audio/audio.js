@@ -5,6 +5,7 @@ import { opt, store } from '../core/settings.js';
 import { viewW } from '../render/sprites.js';
 import { loadMusic, mGtr, mtof, startMusic } from './music.js';
 import { sightClear } from '../world/vision.js';
+import { GK } from '../core/scale.js';
 import { RD_MUS } from './radio.js';
 /* =====================================================================
    Audio: effects + adaptive soundtrack
@@ -392,7 +393,7 @@ function panBuses() {
 export function spat(x, y) {
   if (!AC || !GS.P || x === undefined || GS.state === 'menu' || !sfxBus) return undefined;
   const dx = x - GS.P.x,
-    d = Math.hypot(dx, y - GS.P.y),
+    d = Math.hypot(dx, y - GS.P.y) / GK, // how far, against the old size of things (core/scale.js)
     B = panBuses(),
     now = AC.currentTime;
   if (now - spT > 0.1) {

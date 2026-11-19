@@ -6,6 +6,7 @@
 // A board: { x, y, side (0 N, 1 E, 2 S, 3 W: the way its outside faces), nx, ny, hp, max, broken, hitT, pts? }
 // pts: the posts it blocks at, for a board across two tiles; one post at x, y otherwise.
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { d2 } from '../core/util.js';
 import { TILE } from '../world/map.js';
 import { sfx } from '../audio/sfx.js';
@@ -65,7 +66,13 @@ export function tickBoards(
 // nailing it back: you, standing still beside it, with nothing of theirs in the way
 function nailBack(b, dt) {
   const P = GS.P;
-  if (P && P.hp > 0 && b.hp < b.max && d2(P.x, P.y, b.x, b.y) < 58 * 58 && Math.hypot(P.vx || 0, P.vy || 0) < 30) {
+  if (
+    P &&
+    P.hp > 0 &&
+    b.hp < b.max &&
+    d2(P.x, P.y, b.x, b.y) < (58 * GK) ** 2 &&
+    Math.hypot(P.vx || 0, P.vy || 0) < 30 * GK
+  ) {
     const blocked =
       b.broken &&
       GS.enemies.some(e => !e.dead && postsOf(b).some(([px, py]) => d2(e.x, e.y, px, py) < (BAR_R + e.r) ** 2));

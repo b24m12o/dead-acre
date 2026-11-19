@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { bandaged } from '../game/routes.js';
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, d2, damp, lerp, pick, rand } from '../core/util.js';
 import { TS } from '../core/settings.js';
@@ -82,9 +83,9 @@ export function budSetup(b, r) {
 export function budPerk(s, dt, pd) {
   // what the trait does, every frame the survivor is on their feet
   if (s.tr === 'medic') {
-    if (pd < 180 && GS.P.hp > 0 && GS.P.hp < S.maxHp) GS.P.hp = Math.min(S.maxHp, GS.P.hp + 2 * dt);
+    if (pd < 180 * GK && GS.P.hp > 0 && GS.P.hp < S.maxHp) GS.P.hp = Math.min(S.maxHp, GS.P.hp + 2 * dt);
     for (const b of GS.buddies)
-      if (b !== s && !(b.down > 0) && b.hp < b.max && d2(b.x, b.y, s.x, s.y) < 180 * 180)
+      if (b !== s && !(b.down > 0) && b.hp < b.max && d2(b.x, b.y, s.x, s.y) < (180 * GK) ** 2)
         b.hp = Math.min(b.max, b.hp + 3 * dt);
   }
   if (s.tr === 'scav' && GS.nightLive && !GS.nightDone && !GS.evac) {
@@ -138,7 +139,7 @@ export function buddyShoot(s, dt, slow) {
     if (e.dead || e.emerge < 1) return;
     let dd = d2(s.x, s.y, e.x, e.y);
     if (dd > rng * rng) return;
-    if (e.lure && e.lure.alarm > 0 && dd > 200 * 200) return; // leave the ones pounding on a car alone: that bait is yours
+    if (e.lure && e.lure.alarm > 0 && dd > (200 * GK) ** 2) return; // leave the ones pounding on a car alone: that bait is yours
     if (mm) dd /= (e.elite ? 4 : 1) * (e.maxHp > 150 ? 2 : 1); // the marksman picks the big ones
     if (dd < bd && los(s.x, s.y, e.x, e.y)) {
       bd = dd;
@@ -151,7 +152,7 @@ export function buddyShoot(s, dt, slow) {
     const P = GS.P;
     if (
       P &&
-      d2(tgt.x, tgt.y, P.x, P.y) < 120 * 120 &&
+      d2(tgt.x, tgt.y, P.x, P.y) < (120 * GK) ** 2 &&
       Math.abs(angDiff(P.aimA, Math.atan2(tgt.y - P.y, tgt.x - P.x))) > 2.2
     )
       bark(s, 'behind'); // one closing on you from behind, where you are not looking
@@ -283,8 +284,8 @@ export function budLook(s, p, dt, spd) {
       r = Math.random();
     let heard = null;
     if (alert && r > 0.45) {
-      let bd = 900 * 900;
-      query(s.x, s.y, 900, e => {
+      let bd = (900 * GK) ** 2;
+      query(s.x, s.y, 900 * GK, e => {
         const dd = d2(s.x, s.y, e.x, e.y);
         if (!e.dead && dd < bd) {
           bd = dd;
@@ -305,11 +306,11 @@ export function buddyHurt(s, p, dt) {
     let near = false,
       crowd = 0;
     if (s.inv <= 0)
-      query(s.x, s.y, 120, e => {
+      query(s.x, s.y, 120 * GK, e => {
         if (e.dead || e.emerge < 1 || !(e.dmg > 0) || (e.z || 0) > 12) return;
         const dd = d2(e.x, e.y, s.x, s.y);
-        if (dd < 300 * 300) near = true;
-        if (dd < 80 * 80) crowd++;
+        if (dd < (300 * GK) ** 2) near = true;
+        if (dd < (80 * GK) ** 2) crowd++;
         if (s.inv <= 0 && dd < (e.r + s.r) ** 2) {
           s.hp -= e.dmg * (e.type === 'queen' ? 0.8 : 0.35);
           s.inv = 0.6;
@@ -322,7 +323,7 @@ export function buddyHurt(s, p, dt) {
     if (crowd >= 3) bark(s, 'panic'); // three of them on top of you is no time to be calm
     if (!near && s.hp < s.max && thr('bq' + (s.id || (s.id = GS.nid++)), 250)) {
       let q = true;
-      query(s.x, s.y, 300, e => {
+      query(s.x, s.y, 300 * GK, e => {
         if (!e.dead && e.emerge >= 1 && e.dmg > 0) q = false;
       });
       if (q) s.hp = Math.min(s.max, s.hp + 1);
@@ -344,8 +345,10 @@ export function buddyHurt(s, p, dt) {
     return false;
   }
   s.down -= dt;
-  const close = d2(p.x, p.y, s.x, s.y) < 70 * 70 && p.hp > 0 && !p.ride;
-  const med = GS.buddies.some(b => b !== s && b.tr === 'medic' && !(b.down > 0) && d2(b.x, b.y, s.x, s.y) < 200 * 200);
+  const close = d2(p.x, p.y, s.x, s.y) < (70 * GK) ** 2 && p.hp > 0 && !p.ride;
+  const med = GS.buddies.some(
+    b => b !== s && b.tr === 'medic' && !(b.down > 0) && d2(b.x, b.y, s.x, s.y) < (200 * GK) ** 2
+  );
   const bk = bandaged() ? 2 : 1; // the pharmacy's bandages (routes.js)
   s.rev = close ? s.rev + dt * bk : med ? s.rev + dt * 0.5 * bk : s.rev; // what you put in stays; a medic nearby works on them too
   if (close && thr('revtick', 400)) tone(660 + s.rev * 200, 0.05, 'sine', 0.025);
@@ -415,12 +418,12 @@ export function buddySlot(p, s, i, taken) {
         !los(p.x, p.y, x, y)
       )
         continue;
-      if (Math.abs(angDiff(p.aimA, a)) < 0.55 || taken.some(q => d2(q[0], q[1], x, y) < 44 * 44)) continue;
-      if (s.avoid && GS.time < s.avoid.t && d2(s.avoid.x, s.avoid.y, x, y) < 30 * 30) continue;
+      if (Math.abs(angDiff(p.aimA, a)) < 0.55 || taken.some(q => d2(q[0], q[1], x, y) < (44 * GK) ** 2)) continue;
+      if (s.avoid && GS.time < s.avoid.t && d2(s.avoid.x, s.avoid.y, x, y) < (30 * GK) ** 2) continue;
       const sc =
         Math.abs(angDiff(pref, a)) * 40 +
         (84 - R) * 0.6 +
-        Math.hypot(s.x - x, s.y - y) * (pspdOf(p) > 60 ? 0.15 : 0.4) +
+        Math.hypot(s.x - x, s.y - y) * (pspdOf(p) > 60 * GK ? 0.15 : 0.4) +
         (los(s.x, s.y, x, y) ? 0 : 60);
       if (sc < bs) {
         bs = sc;
@@ -457,7 +460,7 @@ export function budBoard(s, dt) {
     s.boardSaid = true;
     bark(s, 'chopper');
   }
-  if (dd < 26) {
+  if (dd < 26 * GK) {
     const i = GS.buddies.indexOf(s);
     if (i >= 0) GS.buddies.splice(i, 1);
     GS.RUN.aboard.push(s);
@@ -530,8 +533,8 @@ export function regroupSpot(p, i) {
       if (blockPt(x, y) || blockPt(x + 16, y) || blockPt(x - 16, y) || blockPt(x, y + 16) || blockPt(x, y - 16))
         return false;
       let hot = false;
-      query(x, y, 70, e => {
-        if (!e.dead && d2(e.x, e.y, x, y) < 70 * 70) hot = true;
+      query(x, y, 70 * GK, e => {
+        if (!e.dead && d2(e.x, e.y, x, y) < (70 * GK) ** 2) hot = true;
       });
       return !hot;
     }; // never onto the dead

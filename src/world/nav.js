@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { clamp, d2 } from '../core/util.js';
 import { gl } from '../render/gl.js';
 import { MH, MW, TILE, TRAD, WH, WW, grid, isWall, ttype } from './map.js';
@@ -299,7 +300,7 @@ export function steer(e, tx, ty, fld, inView) {
       g = Math.hypot(gx, gy) || 1;
     return [gx / g, gy / g, d];
   } // a giant walks straight at you when it can see you, and round the block when it can't
-  if ((fld ? d < 150 : e.los && d < 520) && !(GS.time < (e.flowT || 0)))
+  if ((fld ? d < 150 * GK : e.los && d < 520 * GK) && !(GS.time < (e.flowT || 0)))
     return d < e.r * 2 + 24 ? [dx / d, dy / d, d] : crowdDir(e, dx, dy, d, tx, ty);
   const F = fld || flow,
     cx = Math.floor(e.x / TILE),
@@ -330,7 +331,7 @@ function crowdDir(e, dx, dy, d, tx, ty) {
   let ux = dx / d,
     uy = dy / d;
   const sd = e.fl || (e.fl = e.id & 1 ? 1 : -1);
-  if (d > 120) {
+  if (d > 120 * GK) {
     const off = Math.min(110, (d - 120) * 0.35) * (0.5 + ((e.id * 37) % 10) / 20),
       gx = dx - uy * off * sd,
       gy = dy + ux * off * sd,
@@ -345,7 +346,7 @@ function crowdDir(e, dx, dy, d, tx, ty) {
     const ax = e.x + ux * (e.r + 12),
       ay = e.y + uy * (e.r + 12);
     e.blk = false;
-    query(ax, ay, 26, o => {
+    query(ax, ay, 26 * GK, o => {
       if (o !== e && !o.dead && !o.fly && d2(o.x, o.y, ax, ay) < (o.r + 8) ** 2 && d2(o.x, o.y, tx, ty) < d * d) {
         e.blk = true;
         return true;

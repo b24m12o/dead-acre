@@ -8,6 +8,7 @@
 // night's fight drift in while you make your way out. The whole run goes with you: gear, guns, ammo, traps, your
 // people and your level.
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, damp, rand } from '../core/util.js';
 import { GARAGE, MH, MW, ROAD, RY, TILE, WH, WW, cars, fires, grid, isWall, lamps, ttype } from '../world/map.js';
@@ -106,7 +107,7 @@ function tickRoadOut(dt, onLeave) {
   const O = GS.roadOut,
     P = GS.P;
   O.t += dt;
-  if (P.hp > 0 && d2(P.x, P.y, O.x, O.y) < 70 * 70) {
+  if (P.hp > 0 && d2(P.x, P.y, O.x, O.y) < (70 * GK) ** 2) {
     O.gone = true;
     onLeave('foot');
     return;
@@ -305,7 +306,7 @@ function fuelRun(T, P, dt) {
   const G = T.garage;
   for (const c of T.cans) {
     c.t += dt;
-    if (!c.got && P.hp > 0 && d2(c.x, c.y, P.x, P.y) < 38 * 38) {
+    if (!c.got && P.hp > 0 && d2(c.x, c.y, P.x, P.y) < (38 * GK) ** 2) {
       c.got = true;
       T.fuel++;
       sfx.ammo();
@@ -316,7 +317,7 @@ function fuelRun(T, P, dt) {
   }
   if (!G.open) {
     const [dx, dy] = doorSpot(G);
-    if (P.hp > 0 && d2(P.x, P.y, dx, dy) < 70 * 70) {
+    if (P.hp > 0 && d2(P.x, P.y, dx, dy) < (70 * GK) ** 2) {
       openGarage(G);
       driverSay(T, T.fuel >= T.cans.length ? 'doorFull' : 'door');
       showStreak(
@@ -331,7 +332,7 @@ function fuelRun(T, P, dt) {
   }
   if (T.fuel < T.cans.length) return;
   const [cx, cy] = capOf(T, P),
-    near = d2(P.x, P.y, cx, cy) < 40 * 40 && P.hp > 0 && !(P.dashT > 0);
+    near = d2(P.x, P.y, cx, cy) < (40 * GK) ** 2 && P.hp > 0 && !(P.dashT > 0);
   T.fill = near ? T.fill + dt : Math.max(0, T.fill - dt * 2);
   if (T.fill > 0.4) driverSay(T, 'pour');
   if (T.fill >= FILL) {
@@ -718,7 +719,7 @@ function startRide(T) {
         bs = q;
       }
     }
-    if (bd < 60 * 60) {
+    if (bd < (60 * GK) ** 2) {
       BL.s = bs;
       r.block = BL;
     } // the wrecks that have stood there since you arrived: the route goes through them (ridePath via)
@@ -753,7 +754,8 @@ function blockOn(path) {
         const cx = x - Math.sin(a) * k * 34,
           cy = y + Math.cos(a) * k * 34;
         return (
-          !isWall(Math.floor(cx / TILE), Math.floor(cy / TILE)) && !fires.some(f => d2(f.x, f.y, cx, cy) < 56 * 56)
+          !isWall(Math.floor(cx / TILE), Math.floor(cy / TILE)) &&
+          !fires.some(f => d2(f.x, f.y, cx, cy) < (56 * GK) ** 2)
         );
       });
     },
@@ -896,7 +898,7 @@ function tickRide(dt, onLeave) {
       B.push += B.hp ? 6 : 0;
       B.fwd += B.hp ? 7 : 0; // each ram shoves them on a little; he follows them up
       const [fx, fy] = along(r.path, r.s + TL / 2);
-      query(fx, fy, 70, z => {
+      query(fx, fy, 70 * GK, z => {
         if (!z.dead && z.dying === undefined && z.type !== 'queen')
           hurtEnemy(z, 400, false, Math.cos(T.a), Math.sin(T.a), 3, 'truck');
       }); // whatever stood between the bumper and the wrecks
@@ -917,9 +919,9 @@ function tickRide(dt, onLeave) {
   if (v > 30) {
     const fx = T.x + Math.cos(T.a) * (TL / 2 - 6),
       fy = T.y + Math.sin(T.a) * (TL / 2 - 6);
-    query(fx, fy, 46, z => {
+    query(fx, fy, 46 * GK, z => {
       if (z.dead || z.dying !== undefined || z.type === 'queen' || (z.ramT || 0) > GS.time) return;
-      if (d2(z.x, z.y, fx, fy) > 46 * 46) return;
+      if (d2(z.x, z.y, fx, fy) > (46 * GK) ** 2) return;
       z.ramT = GS.time + 0.5;
       hurtEnemy(z, 160 + 10 * GS.wave, false, Math.cos(T.a), Math.sin(T.a), 3.2, 'truck');
       if (thr('ram', 90)) sfx.crate(z.x, z.y); // the thump of it

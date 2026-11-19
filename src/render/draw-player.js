@@ -5,7 +5,7 @@ import { TAU, angDiff, clamp, d2, lerp, rand } from '../core/util.js';
 import { S } from '../game/state.js';
 import { GUNS, HEROES } from '../game/arsenal.js';
 import { lineQ, quad, scaled, setH } from './sprites.js';
-import { PEOPLE } from './scale.js';
+import { PEOPLE } from '../core/scale.js';
 import { R } from './atlas.js';
 import { lamps } from '../world/map.js';
 import { ik2 } from '../actors/legs.js';

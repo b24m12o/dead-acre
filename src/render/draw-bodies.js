@@ -2,7 +2,7 @@
 import { GS } from '../core/gs.js';
 import { clamp, lerp } from '../core/util.js';
 import { lineQ, quad, scaled, setH } from './sprites.js';
-import { figK } from './scale.js';
+import { figK } from '../core/scale.js';
 import { R } from './atlas.js';
 import { solidPt } from '../world/nav.js';
 import { playS, thr } from '../audio/audio.js';

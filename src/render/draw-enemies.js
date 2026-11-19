@@ -2,7 +2,7 @@
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, lerp, rand } from '../core/util.js';
 import { RIM, lineQ, quad, scaled, setH, setRim } from './sprites.js';
-import { figK } from './scale.js';
+import { figK } from '../core/scale.js';
 import { R } from './atlas.js';
 import { drawLegs, ik2 } from '../actors/legs.js';
 import { dust, part } from './effects.js';

@@ -10,6 +10,7 @@
 //    running feet close by, a clock. Then it runs at the noise, faster than you, and hits hard. It goes where the
 //    sound was, not where you are: stand still and it passes you; fire again and it has you. Quiet answers it.
 import { heroSay } from '../audio/barks.js';
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { TAU, d2, rand } from '../core/util.js';
 import { MH, MW, TILE, grid } from '../world/map.js';
@@ -82,7 +83,7 @@ export function makeSpecial(kind, x, y) {
 export function specialTip(e) {
   if (!e.kind || e.tipped2 || !(e.los || e.fly) || GS.state !== 'play') return;
   const d = Math.hypot(e.x - GS.P.x, e.y - GS.P.y);
-  if (d > 520) return;
+  if (d > 520 * GK) return;
   e.tipped2 = true;
   GS.meta.tips = GS.meta.tips || {};
   if (GS.meta.tips['sp_' + e.kind]) return;
@@ -159,7 +160,7 @@ function tell(e, p) {
   if (e.tellT === undefined) e.tellT = GS.time + rand(0.2, 1.2);
   if (GS.time < e.tellT) return;
   e.tellT = GS.time + rand(T[1], T[2]);
-  if (d2(e.x, e.y, p.x, p.y) > 700 * 700 || (e.kind === 'climb' && e.st !== 'move')) return;
+  if (d2(e.x, e.y, p.x, p.y) > (700 * GK) ** 2 || (e.kind === 'climb' && e.st !== 'move')) return;
   sfx[T[0]](e.x, e.y);
   GS.tells[e.kind]++;
 }
@@ -176,7 +177,7 @@ export function specialTick(e, dt, p) {
       dy = p.y - e.y,
       d = Math.hypot(dx, dy) || 1,
       over = (!e.clLos && nearWall(e)) || wallAt(e.x, e.y);
-    if ((e.aw > 0 || d < 700) && over && e.emerge >= 1) {
+    if ((e.aw > 0 || d < 700 * GK) && over && e.emerge >= 1) {
       if (!e.fly) sfx.groan(e.x, e.y);
       e.fly = true; // over the wall: drawn above the buildings, through nothing
       e.climbT = GS.time;
@@ -209,7 +210,7 @@ export function specialTick(e, dt, p) {
     } // down off the wall, in a puff of plaster dust
     return false;
   }
-  if (e.kind === 'spore' && e.emerge >= 1 && d2(e.x, e.y, p.x, p.y) < 56 * 56) {
+  if (e.kind === 'spore' && e.emerge >= 1 && d2(e.x, e.y, p.x, p.y) < (56 * GK) ** 2) {
     killEnemy(e, 0, 'self');
     return true; // close enough: it splits open on you
   }
@@ -287,7 +288,11 @@ function blindTick(e, dt, p) {
   e.aw = 0;
   e.sp = e.sp0 * BLIND.run;
   if (e.lure) return false; // a clock, an alarm, a flare: it goes to it like the rest (and has its back to you)
-  if (last || (play && d < BLIND.touch) || (e.hot > 0 && play && d < 150 && d2(e.hx, e.hy, p.x, p.y) < 70 * 70)) {
+  if (
+    last ||
+    (play && d < BLIND.touch) ||
+    (e.hot > 0 && play && d < 150 * GK && d2(e.hx, e.hy, p.x, p.y) < (70 * GK) ** 2)
+  ) {
     e.aw = 1.5;
     return false; // it has you: the ordinary fight
   }
@@ -297,7 +302,7 @@ function blindTick(e, dt, p) {
         ? ((e.bLosT = GS.time + 0.3), (e.bLos = los(e.x, e.y, e.hx, e.hy)))
         : e.bLos,
       [ux, uy, dist] = direct ? steer(e, e.hx, e.hy, null, true) : steer(e, e.hx, e.hy, flowTo(e.hx, e.hy, e.hT));
-    if (dist > 26) {
+    if (dist > 26 * GK) {
       e.vx = ux * e.sp * ks;
       e.vy = uy * e.sp * ks;
       e.a = Math.atan2(uy, ux);
@@ -327,7 +332,7 @@ function dragTick(e, dt, p) {
     if (e.pickT <= 0) {
       e.pickT = 1;
       let best = null,
-        bd = 700 * 700;
+        bd = (700 * GK) ** 2;
       for (const b of GS.buddies)
         if (!(b.down > 0)) {
           const dd = d2(b.x, b.y, e.x, e.y);

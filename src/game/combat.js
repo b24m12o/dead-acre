@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { pouchDrop } from './pockets.js';
+import { GK } from '../core/scale.js';
 import { boonDrop, gearK } from './boons.js';
 import { remainsFull } from '../render/remains.js';
 import { stationCatch } from './station.js';
@@ -434,7 +435,7 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       !e.crawl &&
       !(e.down > 0) &&
       e.hp > 0 &&
-      e.vx * e.vx + e.vy * e.vy > 120 * 120 &&
+      e.vx * e.vx + e.vy * e.vy > (120 * GK) ** 2 &&
       dmg >= e.maxHp * 0.2 &&
       Math.random() < 0.5
     ) {
@@ -676,7 +677,7 @@ function killStop(e, src) {
   let t = src === 'boom' ? 0.04 : (KILL_STOP[g] ?? 0.012); // a single shot's kill lands, a hair; the heavy ones more (the fast guns' none: they'd stutter)
   if (e.elite) t = Math.max(t, 0.075);
   else if (e.type === 'beetle') t = Math.max(t, 0.06);
-  if (g === 'shotgun' && GS.P && d2(e.x, e.y, GS.P.x, GS.P.y) < 160 * 160) t = Math.max(t, 0.03);
+  if (g === 'shotgun' && GS.P && d2(e.x, e.y, GS.P.x, GS.P.y) < (160 * GK) ** 2) t = Math.max(t, 0.03);
   if (e.headless) t = Math.max(t, 0.025);
   if (!t || (GS.time >= GS.killStopT && GS.time - GS.killStopT < 0.18)) return;
   GS.killStopT = GS.time;
@@ -687,11 +688,13 @@ const heavyHit = (e, src) => {
   if (src !== 'bolt' || !GS.HITB || !GS.P) return false;
   const g = GS.HITB.gun;
   return (
-    g === 'hunter' || g === 'lever' || ((g === 'shotgun' || g === 'auto') && d2(e.x, e.y, GS.P.x, GS.P.y) < 160 * 160)
+    g === 'hunter' ||
+    g === 'lever' ||
+    ((g === 'shotgun' || g === 'auto') && d2(e.x, e.y, GS.P.x, GS.P.y) < (160 * GK) ** 2)
   );
 };
 export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
-  if (GS.P && opt.gore && e.type !== 'queen' && d2(e.x, e.y, GS.P.x, GS.P.y) < 70 * 70) {
+  if (GS.P && opt.gore && e.type !== 'queen' && d2(e.x, e.y, GS.P.x, GS.P.y) < (70 * GK) ** 2) {
     GS.P.stains = GS.P.stains || [];
     for (let i = 0; i < (src === 'boom' ? 3 : 1); i++) {
       GS.P.stains.push({ u: rand(4, 10), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.35, 0.75), c: 0.5, a: 0.85 });
@@ -857,7 +860,11 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
         ux = dx / ul,
         uy = dy / ul,
         buck =
-          src === 'bolt' && GS.HITB && GS.HITB.gun === 'shotgun' && GS.P && d2(e.x, e.y, GS.P.x, GS.P.y) < 160 * 160, // buckshot up close throws the body, whichever pellet was the last
+          src === 'bolt' &&
+          GS.HITB &&
+          GS.HITB.gun === 'shotgun' &&
+          GS.P &&
+          d2(e.x, e.y, GS.P.x, GS.P.y) < (160 * GK) ** 2, // buckshot up close throws the body, whichever pellet was the last
         imp =
           (src === 'boom' ? 480 : buck ? 440 : 120 + Math.min(360, dmg * 4)) *
           rand(0.8, 1.2) *
@@ -967,8 +974,8 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     });
     if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (100 + GS.P.r) ** 2)
       hurtPlayer(16 * (1 + 0.04 * GS.wave), e.x, e.y, 'a bloater');
-    query(e.x, e.y, 110, o => {
-      if (!o.dead && o !== e && d2(e.x, e.y, o.x, o.y) < 100 * 100)
+    query(e.x, e.y, 110 * GK, o => {
+      if (!o.dead && o !== e && d2(e.x, e.y, o.x, o.y) < (100 * GK) ** 2)
         hurtEnemy(o, 30, false, o.x - e.x, o.y - e.y, 2, 'boom');
     });
     for (const s of [-1, 1]) {
@@ -1054,10 +1061,10 @@ function killerAt(sx, sy) {
   killerE = null;
   if (sx === undefined) return 'the dead';
   let best = null,
-    bd = 140 * 140;
+    bd = (140 * GK) ** 2;
   for (const e of GS.enemies) {
     if (e.dead) continue;
-    const dd = d2(e.x, e.y, sx, sy) - (e.type === 'queen' ? 60 * 60 : 0);
+    const dd = d2(e.x, e.y, sx, sy) - (e.type === 'queen' ? (60 * GK) ** 2 : 0);
     if (dd < bd) {
       bd = dd;
       best = e;
@@ -1540,7 +1547,7 @@ export function updateCrates(dt) {
       !GS.P.ride &&
       !c.vz &&
       c.z === 0 &&
-      d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40 &&
+      d2(c.x, c.y, GS.P.x, GS.P.y) < (40 * GK) ** 2 &&
       c.kit
     ) {
       c.open = true;
@@ -1562,7 +1569,7 @@ export function updateCrates(dt) {
       !GS.P.ride &&
       !c.vz &&
       c.z === 0 &&
-      d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40 &&
+      d2(c.x, c.y, GS.P.x, GS.P.y) < (40 * GK) ** 2 &&
       c.gun
     ) {
       c.open = true;
@@ -1586,7 +1593,13 @@ export function updateCrates(dt) {
       }
       glowBurst(c.x, c.y, [1, 0.8, 0.3], 22, 240, 0.5, 0.6);
       chips(c.x, c.y, 10, [0.45, 0.5, 0.3], 3, 260);
-    } else if (GS.state === 'play' && !GS.P.ride && !c.vz && c.z === 0 && d2(c.x, c.y, GS.P.x, GS.P.y) < 40 * 40) {
+    } else if (
+      GS.state === 'play' &&
+      !GS.P.ride &&
+      !c.vz &&
+      c.z === 0 &&
+      d2(c.x, c.y, GS.P.x, GS.P.y) < (40 * GK) ** 2
+    ) {
       c.open = true;
       for (const t of new Set(GS.P.owned.map(g => GUNS[g].ammo).filter(Boolean)))
         GS.pickups.push({ k: 'ammo', at: t, v: 1.35, x: c.x, y: c.y, vx: rand(-140, 140), vy: rand(-140, 140), t: 0 }); // a box for every kind of round you carry: about what the crate used to add invisibly

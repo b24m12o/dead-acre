@@ -5,6 +5,7 @@
 // shoot over the walls, and stand still beside a battered board to nail it back. Every zombie comes for the house; one
 // that breaks a board climbs through and goes for the survivors. Anyone left at dawn pays you, and one joins your backup.
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { d2, pick, rand } from '../core/util.js';
 import { MH, MW, TILE, grid, houses } from '../world/map.js';
 import { dijk, flow, los } from '../world/nav.js';
@@ -144,8 +145,8 @@ export function siegeTarget(e) {
   else if (e.sg === undefined) e.sg = Math.random() < 0.5;
   if (!e.sg) return null;
   const P = GS.P;
-  if (P && e.los && d2(e.x, e.y, P.x, P.y) < 150 * 150) return null; // you, close and in sight, come first
-  if (d2(e.x, e.y, o.cx, o.cy) > 1400 * 1400) return null;
+  if (P && e.los && d2(e.x, e.y, P.x, P.y) < (150 * GK) ** 2) return null; // you, close and in sight, come first
+  if (d2(e.x, e.y, o.cx, o.cy) > (1400 * GK) ** 2) return null;
   if (e.sgIn && inHouse(o, e.x, e.y) && o.civ.length) {
     let best = o.civ[0],
       bd = 1e12;
@@ -291,7 +292,7 @@ export function tickSiege(dt) {
     if (s.cd <= 0) {
       s.cd = rand(0.55, 0.8);
       let tg = null,
-        td = 240 * 240;
+        td = (240 * GK) ** 2;
       for (const z of GS.enemies) {
         if (z.dead || !(z.emerge >= 1) || z.fly) continue;
         const dd = d2(z.x, z.y, s.x, s.y);
@@ -331,7 +332,7 @@ export function siegePrompt() {
     P = GS.P;
   if (!o || o.type !== 'siege' || o.done || !P) return null;
   for (const b of o.bars)
-    if (b.hp < b.max * 0.9 && d2(P.x, P.y, b.x, b.y) < 58 * 58)
+    if (b.hp < b.max * 0.9 && d2(P.x, P.y, b.x, b.y) < (58 * GK) ** 2)
       return { b, label: b.fix > 0 ? 'Nailing it back up' : 'Stand still to board it up' };
   return null;
 }

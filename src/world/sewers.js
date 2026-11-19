@@ -4,6 +4,7 @@
 // they drag themselves out one after another, the ones the water took the legs off. Each hatch is used at most
 // once every while, and only for ordinary walkers, so a night is no harder for it: just a new way in.
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { TAU, angDiff, d2, damp, rand } from '../core/util.js';
 import { MH, MW, ROAD, TILE, grid, ttype } from './map.js';
 
@@ -40,7 +41,7 @@ export function hatchFor(px, py) {
   for (const h of HATCHES) {
     if (h.cd > GS.time) continue;
     const d = d2(h.x, h.y, px, py);
-    if (d < 230 * 230 || d > 620 * 620) continue;
+    if (d < (230 * GK) ** 2 || d > (620 * GK) ** 2) continue;
     const r = d * rand(0.7, 1.3);
     if (r < bd) {
       bd = r;

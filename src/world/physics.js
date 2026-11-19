@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { PROP_K } from '../render/scale.js';
+import { PROP_K, GK } from '../core/scale.js';
 import { occDirty } from '../render/lampocc.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, d2, rand, randi } from '../core/util.js';
@@ -129,7 +129,7 @@ function corpsePhys(e, dt) {
       GS.bowled = (GS.bowled || 0) + 1;
       if (thr('bowl', 90)) sfx.thump(o.x, o.y);
     });
-  if (Math.hypot(e.rvx, e.rvy) > 140 && HUMAN[e.type] && Math.random() < dt * 14)
+  if (Math.hypot(e.rvx, e.rvy) > 140 * GK && HUMAN[e.type] && Math.random() < dt * 14)
     decal(
       R['splat' + randi(0, 3)],
       e.x + rand(-6, 6),
@@ -141,7 +141,7 @@ function corpsePhys(e, dt) {
     );
   if (GS.P && GS.state === 'play' && corpseMass(e) === 1 && !e.z) {
     const dd = d2(e.x, e.y, GS.P.x, GS.P.y);
-    if (dd < 18 * 18) {
+    if (dd < (18 * GK) ** 2) {
       const sp = Math.hypot(GS.P.vx, GS.P.vy);
       if (sp > 170 && !(e.shoveT > GS.time)) {
         e.shoveT = GS.time + 0.8;
@@ -178,7 +178,7 @@ function corpsePhys(e, dt) {
       }
     }
   }
-  if (!e.pooled && e.dying > 0.8 && Math.hypot(e.rvx, e.rvy) < 25 && !e.z) {
+  if (!e.pooled && e.dying > 0.8 && Math.hypot(e.rvx, e.rvy) < 25 * GK && !e.z) {
     e.pooled = true;
     if (e.type !== 'queen')
       bloodPool(e.x, e.y, (e.type === 'beetle' ? 2 : e.type === 'hopper' ? 1.5 : 1.15) * rand(0.8, 1.2), bloodOf(e));
@@ -245,7 +245,7 @@ function propsTick(dt) {
         by = solidPt(d.x, ny);
       if (bx || !by) d.vx *= -0.4;
       if (by || !bx) d.vy *= -0.4;
-      if (Math.hypot(d.vx, d.vy) > 120 && thr('clang', 60)) {
+      if (Math.hypot(d.vx, d.vy) > 120 * GK && thr('clang', 60)) {
         playS('dry', 0.1, 1.4, 0, 0);
         sparks(d.x, d.y, [1, 0.85, 0.5], 2, 120);
       }
@@ -253,7 +253,7 @@ function propsTick(dt) {
       d.x = nx;
       d.y = ny;
     }
-    if (D.roll && Math.hypot(d.vx, d.vy) > 20) d.a += angDiff(d.a, Math.atan2(d.vy, d.vx)) * Math.min(1, dt * 4);
+    if (D.roll && Math.hypot(d.vx, d.vy) > 20 * GK) d.a += angDiff(d.a, Math.atan2(d.vy, d.vx)) * Math.min(1, dt * 4);
     else d.a += d.va * dt;
     {
       const o = { x: d.x, y: d.y, r: D.r * 0.8, vx: d.vx, vy: d.vy };
@@ -508,7 +508,7 @@ function fencePressure() {
   // a crowd leaning on a fence will bring it down
   if (!GS.P || GS.state !== 'play') return;
   for (const e of GS.enemies) {
-    if (e.dead || e.dormant || e.fly || !HUMAN[e.type] || d2(e.x, e.y, GS.P.x, GS.P.y) > 340 * 340) continue;
+    if (e.dead || e.dormant || e.fly || !HUMAN[e.type] || d2(e.x, e.y, GS.P.x, GS.P.y) > (340 * GK) ** 2) continue;
     const a0 = Math.atan2(GS.P.y - e.y, GS.P.x - e.x);
     for (const da of [0, -0.8, 0.8]) {
       const a = a0 + da,
@@ -593,10 +593,10 @@ function grassTick(dt) {
       grassIgnite(g.x, g.y, 66, 0.2);
     }
     if (GS.state === 'play') {
-      if (GS.P.inv <= 0 && d2(GS.P.x, GS.P.y, g.x, g.y) < 16 * 16 && Math.random() < dt * 3)
+      if (GS.P.inv <= 0 && d2(GS.P.x, GS.P.y, g.x, g.y) < (16 * GK) ** 2 && Math.random() < dt * 3)
         hurtPlayer(3 + GS.wave * 0.2, g.x, g.y, 'fire');
       if (Math.random() < dt * 4)
-        query(g.x, g.y, 30, e => {
+        query(g.x, g.y, 30 * GK, e => {
           if (!e.dead && e.z < 10 && d2(e.x, e.y, g.x, g.y) < (e.r * 0.6 + 8) ** 2) ignite(e, 1.6);
         });
     }
@@ -629,7 +629,7 @@ function footTick(dt) {
   if (GS.P.bloodSteps > 0) {
     const st = Math.floor(GS.P.stride * 2);
     if (GS.P.lastStep === undefined) GS.P.lastStep = st;
-    if (st !== GS.P.lastStep && Math.hypot(GS.P.vx, GS.P.vy) > 40) {
+    if (st !== GS.P.lastStep && Math.hypot(GS.P.vx, GS.P.vy) > 40 * GK) {
       GS.P.lastStep = st;
       const side = st & 1 ? 1 : -1,
         a = GS.P.moveA,

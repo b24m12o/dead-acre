@@ -2,6 +2,7 @@
 // The second abilities' gear on the ground: the Soldier's claymores and the Deputy's road flares. (The Gunslinger's
 // dynamite is a thrown bang: see updateBang.) Ticked once a frame from update, drawn from draw-props.
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { TAU, angDiff, d2, rand } from '../core/util.js';
 import { MH, MW, TILE, grid } from '../world/map.js';
 import { dijk, query } from '../world/nav.js';
@@ -72,7 +73,7 @@ function pullTo(f) {
   for (const e of GS.enemies) {
     if (e.dead || e.lure === f || e.big || e.fly || e.type === 'flower' || e.type === 'wasp') continue;
     if (d2(e.x, e.y, f.x, f.y) > (e.horde ? 2200 : 950) ** 2) continue;
-    if (P && e.los && d2(e.x, e.y, P.x, P.y) < 230 * 230) continue;
+    if (P && e.los && d2(e.x, e.y, P.x, P.y) < (230 * GK) ** 2) continue;
     if ((e.heardT ?? -1) > f.t0) continue; // your gunfire, a blast or a hit since it started ringing: you come first
     e.lure = f;
     e.aw = 0;
@@ -91,9 +92,9 @@ export function tickGadgets(dt) {
     m.arm -= dt;
     if (m.arm > 0) continue;
     let hit = false;
-    query(m.x, m.y, 170, e => {
+    query(m.x, m.y, 170 * GK, e => {
       if (hit || e.dead || !(e.emerge >= 1) || e.fly) return;
-      if (d2(m.x, m.y, e.x, e.y) < 160 * 160 && Math.abs(angDiff(m.a, Math.atan2(e.y - m.y, e.x - m.x))) < 0.7)
+      if (d2(m.x, m.y, e.x, e.y) < (160 * GK) ** 2 && Math.abs(angDiff(m.a, Math.atan2(e.y - m.y, e.x - m.x))) < 0.7)
         hit = true;
     });
     if (hit) {
@@ -145,7 +146,7 @@ export function tickGadgets(dt) {
     f.ignT -= dt;
     if (f.ignT <= 0) {
       f.ignT = 0.5;
-      query(f.x, f.y, 60, e => {
+      query(f.x, f.y, 60 * GK, e => {
         if (!e.dead && d2(f.x, f.y, e.x, e.y) < (34 + e.r) ** 2) ignite(e, 2);
       });
     }

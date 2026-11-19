@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { BARREL } from './scale.js';
+import { BARREL } from '../core/scale.js';
 import { boonBlink } from '../game/boons.js';
 import { GS } from '../core/gs.js';
 import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';

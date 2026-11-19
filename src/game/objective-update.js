@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { siegeTarget, tickSiege } from './siege.js';
 import { angDiff, d2, damp, lerp, randi } from '../core/util.js';
 import { viewH, viewW } from '../render/sprites.js';
@@ -33,7 +34,7 @@ export function budTarget(e, pd2) {
   if (GS.time > (e.bNext || 0)) {
     e.bNext = GS.time + 0.5 + Math.random() * 0.3;
     e.bud = null;
-    let bd = 260 * 260;
+    let bd = (260 * GK) ** 2;
     for (const s of GS.buddies) {
       if (s.down > 0 || !(s.hp > 0)) continue;
       const dd = d2(e.x, e.y, s.x, s.y);
@@ -50,11 +51,11 @@ export function objTarget(e) {
   if (GS.obj.type === 'siege') return siegeTarget(e);
   if (GS.obj.type === 'gen') {
     const dg = d2(e.x, e.y, GS.obj.x, GS.obj.y);
-    if (dg < 300 * 300 && dg < d2(e.x, e.y, GS.P.x, GS.P.y) * 1.1) return GS.obj;
+    if (dg < (300 * GK) ** 2 && dg < d2(e.x, e.y, GS.P.x, GS.P.y) * 1.1) return GS.obj;
   }
   if (GS.obj.type === 'rescue' && GS.obj.s.hp > 0) {
     const ds = d2(e.x, e.y, GS.obj.s.x, GS.obj.s.y);
-    if (ds < 420 * 420 && ds < d2(e.x, e.y, GS.P.x, GS.P.y)) return GS.obj.s;
+    if (ds < (420 * GK) ** 2 && ds < d2(e.x, e.y, GS.P.x, GS.P.y)) return GS.obj.s;
   }
   return null;
 }
@@ -104,7 +105,7 @@ export function updateObjective(dt) {
     s.walkT = (s.walkT || 0) + dt;
     const off =
       Math.abs(s.x - cam.x - viewW / 2) > viewW / 2 + 40 || Math.abs(s.y - cam.y - viewH / 2) > viewH / 2 + 60;
-    if (off && (s.walkT > 3 || d2(s.x, s.y, GS.P.x, GS.P.y) > 600 * 600)) GS.obj.joined = true;
+    if (off && (s.walkT > 3 || d2(s.x, s.y, GS.P.x, GS.P.y) > (600 * GK) ** 2)) GS.obj.joined = true;
     else if (s.walkT > 20) GS.obj.joined = true;
     return;
   } // a full team: they walk off toward the convoy instead of freezing in place
@@ -139,7 +140,7 @@ export function updateObjective(dt) {
     s.inv = Math.max(0, s.inv - dt);
     s.recoil = Math.max(0, s.recoil - dt * 40);
     s.hurt = Math.max(0, s.hurt - dt);
-    if (GS.obj.state === 'wait' && d2(s.x, s.y, GS.P.x, GS.P.y) < 70 * 70) {
+    if (GS.obj.state === 'wait' && d2(s.x, s.y, GS.P.x, GS.P.y) < (70 * GK) ** 2) {
       GS.obj.state = 'follow';
       floatText(s.x, s.y - 40, "I'm with you. Go!", '#bff4ff', 17);
       sfx.heal();
@@ -148,14 +149,14 @@ export function updateObjective(dt) {
       ty = s.y;
     if (GS.obj.state === 'follow') {
       const fa = GS.P.formA ?? GS.P.bodyA,
-        still = Math.hypot(GS.P.vx, GS.P.vy) < 40 && d2(s.x, s.y, GS.P.x, GS.P.y) < 110 * 110,
+        still = Math.hypot(GS.P.vx, GS.P.vy) < 40 * GK && d2(s.x, s.y, GS.P.x, GS.P.y) < (110 * GK) ** 2,
         taken = GS.buddies.length ? GS.P.__slots || [] : [];
       let sl = s.slot; // a spot of their own round you, like your backup's, and never one a backup already holds
       if (
         !sl ||
         Math.hypot(GS.P.x - sl.px, GS.P.y - sl.py) > (still ? 30 : 0) ||
         solidPt(sl.x, sl.y) ||
-        taken.some(q => !q.rs && d2(q[0], q[1], sl.x, sl.y) < 44 * 44)
+        taken.some(q => !q.rs && d2(q[0], q[1], sl.x, sl.y) < (44 * GK) ** 2)
       ) {
         const b = buddySlot(
           GS.P,
@@ -167,7 +168,7 @@ export function updateObjective(dt) {
           ? { x: b[0], y: b[1], px: GS.P.x, py: GS.P.y }
           : { x: GS.P.x - Math.cos(fa) * 64, y: GS.P.y - Math.sin(fa) * 64, px: GS.P.x, py: GS.P.y };
       }
-      if (!still && d2(s.x, s.y, sl.x, sl.y) > 22 * 22) {
+      if (!still && d2(s.x, s.y, sl.x, sl.y) > (22 * GK) ** 2) {
         tx = sl.x;
         ty = sl.y;
       }
@@ -195,8 +196,8 @@ export function updateObjective(dt) {
     s.strideAmp = lerp(s.strideAmp, Math.min(1, spd / 250), damp(10, dt));
     s.stride += (spd * dt) / 76;
     let tgt = null,
-      bd = 380 * 380;
-    query(s.x, s.y, 380, e => {
+      bd = (380 * GK) ** 2;
+    query(s.x, s.y, 380 * GK, e => {
       if (e.dead || e.emerge < 1) return;
       const dd = d2(s.x, s.y, e.x, e.y);
       if (dd < bd && los(s.x, s.y, e.x, e.y)) {
@@ -251,7 +252,7 @@ export function updateObjective(dt) {
   else if (GS.obj.type === 'fuel') {
     for (const c of GS.obj.cans) {
       c.t += dt;
-      if (!c.got && d2(c.x, c.y, GS.P.x, GS.P.y) < 38 * 38) {
+      if (!c.got && d2(c.x, c.y, GS.P.x, GS.P.y) < (38 * GK) ** 2) {
         c.got = true;
         GS.obj.got++;
         sfx.ammo();

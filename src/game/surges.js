@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { placeNight } from './setpieces.js';
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, pick, rand } from '../core/util.js';
@@ -68,7 +69,7 @@ export function surgeLull(SG, dt) {
   SG.lull -= dt;
   let alive = 0; // only the ones still in it: near you, or onto you. A few wandering far off, unaware, don't hold the next surge back
   for (const e of GS.enemies)
-    if (!e.dead && !e.dormant && (e.aw > 0 || e.los || d2(e.x, e.y, GS.P.x, GS.P.y) < 600 * 600)) alive++;
+    if (!e.dead && !e.dormant && (e.aw > 0 || e.los || d2(e.x, e.y, GS.P.x, GS.P.y) < (600 * GK) ** 2)) alive++;
   if (alive <= 3 || SG.lull <= 0) {
     SG.quiet = (SG.quiet || 0) + dt;
     if (SG.quiet >= 2 || SG.lull <= -4) surgeGo(SG);
@@ -101,8 +102,8 @@ function surgeGo(SG) {
           c.hasAlarm &&
           !c.alarmUsed &&
           !c.dead &&
-          d2(c.x, c.y, GS.P.x, GS.P.y) > 220 * 220 &&
-          d2(c.x, c.y, GS.P.x, GS.P.y) < 700 * 700
+          d2(c.x, c.y, GS.P.x, GS.P.y) > (220 * GK) ** 2 &&
+          d2(c.x, c.y, GS.P.x, GS.P.y) < (700 * GK) ** 2
       )
       .sort(() => Math.random() - 0.5)[0];
     if (c) {
@@ -226,7 +227,7 @@ export function startWave() {
     if (
       !c.alive &&
       Math.random() < 0.45 &&
-      d2(c.x, c.y, GS.P.x, GS.P.y) > 90 * 90 &&
+      d2(c.x, c.y, GS.P.x, GS.P.y) > (90 * GK) ** 2 &&
       !GS.enemies.some(e => d2(c.x, c.y, e.x, e.y) < (e.r + 30) ** 2)
     ) {
       c.alive = true;

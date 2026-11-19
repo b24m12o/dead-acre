@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { laterRescue } from './routes.js';
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { sfx } from '../audio/sfx.js';
 import { LV, S, addAmmo } from './state.js';
@@ -90,7 +91,7 @@ export function objText() {
                   ? 'signal faint'
                   : 'no signal';
     return (
-      `Black box · ${w}${GS.obj.batt > 0 && GS.obj.trend > 0 ? ' · stronger' : GS.obj.batt > 0 && GS.obj.trend < 0 ? ' · weaker' : ''}${Math.hypot(GS.obj.crash.x - GS.P.x, GS.obj.crash.y - GS.P.y) < 320 ? ` · ${left} piles left` : ''}` +
+      `Black box · ${w}${GS.obj.batt > 0 && GS.obj.trend > 0 ? ' · stronger' : GS.obj.batt > 0 && GS.obj.trend < 0 ? ' · weaker' : ''}${Math.hypot(GS.obj.crash.x - GS.P.x, GS.obj.crash.y - GS.P.y) < 320 * GK ? ` · ${left} piles left` : ''}` +
       dawnIn
     );
   }

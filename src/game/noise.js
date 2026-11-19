@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { clamp, d2, rand, randi } from '../core/util.js';
 import { MH, MW, TILE, cars, grid } from '../world/map.js';
 import { dijk, los } from '../world/nav.js';
@@ -33,13 +34,15 @@ GS.noiseRings = [];
 GS.loudSaid = false;
 GS.alarmSaid = false;
 // soft: your backups' shots, which never pull the dead off your bait; you: false for a noise you didn't make (a boss's roar)
+// r at the old size of things (core/scale.js): brought to life size here, so every caller stays in step
 export function makeNoise(x, y, r, soft, you = true) {
+  r *= GK;
   if (GS.ev === 'storm') r *= 0.6; // the rain drowns shots out
   NOISE.x = x;
   NOISE.y = y;
   NOISE.t = GS.time;
   NOISE.r = r;
-  if (GS.time - lastRingT > 0.3 || r > 1000) {
+  if (GS.time - lastRingT > 0.3 || r > 1000 * GK) {
     lastRingT = GS.time;
     GS.noiseRings.push({ x, y, r, t0: GS.time });
     if (GS.noiseRings.length > 6) GS.noiseRings.shift();
@@ -49,7 +52,7 @@ export function makeNoise(x, y, r, soft, you = true) {
   const r2 = r * r;
   for (const e of GS.enemies) {
     if (e.dead || d2(e.x, e.y, x, y) > r2) continue;
-    if (e.horde && GS.horde && !GS.horde.alert && (!you || d2(e.x, e.y, x, y) > 560 * 560)) {
+    if (e.horde && GS.horde && !GS.horde.alert && (!you || d2(e.x, e.y, x, y) > (560 * GK) ** 2)) {
       GS.horde.lure.heard = { x, y };
       continue;
     } // far off, a roaming horde only turns toward the sound (even one stood round a clock); up close it comes for you
@@ -57,7 +60,7 @@ export function makeNoise(x, y, r, soft, you = true) {
       e.lure &&
       e.lure.alarm > 0 &&
       !e.lure.horde &&
-      (soft || (!e.lure.noise && d2(e.x, e.y, e.lure.x, e.lure.y) < 260 * 260))
+      (soft || (!e.lure.noise && d2(e.x, e.y, e.lure.x, e.lure.y) < (260 * GK) ** 2))
     )
       continue; // right beside a screaming car they can't hear you (a little alarm clock doesn't drown a gun out)
     if (e.horde && e.lure && e.lure.noise && you) hordeOff++;
@@ -77,7 +80,7 @@ export function makeNoise(x, y, r, soft, you = true) {
         e.heardT = GS.time;
         e.aw = Math.max(e.aw || 0, 8);
       } // a horde moves as one: when the ones that heard you turn off the clock, the rest of it follows them
-  if (you && woke >= 6 && r >= 900 && !GS.loudSaid && GS.state === 'play' && GS.wave > 0) {
+  if (you && woke >= 6 && r >= 900 * GK && !GS.loudSaid && GS.state === 'play' && GS.wave > 0) {
     GS.loudSaid = true;
     radio(RADIO.loud);
   }
@@ -101,11 +104,18 @@ export function startAlarm(c) {
     }
   c.flow = c.flow || new Uint16Array(MW * MH);
   dijk(c.flow, seeds, false);
-  GS.noiseRings.push({ x: c.x, y: c.y, r: 1000, t0: GS.time, alarm: true });
+  GS.noiseRings.push({ x: c.x, y: c.y, r: 1000 * GK, t0: GS.time, alarm: true });
   for (const e of GS.enemies) {
-    if (e.dead || e.big || e.fly || e.type === 'flower' || e.type === 'wasp' || d2(e.x, e.y, c.x, c.y) > 1000 * 1000)
+    if (
+      e.dead ||
+      e.big ||
+      e.fly ||
+      e.type === 'flower' ||
+      e.type === 'wasp' ||
+      d2(e.x, e.y, c.x, c.y) > (1000 * GK) ** 2
+    )
       continue;
-    if (e.los && d2(e.x, e.y, GS.P.x, GS.P.y) < 230 * 230) continue; // already on you
+    if (e.los && d2(e.x, e.y, GS.P.x, GS.P.y) < (230 * GK) ** 2) continue; // already on you
     e.lure = c;
     e.aw = 0;
     if (e.st !== 'jump') {
@@ -161,7 +171,7 @@ export function alarmTick(dt) {
     c.sirT = (c.sirT || 0) - dt;
     if (c.sirT > 0) continue;
     const dd = Math.hypot(c.x - GS.P.x, c.y - GS.P.y),
-      v = 0.05 * clamp(1 - dd / 1600, 0.12, 1),
+      v = 0.05 * clamp(1 - dd / (1600 * GK), 0.12, 1),
       b = spat(c.x, c.y),
       pat = Math.floor(c.alAge / 3 + (c.ph || 0)) % 3; // the alarm cycles its patterns every 3 s, like the real thing
     if (pat === 0) {
@@ -192,7 +202,7 @@ export function poundCar(e, c, dt) {
   if (c.hp > c.max * 0.35) c.hp -= 0.6;
   if (thr('pound', 120)) {
     const dd = Math.hypot(c.x - GS.P.x, c.y - GS.P.y),
-      v = clamp(1 - dd / 900, 0, 1);
+      v = clamp(1 - dd / (900 * GK), 0, 1);
     if (v > 0) noise(0.09, 0.22 * v, 520, 110, 'lowpass');
   }
 }
@@ -204,13 +214,13 @@ export function screamAt(e) {
   for (let i = 0; i < 3; i++)
     GS.later.push({ t: i * 0.09, fn: () => ring(e.x, e.y, 14, 260 + i * 40, 0.55, [0.32, 0.3, 0.33], 0.45) });
   const d = Math.hypot(GS.P.x - e.x, GS.P.y - e.y);
-  if (GS.state === 'play' && d < 330 && los(e.x, e.y, GS.P.x, GS.P.y)) {
-    GS.P.daze = Math.max(GS.P.daze || 0, 1.9 - d / 330);
+  if (GS.state === 'play' && d < 330 * GK && los(e.x, e.y, GS.P.x, GS.P.y)) {
+    GS.P.daze = Math.max(GS.P.daze || 0, 1.9 - d / (330 * GK));
     GS.chroma = Math.max(GS.chroma, 0.01);
-    if (d < 120) hurtPlayer(6 * (1 + 0.04 * GS.wave), e.x, e.y);
+    if (d < 120 * GK) hurtPlayer(6 * (1 + 0.04 * GS.wave), e.x, e.y);
   }
   for (const o of GS.enemies)
-    if (!o.dead && o !== e && d2(o.x, o.y, e.x, e.y) < 420 * 420) {
+    if (!o.dead && o !== e && d2(o.x, o.y, e.x, e.y) < (420 * GK) ** 2) {
       o.frenzy = 3;
     }
 }

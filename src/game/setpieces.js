@@ -6,6 +6,7 @@
 //  - the Starlite Motel: the Fire Chief walks out of the burnt fire station across the road
 //  - County Hospital: on the last night the wards empty out, and Patient Zero comes out of the front door
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { d2, rand } from '../core/util.js';
 import { LAYOUT, TILE, isWall } from '../world/map.js';
 import { blockPt, reachPt } from '../world/nav.js';
@@ -24,7 +25,7 @@ export function placeStage(bt) {
   const x = s[0] * TILE,
     y = s[1] * TILE,
     d = Math.sqrt(d2(x, y, GS.P.x, GS.P.y));
-  return d > 300 && d < 1300 && reachPt(x, y) ? [x, y] : null; // too close, or cut off: it comes the usual way
+  return d > 300 * GK && d < 1300 * GK && reachPt(x, y) ? [x, y] : null; // too close, or cut off: it comes the usual way
 }
 // the quarry at night: most of the dead come up out of the pit, from out of sight on its floor
 export function pitSpot(minD) {
@@ -63,7 +64,7 @@ function wardsEmpty() {
       for (let x = x0 + 1; x < x0 + w - 1; x++) {
         const px = (x + 0.5) * TILE,
           py = (y + 0.5) * TILE;
-        if (!isWall(x, y) && reachPt(px, py) && d2(px, py, GS.P.x, GS.P.y) > 300 * 300) floor.push([px, py]);
+        if (!isWall(x, y) && reachPt(px, py) && d2(px, py, GS.P.x, GS.P.y) > (300 * GK) ** 2) floor.push([px, py]);
       }
   if (floor.length < 6) return;
   let n = 0;

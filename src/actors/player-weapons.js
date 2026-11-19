@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { BOON, boonOn } from '../game/boons.js';
+import { GK } from '../core/scale.js';
 import { roofStop } from '../world/roofs.js';
 import { camKick } from '../render/camera.js';
 import { GS } from '../core/gs.js';
@@ -44,7 +45,7 @@ export function firePlayer(cwx, cwy, p, target) {
     G = GUNS[g],
     hb = heroGun(g),
     km = kitMod(g),
-    still = Math.hypot(p.vx, p.vy) < 40,
+    still = Math.hypot(p.vx, p.vy) < 40 * GK,
     braced = (km.brace && still) || (g === 'rifle' && S.evo.marks); // a bipod down, or the Marksman combo
   if (p.mag[g] <= 0) {
     if (GS.time - (p.lastShotT || -9) > 0.14) startReload();
@@ -206,7 +207,7 @@ export function firePlayer(cwx, cwy, p, target) {
         if (!q) return;
         const cc = Math.cos(aa),
           ss = Math.sin(aa),
-          br = (g === 'rifle' && Math.hypot(q.vx, q.vy) < 40) || braced,
+          br = (g === 'rifle' && Math.hypot(q.vx, q.vy) < 40 * GK) || braced,
           a =
             aa +
             rand(-G.spread, G.spread) *
@@ -358,7 +359,7 @@ function ricoAim(b, R) {
   query(b.x, b.y, R, e => {
     if (e.dead || e.emerge < 1 || b.hits.includes(e.id)) return;
     const dd = d2(b.x, b.y, e.x, e.y);
-    if (dd < bd && dd > 100 && los(b.x, b.y, e.x, e.y)) {
+    if (dd < bd && dd > 100 * GK && los(b.x, b.y, e.x, e.y)) {
       bd = dd;
       best = e;
     }
@@ -383,7 +384,7 @@ export function updatePBullet(b, dt) {
     b.spin += dt * 14;
     if (b.gl && k > 0.45 && k < 1) {
       let hitE = null;
-      query(b.x, b.y, 40, e => {
+      query(b.x, b.y, 40 * GK, e => {
         if (!hitE && !e.dead && e.emerge >= 1 && !e.fly && d2(e.x, e.y, b.x, b.y) < (e.r + 8) ** 2) hitE = e;
       });
       if (hitE) {
@@ -422,7 +423,7 @@ export function updatePBullet(b, dt) {
     return;
   } // a bulb in its path pops, and that's where the round ends: up there it can't also hit one on the ground
   let used = false;
-  if (GS.boss && GS.boss.signAt && !b.small && d2(b.x, b.y, GS.boss.signAt.x, GS.boss.signAt.y) < 26 * 26) {
+  if (GS.boss && GS.boss.signAt && !b.small && d2(b.x, b.y, GS.boss.signAt.x, GS.boss.signAt.y) < (26 * GK) ** 2) {
     hitSign(GS.boss, b.dmg, b.x, b.y);
     b.life = 0;
     return;
@@ -438,14 +439,14 @@ export function updatePBullet(b, dt) {
     const pts = queenTail(GS.boss);
     for (let i = 1; i < pts.length; i++) {
       const [tx, ty] = toWorld(GS.boss, pts[i][0], pts[i][1], GS.boss.sc || 1);
-      if (d2(b.x, b.y, tx, ty) < 21 * 21) {
+      if (d2(b.x, b.y, tx, ty) < (21 * GK) ** 2) {
         tailHit(GS.boss, b, tx, ty);
         return;
       }
     }
   } // the tail trails behind the chitin: get round and it takes every round
   for (const cr of crystals)
-    if (cr.alive && d2(b.x, b.y, cr.x, cr.y - 6) < 24 * 24) {
+    if (cr.alive && d2(b.x, b.y, cr.x, cr.y - 6) < (24 * GK) ** 2) {
       hitCrystal(cr, b.dmg, b.vx, b.vy);
       b.life = 0;
       used = true;
@@ -466,7 +467,7 @@ export function updatePBullet(b, dt) {
       break;
     }
   if (used) return;
-  query(b.x, b.y, 140, e => {
+  query(b.x, b.y, 140 * GK, e => {
     if (e.dead || e.emerge < 0.6 || b.hits.includes(e.id)) return;
     let hx = b.x,
       hy = b.y + e.z,

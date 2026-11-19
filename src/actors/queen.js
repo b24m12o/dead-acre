@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { TAU, angDiff, clamp, d2, rand, randi } from '../core/util.js';
 import { TILE, WH, WW } from '../world/map.js';
 import { MUS, noise, spat, thr, tone } from '../audio/audio.js';
@@ -110,7 +111,7 @@ export function updateQueen(e, dt, ux, uy, dist) {
     if (sp > 30 && sd !== e.stepI) {
       e.stepI = sd;
       const d = Math.hypot(GS.P.x - e.x, GS.P.y - e.y);
-      if (d < 520) shake(0.03 * (1 - d / 520) * (bt === 'roadkill' ? 1.4 : 1));
+      if (d < 520 * GK) shake(0.03 * (1 - d / 520) * (bt === 'roadkill' ? 1.4 : 1));
       {
         const fa = e.a ?? 0,
           side = sd & 1 ? 1 : -1,
@@ -392,12 +393,12 @@ export function updateQueen(e, dt, ux, uy, dist) {
       e.hy2 = NOISE.y;
     }
     if (e.blindT <= 0) showStreak('It can see again', 'Its lantern is gone, but it found you');
-    else if (dist > 130) {
+    else if (dist > 130 * GK) {
       const tx = e.hx2 ?? e.x,
         ty = e.hy2 ?? e.y,
         a = Math.atan2(ty - e.y, tx - e.x),
         d = Math.hypot(tx - e.x, ty - e.y);
-      if (d > 40) {
+      if (d > 40 * GK) {
         e.face = a;
         e.tvx = Math.cos(a) * e.sp * 1.2;
         e.tvy = Math.sin(a) * e.sp * 1.2;
@@ -410,7 +411,7 @@ export function updateQueen(e, dt, ux, uy, dist) {
   if (
     bt === 'pz' &&
     ph >= 1 &&
-    Math.hypot(e.vx, e.vy) > 20 &&
+    Math.hypot(e.vx, e.vy) > 20 * GK &&
     (e.trailT = (e.trailT || 0) - dt) <= 0 &&
     GS.pools.length < 40
   ) {
@@ -428,7 +429,7 @@ export function updateQueen(e, dt, ux, uy, dist) {
   } // it bleeds infection where it walks: the room to move shrinks
   if (bt === 'grave' && ph >= 1)
     for (const fg of GS.freshGraves)
-      if (!fg.used && d2(fg.x, fg.y, GS.P.x, GS.P.y) < 30 * 30) {
+      if (!fg.used && d2(fg.x, fg.y, GS.P.x, GS.P.y) < (30 * GK) ** 2) {
         fg.used = true;
         const z = makeEnemy('mini', fg.x, fg.y);
         z.emerge = 0.4;
@@ -439,7 +440,7 @@ export function updateQueen(e, dt, ux, uy, dist) {
         chips(fg.x, fg.y, 6, [0.4, 0.3, 0.2], 4, 200);
         sfx.dig(fg.x, fg.y);
       } // a hand out of a fresh grave
-  const k = dist > 240 ? 1 : dist < 150 ? -0.35 : 0.25,
+  const k = dist > 240 * GK ? 1 : dist < 150 * GK ? -0.35 : 0.25,
     slow = e.recT > 0 ? 0.25 : 1;
   e.tvx = (ux * k - uy * 0.3) * e.sp * spMul * slow;
   e.tvy = (uy * k + ux * 0.3) * e.sp * spMul * slow;

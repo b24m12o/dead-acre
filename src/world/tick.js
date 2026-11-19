@@ -27,6 +27,7 @@ import { NOISE } from '../game/noise.js';
 import { updateEvac } from '../game/evac.js';
 import { bossNight } from '../game/waves.js';
 import { updateWeather } from './weather.js';
+import { GK } from '../core/scale.js';
 export function tickWorld(dt) {
   sightTick(dt);
   tickCrowd(dt); // the moan of the many (crowd.js)
@@ -46,7 +47,7 @@ export function tickWorld(dt) {
       q.y += WINDX * 0.2 * w * dt;
     } else if (
       (q.k === 9 || q.k === 3 || q.k === 4 || q.k === 7 || q.k === 12) &&
-      (q.z || 0) < 40 &&
+      (q.z || 0) < 40 * GK &&
       solidPt(q.x, q.y) &&
       !solidPt(q.x - q.vx * dt, q.y - q.vy * dt)
     ) {
@@ -56,16 +57,16 @@ export function tickWorld(dt) {
       if (solidPt(q.x + q.vx * dt, q.y)) q.vx *= -0.45;
       else q.vy *= -0.45;
       if (q.vr) q.vr = -q.vr;
-      if (q.k === 9 && sp > 120 && q.c && GS.decals.length < 400)
+      if (q.k === 9 && sp > 120 * GK && q.c && GS.decals.length < 400)
         decal(R['splat' + randi(0, 3)], q.x, q.y, rand(0.1, 0.18), [q.c[0], q.c[1], q.c[2], 0.85], [0, 0, 0], 40);
-      if (sp > 160 && q.k !== 9 && Math.random() < 0.2 && thr('tick', 40)) playS('dry', 0.03, 2.2, 0, 0);
+      if (sp > 160 * GK && q.k !== 9 && Math.random() < 0.2 && thr('tick', 40)) playS('dry', 0.03, 2.2, 0, 0);
     }
     const f = Math.pow(Math.exp(-q.drag), dt);
     q.vx *= f;
     q.vy *= f;
     if (q.rot !== undefined) q.rot += (q.vr || 0) * dt;
     if (q.vz !== undefined) {
-      q.vz -= 600 * dt;
+      q.vz -= 600 * GK * dt;
       q.z += q.vz * dt;
       if (q.z < 0) {
         if (q.k === 11) {
@@ -80,14 +81,14 @@ export function tickWorld(dt) {
               R['splat' + randi(0, 3)],
               q.x,
               q.y,
-              q.size * rand(0.1, 0.2),
+              q.size0 * rand(0.1, 0.2),
               [q.c[0], q.c[1], q.c[2], 0.9],
               [0, 0, 0],
               40
             );
           continue;
         }
-        if (q.k === 9 && q.vz < -60 && !q.spl)
+        if (q.k === 9 && q.vz < -60 * GK && !q.spl)
           (q.spl = 1),
             decal(R['splat' + randi(0, 3)], q.x, q.y, rand(0.12, 0.22), [q.c[0], q.c[1], q.c[2], 0.9], [0, 0, 0], 40);
         q.z = 0;
@@ -104,7 +105,7 @@ export function tickWorld(dt) {
         q.k === 3 ? R.chip : R.rockchip,
         q.x,
         q.y,
-        q.size * 0.8,
+        q.size0 * 0.8,
         [(q.c || [1, 1, 1])[0] * 0.8, (q.c || [1, 1, 1])[1] * 0.8, (q.c || [1, 1, 1])[2] * 0.8, 1],
         [0, 0, 0],
         40
@@ -113,12 +114,12 @@ export function tickWorld(dt) {
   for (const q of GS.parts) if (q.k === 9) GS.GIBN++;
   for (const q of GS.parts)
     if (q.k === 9 && q.life > 0 && q.life < dt * 1.5 && GS.decals.length < 400)
-      decal(R['splat' + ((q.x | 0) & 3)], q.x, q.y, q.size * 0.22, [0.2, 0.03, 0.03, 0.75], [0, 0, 0], 50); // a gone piece leaves a dark smear where it lay
+      decal(R['splat' + ((q.x | 0) & 3)], q.x, q.y, q.size0 * 0.22, [0.2, 0.03, 0.03, 0.75], [0, 0, 0], 50); // a gone piece leaves a dark smear where it lay
   for (const q of GS.parts)
-    if (q.k === 12 && q.life > 0 && q.life < dt * 1.5) decal(R.mag, q.x, q.y, q.size, [1, 1, 1, 1], [0, 0, 0], 40);
+    if (q.k === 12 && q.life > 0 && q.life < dt * 1.5) decal(R.mag, q.x, q.y, q.size0, [1, 1, 1, 1], [0, 0, 0], 40);
   for (const q of GS.parts)
     if (q.k === 7 && q.life > 0 && q.life < dt * 1.5 && GS.decals.length < 400)
-      decal(R.shell, q.x, q.y, q.size, q.tc ? [q.tc[0], q.tc[1], q.tc[2], 1] : [1, 1, 1, 1], [0, 0, 0], 30);
+      decal(R.shell, q.x, q.y, q.size0, q.tc ? [q.tc[0], q.tc[1], q.tc[2], 1] : [1, 1, 1, 1], [0, 0, 0], 30);
   if (dt > 0) keepIf(GS.parts, q => q.life > 0);
   for (const d of GS.decals) {
     d.life -= dt * (GS.decals.length > 340 ? 3 : 1);
@@ -243,7 +244,7 @@ export function tickWorld(dt) {
       b.a += Math.sin(b.t * 1.3 + b.hue * 9) * dt * 2.2;
       b.x += Math.cos(b.a) * 46 * dt;
       b.y += Math.sin(b.a) * 46 * dt;
-      if (d2(b.x, b.y, GS.P.x, GS.P.y) < 70 * 70) b.a = Math.atan2(b.y - GS.P.y, b.x - GS.P.x);
+      if (d2(b.x, b.y, GS.P.x, GS.P.y) < (70 * GK) ** 2) b.a = Math.atan2(b.y - GS.P.y, b.x - GS.P.x);
       if (Math.abs(b.x - GS.P.x) > 700 || Math.abs(b.y - GS.P.y) > 520) {
         b.x = GS.P.x + rand(-600, 600);
         b.y = GS.P.y + (Math.random() < 0.5 ? -480 : 480);
@@ -266,7 +267,7 @@ export function tickWorld(dt) {
       for (const e of GS.enemies)
         if (!e.dead && (e.aw > 0 || e.big)) {
           const d = Math.hypot(e.x - GS.P.x, e.y - GS.P.y);
-          if (d < 520) th += (e.big ? 3 : e.elite ? 1.6 : 1) * (1 - d / 520);
+          if (d < 520 * GK) th += (e.big ? 3 : e.elite ? 1.6 : 1) * (1 - d / 520);
         }
       th = th / 5 + (GS.time - NOISE.t < 1.2 ? 0.18 : 0) + (GS.P.hp < S.maxHp * 0.35 ? 0.2 : 0);
     }

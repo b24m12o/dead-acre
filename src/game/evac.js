@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { clearSave } from './save.js';
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, clamp, d2, damp, lerp, pick, rand, randi } from '../core/util.js';
@@ -79,7 +80,7 @@ function evacTarget(e) {
   for (const z of GS.enemies) {
     if (z.dead || z.type === 'queen' || z.emerge < 0.6 || z.dying !== undefined) continue;
     const dl = d2(z.x, z.y, e.x, e.y);
-    if (dl > 520 * 520) continue;
+    if (dl > (520 * GK) ** 2) continue;
     if (e.t >= e.land && !los(e.x, e.y, z.x, z.y)) continue; // on the ground the gunner can't shoot through a wall
     const dp = d2(z.x, z.y, GS.P.x, GS.P.y),
       sc = Math.min(dl, dp * 0.6);
@@ -254,14 +255,14 @@ export function updateEvac(dt) {
       shake(0.15);
     }
     const pd = d2(GS.P.x, GS.P.y, e.x, e.y);
-    if (pd < 80 * 80) {
+    if (pd < (80 * GK) ** 2) {
       e.hold += dt;
       e.outT = 0;
-      const late = GS.buddies.find(b => !(b.down > 0) && d2(b.x, b.y, e.x, e.y) < 500 * 500);
+      const late = GS.buddies.find(b => !(b.down > 0) && d2(b.x, b.y, e.x, e.y) < (500 * GK) ** 2);
       if (late && e.hold >= 2.4 && (e.waitT = (e.waitT || 0) + dt) < 8) e.hold = 2.4; // the pilot holds for a teammate on the way
       e.waiting = late && e.hold >= 2.4 && e.waitT < 8 ? late.nm : null;
       if (e.hold >= 2.5) GS.RUN.practice ? winRun() : startRide(e);
-    } else if ((e.outT = (e.outT || 0) + dt) > 1.2 || pd > 150 * 150) e.hold = Math.max(0, e.hold - dt * 0.6); // shoved just outside by the horde, the count waits a moment for you to step back in; walk away and it runs down
+    } else if ((e.outT = (e.outT || 0) + dt) > 1.2 || pd > (150 * GK) ** 2) e.hold = Math.max(0, e.hold - dt * 0.6); // shoved just outside by the horde, the count waits a moment for you to step back in; walk away and it runs down
   }
 }
 let heliNodes = null;

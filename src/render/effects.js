@@ -5,6 +5,7 @@ import { opt } from '../core/settings.js';
 import { R } from './atlas.js';
 import { MH, MW, ROAD, TILE } from '../world/map.js';
 import { BILE, BLOOD } from './draw-enemies.js';
+import { GK } from '../core/scale.js';
 export function part(o) {
   if (GS.parts.length > 2600) {
     // full: make room in one go, the shortest-lived bits first (sparks and glints go before smoke, gibs and casings)
@@ -18,6 +19,15 @@ export function part(o) {
     }
     if (n < 160) GS.parts.splice(0, 160 - n);
     keepIf(GS.parts, q => q.life > 0);
+  }
+  // made at the old size of things, brought to life size (core/scale.js): how far and fast it flies, how big it is
+  o.vx *= GK;
+  o.vy *= GK;
+  if (o.vz !== undefined) o.vz *= GK;
+  if (o.z !== undefined) o.z *= GK;
+  if (o.size !== undefined) {
+    o.size0 = o.size;
+    o.size *= GK;
   }
   GS.parts.push(o);
   return o;
@@ -112,7 +122,7 @@ export function decal(reg, x, y, scale, tint, emit, life = 30) {
     let near = 0;
     for (let i = GS.decals.length - 1, n = 0; i >= 0 && n < 60; i--, n++) {
       const d = GS.decals[i];
-      if (Math.abs(d.x - x) < 14 && Math.abs(d.y - y) < 14) {
+      if (Math.abs(d.x - x) < 14 * GK && Math.abs(d.y - y) < 14 * GK) {
         near++;
         if (near > 1) return d;
       }
@@ -142,7 +152,7 @@ export function decal(reg, x, y, scale, tint, emit, life = 30) {
     tint = road ? [tint[0] * 0.7, tint[1] * 0.6, tint[2] * 0.6, tint[3] * 0.92] : [tint[0], tint[1], tint[2], tint[3]];
   } // on asphalt blood soaks in almost black; on pale concrete it stays red
   if (GS.decals.length > 420) GS.decals.shift();
-  const d = { reg, x, y, rot: rand(0, TAU), s: scale, tint, emit, life, max: life };
+  const d = { reg, x, y, rot: rand(0, TAU), s: scale * GK, tint, emit, life, max: life }; // life size (core/scale.js)
   if (isBlood) {
     d.blood = true;
     d.dry = 1;
@@ -151,11 +161,11 @@ export function decal(reg, x, y, scale, tint, emit, life = 30) {
   return d;
 }
 export function flashLight(x, y, r, col, life) {
-  GS.dlights.push({ x, y, r, col, life, max: life });
+  GS.dlights.push({ x, y, r: r * GK, col, life, max: life });
 }
 export function distort(x, y, s, sp, life) {
   if (GS.dwaves.length >= 8) GS.dwaves.shift();
-  GS.dwaves.push({ x, y, s: s / (1 + GS.shakeLoad * 0.8), sp, t: 0, life });
+  GS.dwaves.push({ x, y, s: s / (1 + GS.shakeLoad * 0.8), sp: sp * GK, t: 0, life });
 }
 GS.shakeLoad = 0; // how much the screen has been shaken lately: the more it has, the less each new jolt adds, so a run of blasts reads as a rumble, not a constant judder
 export function shake(v) {
@@ -168,12 +178,12 @@ export function shake(v) {
 export function floatText(x, y, txt, col, size) {
   if (GS.texts.length > 70) GS.texts.shift();
   const L = txt.length > 12 ? 1.6 : 0.8;
-  const t = { x, y, txt, col, size, life: L, max: L, vy: -60 };
+  const t = { x, y, txt, col, size, life: L, max: L, vy: -60 * GK };
   GS.texts.push(t);
   return t;
 } // a sentence stays up long enough to read
 export function ring(x, y, r0, r1, life, col, w = 1) {
-  GS.rings.push({ x, y, r0, r1, life, max: life, c: col, w });
+  GS.rings.push({ x, y, r0: r0 * GK, r1: r1 * GK, life, max: life, c: col, w: w * GK });
 }
 
 /* ---------- Combat ---------- */

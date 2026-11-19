@@ -19,6 +19,7 @@ import { tip } from '../audio/radio.js';
 import { bossName, bossType } from '../game/boss-flow.js';
 import { bark } from '../audio/barks.js';
 import { makeNoise } from '../game/noise.js';
+import { GK, figK } from '../core/scale.js';
 export const ET = {
   skitter: { hp: 20, r: 14, sp: 84, dmg: 9, xp: 1, score: 10, col: [0.62, 0.04, 0.03] },
   hopper: { hp: 70, r: 24, sp: 46, dmg: 0, xp: 3, score: 30, col: [0.42, 0.62, 0.1] },
@@ -49,10 +50,10 @@ export function makeEnemy(type, x, y) {
     vy: 0,
     kx: 0,
     ky: 0,
-    r: T.r,
+    r: T.r * figK({ type }), // its body, and how fast it goes, life size (core/scale.js)
     hp: T.hp * m,
     maxHp: T.hp * m,
-    sp: T.sp * (1 + Math.min(0.3, Math.max(0, GS.wave - 4) * 0.025)) * rand(0.92, 1.08),
+    sp: T.sp * GK * (1 + Math.min(0.3, Math.max(0, GS.wave - 4) * 0.025)) * rand(0.92, 1.08),
     dmg: T.dmg * (1 + 0.05 * (GS.wave - 1)),
     xp: T.xp,
     score: T.score,
@@ -70,7 +71,7 @@ export function makeEnemy(type, x, y) {
     dead: false,
     wob: 0,
   };
-  if (type !== 'queen') e.cr = Math.min(e.r, type === 'beetle' ? 19 : type === 'hopper' ? 18 : 15); // against walls: the big ones keep more of their bulk out of them, and still fit a one-tile gap
+  if (type !== 'queen') e.cr = Math.min(e.r, (type === 'beetle' ? 19 : type === 'hopper' ? 18 : 15) * figK({ type })); // against walls: the big ones keep more of their bulk out of them, and still fit a one-tile gap
 
   if (INF(5)) e.sp *= 1.1;
   if (INF(9)) e.dmg *= 1.25;
@@ -311,7 +312,7 @@ function setTrait(e, t) {
   } /* one of your people spots it first */
   if (t === 'runner') {
     e.v = 16; // stripped to the waist: bare, lean and long in the arm, it reads at a glance
-    e.sp = rand(265, 290);
+    e.sp = rand(265, 290) * GK;
     e.hp *= 0.7;
     e.run = true;
     e.limp = 0;
@@ -338,7 +339,7 @@ function setTrait(e, t) {
 }
 // on your screen, with a margin: a breath you can't see coming is a breath you can't stop
 const onView = e =>
-  Math.abs(e.x - cam.x - viewW / 2) < viewW / 2 - 30 && Math.abs(e.y - cam.y - viewH / 2) < viewH / 2 - 30;
+  Math.abs(e.x - cam.x - viewW / 2) < viewW / 2 - 30 * GK && Math.abs(e.y - cam.y - viewH / 2) < viewH / 2 - 30 * GK;
 // the shriek: everything within earshot wakes and comes for you, faster for a while, and the noise carries
 function scream(e) {
   e.scrT = 9;
@@ -348,8 +349,8 @@ function scream(e) {
   e.squash = 0.2;
   distort(e.x, e.y, 0.016, 0.7, 0.5);
   for (let i = 0; i < 3; i++)
-    GS.later.push({ t: i * 0.1, fn: () => ring(e.x, e.y - 30, 10, 180 + i * 70, 0.55, [1, 0.9, 0.8], 0.45) });
-  const R = 380;
+    GS.later.push({ t: i * 0.1, fn: () => ring(e.x, e.y - 30 * GK, 10, 180 + i * 70, 0.55, [1, 0.9, 0.8], 0.45) }); // (effects scale their own sizes)
+  const R = 380 * GK;
   query(e.x, e.y, R, o => {
     if (o !== e && !o.dead && o.type !== 'queen' && d2(o.x, o.y, e.x, e.y) < R * R) {
       o.aw = Math.max(o.aw || 0, 8);
@@ -357,7 +358,7 @@ function scream(e) {
       if (o.lure && !o.lure.horde) o.lure = null; // a car alarm or a noise trap won't hold them now: they want you
     }
   });
-  makeNoise(e.x, e.y, R + 300, false, false); // the dormant and the far-off hear it too
+  makeNoise(e.x, e.y, (R + 300 * GK) / GK, false, false); // the dormant and the far-off hear it too
   if (GS.state === 'play') tip('el_screamer');
 }
 export function traitTick(e, dt, pd2) {
@@ -371,11 +372,11 @@ export function traitTick(e, dt, pd2) {
       if (e.down > 0 || e.stag > 0 || e.cfall > 0) {
         e.scrIn = 0;
         e.scrT = 2.5;
-        floatText(e.x, e.y - 44, 'Choked', '#ffd27a', 14); // you cut it off: you see that you did
+        floatText(e.x, e.y - 44 * GK, 'Choked', '#ffd27a', 14); // you cut it off: you see that you did
       } else if (e.scrIn <= 0) scream(e);
     } else {
       e.scrT -= dt;
-      if (e.scrT <= 0 && e.los && pd2 < 560 * 560 && onView(e) && !(e.down > 0) && !(e.stag > 0)) {
+      if (e.scrT <= 0 && e.los && pd2 < (560 * GK) ** 2 && onView(e) && !(e.down > 0) && !(e.stag > 0)) {
         e.scrIn = 0.95;
         e.scrInT = GS.time;
         sfx.inhale(e.x, e.y);

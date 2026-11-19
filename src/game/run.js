@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { buildDoors } from './doors.js';
+import { PEOPLE } from '../core/scale.js';
 import { resetAmbience } from '../audio/ambience.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
@@ -81,7 +82,7 @@ export function newRun(forMenu = false) {
     y: WH / 2 + 40,
     vx: 0,
     vy: 0,
-    r: 16,
+    r: 16 * PEOPLE, // life size (core/scale.js)
     hp: S.maxHp,
     moveA: -Math.PI / 2,
     bodyA: -Math.PI / 2,

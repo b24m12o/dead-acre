@@ -1,6 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { TW } from './districts.js';
+import { GK } from '../core/scale.js';
 export const HEROES = {
   ranger: {
     name: 'Soldier',
@@ -36,7 +37,7 @@ export const HEROES = {
 // what each of the three does that the others can't (beyond the guns they favour and the abilities they carry):
 // the Soldier braces, the Deputy shoves like a riot line, the Gunslinger reloads on the roll
 export const HERO_TRAIT = {
-  brace: { time: 0.5, still: 45, dmg: 1.2, pierce: 1, spread: 0.6 }, // Soldier: seconds standing still (under `still` px/s) to brace
+  brace: { time: 0.5, still: 45 * GK, dmg: 1.2, pierce: 1, spread: 0.6 }, // Soldier: seconds standing still (under `still` px/s) to brace
   riot: { cd: 0.6, dmg: 3 }, // Deputy: the shove's cooldown and damage, times these
   rollLoad: true, // Gunslinger: a roll reloads the revolver and SMG
 };
@@ -216,6 +217,13 @@ export const GUNS = {
     lob: true,
   },
 };
+// made at the old size of things, brought to life size (core/scale.js): how fast the rounds fly (their reach with
+// them), where they leave the barrel, how far it kicks
+for (const g of Object.values(GUNS)) {
+  g.speed *= GK;
+  g.muzzle *= GK;
+  g.kick *= GK;
+}
 export const GUN_ORDER = ['pistol', 'shotgun', 'smg', 'rifle', 'auto', 'hunter', 'lever', 'lmg', 'launcher'];
 export const AMMO_MAX = { light: 480, shells: 90, rifle: 400, heavy: 60, gren: 18 },
   AMMO_BOX = { light: 48, shells: 10, rifle: 40, heavy: 7, gren: 2 };

@@ -11,6 +11,7 @@
 //    hit blows it half again as wide. It only ever rigs when it is the trap you hold.
 // You carry three of each at most. They come in supply crates, and the dawn before a horde brings a full kit.
 import { roofStop } from '../world/roofs.js';
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, rand } from '../core/util.js';
@@ -99,7 +100,7 @@ export function cycleTrap() {
 export function carNear() {
   if (!GS.P) return null;
   let best = null,
-    bd = 95 * 95;
+    bd = (95 * GK) ** 2;
   for (const c of cars)
     if (!c.dead && !c.burnt && !c.rig && !c.fire && !c.tanker) {
       const d = d2(c.x, c.y, GS.P.x, GS.P.y);
@@ -206,7 +207,7 @@ export function tickTraps(dt) {
   for (const m of GS.lmines) {
     m.arm -= dt;
     if (m.arm > 0 || m.done) continue;
-    query(m.x, m.y, 70, e => {
+    query(m.x, m.y, 70 * GK, e => {
       if (!m.done && !e.dead && e.emerge >= 1 && !e.fly && d2(m.x, m.y, e.x, e.y) < (40 + e.r * 0.5) ** 2)
         m.done = true;
     });

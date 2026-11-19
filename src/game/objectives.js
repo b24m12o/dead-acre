@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { choiceNight } from './radio-choice.js';
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, clamp, d2, pick, rand } from '../core/util.js';
@@ -216,7 +217,7 @@ function makeBox() {
       blockPt(px + 14, py) ||
       blockPt(px - 14, py) ||
       !reachPt(px, py) ||
-      GS.obj.piles.some(q => Math.hypot(q.x - px, q.y - py) < 70)
+      GS.obj.piles.some(q => Math.hypot(q.x - px, q.y - py) < 70 * GK)
     )
       continue;
     GS.obj.piles.push({ x: px, y: py, r: rand(0, TAU), v: k++, prog: 0, done: false });
@@ -237,7 +238,7 @@ export function updateBox(dt) {
   if (GS.nightLive && !GS.nightDone) o.batt = Math.max(0, o.batt - dt / 80);
   const bx = o.piles.find(q => q.box),
     d = Math.hypot(bx.x - GS.P.x, bx.y - GS.P.y);
-  if (o.batt > 0 && d < 260) {
+  if (o.batt > 0 && d < 260 * GK) {
     o.bp = (o.bp ?? 0) - dt;
     if (o.bp <= 0) {
       o.bp = clamp(d / 220, 0.25, 1.4);
@@ -258,11 +259,11 @@ export function updateBox(dt) {
   )
     smoke(o.crash.x + rand(-20, 20), o.crash.y + rand(-10, 10), 1, 80, true); // the wreck still smoulders: a smoke column you can steer by
   let cur = null;
-  for (const q of o.piles) if (!q.done && d2(q.x, q.y, GS.P.x, GS.P.y) < 40 * 40) cur = q;
+  for (const q of o.piles) if (!q.done && d2(q.x, q.y, GS.P.x, GS.P.y) < (40 * GK) ** 2) cur = q;
   o.cur = cur;
   for (const q of o.piles) if (q !== cur && !q.done) q.prog = Math.max(0, q.prog - dt * 0.5);
   if (!cur) return;
-  const still = Math.hypot(GS.P.vx, GS.P.vy) < 40 && !GS.P.held;
+  const still = Math.hypot(GS.P.vx, GS.P.vy) < 40 * GK && !GS.P.held;
   o.still = still;
   if (!still) return;
   if (cur.prog === 0) {

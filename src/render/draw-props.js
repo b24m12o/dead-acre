@@ -3,7 +3,7 @@ import { gunPose, rideCiv } from '../game/evac-ride.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
 import { lineQ, quad, scaled, setH, viewH, viewW } from './sprites.js';
-import { BARREL, MANHOLE } from './scale.js';
+import { BARREL, MANHOLE } from '../core/scale.js';
 import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
 import { drawRanger, lampHot } from './draw-player.js';

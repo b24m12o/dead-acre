@@ -12,6 +12,7 @@ import { FINAL_NIGHT, INF, TW } from './districts.js';
 import { BOSS_J } from './route.js';
 import { viaNight, viaStay } from './routes.js';
 import { choiceNight } from './radio-choice.js';
+import { GK } from '../core/scale.js';
 export const bossNight = w =>
   !(GS.RUN && GS.RUN.hm) && (GS.RUN && GS.RUN.journey && !GS.RUN.practice ? !!BOSS_J[w] : w % 5 === 0); // Horde Mode has no bosses: the hordes are the bosses; the campaign has one at most of its stops (route.js)
 // nights since the last boss (0 the night after one, up to 4): the dead come faster as the next one nears
@@ -93,7 +94,14 @@ export function buildWave(w) {
 }
 // a spot just out of sight, minD to maxD from you, that can walk to you: where the night's dead come from, so they are
 // on you in seconds rather than wandering in from the far side of the map (and where a lost straggler comes back in)
+// the distances at the old size of things, brought to life size here (core/scale.js)
 export function spawnRing(minD = 560, maxD = 980) {
+  return ringAt(minD * GK, maxD * GK);
+}
+export function spawnPoint(minD = 480, edge = false) {
+  return pointAt(minD * GK, edge);
+}
+function ringAt(minD, maxD) {
   {
     const ps = pitSpot(minD);
     if (ps) return ps;
@@ -105,16 +113,17 @@ export function spawnRing(minD = 560, maxD = 980) {
       x = P.x + Math.cos(a) * r,
       y = P.y + Math.sin(a) * r;
     if (x < 4 * TILE || y < 4 * TILE || x > WW - 4 * TILE || y > WH - 4 * TILE) continue;
-    if (x > cam.x - 40 && x < cam.x + viewW + 40 && y > cam.y - 40 && y < cam.y + viewH + 40) continue; // never in sight
+    if (x > cam.x - 40 * GK && x < cam.x + viewW + 40 * GK && y > cam.y - 40 * GK && y < cam.y + viewH + 40 * GK)
+      continue; // never in sight
     const tx = Math.floor(x / TILE),
       ty = Math.floor(y / TILE);
     let ok = true;
     for (let j = -1; j <= 1 && ok; j++) for (let i = -1; i <= 1 && ok; i++) if (isWall(tx + i, ty + j)) ok = false;
     if (ok && reachPt(x, y)) return [x, y];
   }
-  return spawnPoint(minD, false);
+  return pointAt(minD, false);
 }
-export function spawnPoint(minD = 480, edge = false) {
+function pointAt(minD, edge) {
   {
     const ps = pitSpot(minD);
     if (ps) return ps;
@@ -141,13 +150,20 @@ export function spawnPoint(minD = 480, edge = false) {
         }
     if (!ok && !edge) continue;
     if (!reachPt(x, y) && k < 36) continue; // nothing is born in a pocket it can't walk out of: the night would never end
-    if (x > cam.x - 30 && x < cam.x + viewW + 30 && y > cam.y - 30 && y < cam.y + viewH + 30 && k < 30) continue;
+    if (
+      x > cam.x - 30 * GK &&
+      x < cam.x + viewW + 30 * GK &&
+      y > cam.y - 30 * GK &&
+      y < cam.y + viewH + 30 * GK &&
+      k < 30
+    )
+      continue;
     return [x, y];
   }
   const a = rand(0, TAU);
   return [
-    clamp(GS.P.x + Math.cos(a) * 600, 4 * TILE, WW - 4 * TILE),
-    clamp(GS.P.y + Math.sin(a) * 600, 4 * TILE, WH - 4 * TILE),
+    clamp(GS.P.x + Math.cos(a) * 600 * GK, 4 * TILE, WW - 4 * TILE),
+    clamp(GS.P.y + Math.sin(a) * 600 * GK, 4 * TILE, WH - 4 * TILE),
   ];
 }
 export function underBoss(el) {

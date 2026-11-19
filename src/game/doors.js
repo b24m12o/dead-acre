@@ -8,6 +8,7 @@
 // crypts, or a doorway already boarded for a siege night.
 // A door is a board with door: true and open: 0 shut .. 1 wide open, so the same code holds the dead at it.
 import { GS } from '../core/gs.js';
+import { GK } from '../core/scale.js';
 import { d2 } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
 import { MH, MW, TILE, grid, houses } from '../world/map.js';
@@ -86,7 +87,7 @@ export function buildDoors() {
 }
 // boarded for the siege: the boards are the door tonight
 const boarded = b =>
-  GS.obj && GS.obj.type === 'siege' && !GS.obj.done && GS.obj.bars.some(o => d2(o.x, o.y, b.x, b.y) < 50 * 50);
+  GS.obj && GS.obj.type === 'siege' && !GS.obj.done && GS.obj.bars.some(o => d2(o.x, o.y, b.x, b.y) < (50 * GK) ** 2);
 const near = (o, b, r) => o && !(o.down > 0) && d2(o.x, o.y, b.x, b.y) < r * r;
 // something of theirs standing in the doorway: it can't shut
 function inWay(b) {
@@ -110,11 +111,11 @@ export function tickDoors(dt) {
     if (b.broken || b.off) continue;
     const want = (P && P.hp > 0 && !P.ride && near(P, b, DOOR.reach)) || GS.buddies.some(s => near(s, b, DOOR.reach));
     if (want) {
-      if (b.open < 0.05 && P && d2(P.x, P.y, b.x, b.y) < 400 * 400) sfx.doorOpen(b.x, b.y);
+      if (b.open < 0.05 && P && d2(P.x, P.y, b.x, b.y) < (400 * GK) ** 2) sfx.doorOpen(b.x, b.y);
       b.open = Math.min(1, b.open + dt * DOOR.swing);
     } else if (b.open > 0 && !inWay(b)) {
       b.open = Math.max(0, b.open - dt * DOOR.swing);
-      if (b.open === 0 && P && d2(P.x, P.y, b.x, b.y) < 400 * 400) sfx.doorShut(b.x, b.y);
+      if (b.open === 0 && P && d2(P.x, P.y, b.x, b.y) < (400 * GK) ** 2) sfx.doorShut(b.x, b.y);
     }
     if (b.open < DOOR.shut) shut.push(b);
     else b.hitT = Math.max(0, (b.hitT || 0) - dt);
@@ -127,11 +128,11 @@ export function tickDoors(dt) {
       b.hitT = 0; // a broken door isn't updated any more: nothing left to shake
       chips(b.x, b.y, 14, [0.36, 0.25, 0.15], 4, 240);
       sfx.doorBreak(b.x, b.y);
-      if (P && d2(P.x, P.y, b.x, b.y) < 320 * 320) floatText(b.x, b.y - 30, 'Door down', '#ff9a6a', 13);
+      if (P && d2(P.x, P.y, b.x, b.y) < (320 * GK) ** 2) floatText(b.x, b.y - 30, 'Door down', '#ff9a6a', 13);
     },
   });
   for (const b of shut)
-    if (b.hitT > 0.2 && !b.told && P && d2(P.x, P.y, b.x, b.y) < 260 * 260) {
+    if (b.hitT > 0.2 && !b.told && P && d2(P.x, P.y, b.x, b.y) < (260 * GK) ** 2) {
       b.told = true;
       if (!(GS.meta.tips && GS.meta.tips.doors) && GS.state === 'play') {
         GS.meta.tips = GS.meta.tips || {};

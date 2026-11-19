@@ -1,5 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { heroSay } from '../audio/barks.js';
+import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, rand } from '../core/util.js';
 import { TS, store } from '../core/settings.js';
@@ -93,8 +94,8 @@ export function resetStats() {
     crit: 0.05,
     maxHp: h.hp,
     regen: 0,
-    magnet: 120,
-    speed: h.speed,
+    magnet: 120 * GK,
+    speed: h.speed * GK, // life size (core/scale.js)
     dashCd: 1.3,
     darts: 0,
     pulse: 0,
@@ -267,7 +268,7 @@ export function wheelTick() {
   const W = wheelGeom(),
     dx = mouse.x - W.cx,
     dy = mouse.y - W.cy;
-  if (Math.hypot(dx, dy) < 54 * W.k) {
+  if (Math.hypot(dx, dy) < 54 * GK * W.k) {
     WHEEL.sel = -1;
     return;
   }
