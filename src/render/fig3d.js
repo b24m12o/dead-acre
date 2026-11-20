@@ -2085,6 +2085,14 @@ function poseHeroFK(p, D, o) {
     fkSnap(FK2, FKR2, C.idle, t, true);
     for (let b = 14; b < 22; b++) fkMix(FKQ, FK2, b, 1 - shortK);
   }
+  // a gun up is carried steady: the recorded runner's trunk and shoulders swing with free arms, and a man holding a
+  // rifle at his shoulder keeps them still over the hips (the hips and legs move as recorded). Each bone of the trunk
+  // held toward standing, more the higher it is
+  if (wMove > 0) {
+    fkSnap(FK2, FKR2, C.idle, t, true);
+    const STEADY = [0, 0.4, 0.65, 0.85, 0.85, 0, 0.9, 0, 0, 0, 0.9];
+    for (let b = 1; b <= 10; b++) if (STEADY[b]) fkMix(FKQ, FK2, b, STEADY[b] * wMove);
+  }
   // a hit: the trunk and head jolted back, as the recording flinches
   const hurtK = p.hurt > 0 ? Math.sin(Math.PI * clamp(1 - p.hurt / 0.18, 0, 1)) * 0.85 : 0;
   if (hurtK > 0) {
@@ -2109,12 +2117,17 @@ function poseHeroFK(p, D, o) {
   const Ry = Rz(yawR),
     J = [],
     R = [];
-  const twistOf = b => (rollK > 0 ? 0 : b === 1 ? 0.25 : b === 2 ? 0.6 : b >= 3 && b <= 13 ? 1 : 0);
+  const twistOf = b => (rollK > 0 ? 0 : b === 1 ? 0.25 : b === 2 ? 0.6 : b >= 3 && b <= 13 ? 1 : 0),
+    lean = 0.13 * wJog * (1 - rollK); // leaning into the run (the steadied trunk would stand up straight)
   for (let b = 0; b < 22; b++) {
-    const Rb = mm(
-      mm(Rz(yawR + tw * twistOf(b)), q9([FKQ[b * 4], FKQ[b * 4 + 1], FKQ[b * 4 + 2], FKQ[b * 4 + 3]])),
-      A[b]
-    );
+    const lf = b === 1 ? 0.4 : b === 2 ? 0.7 : b >= 3 && b <= 13 ? 1 : 0,
+      Rb = mm(
+        mm(
+          mm(Rz(yawR + tw * twistOf(b)), Ryb(lean * lf)),
+          q9([FKQ[b * 4], FKQ[b * 4 + 1], FKQ[b * 4 + 2], FKQ[b * 4 + 3]])
+        ),
+        A[b]
+      );
     R[b] = Array.from(Rb);
     if (b === 0) {
       const rr = mv(Ry, [FKR[0] * Hl, FKR[1] * Hl, 0]);
