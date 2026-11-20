@@ -7,7 +7,7 @@
 // of it each foot is down. fig3d.js lays the figures' own planted steps over it (the feet still go wherever the body
 // is going: these loops only walk forward).
 //   npm i --no-save three@0.170.0   (only this tool needs it)
-//   node tools/anim/ual.mjs path/to/UAL1_Standard.fbx
+//   node tools/anim/ual.mjs path/to/UAL1_Standard.fbx [path/to/UAL2_Standard.fbx]
 import { readFileSync, writeFileSync } from 'node:fs';
 globalThis.self = globalThis;
 globalThis.window = globalThis;
@@ -17,13 +17,18 @@ const { FBXLoader } = await import(
   (process.env.THREE ? process.env.THREE + '/examples/jsm' : 'three/examples/jsm') + '/loaders/FBXLoader.js'
 );
 
-const buf = readFileSync(process.argv[2]);
-const obj = new FBXLoader().parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), '');
+// a library's FBX: its figure, its bones by name, and a player for its clips (both libraries share one skeleton)
+let obj, mixer;
 const B = {};
-obj.traverse(o => {
-  if (o.isBone) B[o.name] = o;
-});
-const mixer = new THREE.AnimationMixer(obj);
+function load(path) {
+  const buf = readFileSync(path);
+  obj = new FBXLoader().parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), '');
+  obj.traverse(o => {
+    if (o.isBone) B[o.name] = o;
+  });
+  mixer = new THREE.AnimationMixer(obj);
+}
+load(process.argv[2]);
 // theirs (z up, facing -y, their right at -x) to ours (x forward, y to the right, z up)
 const our = v => [-v.y, -v.x, v.z];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
@@ -118,7 +123,16 @@ function loop(name) {
   // down)
   const zmin = (s, j) => Math.min(...raw.map(P => P[j + '_' + s][2]));
   const Z = { r: [zmin('r', 'foot'), zmin('r', 'ball')], l: [zmin('l', 'foot'), zmin('l', 'ball')] };
-  const down = (P, s) => Math.min(P['foot_' + s][2] - Z[s][0], P['ball_' + s][2] - Z[s][1]) < 0.03 * H;
+  let down = (P, s) => Math.min(P['foot_' + s][2] - Z[s][0], P['ball_' + s][2] - Z[s][1]) < 0.03 * H;
+  // (a dragged foot never leaves the ground: it's down while it's carried back under the hips, and swinging, dragged,
+  // while it's brought forward)
+  if (raw.every(P => down(P, 'r'))) {
+    const idx = new Map(raw.map((P, i) => [P, i]));
+    down = (P, s) => {
+      const i = idx.get(P);
+      return along(raw[(i + 1) % M], s) - along(raw[(i - 1 + M) % M], s) < 0;
+    };
+  }
   // the right foot's time on the ground: the longest run of it (round the loop's end too); the stride starts as it lands
   let best = 0,
     i0 = 0;
@@ -269,7 +283,27 @@ const RA = FKB.map(([, m]) => worldR(m)),
   HA = (wp('thigh_r')[2] + wp('thigh_l')[2]) / 2;
 const FK = { bones: FKB.map(b => b[0]), dir: DIRA, clips: {} };
 const FPS = 30;
-for (const [k, name, loopK] of [
+function clipsOf(list) {
+  for (const [k, name, loopK] of list) {
+    const dur = posAt(name, 0),
+      n = Math.max(2, Math.round(dur * FPS)),
+      frames = [],
+      root = [];
+    for (let i = 0; i < n; i++) {
+      posAt(name, (dur * i) / n);
+      frames.push(FKB.flatMap(([, m], b) => quat(mm(worldR(m), mT(RA[b]))).map(q)));
+      root.push(sub(wp('pelvis'), PELV0).map(x => q(x / HA)));
+    }
+    const c = { dur: q(dur), fps: FPS, frames, root };
+    if (loopK && OUT[k]) {
+      // where in it the right foot lands (the stride's start, as MOTION has it), and its speed, leg lengths a second
+      c.ph0 = OUT[k].ph0;
+      c.v = OUT[k].v;
+    }
+    FK.clips[k] = c;
+  }
+}
+clipsOf([
   ['idle', 'Idle_Loop', 0],
   ['walk', 'Walk_Loop', 1],
   ['jog', 'Jog_Fwd_Loop', 1],
@@ -279,28 +313,40 @@ for (const [k, name, loopK] of [
   ['hit', 'Hit_Chest', 0],
   ['death', 'Death01', 0],
   ['push', 'Push_Loop', 0],
-]) {
-  const dur = posAt(name, 0),
-    n = Math.max(2, Math.round(dur * FPS)),
-    frames = [],
-    root = [];
-  for (let i = 0; i < n; i++) {
-    posAt(name, (dur * i) / n);
-    frames.push(FKB.flatMap(([, m], b) => quat(mm(worldR(m), mT(RA[b]))).map(q)));
-    root.push(sub(wp('pelvis'), PELV0).map(x => q(x / HA)));
-  }
-  const c = { dur: q(dur), fps: FPS, frames, root };
-  if (loopK && OUT[k]) {
-    // where in it the right foot lands (the stride's start, as MOTION has it), and its speed, leg lengths a second
-    c.ph0 = OUT[k].ph0;
-    c.v = OUT[k].v;
-  }
-  FK.clips[k] = c;
+]);
+// Library 2 (its Standard pack, also CC0), if given: the dead's own walk and stance, a zombie's scratch, a hit that
+// knocks one back, getting up off the ground, and an overhand throw
+if (process.argv[3]) {
+  load(process.argv[3]);
+  // (the same skeleton: its T-pose as Library 1's, or its turns would be against another rest)
+  posAt('A_TPose', 0);
+  const off = Math.max(...FKB.map(([, m], b) => Math.max(...worldR(m).map((x, i) => Math.abs(x - RA[b][i]))))),
+    dp = Math.hypot(...sub(wp('pelvis'), PELV0));
+  console.log('Library 2 T-pose against Library 1: turns within', off.toFixed(4), '; hips', dp.toFixed(4));
+  OUT.shamble = loop('Zombie_Walk_Fwd_Loop');
+  console.log(
+    'shamble stance',
+    OUT.shamble.st,
+    'stride',
+    OUT.shamble.S,
+    'speed',
+    OUT.shamble.v,
+    'dur',
+    OUT.shamble.dur
+  );
+  clipsOf([
+    ['shamble', 'Zombie_Walk_Fwd_Loop', 1],
+    ['zidle', 'Zombie_Idle_Loop', 0],
+    ['scratch', 'Zombie_Scratch', 0],
+    ['knock', 'Hit_Knockback', 0],
+    ['getup', 'LayToIdle', 0],
+    ['throw', 'OverhandThrow', 0],
+  ]);
 }
 writeFileSync(
   new URL('../../src/render/motion.js', import.meta.url),
   `/* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// Written by tools/anim/ual.mjs from Quaternius' Universal Animation Library (CC0). Each loop over one stride, from the
+// Written by tools/anim/ual.mjs from Quaternius' Universal Animation Libraries 1 and 2 (CC0). Each loop over one stride, from the
 // right foot landing: N rows of [right foot: along, across, up, pitch; left foot: the same; the hips: along, across, up;
 // their turn (axis × angle); the chest's turn on them; the right hand and the left from the chest], in leg lengths;
 // st: the part of a stride a foot is down; S: a stride's length; v: speed, leg lengths a second

@@ -11,8 +11,9 @@ Desktop, keyboard and mouse. WebGL2.
 See [LICENSE](LICENSE).
 
 The way the figures walk and run is taken from Quaternius' [Universal Animation
-Library](https://quaternius.com/packs/universalanimationlibrary.html), released under CC0 (no rights reserved);
-`tools/anim/ual.mjs` turns it into `src/render/motion.js`.
+Library](https://quaternius.com/packs/universalanimationlibrary.html) and [Universal Animation Library
+2](https://quaternius.com/packs/universalanimationlibrary2.html), released under CC0 (no rights reserved);
+`tools/anim/ual.mjs` turns them into `src/render/motion.js`.
 
 The zombies' shambles, the limp, the drunk's stagger and the hero's backpedal and sidestep come from the Carnegie
 Mellon University Graphics Lab Motion Capture Database (in Bruce Hahne's BVH conversion);

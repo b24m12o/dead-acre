@@ -2472,18 +2472,22 @@ function poseZombie22(e, D, o) {
   )
     fkLegs(e, D, o, MM);
 }
-// the dead's own carriage, recorded (CMU's): a zombie's shamble, another's, a drunk's stagger, a man walking on a hurt
-// leg; each of the walking dead given one (a limper its limp, legs and all). Its trunk, arms and head as the recording
-// carries them, in step with its legs; its own pose back for all it does besides walking (a lunge, a stagger, a
-// scream), and in part for a hit
-const ZUP = ['zwalk', 'zwalk2', 'drunk', 'zwalk', 'zwalk2', 'hurt', 'zwalk'];
+// the dead's own carriage, recorded: CMU's zombie shambles, a drunk's stagger, a man walking on a hurt leg, and
+// Quaternius' zombie walk (its dragged leg and all); each of the walking dead given one (a limper its limp, legs and
+// all). Its trunk, arms and head as the recording carries them, in step with its legs, hunched as a zombie stands
+// when it stands, swiping as recorded when it lunges; its own pose back for a stagger or a scream, and in part for a
+// hit
+const ZUP = ['zwalk', 'zwalk2', 'drunk', 'shamble', 'zwalk2', 'hurt', 'zwalk', 'shamble', 'zwalk'];
 function zCarriage(e) {
   if (e.run || e.hunch > 0 || e.shield || e.type !== 'skitter') return null;
   const m = modelOf(e);
   if (m !== 'zombie' && m !== 'gaunt' && m !== 'armored' && m !== 'lean' && m !== 'drag') return null;
-  return FKC[e.limp ? 'limp' : m === 'drag' ? 'hurt' : ZUP[Math.floor(hsh(e.id || 0, 11) * ZUP.length) % ZUP.length]];
+  const n = e.limp ? 'limp' : m === 'drag' ? 'hurt' : ZUP[Math.floor(hsh(e.id || 0, 11) * ZUP.length) % ZUP.length];
+  return FKC[n] || FK.clips[n];
 }
-const ZROW = new Float32Array(14 * 12);
+const ZROW = new Float32Array(14 * 12),
+  FK3 = new Float32Array(22 * 4),
+  FKR3 = new Float32Array(3);
 // the recorded legs under a figure whose hips are already placed (row o of D): blended walk to run by its speed, its
 // stride shortened for a shamble or drawn stiff for a limp, each foot held where it was put down; above them, its
 // recorded carriage, if it has one
@@ -2510,13 +2514,14 @@ function fkLegs(e, D, o, MM) {
     run = !!e.run,
     C = FK.clips,
     Z = zCarriage(e),
-    ZL = Z === FKC.limp, // the limp walks its own legs too
+    ZL = !!Z && (Z === FKC.limp || Z === C.shamble), // the limp and the zombie walk walk their own legs too
+    IDL = Z ? C.zidle : C.idle, // (standing, hunched as a zombie stands)
     wMove = clamp((sL - 0.08) / 0.35, 0, 1),
     wJ = ZL ? 0 : clamp((sL - 1.6) / 2.0, 0, 1),
     wW = (1 - wJ) * wMove,
     wJog = wJ * wMove,
     LW = ZL ? Z : C.walk,
-    aL = ZL ? clamp(Math.sqrt(sL / Z.v), 0.8, 1.3) : 1, // (the limp brought to its pace, half by a longer step)
+    aL = ZL ? clamp(Math.sqrt(sL / Z.v), 0.8, 1.5) : 1, // (brought to its pace, half by a longer step)
     shortK = ZL ? aL : run ? 0.8 : 0.9, // a shamble: a little shorter than a man's
     cyc = (wW * ((LW.v * LW.dur) / (LW.ns || 1)) + wJog * C.jog.v * C.jog.dur) * shortK;
   e._fph =
@@ -2524,13 +2529,25 @@ function fkLegs(e, D, o, MM) {
   const ph = ((e._fph % 1) + 1) % 1;
   // its carriage: how much of it (eased in and out as it walks, lunges, staggers, is hit)
   if (Z) {
-    const want = e.lunge > 0 || e.wbT > 0 || e.scrIn > 0 || e.st === 'crouch' || wMove < 0.3 ? 0 : e.flT > 0 ? 0.35 : 1,
+    const want = e.lunge > 0 ? 1 : e.wbT > 0 || e.scrIn > 0 || e.st === 'crouch' ? 0 : e.flT > 0 ? 0.35 : 1,
       zk0 = e._zk ?? want;
     e._zk = zk0 + (want - zk0) * Math.min(1, dt * (want < zk0 ? 14 : 4));
   } else e._zk = 0;
   const zk = e._zk;
   if (zk > 0.01) {
     fkSnap(FK2, FKR2, Z, fkT(Z, e._fph), true);
+    // standing, its stance; lunging, the recorded swipe (wound up and through over the lunge)
+    const mixIn = (c, at, w, loop) => {
+      if (w <= 0.001) return;
+      fkSnap(FK3, FKR3, c, at, loop);
+      for (let b = 0; b < 14; b++) fkMix(FK2, FK3, b, w);
+      for (let j = 0; j < 3; j++) FKR2[j] += (FKR3[j] - FKR2[j]) * w;
+    };
+    mixIn(C.zidle, t + (e.id || 0), 1 - wMove, true);
+    if (e.lunge > 0) {
+      const u = clamp(1 - e.lunge / 0.42, 0, 1);
+      mixIn(C.scratch, 0.4 + u * 0.85, clamp(Math.min(u / 0.12, (1 - u) / 0.25), 0, 1), false);
+    }
     // as recorded from the hips up, the hips where its own pose has them (swaying about there as recorded)
     const Ry = Rz(yaw),
       J = [],
@@ -2562,11 +2579,11 @@ function fkLegs(e, D, o, MM) {
   }
   FKQ.fill(0);
   FKR.fill(0);
-  fkAdd(C.idle, t + (e.id || 0), 1 - wMove, true);
+  fkAdd(IDL, t + (e.id || 0), 1 - wMove, true);
   fkAdd(LW, fkT(LW, e._fph), wW, true);
   fkAdd(C.jog, ((ph + C.jog.ph0) % 1) * C.jog.dur, wJog, true);
   fkNorm(FKQ);
-  fkSnap(FK2, FKR2, C.idle, t + (e.id || 0), true);
+  fkSnap(FK2, FKR2, IDL, t + (e.id || 0), true);
   if (wMove > 0) for (let b = 14; b < 22; b++) fkMix(FKQ, FK2, b, 1 - shortK);
   // a lame leg (its right) barely bends: dragged, or swung stiff (a recorded limp limps of itself)
   const lame = ZL ? 0 : e.kind === 'drag' ? 0.75 : e.limp && !run ? 0.55 : 0;
@@ -2589,7 +2606,7 @@ function fkLegs(e, D, o, MM) {
     D3(b, R[b], J[b]);
   }
   // the feet held where they were put down
-  const stK = ZL ? Z.st : (1 - wJ) * MOTION.walk.st + wJ * MOTION.jog.st,
+  const stK = ZL ? (Z.st ?? MOTION.shamble.st) : (1 - wJ) * MOTION.walk.st + wJ * MOTION.jog.st,
     lk = e._flk || (e._flk = [{ on: false }, { on: false }]),
     Rp = Rz(yaw);
   for (const [i, ti] of [
