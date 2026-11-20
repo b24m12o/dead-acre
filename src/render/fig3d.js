@@ -2056,9 +2056,11 @@ function poseHeroFK(p, D, o) {
     par = MM.bones.map(b => b[1]),
     Hl = r[14][2] * k[1]; // a leg's length: the hips' height
   p._hipT = t;
-  // where it's going against where it aims (+ to its right), and the recordings for it: forward the walk or the run;
-  // backward, or to a side, a walk backward or sideways, or faster a backpedal or a sideways shuffle (CMU's:
-  // motion-cmu.js). Blended by the direction, each turned so that its going is the hero's: its body faces the aim
+  // where it's going against where it aims (+ to its right), and the recordings for it. Walking: forward the walk;
+  // backward or to a side, a walk backward or sideways (CMU's: motion-cmu.js), blended by the direction, each turned
+  // so that its going is the hero's and its body faces the aim. Running, no one shuffles sideways at a run: the legs
+  // run the way it's going and the trunk twists back to the aim, as far as a trunk can; further round than that, it
+  // backpedals
   const vx = p.vx || 0,
     vy = p.vy || 0,
     spd = Math.hypot(vx, vy),
@@ -2070,19 +2072,15 @@ function poseHeroFK(p, D, o) {
     wMove = clamp((sL - 0.08) / 0.35, 0, 1),
     wJ = clamp((sL - 1.2) / 2.0, 0, 1),
     shortK = 1 - 0.3 * wJ, // running, the recorded athlete's stride is long: a shorter arc, at a quicker beat
-    DIRS = [
-      [C.walk, C.jog],
-      [X.sideM, X.shufM],
-      [X.back, X.bpedal],
-      [X.side, X.shuf],
-    ],
-    // each direction's going (at this pace): forward, right, back, left, round the circle
-    G = DIRS.map(([a, b], d) =>
-      d ? (a.go < 0 ? a.go + 2 * Math.PI : a.go) * (1 - wJ) + (b.go < 0 ? b.go + 2 * Math.PI : b.go) * wJ : 0
-    ),
+    WALKS = [C.walk, X.sideM, X.back, X.side],
+    // each walk's going: forward, right, back, left, round the circle
+    G = WALKS.map((c, d) => (d ? (c.go < 0 ? c.go + 2 * Math.PI : c.go) : 0)),
     rel = spd > 4 ? angDiff(aim, mA) : 0,
     rr = rel < 0 ? rel + 2 * Math.PI : rel,
-    dw = p._dw || (p._dw = [1, 0, 0, 0]);
+    dw = p._dw || (p._dw = [1, 0, 0, 0]),
+    // running: how far into the backpedal (from 95° off the aim to 145°); its going, on the side it's turning
+    bkW = clamp((Math.abs(rel) - 1.65) / 0.88, 0, 1),
+    goBP = rel >= 0 ? X.bpedal.go : X.bpedal.go - 2 * Math.PI;
   {
     // the two directions it's between, and how far
     const W = [0, 0, 0, 0];
@@ -2100,40 +2098,41 @@ function poseHeroFK(p, D, o) {
     let sm = 0;
     for (let d = 0; d < 4; d++) sm += dw[d] += (W[d] - dw[d]) * Math.min(1, dt * 10);
     for (let d = 0; d < 4; d++) dw[d] /= sm || 1;
+    p._bk = (p._bk ?? 0) + (bkW * bkW * (3 - 2 * bkW) - (p._bk ?? 0)) * Math.min(1, dt * 10);
   }
+  const bk = p._bk;
   if (p._legA === undefined) p._legA = aim;
   {
-    // moving, the body turned off its going by the blend's own going (facing the aim, once the blend has caught up);
-    // standing, the legs turn after the trunk once it's twisted too far
-    let gB = 0;
-    for (let d = 0; d < 4; d++) gB += dw[d] * (G[d] + 2 * Math.PI * Math.round((rr - G[d]) / (2 * Math.PI)));
-    const want = sL > 0.25 ? mA - gB : Math.abs(angDiff(p._legA, aim + blade)) > 1.1 ? aim : p._legA;
+    // moving, the body turned off its going by the blend's own going: walking, it faces the aim (once the blend has
+    // caught up); running, the legs face the way it runs, or backpedalling, the aim again. Standing, the legs turn
+    // after the trunk once it's twisted too far
+    let gW = 0;
+    for (let d = 0; d < 4; d++) gW += dw[d] * (G[d] + 2 * Math.PI * Math.round((rr - G[d]) / (2 * Math.PI)));
+    gW -= 2 * Math.PI * Math.round(gW / (2 * Math.PI) - rel / (2 * Math.PI));
+    const gB = gW * (1 - wJ) + bk * goBP * wJ,
+      want = sL > 0.25 ? mA - gB : Math.abs(angDiff(p._legA, aim + blade)) > 1.1 ? aim : p._legA;
     p._legA += angDiff(p._legA, want) * Math.min(1, dt * (sL > 0.25 ? 10 : 5));
   }
   const yaw = p._legA,
-    tw = clamp(angDiff(yaw, aim + blade), -1.7, 1.7);
-  // each recording's weight, how much of its swing (the athlete's run shortened; CMU's slower walks lengthened to
-  // the hero's pace, half by a longer step and half by a quicker one), and so the ground a stride covers
+    tw = clamp(angDiff(yaw, aim + blade), -1.75, 1.75);
+  // each recording's weight, how much of its swing (the athlete's run shortened; CMU's slower ones lengthened to the
+  // hero's pace, half by a longer step and half by a quicker one), and so the ground a stride covers
   let cyc = 0,
     aB = 0,
     stK = 0;
   const use = [];
-  for (let d = 0; d < 4; d++)
-    for (const [c, w] of [
-      [DIRS[d][0], dw[d] * (1 - wJ)],
-      [DIRS[d][1], dw[d] * wJ],
-    ]) {
-      if (w < 1e-3) continue;
-      const own = c === C.walk || c === C.jog,
-        a = own ? shortK : clamp(Math.sqrt(sL / c.v), 0.75, 1.5);
-      cyc += w * ((c.v * c.dur) / (c.ns || 1)) * a;
-      aB += w * a;
-      stK += w * (c === C.walk ? MOTION.walk.st : c === C.jog ? MOTION.jog.st : c.st);
-      use.push([c, w]);
-    }
+  for (const [c, w] of [...WALKS.map((c, d) => [c, dw[d] * (1 - wJ)]), [C.jog, (1 - bk) * wJ], [X.bpedal, bk * wJ]]) {
+    if (w < 1e-3) continue;
+    const own = c === C.walk || c === C.jog,
+      a = own ? shortK : clamp(Math.sqrt(sL / c.v), 0.75, 1.5);
+    cyc += w * ((c.v * c.dur) / (c.ns || 1)) * a;
+    aB += w * a;
+    stK += w * (c === C.walk ? MOTION.walk.st : c === C.jog ? MOTION.jog.st : c.st);
+    use.push([c, w]);
+  }
   p._fph = (p._fph || 0) + (cyc > 0.01 && wMove > 0 ? (dt * sL) / cyc : 0);
   const ph = ((p._fph % 1) + 1) % 1,
-    wJog = wJ * wMove * dw[0];
+    wJog = wJ * wMove * (1 - bk);
   FKQ.fill(0);
   FKR.fill(0);
   fkAdd(C.idle, t, 1 - wMove, true);
@@ -2180,7 +2179,19 @@ function poseHeroFK(p, D, o) {
   const Ry = Rz(yawR),
     J = [],
     R = [];
-  const twistOf = b => (rollK > 0 ? 0 : b === 1 ? 0.25 : b === 2 ? 0.6 : b >= 3 && b <= 13 ? 1 : 0),
+  const rk = wJ * wMove, // (running the trunk round, a little more of the twist low, the hips taking some)
+    twistOf = b =>
+      rollK > 0
+        ? 0
+        : b === 0
+          ? 0.12 * rk
+          : b === 1
+            ? 0.25 + 0.1 * rk
+            : b === 2
+              ? 0.6 + 0.1 * rk
+              : b >= 3 && b <= 13
+                ? 1
+                : 0,
     lean = 0.13 * wJog * (1 - rollK); // leaning into the run (the steadied trunk would stand up straight)
   for (let b = 0; b < 22; b++) {
     const lf = b === 1 ? 0.4 : b === 2 ? 0.7 : b >= 3 && b <= 13 ? 1 : 0,

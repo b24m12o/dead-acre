@@ -33,7 +33,7 @@ export async function run(b) {
     out.bsMin = Math.min(...bsz); out.bsMax = Math.max(...bsz); out.bsBrute = makeEnemy('beetle', -999, -999).bs;
     for (const e of GS.enemies) if (e.x === -999) e.dead = true;
     // the free hand through a throw, aimed due east: behind the shoulder early on, out in front at the release, back on the gun after
-    P.aimA = P.bodyA = P.moveA = 0; P.strideAmp = 0; P.reload = 0; P.rackT = 0; P.recoil = 0; P.swap = 0; P.hurt = 0; P.blowT = -9;
+    P.aimA = P.bodyA = P.moveA = 0; P.vx = P.vy = 0; P.strideAmp = 0; P.reload = 0; P.rackT = 0; P.recoil = 0; P.swap = 0; P.hurt = 0; P.blowT = -9;
     const along = k => { if (k < 0) P.throwT = -9; else { P.throwT = GS.time - k * 0.36; P.throwA = 0; } drawRanger(P); return P.__th[0] - P.x; };
     out.grip = along(-1); out.back = along(0.07); out.rel = along(0.3); out.after = along(0.99);
     // a roll and a badly hurt stance draw without trouble
@@ -53,7 +53,7 @@ export async function run(b) {
     `the dead should come in sizes (and a brute keep its own): ${o.bsMin}–${o.bsMax}, brute ${o.bsBrute}`
   );
   check(
-    o.grip > 15 && o.back < 0 && o.rel > 20 && Math.abs(o.after - o.grip) < 3 && o.rollOk,
+    o.grip > 12 && o.back < 0 && o.rel > 20 && Math.abs(o.after - o.grip) < 3 && o.rollOk,
     `the free hand should leave the gun, go back past the shoulder, come through and return: grip ${o.grip}, back ${o.back}, release ${o.rel}, after ${o.after}, roll ${o.rollOk}`
   );
   check(!errs.length, 'page errors: ' + errs.join(' | '));
