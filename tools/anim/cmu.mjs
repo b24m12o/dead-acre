@@ -5,7 +5,7 @@
 // stagger, walking backward and sideways, a quick backpedal and a sideways shuffle. Each a stretch of steady going cut
 // from a longer take, made a loop over a whole number of strides, turned to face forward and stood in place (its
 // travel kept as a speed and a direction), its bones as the 22 of fig3d.js's fuller skeleton. Writes src/render/motion-cmu.js.
-//   node tools/anim/cmu.mjs path/to/cmu-bvh/data
+//   node tools/anim/cmu.mjs path/to/cmu-bvh/data && npx prettier --write src/render/motion-cmu.js
 import { writeFileSync } from 'node:fs';
 import { FK } from '../../src/render/motion.js';
 import { mm, poseBVH, readBVH } from './bvh.mjs';
