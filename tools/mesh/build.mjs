@@ -13,6 +13,7 @@ import { browser, ROOT } from '../../tests/lib/harness.mjs';
 import { SDF_LIB } from '../../src/render/sdf-lib.js';
 import { MODELS as PEOPLE } from './humanoid.mjs';
 import { DOG, EGG } from './creatures.mjs';
+import { GUNS } from './guns.mjs';
 
 const arg = (k, d) => {
   const i = process.argv.indexOf(k);
@@ -22,7 +23,7 @@ const LODS = [+arg('--res', 1.0), +arg('--res-lo', 1.7)]; // each model twice: c
 const ONLY = arg('--only', null); // just these models (comma-separated), for a quick look
 // each model, and what its kind may wear over it (zombie+cap, riot+shield: see humanoid.mjs's KIT)
 const MODELS = Object.fromEntries(
-  Object.entries({ ...PEOPLE, dog: DOG, egg: EGG })
+  Object.entries({ ...PEOPLE, dog: DOG, egg: EGG, ...GUNS })
     .flatMap(([n, M]) => [[n, M], ...Object.entries(M.kits || {}).map(([k, K]) => [n + '+' + k, K])])
     .filter(([n]) => !ONLY || ONLY.split(',').some(o => n === o || n.startsWith(o + '+')))
 );

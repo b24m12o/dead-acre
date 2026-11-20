@@ -147,6 +147,10 @@ void main(){
   else if(reg==21) c=vec3(0.8,0.8,0.76); // the white band across a riot shield
   else if(reg==22) c=vec3(0.04,0.05,0.06); // its window
   else if(reg==23) { c=SH.rgb*0.35; shirt=0.0; } // a hood's edge round the face, in its shadow
+  else if(reg==24) c=vec3(0.27,0.28,0.2); // a backpack, olive canvas
+  else if(reg==25) c=vec3(0.075,0.08,0.085); // a gun's blued steel
+  else if(reg==26) c=vec3(0.15,0.145,0.13); // its polymer
+  else if(reg==27) c=vec3(0.95,0.92,0.8); // the lens of its light
   else if(reg==17) c=TI.w<-0.5?vec3(0.3,0.1,0.08):SK.rgb*vec3(1.08,0.96,0.7); // raw flesh (on a dog), or swollen, stretched and veined
   vC=c*TI.rgb; vS=shirt; vPat=TI.w;
   bool hd=aB.x==3u&&aW.x>0.5; // on the head
@@ -1390,15 +1394,138 @@ function poseEgg(e, D, o) {
   D.set([0, 0, 0, 0.3], q + 24);
   D.set([0, 0, 0, hsh(id, 73)], q + 28);
 }
+// ---------- you (and the survivors with you): legs on their own heading, the body turned to the aim, the gun in both hands ----------
+// which of the guns' models a gun is drawn with
+export const gunModel = g =>
+  g === 'pistol'
+    ? 'pistol'
+    : g === 'smg'
+      ? 'smg'
+      : /shotgun|auto|breacher|riot|lever/.test(g || '')
+        ? 'shotgun'
+        : 'rifle';
+function poseHero(p, D, o) {
+  poolReset();
+  p._kits = null;
+  const MM = FIG.models.hero;
+  REST = MM.rest;
+  MODEL_END = MM.ends;
+  const r = REST,
+    t = GS.time,
+    id = p.id || 0,
+    bs = MM.scale * FIGK,
+    k = [bs, bs],
+    D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]),
+    la = p.legA ?? p.moveA ?? p.bodyA,
+    aim = p.npc ? (p.aim ?? p.bodyA) : p.bodyA,
+    amp = Math.max(p.strideAmp || 0, p.turnAmp || 0),
+    ph = (p.stride || 0) * Math.PI * 2,
+    gm = gunModel(p.gun),
+    pis = gm === 'pistol',
+    kick = clamp((p.recoil || 0) / 8, 0, 1), // the gun's kick, back into the shoulder
+    rl = clamp(p.rk || 0, 0, 1), // reloading: the gun comes down and in
+    bob = Math.abs(Math.sin(ph)) * 1.1 * amp,
+    breathe = Math.sin(t * 2.2 + id) * 0.25;
+  // hips over the legs, the trunk twisting up to the aim (never more than it can: the legs step round, update.js)
+  const tw = clamp(angDiff(la, aim), -1.25, 1.25),
+    Rp = mm(Rz(la), Rxb(Math.sin(ph) * 0.05 * amp)),
+    Jp = [p.x, p.y, (r[0][2] - 0.6 * amp + bob * 0.5) * k[1]],
+    Rs = mm(Rp, mm(Rz(tw * 0.4), Ryb(0.05 + amp * 0.05))),
+    Rc = mm(Rs, mm(Rz(tw * 0.6), Ryb(0.04 + breathe * 0.01 - kick * 0.08))),
+    Js = add(Jp, mv(Rp, sc3(sub(r[1], r[0]), k))),
+    Jc = add(Js, mv(Rs, sc3(sub(r[2], r[1]), k)));
+  D3(0, Rp, Jp);
+  D3(1, Rs, Js);
+  D3(2, Rc, Jc);
+  const Rh = mm(Rz(aim), Ryb(0.06 - kick * 0.05)),
+    Jh = add(Jc, mv(Rc, sc3(sub(r[3], r[2]), k)));
+  D3(3, Rh, Jh);
+  // the legs: each foot a quarter stride fore and aft of its hip, lifted as it swings through
+  const fw = [Math.cos(la), Math.sin(la), 0],
+    rt = [-Math.sin(la), Math.cos(la), 0],
+    stepL = (((76 * GK) / (4 * 0.9 * k[0])) * amp) / 1;
+  for (const sd of [1, -1]) {
+    const ti = sd > 0 ? 8 : 11,
+      hip = add(Jp, mv(Rp, sc3(sub(r[ti], r[0]), k))),
+      s1 = Math.sin(ph + (sd > 0 ? Math.PI : 0)),
+      lift = Math.max(0, Math.cos(ph + (sd > 0 ? Math.PI : 0))) * 2.4 * amp,
+      fx = s1 * stepL * k[0] * 0.9,
+      fy = sd * 4.6 * k[0],
+      foot = [p.x + fw[0] * fx + rt[0] * fy, p.y + fw[1] * fx + rt[1] * fy, r[ti + 2][2] * k[1] + lift * k[1]];
+    const [, ank] = limb(D, o, ti, ti + 1, Rp, hip, foot, mv(Rp, [1, sd * 0.1, 0]), k);
+    D3(ti + 2, Rz(la + sd * 0.1), ank);
+  }
+  // the gun, in both hands at the aim: at the shoulder (a long gun) or out in front (a pistol); down and in while
+  // reloading; kicked back by a shot
+  const af = [Math.cos(aim), Math.sin(aim), 0],
+    ar = [-Math.sin(aim), Math.cos(aim), 0],
+    sh = add(Jc, mv(Rc, sc3(sub(r[4], r[2]), k))), // the right shoulder
+    out = (pis ? 15 : 6) - kick * 2.2 - rl * 3,
+    side = pis ? 0.5 : 1.2,
+    gz = sh[2] - (pis ? 3.2 : 2.6) * k[1] - rl * 4 * k[1], // a long gun's grip by the chest, its stock in the shoulder
+    G = [sh[0] + (af[0] * out - ar[0] * (3.6 - side)) * k[0], sh[1] + (af[1] * out - ar[1] * (3.6 - side)) * k[0], gz],
+    fore = pis ? 0.6 : gm === 'smg' ? 8 : gm === 'shotgun' ? 12 : 10.5,
+    H2 = [G[0] + af[0] * fore * k[0], G[1] + af[1] * fore * k[0], G[2] + (pis ? 0 : 1.2 * k[1])];
+  p._grip = G;
+  p._gunR = mm(Rz(aim), Ryb(rl * 0.5));
+  const shL = add(Jc, mv(Rc, sc3(sub(r[6], r[2]), k)));
+  limb(D, o, 4, 5, Rc, sh, G, mv(Rc, [-0.3, 1, -1]), k);
+  limb(D, o, 6, 7, Rc, shL, H2, mv(Rc, [-0.2, -1, -1]), k);
+  const q = o + NB * 12,
+    L = HERO_LOOK[p.npc ? 1 + (id % (HERO_LOOK.length - 1)) : 0],
+    fl = p.hitT > 0 ? 0.12 : 0;
+  D.set([p.x, p.y + 40, GS.gA ?? 1, fl], q);
+  D.set([...L.sk.map(x => x * 0.86), 0], q + 4);
+  D.set([...L.sh, 2], q + 8);
+  D.set([...L.pa, 1.1], q + 12);
+  D.set([...L.ha, 0], q + 16);
+  D.set([1, 1, 1, 0], q + 20);
+  D.set([0, 0, 0, 0.25], q + 24);
+  D.set([0, 0, 0, 0], q + 28);
+}
+// the colours you and they wear: skin, jacket, trousers, hair
+const HERO_LOOK = [
+  { sk: [0.78, 0.6, 0.48], sh: [0.27, 0.31, 0.26], pa: [0.24, 0.25, 0.22], ha: [0.18, 0.13, 0.09] },
+  { sk: [0.6, 0.44, 0.33], sh: [0.42, 0.3, 0.2], pa: [0.22, 0.24, 0.3], ha: [0.08, 0.07, 0.06] },
+  { sk: [0.86, 0.7, 0.58], sh: [0.2, 0.26, 0.36], pa: [0.3, 0.28, 0.24], ha: [0.5, 0.38, 0.2] },
+  { sk: [0.42, 0.3, 0.22], sh: [0.4, 0.4, 0.38], pa: [0.2, 0.2, 0.2], ha: [0.05, 0.05, 0.05] },
+];
+// the gun itself: its own small mesh at the grip, along the aim
+function poseGun(g, D, o) {
+  poolReset();
+  g._kits = null;
+  const MM = FIG.models[g.gm];
+  REST = MM.rest;
+  MODEL_END = MM.ends;
+  const bs = FIGK * MM.scale,
+    h = g.holder;
+  bone(D, o, 0, mul3(h._gunR, [bs, bs]), h._grip, REST[0]);
+  for (let b = 1; b < NB; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], h._grip, REST[b]);
+  const q = o + NB * 12;
+  D.set([g.x, g.y + 40, GS.gA ?? 1, 0], q);
+  for (let i = 4; i < 24; i += 4) D.set([1, 1, 1, 0], q + i);
+  D.set([0, 0, 0, 0], q + 24); // nothing lost (a set bit there paints a stump's raw red)
+  D.set([0, 0, 0, 0], q + 28);
+}
 const poseFig = (e, D, o) => {
   const m = modelOf(e);
-  return m === 'dog' ? poseDog(e, D, o) : m === 'egg' ? poseEgg(e, D, o) : poseZombie(e, D, o);
+  return m === 'dog'
+    ? poseDog(e, D, o)
+    : m === 'egg'
+      ? poseEgg(e, D, o)
+      : m === 'hero'
+        ? poseHero(e, D, o)
+        : e.holder
+          ? poseGun(e, D, o)
+          : poseZombie(e, D, o);
 };
 let POSE = poseFig;
 
 // ---------- which figures draw in 3D ----------
 // the model each of the dead is drawn with: by its type, its special kind or its elite trait
 export function modelOf(e) {
+  if (e.hero3d) return 'hero';
+  if (e.holder) return e.gm;
   switch (e.type) {
     case 'wasp':
       return 'spitter';
@@ -1434,6 +1561,23 @@ export function modelOf(e) {
 }
 // the people-shaped dead, in all they do: walking, falling, lying, getting up, crawling, lying in wait, climbing out of
 // the ground, missing an arm or its head, and painted into the street once they lie still
+// you (or a survivor) in 3D, with your gun: when the meshes are in, and you're on your feet (rolling, down or riding
+// out, the pictures still draw)
+export function drawHero3D(p) {
+  if (!fig3dOn() || !FIG.models.hero || p.down > 0 || p.dashT > 0 || p.ride || p.hp <= 0) return false;
+  if (p.id === undefined) p.id = 9000 + Math.floor(Math.random() * 999);
+  p.hero3d = true;
+  if (!drawFig3D(p)) return false;
+  const gm = gunModel(p.gun);
+  if (FIG.models[gm] && p._grip) {
+    const g = p._gunE || (p._gunE = { id: p.id + 1, holder: p });
+    g.gm = gm;
+    g.x = p.x;
+    g.y = p.y + 1;
+    drawFig3D(g);
+  }
+  return true;
+}
 export function is3D(e) {
   if (e.__std || !fig3dOn()) return false;
   const m = modelOf(e);

@@ -39,6 +39,10 @@ export const REGION = {
   band: 21, // the white band across a riot shield
   glass: 22, // a riot shield's window
   rim: 23, // the edge of a hood, round the face
+  pack: 24, // a backpack, a bedroll strapped on top
+  gun: 25, // a gun's blued steel
+  grip: 26, // its polymer: stock, grip, magazine
+  lens: 27, // the lens of the light on it
 };
 // the ordinary zombie's skeleton: each bone from its joint (where it turns) to its end; parent first
 const BASE = [
@@ -205,6 +209,7 @@ export function humanoid(P0 = {}) {
     hulk: 0,
     neck: 1,
     gear: null,
+    pack: 0,
     dress: 0,
     scale: 1,
     mres: 1,
@@ -333,16 +338,25 @@ float leg(vec3 p, float s, out float dT, out float dS, out float dFt){
   return smin(smin(t,sh,0.8*lk),ft,0.6);
 }
 ${
-  P.gear
+  (P.pack
+    ? `// a backpack high on the back, a rolled sleeping mat strapped across its top
+float pack(vec3 p){ vec3 q=vec3(p.x,p.y,p.z-ZU);
+  float b=sdBox(q,vec3(-5.9*TD,0.0,39.4),vec3(1.7,3.6,4.4),1.1);
+  b=smin(b,sdBox(q,vec3(-7.6*TD,0.0,37.8),vec3(0.6,2.5,2.2),0.5),0.5); // the front pocket
+  b=min(b,sdCap(q,vec3(-5.7*TD,-4.2,44.6),vec3(-5.7*TD,4.2,44.6),1.15,1.15)); // the mat
+  return b; }
+`
+    : '') +
+  (P.gear
     ? `// its gear: a plate carrier over the chest and back, a helmet (a riot shield is its own mesh: see KIT)
 float vest(vec3 p){ vec3 q=vec3(p.x/TD,abs(p.y)/TW,p.z-ZU); float k=min(TD,TW);
   float c,be,h; trunk(p,c,be,h); float b=smin(c,be,1.5)/k-0.95; // a shell over the chest and back, standing off it
   b=smax(b,max(34.6-q.z,q.z-45.0),0.5); b=smax(b,q.y-5.7,0.6); b=smax(b,-sdCap(q,vec3(0.0,0.0,46.0),vec3(0.0,0.0,42.6),2.4,2.4),0.8); // from the waist to the collar, inside the arms, round the neck
   b=smin(b,sdBox(q,vec3(3.9,0.0,36.4),vec3(0.9,4.0,1.4),0.4),0.5); // pouches across the front
   return b*k; }
-float helmet(vec3 p){ vec3 q=(vec3(p.x,abs(p.y),p.z)-HC)/HS; float h=sdEll(q,vec3(-0.5,0.0,1.4),vec3(3.6,3.0,3.4)); h=smax(h,-(q.z+0.2-max(0.0,-q.x)*0.15),0.4); h=smax(h,-(q.x-2.4),0.3); return h*HS; }
+float helmet(vec3 p){ vec3 q=(vec3(p.x,abs(p.y),p.z)-HC)/HS; float h=sdEll(q,vec3(-0.5,0.0,1.4),vec3(3.6,3.0,3.4)); h=smax(h,-(q.z+0.2-max(0.0,-q.x)*0.15),0.4); h=smax(h,q.x-2.4,0.3); return h*HS; } // (open at the brow: it used to keep only a sliver in front of it, and no one wore a helmet)
 `
-    : ''
+    : '')
 }
 `;
   const GLSL =
@@ -355,6 +369,7 @@ float model(vec3 p){
   d=smin(d,arm(p,1.0,u,f,hd),1.3*LT); d=smin(d,arm(p,-1.0,u,f,hd),1.3*LT);
   d=smin(d,leg(p,1.0,t,s,ft),1.6); d=smin(d,leg(p,-1.0,t,s,ft),1.6);
   ${P.gear ? 'd=min(d,vest(p)); d=min(d,helmet(p));' : ''}
+  ${P.pack ? 'd=min(d,pack(p));' : ''}
   return d;
 }
 // what the point p on the body is (sets gPart, gReg, gU)
@@ -375,6 +390,7 @@ void attrs(vec3 p){
     float t,sh,ft; leg(p,s,t,sh,ft);
     near(t,k==0?8:11,9,along(q,HIP,KNEE)); near(sh,k==0?9:12,10,along(q,KNEE,ANK)); near(ft,k==0?10:13,11,along(q,ANK,TOE)); }
   ${P.gear ? 'if(vest(p)<best+0.05){ best=vest(p); gPart=2; gReg=14; gU=0.5; } if(helmet(p)<best+0.05){ best=helmet(p); gPart=3; gReg=15; gU=0.5; }' : ''}
+  ${P.pack ? 'if(pack(p)<best+0.05){ best=pack(p); gPart=2; gReg=24; gU=0.5; }' : ''}
 }
 `;
   // what the game needs to paint clothes onto it: the trunk's depth and width, how far its trunk is raised, its head's
@@ -415,6 +431,7 @@ export const MODELS = {
   spitter: humanoid({ tw: 0.95, lt: 0.92, throat: 1, jaw: 0.35 }), // the spitter: its throat a sac of what it spits
   armored: humanoid({ tw: 1.06, sw: 1.04, lt: 1.05, gear: 'armor' }), // in a plate carrier and helmet
   riot: humanoid({ tw: 1.06, sw: 1.04, lt: 1.05, gear: 'riot' }), // and a riot shield
+  hero: humanoid({ tw: 1.04, td: 1.08, sw: 1.06, lt: 1.12, ll: 0.97, gear: 'armor', pack: 1 }), // you, and the survivors with you: fed and fit, a plate carrier and helmet, a pack on the back
   bloat: humanoid({ tw: 1.3, td: 1.25, lt: 1.3, belly: 1, bumps: 0.5, scale: 1.08, mres: 1.25 }), // swollen: the bloater among them, and the spore
   drag: humanoid({
     tw: 1.35,
