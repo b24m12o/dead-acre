@@ -374,6 +374,9 @@ try {
         o += gn;
       }
       const net = { idx: new Uint32Array(idx) };
+      if (M.REMAP)
+        for (let i = 0; i < part.length; i++)
+          part[i] = M.REMAP([pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]], part[i], reg[i]); // on to a fuller skeleton (fk22.mjs)
       const W = weights(pos, part, M.BONES, M.RIGID);
       built.push({ name, M, pos, nrm, ao, reg, u, idx: net.idx, W });
       console.log(

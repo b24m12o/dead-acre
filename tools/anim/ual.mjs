@@ -163,12 +163,13 @@ function loop(name) {
       ...sub(P.hand_l, P.spine_03).map(x => q(x / H)),
     ]);
   }
-  return { st: q(st), S: q(S), dur: q(dur), v: q(v / H), rows };
+  return { st: q(st), S: q(S), dur: q(dur), v: q(v / H), ph0: q(i0 / M), rows };
 }
 const OUT = {};
 for (const [k, name] of [
   ['walk', 'Walk_Loop'],
   ['jog', 'Jog_Fwd_Loop'],
+  ['sprint', 'Sprint_Loop'],
   ['crouch', 'Crouch_Fwd_Loop'],
 ]) {
   OUT[k] = loop(name);
@@ -185,6 +186,117 @@ for (const [k, name] of [
     's'
   );
 }
+// ---- every bone, as recorded: for the figures that play the clips themselves (a fuller skeleton, fig3d.js) ----
+// our bones, each against the recording's: [ours, theirs, the joint its end lies at]
+const FKB = [
+  ['pelvis', 'pelvis', 'spine_01'],
+  ['spine1', 'spine_01', 'spine_02'],
+  ['spine2', 'spine_02', 'spine_03'],
+  ['chest', 'spine_03', 'neck_01'],
+  ['neck', 'neck_01', 'Head'],
+  ['head', 'Head', null],
+  ['clavR', 'clavicle_r', 'upperarm_r'],
+  ['uarmR', 'upperarm_r', 'lowerarm_r'],
+  ['farmR', 'lowerarm_r', 'hand_r'],
+  ['handR', 'hand_r', 'middle_01_r'],
+  ['clavL', 'clavicle_l', 'upperarm_l'],
+  ['uarmL', 'upperarm_l', 'lowerarm_l'],
+  ['farmL', 'lowerarm_l', 'hand_l'],
+  ['handL', 'hand_l', 'middle_01_l'],
+  ['thighR', 'thigh_r', 'calf_r'],
+  ['shinR', 'calf_r', 'foot_r'],
+  ['footR', 'foot_r', 'ball_r'],
+  ['toeR', 'ball_r', 'ball_leaf_r'],
+  ['thighL', 'thigh_l', 'calf_l'],
+  ['shinL', 'calf_l', 'foot_l'],
+  ['footL', 'foot_l', 'ball_l'],
+  ['toeL', 'ball_l', 'ball_leaf_l'],
+];
+const C = [0, -1, 0, -1, 0, 0, 0, 0, 1]; // theirs to ours (a mirror: the game's y runs down the screen)
+const m4to3 = e => [e[0], e[4], e[8], e[1], e[5], e[9], e[2], e[6], e[10]]; // three.js's column-major 4×4 → our rows
+function worldR(name) {
+  const m = new THREE.Matrix4().extractRotation(B[name].matrixWorld);
+  return mm(mm(C, m4to3(m.elements)), C); // (C is its own inverse)
+}
+function quat(m) {
+  const t = m[0] + m[4] + m[8];
+  let w, x, y, z;
+  if (t > 0) {
+    const S = Math.sqrt(t + 1) * 2;
+    w = S / 4;
+    x = (m[7] - m[5]) / S;
+    y = (m[2] - m[6]) / S;
+    z = (m[3] - m[1]) / S;
+  } else if (m[0] > m[4] && m[0] > m[8]) {
+    const S = Math.sqrt(1 + m[0] - m[4] - m[8]) * 2;
+    w = (m[7] - m[5]) / S;
+    x = S / 4;
+    y = (m[1] + m[3]) / S;
+    z = (m[2] + m[6]) / S;
+  } else if (m[4] > m[8]) {
+    const S = Math.sqrt(1 + m[4] - m[0] - m[8]) * 2;
+    w = (m[2] - m[6]) / S;
+    x = (m[1] + m[3]) / S;
+    y = S / 4;
+    z = (m[5] + m[7]) / S;
+  } else {
+    const S = Math.sqrt(1 + m[8] - m[0] - m[4]) * 2;
+    w = (m[3] - m[1]) / S;
+    x = (m[2] + m[6]) / S;
+    y = (m[5] + m[7]) / S;
+    z = S / 4;
+  }
+  return [x, y, z, w];
+}
+function posAt(name, t) {
+  const clip = obj.animations.find(c => c.name === 'Armature|' + name);
+  mixer.stopAllAction();
+  mixer.clipAction(clip).play();
+  mixer.setTime(t);
+  obj.updateMatrixWorld(true);
+  return clip.duration;
+}
+// the reference: their T-pose. Each bone's direction in it, and its world turn (the clips are kept as turns from it)
+posAt('A_TPose', 0);
+const wp = n => {
+  const v = new THREE.Vector3();
+  B[n].getWorldPosition(v);
+  return our(v);
+};
+const RA = FKB.map(([, m]) => worldR(m)),
+  DIRA = FKB.map(([, m, e]) => (e ? nrm(sub(wp(e), wp(m))) : [0, 0, 1]).map(q)),
+  PELV0 = wp('pelvis'),
+  HA = (wp('thigh_r')[2] + wp('thigh_l')[2]) / 2;
+const FK = { bones: FKB.map(b => b[0]), dir: DIRA, clips: {} };
+const FPS = 30;
+for (const [k, name, loopK] of [
+  ['idle', 'Idle_Loop', 0],
+  ['walk', 'Walk_Loop', 1],
+  ['jog', 'Jog_Fwd_Loop', 1],
+  ['sprint', 'Sprint_Loop', 1],
+  ['crouch', 'Crouch_Fwd_Loop', 1],
+  ['roll', 'Roll', 0],
+  ['hit', 'Hit_Chest', 0],
+  ['death', 'Death01', 0],
+  ['push', 'Push_Loop', 0],
+]) {
+  const dur = posAt(name, 0),
+    n = Math.max(2, Math.round(dur * FPS)),
+    frames = [],
+    root = [];
+  for (let i = 0; i < n; i++) {
+    posAt(name, (dur * i) / n);
+    frames.push(FKB.flatMap(([, m], b) => quat(mm(worldR(m), mT(RA[b]))).map(q)));
+    root.push(sub(wp('pelvis'), PELV0).map(x => q(x / HA)));
+  }
+  const c = { dur: q(dur), fps: FPS, frames, root };
+  if (loopK && OUT[k]) {
+    // where in it the right foot lands (the stride's start, as MOTION has it), and its speed, leg lengths a second
+    c.ph0 = OUT[k].ph0;
+    c.v = OUT[k].v;
+  }
+  FK.clips[k] = c;
+}
 writeFileSync(
   new URL('../../src/render/motion.js', import.meta.url),
   `/* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
@@ -193,6 +305,10 @@ writeFileSync(
 // their turn (axis × angle); the chest's turn on them; the right hand and the left from the chest], in leg lengths;
 // st: the part of a stride a foot is down; S: a stride's length; v: speed, leg lengths a second
 export const MOTION = ${JSON.stringify(OUT)};
+// Every bone, for a fuller skeleton (its names in bones): each clip's frames, every bone's turn in the world against
+// the T-pose, as a quaternion (x, y, z, w); root: the hips' place against the T-pose's, in leg lengths; dir: each
+// bone's direction in the T-pose. ph0: where in a loop the right foot lands; v: its speed, leg lengths a second
+export const FK = ${JSON.stringify(FK)};
 `
 );
 console.log('wrote src/render/motion.js');

@@ -12,11 +12,11 @@ import { gl, progFinish } from './gl.js';
 import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
 import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
 import { GK, HEROIC, PER_M, TILT, gaitOfSpeed, strideLen } from '../core/scale.js';
-import { MOTION } from './motion.js';
+import { FK, MOTION } from './motion.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
 
-const NB = 14, // bones in a figure's skeleton (tools/mesh/zombie.mjs)
+const NB = 22, // bones in a figure's skeleton at most (14 for most: tools/mesh/humanoid.mjs; 22 with recorded motion: fk22.mjs)
   TW = NB * 3 + 8, // texels in a figure's row: three for each bone's matrix, then its looks
   ROWS = 1024;
 export const FIG = { models: null, n: 0, drawn: 0, calls: 0, tw: TW }; // tw: texels in a figure's row
@@ -59,6 +59,10 @@ export function meshArrived(buf) {
         ends: m.bones.map(b => b[3]),
         scale: m.scale || 1,
         kn: m.kn || null,
+        hb: Math.max(
+          0,
+          m.bones.findIndex(b => b[0] === 'head')
+        ), // its head's bone
       };
       if (name.startsWith('v_') && !name.includes('@')) M[name].top = topOf(dv, base + m.vo, m.nv);
     }
@@ -119,7 +123,7 @@ const rowBuf = () => {
 const VS = shadow => `#version 300 es
 precision highp float; precision highp int;
 layout(location=0) in vec3 aP; layout(location=1) in vec2 aN; layout(location=2) in uvec2 aB; layout(location=3) in vec4 aW; layout(location=4) in float aRow;
-uniform highp sampler2D uBones; uniform float uTilt; uniform vec4 uCam; uniform int uMode; uniform vec2 uSun; uniform vec4 uLight; uniform vec4 uKt; uniform vec3 uKp;
+uniform highp sampler2D uBones; uniform uint uHB; uniform float uTilt; uniform vec4 uCam; uniform int uMode; uniform vec2 uSun; uniform vec4 uLight; uniform vec4 uKt; uniform vec3 uKp;
 out vec3 vC; out vec3 vN; out vec3 vO; out float vAO; out float vZ; out float vS; out vec4 vM; flat out vec4 vK; flat out float vPat; flat out vec3 vE; flat out vec3 vH; flat out vec3 vSk; flat out float vSty;
 vec4 T(int x, int r){ return texelFetch(uBones,ivec2(x,r),0); }
 const vec3 HAT[16]=vec3[16](vec3(0.55,0.1,0.08),vec3(0.8,0.78,0.72),vec3(0.1,0.12,0.2),vec3(0.06,0.06,0.07),vec3(0.86,0.7,0.1),vec3(0.86,0.38,0.07),vec3(0.82,0.82,0.78),vec3(0.2,0.32,0.2),
@@ -198,7 +202,7 @@ void main(){
   else if(reg==45) c=vec3(0.3,0.17,0.09); // a gun's walnut
   else if(reg==17) c=TI.w<-0.5?vec3(0.3,0.1,0.08):SK.rgb*vec3(1.08,0.96,0.7); // raw flesh (on a dog), or swollen, stretched and veined
   vC=c*TI.rgb; vS=shirt; vPat=TI.w;
-  bool hd=aB.x==3u&&aW.x>0.5; // on the head
+  bool hd=aB.x==uHB&&aW.x>0.5; // on the head
   float gloss=reg==31?1.0:reg==30||reg==36||reg==39?0.55:reg==38||reg==41?0.35:0.0; // a car's paint and glass catch the sky
   vM=vec4(reg==5||reg==9||reg==10?1.0:0.0, hd&&reg==1?1.0:0.0, reg>=30?gloss:hd&&reg==0?1.0:0.0, reg==12?1.0:reg==34?X7.w:reg==35?X7.w*0.45:0.0); // trousers, scalp, face (a car's gloss), eyes (a car's lamps, lit)
   vE=X7.xyz; vH=HA.rgb; vSk=SK.rgb; vSty=X6.z;`
@@ -1451,7 +1455,7 @@ function poseEgg(e, D, o) {
     col = dead ? Math.max(0, 1 - e.dying * 2.5) : 1, // shot, it bursts and sags
     R = mul3(Rz((e.a || 0) + hsh(id, 71) * 6), [k * beat, k * beat * (0.25 + 0.75 * col)]);
   bone(D, o, 0, R, [e.x, e.y, 0], REST[0]);
-  for (let b = 1; b < NB; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], [e.x, e.y, 0], REST[b]);
+  for (let b = 1; b < REST.length; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], [e.x, e.y, 0], REST[b]);
   const q = o + NB * 12,
     fade = dead ? clamp(((e.keep || 0.55) - e.dying) / 1.5, 0, 1) : 1,
     fls = e.flash > 0 && !dead ? 0.1 * Math.min(1, e.flash / 0.05) : 0;
@@ -1799,13 +1803,38 @@ function poseHero(p, D, o) {
     const [, ank] = limb(D, o, ti, ti + 1, Rp, hip, foot, add(kf, [hr[0] * sd * 0.12, hr[1] * sd * 0.12, 0]), k);
     D3(ti + 2, mm(Rz(F.yaw), Ryb(F.pitch)), ank);
   }
+  heroArms(p, D, o, {
+    aim,
+    k,
+    r,
+    D3,
+    H,
+    gm,
+    kick,
+    rl,
+    sw,
+    shv,
+    t,
+    id,
+    Jc,
+    Rc,
+    shR: add(Jc, mv(Rc, sc3(sub(r[4], r[2]), k))), // the right shoulder
+    shL: add(Jc, mv(Rc, sc3(sub(r[6], r[2]), k))),
+    Jh: add(Jc, mv(Rc, sc3(sub(r[3], r[2]), k))),
+    headB: 3,
+    arms: [4, 5, 6, 7],
+    hands: null,
+  });
+}
+// the arms and the gun on whichever skeleton (C: the pose so far, and its bones' numbers)
+function heroArms(p, D, o, C) {
+  const { aim, k, r, D3, H, gm, kick, rl, sw, shv, t, id, Jc, Rc, shR, shL } = C;
+  void r;
   // the gun, held as that kind is: a long gun's stock in the shoulder, the cheek down on it; a submachine gun tucked
   // in tight; the machine gun at the hip under the arm; a pistol out in both hands at arm's length
   const af = [Math.cos(aim), Math.sin(aim), 0],
     ar = [-Math.sin(aim), Math.cos(aim), 0],
     up = [0, 0, 1],
-    shR = add(Jc, mv(Rc, sc3(sub(r[4], r[2]), k))), // the right shoulder
-    shL = add(Jc, mv(Rc, sc3(sub(r[6], r[2]), k))),
     low = rl * 0.5 + sw * 0.9, // the muzzle down: reloading, swapping
     Rg = mm(Rz(aim + rl * 0.25), mm(Ryb(low - kick * 0.12 - shv * 0.2), Rxb(rl * 0.55))),
     W = (v, s = 1) => sc3(mv(Rg, v), [k[0] * s, k[1] * s]); // a point of the gun, in the street
@@ -1844,8 +1873,8 @@ function poseHero(p, D, o) {
       Rz(aim),
       mm(Rxb(cheek * (0.16 + (H.cheek ? 0.06 : 0)) * (1 - rl)), Ryb(0.06 + cheek * 0.1 - kick * 0.05 + rl * 0.25))
     ),
-    Jh = add(Jc, mv(Rc, sc3(sub(r[3], r[2]), k)));
-  D3(3, Rh, Jh);
+    Jh = C.Jh;
+  D3(C.headB, Rh, Jh);
   // a throw: the free hand comes off the gun, back past the shoulder, and through the way it is thrown
   const tt = t - (p.throwT ?? -9),
     tk = tt >= 0 && tt < 0.36 && !(p.reload > 0) ? tt / 0.36 : -1;
@@ -1868,18 +1897,31 @@ function poseHero(p, D, o) {
   const pis = H.style === 'pistol';
   // (the hand's end is the fingertips: the grip sits in the palm, a little short of them and under)
   const GH = add(G, W(pis ? [0.9, 0.35, -0.6] : [1.0, 0.45, -0.9]));
-  limb(
+  const [uR, fR, uL, fL] = C.arms,
+    // (with hands of their own, the forearm reaches the wrist: the hand on in line with it to the grip)
+    wristTo = (sh, tg) => {
+      if (!C.hands) return tg;
+      const d = sub(tg, sh),
+        l = len(d) || 1,
+        hl = len(sc3(sub(MODEL_END[C.hands[0]], REST[C.hands[0]]), k)) * 0.55;
+      return sub(tg, mul(d, hl / l));
+    };
+  const [RfR, wR] = limb(
     D,
     o,
-    4,
-    5,
+    uR,
+    fR,
     Rc,
     shR,
-    GH,
+    wristTo(shR, GH),
     add(mul(ar, pis ? 0.5 : 0.55), [0, 0, pis ? -0.9 : H.style === 'hip' ? -0.8 : -0.6]),
     k
   ); // out a little and down: seen from above a flared elbow reads as an arm hanging
-  limb(D, o, 6, 7, Rc, shL, HL, add(mul(ar, pis ? -0.5 : 0.15), [0, 0, -1]), k);
+  const [RfL, wL] = limb(D, o, uL, fL, Rc, shL, wristTo(shL, HL), add(mul(ar, pis ? -0.5 : 0.15), [0, 0, -1]), k);
+  if (C.hands) {
+    D3(C.hands[0], RfR, wR);
+    D3(C.hands[1], RfL, wL);
+  }
   const q = o + NB * 12,
     L = HERO_LOOK[p.npc ? 1 + (id % (HERO_LOOK.length - 1)) : 0],
     fl = p.hitT > 0 ? 0.12 : 0;
@@ -1891,6 +1933,158 @@ function poseHero(p, D, o) {
   D.set([1, 1, 1, 0], q + 20);
   D.set([0, 0, 0, 0.25], q + 24);
   D.set([0, 0, 0, 0], q + 28);
+}
+// ---------- recorded motion, every bone (motion.js's FK), on the hero's fuller skeleton (tools/mesh/fk22.mjs) ----------
+// a quaternion (x, y, z, w) as a turn
+const q9 = q => {
+  const [x, y, z, w] = q,
+    R = m9();
+  R[0] = 1 - 2 * (y * y + z * z);
+  R[1] = 2 * (x * y - z * w);
+  R[2] = 2 * (x * z + y * w);
+  R[3] = 2 * (x * y + z * w);
+  R[4] = 1 - 2 * (x * x + z * z);
+  R[5] = 2 * (y * z - x * w);
+  R[6] = 2 * (x * z - y * w);
+  R[7] = 2 * (y * z + x * w);
+  R[8] = 1 - 2 * (x * x + y * y);
+  return R;
+};
+const FKQ = new Float32Array(22 * 4),
+  FKR = new Float32Array(3);
+// add a clip's moment (t seconds in; a loop wraps) into the blend, w its share: every bone's turn and the hips' place
+function fkAdd(c, t, w, loop) {
+  if (w <= 0) return;
+  const n = c.frames.length,
+    x = (loop ? (((t / c.dur) % 1) + 1) % 1 : clamp(t / c.dur, 0, 0.9999)) * n,
+    i = Math.floor(x),
+    f = x - i,
+    A = c.frames[i % n],
+    B = c.frames[loop ? (i + 1) % n : Math.min(i + 1, n - 1)];
+  for (let b = 0; b < 22; b++) {
+    const o4 = b * 4;
+    let d = 0;
+    for (let j = 0; j < 4; j++) d += A[o4 + j] * B[o4 + j];
+    const sB = d < 0 ? -1 : 1;
+    let qa = 0;
+    const qq = [0, 0, 0, 0];
+    for (let j = 0; j < 4; j++) qq[j] = A[o4 + j] * (1 - f) + B[o4 + j] * sB * f;
+    for (let j = 0; j < 4; j++) qa += qq[j] * FKQ[o4 + j];
+    const sA = qa < 0 ? -1 : 1;
+    for (let j = 0; j < 4; j++) FKQ[o4 + j] += qq[j] * sA * w;
+  }
+  const ra = c.root[i % n],
+    rb = c.root[loop ? (i + 1) % n : Math.min(i + 1, n - 1)];
+  for (let j = 0; j < 3; j++) FKR[j] += (ra[j] * (1 - f) + rb[j] * f) * w;
+}
+// each bone's turn from our rest to the recording's T-pose (the shortest one: both stand facing forward)
+function fkAlign(MM) {
+  if (MM.fkA) return MM.fkA;
+  MM.fkA = FK.dir.map((d, b) => {
+    const r = sub(MM.ends[b], MM.rest[b]),
+      R = rotTo(r, d);
+    return Array.from(R);
+  });
+  return MM.fkA;
+}
+function poseHeroFK(p, D, o) {
+  poolReset();
+  p._kits = null;
+  const MM = FIG.models.hero;
+  REST = MM.rest;
+  MODEL_END = MM.ends;
+  const r = REST,
+    t = GS.time,
+    id = p.id || 0,
+    bs = MM.scale * FIGK,
+    k = [bs, bs],
+    D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]),
+    aim = p.npc ? (p.aim ?? p.bodyA) : p.bodyA,
+    gm = gunModel(p.gun),
+    H = HOLD[gm] || HOLD.rifle,
+    kick = clamp((p.recoil || 0) / 8, 0, 1),
+    rl = clamp(p.rk || 0, 0, 1),
+    sw = p.swap > 0 ? Math.sin(Math.min(1, p.swap / 0.3) * Math.PI) : 0,
+    shv = p.shoveT > 0 ? Math.sin(Math.PI * clamp(1 - p.shoveT / 0.25, 0, 1)) : 0,
+    dt = clamp(t - (p._hipT ?? t), 0, 0.1),
+    A = fkAlign(MM),
+    par = MM.bones.map(b => b[1]),
+    Hl = r[14][2] * k[1]; // a leg's length: the hips' height
+  p._hipT = t;
+  // the legs go the way it's going (backing off, they walk backward: the recording run in reverse); the trunk turns
+  // from them to the aim. Standing, they turn after the trunk once it's twisted too far
+  const vx = p.vx || 0,
+    vy = p.vy || 0,
+    spd = Math.hypot(vx, vy),
+    sL = spd / Hl, // leg lengths a second
+    mA = spd > 4 ? Math.atan2(vy, vx) : aim,
+    back = Math.abs(angDiff(aim, mA)) > 1.75,
+    blade = (H.blade + shv * 0.1) * (1 - rl * 0.4);
+  if (p._legA === undefined) p._legA = aim;
+  {
+    const want = sL > 0.25 ? (back ? mA + Math.PI : mA) : Math.abs(angDiff(p._legA, aim + blade)) > 1.1 ? aim : p._legA;
+    p._legA += angDiff(p._legA, want) * Math.min(1, dt * (sL > 0.25 ? 10 : 5));
+  }
+  const yaw = p._legA,
+    tw = clamp(angDiff(yaw, aim + blade), -1.7, 1.7);
+  // which recordings, how much of each: standing, walking, running, by the speed
+  const C = FK.clips,
+    wMove = clamp((sL - 0.08) / 0.35, 0, 1),
+    wJ = clamp((sL - 1.2) / 2.0, 0, 1),
+    wW = (1 - wJ) * wMove,
+    wJog = wJ * wMove,
+    cyc = wW * C.walk.v * C.walk.dur + wJog * C.jog.v * C.jog.dur; // the ground a stride covers, blended
+  p._fph = (p._fph || 0) + (cyc > 0.01 ? ((back ? -1 : 1) * dt * sL) / (cyc / Math.max(wMove, 0.01)) : 0);
+  FKQ.fill(0);
+  FKR.fill(0);
+  const ph = ((p._fph % 1) + 1) % 1;
+  fkAdd(C.idle, t, 1 - wMove, true);
+  fkAdd(C.walk, ((ph + C.walk.ph0) % 1) * C.walk.dur, wW, true);
+  fkAdd(C.jog, ((ph + C.jog.ph0) % 1) * C.jog.dur, wJog, true);
+  // place the bones: each turned as recorded (and the trunk on round to the aim), its joint where its parent's bone
+  // puts it (our lengths, their turns)
+  const Ry = Rz(yaw),
+    J = [],
+    R = [];
+  const twistOf = b => (b === 1 ? 0.25 : b === 2 ? 0.6 : b >= 3 && b <= 13 ? 1 : 0);
+  for (let b = 0; b < 22; b++) {
+    const q4 = [FKQ[b * 4], FKQ[b * 4 + 1], FKQ[b * 4 + 2], FKQ[b * 4 + 3]],
+      l = Math.hypot(...q4) || 1,
+      Rb = mm(mm(Rz(yaw + tw * twistOf(b)), q9(q4.map(x => x / l))), A[b]);
+    R[b] = Array.from(Rb);
+    if (b === 0) {
+      const rr = mv(Ry, [FKR[0] * Hl, FKR[1] * Hl, 0]);
+      J[0] = [p.x + rr[0], p.y + rr[1], r[0][2] * k[1] + FKR[2] * Hl];
+    } else {
+      const pj = par[b],
+        d = mv(R[pj], sc3(sub(r[b], r[pj]), k));
+      J[b] = [J[pj][0] + d[0], J[pj][1] + d[1], J[pj][2] + d[2]];
+    }
+    if (b < 6 || b >= 14 || b === 6 || b === 10) D3(b, R[b], J[b]);
+  }
+  // the arms and the gun as before, from the recorded shoulders
+  heroArms(p, D, o, {
+    aim,
+    k,
+    r,
+    D3,
+    H,
+    gm,
+    kick,
+    rl,
+    sw,
+    shv,
+    t,
+    id,
+    Jc: J[3],
+    Rc: R[3],
+    shR: J[7],
+    shL: J[11],
+    Jh: J[5],
+    headB: 5,
+    arms: [7, 8, 11, 12],
+    hands: [9, 13],
+  });
 }
 // the colours you and they wear: skin, jacket, trousers, hair
 const HERO_LOOK = [
@@ -1909,7 +2103,7 @@ function poseGun(g, D, o) {
   const bs = FIGK * MM.scale,
     h = g.holder;
   bone(D, o, 0, mul3(h._gunR, [bs, bs]), h._grip, REST[0]);
-  for (let b = 1; b < NB; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], h._grip, REST[b]);
+  for (let b = 1; b < REST.length; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], h._grip, REST[b]);
   const q = o + NB * 12;
   D.set([g.x, g.y + 40, GS.gA ?? 1, 0], q);
   for (let i = 4; i < 24; i += 4) D.set([1, 1, 1, 0], q + i);
@@ -1944,7 +2138,7 @@ function poseCar(c, D, o) {
   MODEL_END = MM.ends;
   const burnt = c.burnt || c.fire > 0.5;
   bone(D, o, 0, mul3(Rz(c.a || 0), [1, 1]), [c.x, c.y, 0], REST[0]);
-  for (let b = 1; b < NB; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], [c.x, c.y, 0], REST[b]);
+  for (let b = 1; b < REST.length; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], [c.x, c.y, 0], REST[b]);
   const q = o + NB * 12,
     t = c.police ? [0.07, 0.08, 0.1] : c.tint || [0.8, 0.8, 0.8],
     pk = c.police ? 1 : 0.82, // the paint: its tint over a pale grey, as the pictures have it
@@ -1984,7 +2178,9 @@ const poseFig = (e, D, o) => {
     : m === 'egg'
       ? poseEgg(e, D, o)
       : m === 'hero'
-        ? poseHero(e, D, o)
+        ? FIG.models.hero.rest.length > 14
+          ? poseHeroFK(e, D, o)
+          : poseHero(e, D, o)
         : e.holder
           ? poseGun(e, D, o)
           : poseZombie(e, D, o);
@@ -2193,6 +2389,7 @@ export function figFlush() {
       gl.uniform4f(u.uHC, kn[4], kn[5], kn[6], kn[3]);
       gl.uniform1i(u.uKit, kit ? 1 : 0);
     }
+    if (u.uHB) gl.uniform1ui(u.uHB, M.hb);
     gl.bindVertexArray(M.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, RB);
     gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 4, from * 4);
