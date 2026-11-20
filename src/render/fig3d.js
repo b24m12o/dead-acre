@@ -11,7 +11,7 @@ import { angDiff, clamp, lerp } from '../core/util.js';
 import { gl, progFinish } from './gl.js';
 import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
 import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
-import { GK, HEROIC, PER_M, strideLen } from '../core/scale.js';
+import { GK, HEROIC, PER_M, TILT, strideLen } from '../core/scale.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
 
@@ -110,13 +110,13 @@ void main(){
   vec4 E=T(${NB * 3},r); // its eye (x, y), how solid it is, the flare of a hit
   vK=vec4(E.z,E.w,T(${NB * 3 + 7},r).w,T(${NB * 3 + 6},r).w);
   vec2 g;
-  if(uMode==0){ g=E.xy+(W.xy-E.xy)*760.0/(760.0-min(W.z,600.0)); } // seen from a camera high over it
+  if(uMode==0){ g=W.xy-vec2(0.0,W.z*${TILT.toFixed(3)}); } // seen from a camera tilted toward the top of the screen: each unit of height a little way up it
   else if(uMode==1){ g=W.xy+uSun*max(W.z,0.0); } // the moon's shadow
   else { vec2 d=W.xy-uLight.xy; float l=max(length(d),1.0); // a lamp's (uMode 2) or your flashlight's (3), thrown away from it
     float hz=max(W.z,0.0), off=uMode==2?min(uLight.w,hz*l/max(34.0,uLight.z-hz)):min(hz*${SH3}*(0.55+l/${(150 * GK).toFixed(2)}),hz*${SH3}+${(30 * GK).toFixed(2)}); /* the torch's: as long as the pictured figures' (sprites.js), never a ghost down the beam */
     g=W.xy+d/l*off; }
   vec2 s=(g-uCam.xy)/uCam.zw;
-  gl_Position=vec4(s.x*2.0-1.0,1.0-s.y*2.0,clamp(0.5-W.z/160.0,-1.0,1.0),1.0);
+  gl_Position=vec4(s.x*2.0-1.0,1.0-s.y*2.0,clamp(0.5-(W.z+(W.y-E.y)*${TILT.toFixed(3)})/160.0,-1.0,1.0),1.0); // nearer the camera: higher, or further down the screen
   ${
     shadow
       ? 'vC=vec3(0.0); vS=0.0; vPat=0.0; vM=vec4(0.0); vE=vec3(0.0); vH=vec3(0.0); vSk=vec3(0.0); vSty=0.0;'
@@ -970,10 +970,9 @@ function poseZombie(e, D, o) {
   D3(3, Rh, Jh);
   // where its head is, for the eyes the flashlight catches and the breath a lurker gives itself away by
   {
-    const hc = add(Jh, mv(Rh, sc3(mul(sub(MODEL_END[3], r[3]), 0.55), k))),
-      p = 760 / (760 - hc[2]);
-    e.__hx = e.x + (hc[0] - e.x) * p;
-    e.__hy = e.y + 40 + (hc[1] - e.y - 40) * p;
+    const hc = add(Jh, mv(Rh, sc3(mul(sub(MODEL_END[3], r[3]), 0.55), k)));
+    e.__hx = hc[0];
+    e.__hy = hc[1] - hc[2] * TILT; // where its head is drawn (the tilt)
     e.__lhx = e.__hx;
     e.__lhy = e.__hy;
     e.__ha = Math.atan2(Rh[3], Rh[0]);
@@ -1267,10 +1266,9 @@ function poseDog(e, D, o) {
     Jh = add(Jc, mv(Rc, sc3(sub(r[3], r[2]), k)));
   D3(3, Rh, Jh);
   {
-    const hc = add(Jh, mv(Rh, sc3([9, 0, 2.2], k))),
-      p = 760 / (760 - hc[2]);
-    e.__hx = e.x + (hc[0] - e.x) * p;
-    e.__hy = e.y + 40 + (hc[1] - e.y - 40) * p;
+    const hc = add(Jh, mv(Rh, sc3([9, 0, 2.2], k)));
+    e.__hx = hc[0];
+    e.__hy = hc[1] - hc[2] * TILT; // where its head is drawn (the tilt)
     e.__ha = Math.atan2(Rh[3], Rh[0]);
     e.__hk = 0.32 * k[0];
     if (!dead) e.__ht = t;

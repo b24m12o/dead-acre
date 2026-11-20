@@ -4,7 +4,7 @@ import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp, rand } from '../core/util.js';
 import { S } from '../game/state.js';
 import { GUNS, HEROES } from '../game/arsenal.js';
-import { RIM, lineQ, quad, scaled, setH, setRim } from './sprites.js';
+import { RIM, figTilt, lineQ, quad, scaled, setH, setRim } from './sprites.js';
 import { PEOPLE } from '../core/scale.js';
 import { R } from './atlas.js';
 import { lamps } from '../world/map.js';
@@ -168,10 +168,12 @@ export const YOU_RIM = 0.8,
 export function drawRanger(p) {
   const r0 = RIM;
   setRim(GS.SHMODE || GS.state === 'menu' ? r0 : p.npc ? THEM_RIM : YOU_RIM);
+  figTilt(!GS.SHMODE);
   try {
     return scaled(p.x, p.y, PEOPLE, drawRanger0, p);
   } finally {
     setRim(r0);
+    figTilt(false);
   }
 }
 function drawRanger0(p) {

@@ -1,7 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, lerp, rand } from '../core/util.js';
-import { RIM, lineQ, quad, scaled, setH, setRim } from './sprites.js';
+import { RIM, figTilt, lineQ, quad, scaled, setH, setRim } from './sprites.js';
 import { figK } from '../core/scale.js';
 import { R } from './atlas.js';
 import { drawLegs, ik2 } from '../actors/legs.js';
@@ -181,7 +181,13 @@ function zArm(W, sh, hand, L, w1, w2, side, skin, sleeve, fl, handSc, gone, ls =
 }
 // each drawn at its size against the world (scale.js)
 export function drawEnemy(e) {
-  return scaled(e.x, e.y - (e.z || 0), figK(e), drawEnemyAt, e);
+  const up = !GS.SHMODE && e.dying === undefined && !is3D(e); // a pictured one stands up at the camera's tilt
+  if (up) figTilt(true);
+  try {
+    return scaled(e.x, e.y - (e.z || 0), figK(e), drawEnemyAt, e);
+  } finally {
+    if (up) figTilt(false);
+  }
 }
 function drawEnemyAt(e) {
   if (is3D(e)) {

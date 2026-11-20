@@ -2,7 +2,7 @@
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, pick, rand, randi } from '../core/util.js';
 import { SUNV, addLight, lineQ, quad, scaled, setH, viewH, viewW } from './sprites.js';
-import { PROP_K } from '../core/scale.js';
+import { PROP_K, TILT } from '../core/scale.js';
 import { R } from './atlas.js';
 import { GARAGE, MH, MW, ROAD, RX, RY, TILE, cars, grid, houses, ttype } from '../world/map.js';
 import { query } from '../world/nav.js';
@@ -39,7 +39,7 @@ export function drawPole(x, y, h, w, col = 0.16) {
   }
   lineQ(x, y, x, y - h, w, col, col, col * 1.08, 1, 0, 0, 0, 0, R.pixel);
 }
-export const LAMPV = L => (L.lantern ? 10 : 20); // seen from almost straight above, a lamp head sits just above its light pool, not a pole's height up the screen (the shadow still shows how tall it is)
+export const LAMPV = L => (L.lantern ? 30 : POLE_H) * TILT; // seen from almost straight above, a lamp head sits just above its light pool, not a pole's height up the screen (the shadow still shows how tall it is)
 // A street lamp, kept plain: a square base, a slim grey pole, a thin arm out over the street and a flat head seen from
 // its top (about 70 by 30 cm), its lens showing as a line of light along the edge when lit. Standing, falling or lying
 // in the road it is the same pole, arm and head

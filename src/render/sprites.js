@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { GK, PEOPLE } from '../core/scale.js';
+import { GK, PEOPLE, TILT } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { SOFT3, clamp } from '../core/util.js';
 import { TS, TSH } from '../core/settings.js';
@@ -175,6 +175,10 @@ export function inkMode(on) {
   INK = on;
 }
 // the rim light on figures (draw-enemies.js sets it round each zombie): how strongly their silhouettes catch the night
+// a pictured figure seen at the camera's tilt: each part drawn up the screen by its height (setH), so it stands up
+// like the 3D ones (core/scale.js: TILT; a picture's heights run about a third of a 3D figure's)
+let FT = 0;
+export const figTilt = on => (FT = on ? TILT / 0.3 : 0);
 export let RIM = 0;
 export const setRim = k => (RIM = k);
 export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
@@ -246,6 +250,7 @@ export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
     GS.SHMODE = 4;
     return;
   }
+  if (FT && !GS.SHMODE) y -= SHH * FT;
   if (GS.SHMODE === 3) ta *= GS.SHS;
   else if (GS.SHMODE) {
     x += SHX;

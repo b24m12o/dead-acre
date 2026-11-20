@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { BOON, boonOn } from '../game/boons.js';
-import { BOX, GK } from '../core/scale.js';
+import { BOX, GK, bodyTop } from '../core/scale.js';
 import { roofStop } from '../world/roofs.js';
 import { camKick } from '../render/camera.js';
 import { GS } from '../core/gs.js';
@@ -391,7 +391,14 @@ export function updatePBullet(b, dt) {
     if (b.gl && k > 0.45 && k < 1) {
       let hitE = null;
       query(b.x, b.y, 40 * GK, e => {
-        if (!hitE && !e.dead && e.emerge >= 1 && !e.fly && d2(e.x, e.y, b.x, b.y) < (e.r + 8) ** 2) hitE = e;
+        if (
+          !hitE &&
+          !e.dead &&
+          e.emerge >= 1 &&
+          !e.fly &&
+          d2(b.x, b.y, e.x, clamp(b.y, e.y - bodyTop(e), e.y)) < (e.r + 8) ** 2
+        )
+          hitE = e;
       });
       if (hitE) {
         b.life = 0;
@@ -478,7 +485,7 @@ export function updatePBullet(b, dt) {
     let hx = b.x,
       hy = b.y + e.z,
       rr2 = e.r + 5,
-      hitIt = d2(b.x, b.y, e.x, e.y - e.z * 0.6) < rr2 * rr2; // where the round actually struck
+      hitIt = d2(b.x, b.y, e.x, clamp(b.y, e.y - e.z * 0.6 - bodyTop(e), e.y - e.z * 0.6)) < rr2 * rr2; // where the round actually struck: anywhere on its picture, feet to head (the camera's tilt shows it standing up)
     if (!hitIt) return;
     const crit =
         Math.random() < S.crit + (b.crit || 0) ||

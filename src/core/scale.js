@@ -49,3 +49,12 @@ export function figK(e) {
 // to match (render/fig3d.js), so they plant instead of skating
 export const strideLen = e =>
   (e.type === 'beetle' ? 120 : e.type === 'hound' ? 70 : e.type === 'mini' ? 44 : e.run ? 112 : 58) * GK;
+// the camera's tilt: how far up the screen each unit of height goes (0: straight down). The walls, roofs and props
+// were always drawn this way (their pictures show their fronts); the figures, cars and lamps now are too
+export const TILT = 0.45;
+// how high a standing figure's picture reaches up the screen from its feet: a round that strikes anywhere on it hits
+export const bodyTop = e =>
+  TILT *
+  (e.crawl || e.down > 0 || e.half
+    ? 8
+    : (e.type === 'hound' ? 22 : e.type === 'queen' ? 120 : 50) * (figK(e) / PEOPLE));

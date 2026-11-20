@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { TILT } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { clamp } from '../core/util.js';
 import { quad, setH } from './sprites.js';
@@ -82,16 +83,40 @@ function drawCar0(c) {
   const lit = c.lights ? (c.hp < c.max * 0.5 && Math.sin(GS.time * 23 + c.x) > 0.3 ? 0.2 : 1.8) : 0;
   const hk = (c.burnt ? 1 : 0.62 + 0.38 * clamp(c.hp / c.max, 0, 1)) * (c.fire ? 0.85 : 1); // a car on fire is a blistered, blackening shell under the flames
   setH(c.truck ? 24 : 14);
-  quad(reg, c.x, c.y, c.a, sc, sc, t[0] * hk, t[1] * hk, t[2] * hk, 1, lit, lit, lit, fl); // one 3D-baked car: roof, glass, bonnet and tyres from above, lit like everything else
+  // seen at the camera's tilt: the picture from above stacked up the screen to the car's height, the lower layers in
+  // the shade of its sides, so it stands on the road as a solid thing (core/scale.js: TILT)
+  const up = (c.truck ? 64 : 22) * TILT,
+    n = Math.max(2, Math.ceil(up / 0.55));
+  for (let i = 0; i < n; i++) {
+    const f = i / (n - 1),
+      d = i < n - 1 ? 0.38 + 0.22 * f : 1;
+    quad(
+      reg,
+      c.x,
+      c.y - up * f,
+      c.a,
+      sc,
+      sc,
+      t[0] * hk * d,
+      t[1] * hk * d,
+      t[2] * hk * d,
+      1,
+      i < n - 1 ? 0 : lit,
+      i < n - 1 ? 0 : lit,
+      i < n - 1 ? 0 : lit,
+      fl
+    );
+  }
+  const yU = c.y - up; // its top, where the holes and the lightbar sit
   if (c.holes && !c.burnt) {
     const ca = Math.cos(c.a),
       sa = Math.sin(c.a);
     for (const h of c.holes)
-      quad(R.bhole, c.x + h.u * ca - h.v * sa, c.y + h.u * sa + h.v * ca, h.r, 0.8, 0.8, 0.5, 0.5, 0.5, 1, 0, 0, 0, 0);
+      quad(R.bhole, c.x + h.u * ca - h.v * sa, yU + h.u * sa + h.v * ca, h.r, 0.8, 0.8, 0.5, 0.5, 0.5, 1, 0, 0, 0, 0);
   }
   if (c.amb && !c.burnt) {
     setH(26);
-    quad(R.lightbar2, c.x + Math.cos(c.a) * 34, c.y + Math.sin(c.a) * 34, c.a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0); // its dead lightbar, over the cab
+    quad(R.lightbar2, c.x + Math.cos(c.a) * 34, yU + Math.sin(c.a) * 34, c.a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0); // its dead lightbar, over the cab
   }
   if (c.police && !c.burnt) {
     const on = Math.sin(GS.time * 14) > 0;
@@ -99,7 +124,7 @@ function drawCar0(c) {
     quad(
       on ? R.lightbar : R.lightbar2,
       c.x - Math.cos(c.a) * 2,
-      c.y - Math.sin(c.a) * 2,
+      yU - Math.sin(c.a) * 2,
       c.a,
       1,
       1,
@@ -121,5 +146,11 @@ export function drawWreck(w) {
     return;
   }
   setH(12 * w.s);
-  quad(R.carburn, w.x, w.y, w.a, w.s, w.s, 0.9, 0.9, 0.9, 1, 0, 0, 0, 0);
+  const up = 18 * w.s * TILT,
+    n = Math.max(2, Math.ceil(up / 0.55));
+  for (let i = 0; i < n; i++) {
+    const f = i / (n - 1),
+      d = i < n - 1 ? 0.3 + 0.2 * f : 0.9;
+    quad(R.carburn, w.x, w.y - up * f, w.a, w.s, w.s, d, d, d, 1, 0, 0, 0, 0);
+  } // a burnt-out shell standing on its rims, the same way
 }

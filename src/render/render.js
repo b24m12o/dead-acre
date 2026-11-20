@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { BARREL, BOSS, CRATE, GK, PEOPLE, WCASE, figK } from '../core/scale.js';
+import { BARREL, BOSS, CRATE, GK, PEOPLE, TILT, WCASE, figK } from '../core/scale.js';
 import { boonBlink } from '../game/boons.js';
 import { GS } from '../core/gs.js';
 import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';
@@ -800,7 +800,8 @@ export function render() {
     }
   }
   if (GS.arcs.length && GS.arcs.every(z => GS.time - z.t0 > 0.45)) GS.arcs.length = 0;
-  const BOLT_W = 0.42; // a round's streak across: a hair, not a pipe (it was as thick as the gun)
+  const BOLT_W = 0.42,
+    BUL_UP = 32 * TILT; // the rounds fly at the gun's height, drawn that far up the screen (the camera's tilt) // a round's streak across: a hair, not a pipe (it was as thick as the gun)
   for (const b of GS.pbullets) {
     if (b.shell) {
       if (b.t >= 0) quad(R.glow, b.x, b.y - b.z, 0, 0.3 * GK, 0.3 * GK, 0, 0, 0, 1, 1.2, 0.6, 0.2, 0);
@@ -812,11 +813,12 @@ export function render() {
       gc = S.evo.gold && !b.small ? [2.8, 2.2, 0.8] : b.pellet ? [2.4, 1.6, 0.7] : [2.8, 1.7, 0.6];
     if (b.tr === undefined) b.tr = S.evo.gold || Math.random() < (b.pellet ? 0.12 : b.small ? 0.2 : 0.3);
     const tk = b.tr ? 1 : 0.32;
-    if (b.tr) quad(R.glow, b.x, b.y, 0, 0.16 * sc, 0.16 * sc, 0, 0, 0, 1, gc[0] * 0.18, gc[1] * 0.18, gc[2] * 0.18, 0);
+    if (b.tr)
+      quad(R.glow, b.x, b.y - BUL_UP, 0, 0.16 * sc, 0.16 * sc, 0, 0, 0, 1, gc[0] * 0.18, gc[1] * 0.18, gc[2] * 0.18, 0);
     quad(
       R.bolt,
       b.x - Math.cos(a) * 12 * sc,
-      b.y - Math.sin(a) * 12 * sc,
+      b.y - Math.sin(a) * 12 * sc - BUL_UP,
       a,
       1.05 * sc,
       0.28 * (b.pellet ? 0.8 : 1) * BOLT_W, // thinner than the barrel it left
