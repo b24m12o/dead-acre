@@ -81,6 +81,12 @@ async function get(f, how, ms, part) {
     if (part) part.done = true;
   }
 }
+// the meshes come gzipped (tools/mesh/build.mjs): unzipped here, as the browser can
+const unzip = async b => {
+  const h = new Uint8Array(b, 0, 2);
+  if (h[0] !== 0x1f || h[1] !== 0x8b) return b;
+  return new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+};
 const listSize = (list, io = 1) => list.reduce((m, e) => Math.max(m, e[io] + e[io + 1]), 0); // io: where each entry keeps its offset (its length follows)
 export async function assetsPrep(step) {
   if (!ASSET_URL) return;
@@ -115,7 +121,8 @@ export async function assetsPrep(step) {
     }
     PACK.bake = { key: j.bake.key, hs: j.bake.hs, pos: j.bake.pos, a, h };
     if (j.mesh)
-      get(j.mesh.file, 'arrayBuffer', 60000)
+      get(j.mesh.file, 'arrayBuffer', 300000) // big (the cars at their full detail): it has its time
+        .then(unzip)
         .then(meshArrived)
         .catch(e => console.warn('Dead Acre: no 3D figures this time, the pictures stand in', e)); // the 3D figures' meshes
     const sound = (k, ms, take, why) => {
@@ -166,7 +173,7 @@ export function init() {
     const b = atob(window.__DA_DATA.mesh),
       u = new Uint8Array(b.length);
     for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
-    meshArrived(u.buffer);
+    unzip(u.buffer).then(meshArrived);
   } // the one-file version: the 3D figures' meshes are built in
   // type DA_STATUS() in the browser console to see where the art and sounds came from
   window.DA_STATUS = () => ({

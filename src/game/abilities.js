@@ -255,7 +255,7 @@ function fanShot(a0) {
 // the shove (V): a cone in front of you, a short reach, a little over a second between shoves. It works mid-reload
 // without spoiling it, holds your fire a moment, and makes no more noise than a grunt. Not mid-roll, not on the
 // truck or in the chopper. Returns how many it caught
-export const SHOVE = { cd: 1.2, reach: 78 * GK, half: (55 * Math.PI) / 180, hold: 0.25 };
+export const SHOVE = { cd: 1.2, reach: 78 * GK, half: (70 * Math.PI) / 180, hold: 0.25 };
 export const shoveCd = () => SHOVE.cd * (GS.RUN && GS.RUN.hero === 'breacher' ? HERO_TRAIT.riot.cd : 1); // the Deputy's comes back sooner
 // the Gunslinger's roll: the revolver or the SMG in his hands comes out of it loaded
 function rollLoad(P) {
@@ -292,7 +292,7 @@ export function tryShove() {
       d = Math.hypot(dx, dy);
     if (
       d > SHOVE.reach * rk + (e.r || 14 * GK) ||
-      (d > 8 * GK && Math.abs(angDiff(a, Math.atan2(dy, dx))) > SHOVE.half * rk)
+      (d > 24 * GK && Math.abs(angDiff(a, Math.atan2(dy, dx))) > SHOVE.half * rk) // (one right on you is caught whichever side it's on)
     )
       continue;
     hit.push([e, dx || Math.cos(a), dy || Math.sin(a)]);

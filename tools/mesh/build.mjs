@@ -9,6 +9,7 @@
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 import { browser, ROOT } from '../../tests/lib/harness.mjs';
 import { SDF_LIB } from '../../src/render/sdf-lib.js';
 import { MODELS as PEOPLE } from './humanoid.mjs';
@@ -164,7 +165,7 @@ void main(){ vec3 q=uV*(aP-uC); gl_Position=vec4(q.x/uS,q.y/uS,-q.z/100.0,1.0); 
         gl.FRAGMENT_SHADER,
         `#version 300 es
 precision highp float; in vec3 vN; in float vR; out vec4 o;
-void main(){ int r=int(vR+0.5); vec3 c=r==0?vec3(0.62,0.66,0.52):r==1?vec3(0.2,0.17,0.14):r==2?vec3(0.58,0.62,0.5):r<=4?vec3(0.36,0.44,0.52):r==5?vec3(0.22,0.22,0.26):r==6?vec3(0.36,0.44,0.52):r<=8?vec3(0.62,0.66,0.52):r<=10?vec3(0.22,0.22,0.26):r==11?vec3(0.12,0.1,0.09):r==14?vec3(0.2,0.22,0.2):r==15?vec3(0.14,0.15,0.17):r==16?vec3(0.35,0.4,0.45):r==17?vec3(0.5,0.42,0.3):r==24?vec3(0.27,0.28,0.2):r==25?vec3(0.08):r==26?vec3(0.15,0.145,0.13):r==27?vec3(0.95,0.92,0.8):r==28?vec3(0.07):r==29?vec3(0.11):r==30?vec3(0.45,0.5,0.6):r==31?vec3(0.1,0.13,0.16):r==32?vec3(0.06):r==33?vec3(0.03):r==34?vec3(1.0,0.95,0.8):r==35?vec3(0.8,0.05,0.04):r==36?vec3(0.9):r==37?vec3(0.15):r==38?vec3(0.7,0.72,0.74):r==39?vec3(0.6,0.1,0.07):r==40?vec3(0.12,0.1,0.09):r==41?vec3(0.62,0.62,0.6):vec3(0.3,0.03,0.02);
+void main(){ int r=int(vR+0.5); vec3 c=r==0?vec3(0.62,0.66,0.52):r==1?vec3(0.2,0.17,0.14):r==2?vec3(0.58,0.62,0.5):r<=4?vec3(0.36,0.44,0.52):r==5?vec3(0.22,0.22,0.26):r==6?vec3(0.36,0.44,0.52):r<=8?vec3(0.62,0.66,0.52):r<=10?vec3(0.22,0.22,0.26):r==11?vec3(0.12,0.1,0.09):r==14?vec3(0.2,0.22,0.2):r==15?vec3(0.14,0.15,0.17):r==16?vec3(0.35,0.4,0.45):r==17?vec3(0.5,0.42,0.3):r==24?vec3(0.27,0.28,0.2):r==25?vec3(0.08):r==26?vec3(0.15,0.145,0.13):r==27?vec3(0.95,0.92,0.8):r==28?vec3(0.07):r==29?vec3(0.11):r==30?vec3(0.45,0.5,0.6):r==31?vec3(0.1,0.13,0.16):r==32?vec3(0.06):r==33?vec3(0.03):r==34?vec3(1.0,0.95,0.8):r==35?vec3(0.8,0.05,0.04):r==36?vec3(0.9):r==37?vec3(0.15):r==38?vec3(0.7,0.72,0.74):r==39?vec3(0.6,0.1,0.07):r==40?vec3(0.12,0.1,0.09):r==41?vec3(0.62,0.62,0.6):r==45?vec3(0.36,0.22,0.12):vec3(0.3,0.03,0.02);
   vec3 n=normalize(vN); float l=0.3+0.7*max(dot(n,normalize(vec3(0.4,0.6,0.7))),0.0); o=vec4(c*l,1.0); }`
       );
       gl.linkProgram(p);
@@ -461,7 +462,8 @@ if (!process.argv.includes('--preview-only')) {
     hl = Buffer.alloc(4);
   let pad = (4 - ((4 + hj.length) % 4)) % 4;
   hl.writeUInt32LE(hj.length + pad);
-  const file = Buffer.concat([hl, hj, Buffer.from(' '.repeat(pad)), ...parts]),
+  // gzipped: half the download (the game unzips it as it arrives, src/core/assets.js)
+  const file = gzipSync(Buffer.concat([hl, hj, Buffer.from(' '.repeat(pad)), ...parts]), { level: 9 }),
     hash = createHash('sha256').update(file).digest('hex').slice(0, 8),
     name = `mesh.${hash}.bin`;
   for (const f of readdirSync(join(ROOT, 'assets')))

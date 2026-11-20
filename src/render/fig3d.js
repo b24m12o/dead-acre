@@ -194,6 +194,7 @@ void main(){
   else if(reg==40) c=vec3(0.1,0.085,0.075);
   else if(reg==41) c=vec3(0.6,0.6,0.58);
   else if(reg==44) c=vec3(0.06,0.12,0.55);
+  else if(reg==45) c=vec3(0.3,0.17,0.09); // a gun's walnut
   else if(reg==17) c=TI.w<-0.5?vec3(0.3,0.1,0.08):SK.rgb*vec3(1.08,0.96,0.7); // raw flesh (on a dog), or swollen, stretched and veined
   vC=c*TI.rgb; vS=shirt; vPat=TI.w;
   bool hd=aB.x==3u&&aW.x>0.5; // on the head
@@ -1443,13 +1444,43 @@ function poseEgg(e, D, o) {
 // ---------- you (and the survivors with you): legs on their own heading, the body turned to the aim, the gun in both hands ----------
 // which of the guns' models a gun is drawn with
 export const gunModel = g =>
-  g === 'pistol'
-    ? 'pistol'
-    : g === 'smg'
-      ? 'smg'
-      : /shotgun|auto|breacher|riot|lever/.test(g || '')
-        ? 'shotgun'
-        : 'rifle';
+  ({
+    pistol: 'pistol',
+    smg: 'smg',
+    shotgun: 'shotgun',
+    auto: 'auto',
+    hunter: 'hunter',
+    lever: 'lever',
+    lmg: 'lmg',
+    launcher: 'launcher',
+  })[g] || (/shotgun|breacher|riot/.test(g || '') ? 'shotgun' : 'rifle');
+// how each is held, in the gun's own units (its grip at the origin, the muzzle along +x): the point of the stock that
+// sits in the shoulder (butt), where the other hand holds it (fore), the magazine it reaches for on a reload (mag),
+// the way it's carried (style), and how far the chest turns side-on behind it (blade)
+const HOLD = {
+  rifle: { style: 'shoulder', butt: [-9.2, 0, 1.3], fore: [11, 0, 0.7], mag: [4.4, 0, -1.8], blade: 0.32 },
+  shotgun: { style: 'shoulder', butt: [-10.4, 0, 1.1], fore: [12.5, 0, 0.3], mag: [3.5, 0, 0.2], blade: 0.34, pump: 1 },
+  auto: { style: 'shoulder', butt: [-10.4, 0, 1.2], fore: [13, 0, 0.6], mag: [4.2, 0, -2.4], blade: 0.34 },
+  hunter: { style: 'shoulder', butt: [-11, 0, 1.0], fore: [11.5, 0, 0.6], mag: [1.5, 0, 0.6], blade: 0.38, cheek: 1 },
+  lever: { style: 'shoulder', butt: [-10.3, 0, 0.9], fore: [9.5, 0, 0.8], mag: [1.0, 0, -0.6], blade: 0.34 },
+  launcher: { style: 'shoulder', butt: [-9.2, 0, 1.4], fore: [8, 0, 0.6], mag: [12, 0, 2.3], blade: 0.3 },
+  smg: { style: 'compact', butt: [-5.4, 0, 1.4], fore: [4.2, 0, -0.4], mag: [4.2, 0, -3.2], blade: 0.18 },
+  lmg: { style: 'hip', butt: [-9.8, 0, 1.4], fore: [12, 0, 0.6], mag: [3, 0, -2.8], blade: 0.42 },
+  pistol: { style: 'pistol', butt: [0, 0, 0], fore: [-0.2, -0.95, -0.5], mag: [0, 0, -1.6], blade: 0 },
+};
+const lerp3 = (a, b, f) => v3(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+// a walking foot over one stride (ph 0..1): planted for the first 60% (it stays where it was put while the body goes
+// over it), then lifted and swung through to land ahead. Returns [along (-1 behind .. 1 ahead), lift (0..1), pitch]
+function footCycle(ph) {
+  const ST = 0.6;
+  if (ph < ST) {
+    const t = ph / ST;
+    return [1 - 2 * t, 0, t < 0.15 ? -0.3 * (1 - t / 0.15) : t > 0.7 ? 0.55 * ((t - 0.7) / 0.3) : 0]; // heel down first; heel up to push off
+  }
+  const t = (ph - ST) / (1 - ST),
+    e = t * t * (3 - 2 * t);
+  return [-1 + 2 * e, Math.sin(Math.PI * t), 0.55 * (1 - t) - (0.3 * Math.max(0, t - 0.6)) / 0.4];
+}
 function poseHero(p, D, o) {
   poolReset();
   p._kits = null;
@@ -1462,60 +1493,130 @@ function poseHero(p, D, o) {
     bs = MM.scale * FIGK,
     k = [bs, bs],
     D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]),
-    la = p.legA ?? p.moveA ?? p.bodyA,
     aim = p.npc ? (p.aim ?? p.bodyA) : p.bodyA,
-    amp = Math.max(p.strideAmp || 0, p.turnAmp || 0),
-    ph = (p.stride || 0) * Math.PI * 2,
+    amp = clamp(p.strideAmp || 0, 0, 1),
     gm = gunModel(p.gun),
-    pis = gm === 'pistol',
+    H = HOLD[gm] || HOLD.rifle,
     kick = clamp((p.recoil || 0) / 8, 0, 1), // the gun's kick, back into the shoulder
-    rl = clamp(p.rk || 0, 0, 1), // reloading: the gun comes down and in
-    bob = Math.abs(Math.sin(ph)) * 1.1 * amp,
-    breathe = Math.sin(t * 2.2 + id) * 0.25;
-  // hips over the legs, the trunk twisting up to the aim (never more than it can: the legs step round, update.js)
-  const tw = clamp(angDiff(la, aim), -1.25, 1.25),
-    Rp = mm(Rz(la), Rxb(Math.sin(ph) * 0.05 * amp)),
-    Jp = [p.x, p.y, (r[0][2] - 0.6 * amp + bob * 0.5) * k[1]],
-    Rs = mm(Rp, mm(Rz(tw * 0.4), Ryb(0.05 + amp * 0.05))),
-    Rc = mm(Rs, mm(Rz(tw * 0.6), Ryb(0.04 + breathe * 0.01 - kick * 0.08))),
+    rl = clamp(p.rk || 0, 0, 1), // reloading: the gun comes down and in, the free hand to the magazine
+    sw = p.swap > 0 ? Math.sin(Math.min(1, p.swap / 0.3) * Math.PI) : 0, // swapping guns: the gun lowered
+    shv = p.shoveT > 0 ? Math.sin(Math.PI * clamp(1 - p.shoveT / 0.25, 0, 1)) : 0, // the shove: the gun driven out butt-first
+    breathe = Math.sin(t * 2.2 + id) * 0.25,
+    dt = clamp(t - (p._hipT ?? t), 0, 0.1);
+  p._hipT = t;
+  // the hips face the aim, turned a little toward the way you're going (or, backing off, away from it): the feet step
+  // whichever way you move. Standing, they stay put till the body has twisted too far over them, then step round
+  const spd = Math.hypot(p.vx || 0, p.vy || 0),
+    mA = spd > 4 ? Math.atan2(p.vy, p.vx) : (p.moveA ?? aim),
+    rel = angDiff(aim, mA),
+    back = Math.abs(rel) > 1.95,
+    moving = amp > 0.08;
+  if (p._hipA === undefined) p._hipA = aim;
+  let turn = 0;
+  if (moving) {
+    const want = aim + clamp(back ? angDiff(aim, mA + Math.PI) : rel, -0.7, 0.7) * 0.55;
+    p._hipA += angDiff(p._hipA, want) * Math.min(1, dt * 9);
+    p._hipStep = 0;
+  } else {
+    const off = angDiff(p._hipA, aim);
+    if (Math.abs(off) > 0.85) p._hipStep = 1;
+    if (p._hipStep) {
+      p._hipA += off * Math.min(1, dt * 7);
+      p._stepPh = (p._stepPh || 0) + dt * 2.6; // short steps on the spot
+      if (Math.abs(off) < 0.1) p._hipStep = 0;
+    }
+  }
+  p._turnK = lerp(p._turnK || 0, p._hipStep ? 1 : 0, Math.min(1, dt * 12));
+  turn = p._turnK;
+  const hy = p._hipA,
+    blade = (H.blade + shv * 0.1) * (1 - rl * 0.4), // side-on behind a long gun, square behind a pistol
+    tw = clamp(angDiff(hy, aim + blade), -1.3, 1.3),
+    ph = moving ? p.stride || 0 : p._stepPh || 0,
+    gA = Math.max(amp, turn * 0.35), // how hard it's walking
+    phs = [ph % 1, (ph + 0.5) % 1], // the right foot, the left half a stride on
+    fc = phs.map(footCycle),
+    bob = (Math.cos(ph * Math.PI * 4) * 0.5 + 0.5) * 0.9 * gA, // lowest as each foot lands
+    sway = (fc[0][1] > 0 ? -1 : fc[1][1] > 0 ? 1 : 0) * 0.5 * gA; // over the foot it stands on
+  // hips over the legs, the trunk twisting up to the aim; a lean into the gun, a shove's lunge
+  const hr = [-Math.sin(hy), Math.cos(hy), 0],
+    Rp = mm(Rz(hy), mm(Rxb(sway * 0.05), Ryb(0.04 * amp))),
+    Jp = [p.x + hr[0] * sway * k[0], p.y + hr[1] * sway * k[0], (r[0][2] - 0.7 * gA - bob - shv * 0.6) * k[1]],
+    Rs = mm(Rp, mm(Rz(tw * 0.45), Ryb(0.06 + amp * 0.04 + shv * 0.12))),
+    Rc = mm(Rs, mm(Rz(tw * 0.55), Ryb(0.05 + breathe * 0.01 - kick * 0.06 + shv * 0.1))),
     Js = add(Jp, mv(Rp, sc3(sub(r[1], r[0]), k))),
     Jc = add(Js, mv(Rs, sc3(sub(r[2], r[1]), k)));
   D3(0, Rp, Jp);
   D3(1, Rs, Js);
   D3(2, Rc, Jc);
-  const Rh = mm(Rz(aim), Ryb(0.06 - kick * 0.05)),
-    Jh = add(Jc, mv(Rc, sc3(sub(r[3], r[2]), k)));
-  D3(3, Rh, Jh);
-  // the legs: each foot a quarter stride fore and aft of its hip, lifted as it swings through
-  const fw = [Math.cos(la), Math.sin(la), 0],
-    rt = [-Math.sin(la), Math.cos(la), 0],
-    stepL = (((76 * GK) / (4 * 0.9 * k[0])) * amp) / 1;
-  for (const sd of [1, -1]) {
+  // the legs: feet under the hips, a hand's width apart, each planted while it bears and swung through to land ahead
+  const md = [Math.cos(back ? mA : mA), Math.sin(mA), 0],
+    A = moving ? ((76 * GK) / 4) * amp : 1.2 * k[0] * turn, // half a step, in the street's units
+    fwdH = [Math.cos(hy), Math.sin(hy), 0],
+    dirS = moving ? md : fwdH;
+  for (const [i, sd] of [
+    [0, 1],
+    [1, -1],
+  ]) {
     const ti = sd > 0 ? 8 : 11,
+      [al, lift, pitch] = fc[i],
       hip = add(Jp, mv(Rp, sc3(sub(r[ti], r[0]), k))),
-      s1 = Math.sin(ph + (sd > 0 ? Math.PI : 0)),
-      lift = Math.max(0, Math.cos(ph + (sd > 0 ? Math.PI : 0))) * 2.4 * amp,
-      fx = s1 * stepL * k[0] * 0.9,
-      fy = sd * 4.6 * k[0],
-      foot = [p.x + fw[0] * fx + rt[0] * fy, p.y + fw[1] * fx + rt[1] * fy, r[ti + 2][2] * k[1] + lift * k[1]];
-    const [, ank] = limb(D, o, ti, ti + 1, Rp, hip, foot, mv(Rp, [1, sd * 0.1, 0]), k);
-    D3(ti + 2, Rz(la + sd * 0.1), ank);
+      spread = 4.3 * k[0];
+    let fx = dirS[0] * al * A,
+      fy = dirS[1] * al * A;
+    // never across the other foot: what of the step goes sideways is held to its own side
+    const lat = fx * hr[0] + fy * hr[1],
+      side = sd * spread + lat,
+      ok = sd > 0 ? Math.max(side, 2.8 * k[0]) : Math.min(side, -2.8 * k[0]);
+    fx += hr[0] * (ok - lat);
+    fy += hr[1] * (ok - lat);
+    const hl = lift * (2.6 + 1.2 * amp) * gA * k[1],
+      pz = Math.max(0, pitch) * 3.2 * k[1] * gA, // the heel off the ground as it pushes off
+      foot = [p.x + fx, p.y + fy, r[ti + 2][2] * k[1] + hl + pz];
+    const [, ank] = limb(D, o, ti, ti + 1, Rp, hip, foot, add(fwdH, [hr[0] * sd * 0.15, hr[1] * sd * 0.15, 0]), k);
+    D3(ti + 2, mm(Rz(hy + sd * 0.1), Ryb(pitch * gA)), ank);
   }
-  // the gun, in both hands at the aim: at the shoulder (a long gun) or out in front (a pistol); down and in while
-  // reloading; kicked back by a shot
+  // the gun, held as that kind is: a long gun's stock in the shoulder, the cheek down on it; a submachine gun tucked
+  // in tight; the machine gun at the hip under the arm; a pistol out in both hands at arm's length
   const af = [Math.cos(aim), Math.sin(aim), 0],
     ar = [-Math.sin(aim), Math.cos(aim), 0],
-    sh = add(Jc, mv(Rc, sc3(sub(r[4], r[2]), k))), // the right shoulder
-    out = (pis ? 15 : 6) - kick * 2.2 - rl * 3,
-    side = pis ? 0.5 : 1.2,
-    gz = sh[2] - (pis ? 3.2 : 2.6) * k[1] - rl * 4 * k[1], // a long gun's grip by the chest, its stock in the shoulder
-    G = [sh[0] + (af[0] * out - ar[0] * (3.6 - side)) * k[0], sh[1] + (af[1] * out - ar[1] * (3.6 - side)) * k[0], gz],
-    fore = pis ? 0.6 : gm === 'smg' ? 8 : gm === 'shotgun' ? 12 : 10.5,
-    H2 = [G[0] + af[0] * fore * k[0], G[1] + af[1] * fore * k[0], G[2] + (pis ? 0 : 1.2 * k[1])];
-  p._grip = G;
-  p._gunR = mm(Rz(aim), Ryb(rl * 0.5));
-  const shL = add(Jc, mv(Rc, sc3(sub(r[6], r[2]), k)));
-  limb(D, o, 4, 5, Rc, sh, G, mv(Rc, [-0.3, 1, -1]), k);
+    up = [0, 0, 1],
+    shR = add(Jc, mv(Rc, sc3(sub(r[4], r[2]), k))), // the right shoulder
+    shL = add(Jc, mv(Rc, sc3(sub(r[6], r[2]), k))),
+    low = rl * 0.5 + sw * 0.9, // the muzzle down: reloading, swapping
+    Rg = mm(Rz(aim + rl * 0.25), mm(Ryb(low - kick * 0.12 - shv * 0.2), Rxb(rl * 0.55))),
+    W = (v, s = 1) => sc3(mv(Rg, v), [k[0] * s, k[1] * s]); // a point of the gun, in the street
+  let G;
+  if (H.style === 'pistol') {
+    // out in front, both arms near straight, the gun at the height of the chin's line to the target
+    const reach = (17 - kick * 2.5 - rl * 6 - sw * 5 + shv * 3) * k[0],
+      mid = add(Jc, mv(Rc, sc3([1.5, 0, 0], k)));
+    G = [mid[0] + af[0] * reach, mid[1] + af[1] * reach, shR[2] - (2.2 + rl * 4 + sw * 5) * k[1]];
+  } else {
+    // the stock's butt in the pocket inside the shoulder (lower, under the arm, for the machine gun); pulled in and
+    // down to reload; driven out on a shove
+    const pocket =
+      H.style === 'hip'
+        ? add(shR, add(mv(Rc, sc3([-1.0, -0.6, -8.5], k)), mul(af, 1.5 * k[0])))
+        : H.style === 'compact'
+          ? add(shR, mv(Rc, sc3([1.6, -2.4, -2.4], k)))
+          : add(shR, mv(Rc, sc3([1.2, -1.8, 0.6], k))); // up at the cheek: the sights at the eye
+    const P = add(pocket, add(mul(af, (shv * 5 - kick * 1.4 - rl * 2) * k[0]), mul(up, -(rl * 2.5 + sw * 3) * k[1])));
+    G = sub(P, W(H.butt));
+  }
+  p._grip = [G[0], G[1], G[2]]; // copies: the pools are handed out afresh when the gun itself is posed
+  p._gunR = Rg.slice();
+  // the other hand: on the fore-end (sliding back with a shotgun's pump), at the magazine reloading, or thrown
+  const pump = H.pump && p.pumpT > 0 && p.pumpT < 0.24 ? Math.sin((1 - p.pumpT / 0.24) * Math.PI) : 0,
+    foreP = [H.fore[0] - pump * 3.2, H.fore[1], H.fore[2]],
+    H2 = add(G, W(add(rl > 0.5 ? H.mag : foreP, [0.6, -0.5, -0.7])));
+  // the head: to the aim; down on the stock behind a long gun
+  const cheek = H.style === 'shoulder' ? 1 : H.style === 'compact' ? 0.5 : 0,
+    Rh = mm(
+      Rz(aim),
+      mm(Rxb(cheek * (0.16 + (H.cheek ? 0.06 : 0)) * (1 - rl)), Ryb(0.06 + cheek * 0.1 - kick * 0.05 + rl * 0.25))
+    ),
+    Jh = add(Jc, mv(Rc, sc3(sub(r[3], r[2]), k)));
+  D3(3, Rh, Jh);
   // a throw: the free hand comes off the gun, back past the shoulder, and through the way it is thrown
   const tt = t - (p.throwT ?? -9),
     tk = tt >= 0 && tt < 0.36 && !(p.reload > 0) ? tt / 0.36 : -1;
@@ -1524,18 +1625,32 @@ function poseHero(p, D, o) {
     const ta = p.throwA ?? aim,
       tc = Math.cos(ta),
       ts = Math.sin(ta),
-      back = v3(shL[0] - tc * 13 * k[0], shL[1] - ts * 13 * k[0], shL[2] + 2.5 * k[1]),
-      out = v3(shL[0] + tc * 34 * k[0], shL[1] + ts * 34 * k[0], shL[2] + 0.5 * k[1]), // at full stretch
-      mx = (a, b, f) => v3(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+      bk = v3(shL[0] - tc * 13 * k[0], shL[1] - ts * 13 * k[0], shL[2] + 2.5 * k[1]),
+      out = v3(shL[0] + tc * 34 * k[0], shL[1] + ts * 34 * k[0], shL[2] + 0.5 * k[1]); // at full stretch
     HL =
       tk < 0.08
-        ? mx(H2, back, tk / 0.08)
+        ? lerp3(H2, bk, tk / 0.08)
         : tk < 0.3
-          ? mx(back, out, (tk - 0.08) / 0.22)
-          : mx(out, H2, (tk - 0.3) / 0.7);
+          ? lerp3(bk, out, (tk - 0.08) / 0.22)
+          : lerp3(out, H2, (tk - 0.3) / 0.7);
   }
   p.__th = [HL[0], HL[1]]; // where the free hand is (the tests read it)
-  limb(D, o, 6, 7, Rc, shL, HL, mv(Rc, [-0.2, -1, -1]), k);
+  // the elbows: the gun arm's out to the side and down; the other's under the gun (a pistol's, both down and in)
+  const pis = H.style === 'pistol';
+  // (the hand's end is the fingertips: the grip sits in the palm, a little short of them and under)
+  const GH = add(G, W(pis ? [0.9, 0.35, -0.6] : [1.0, 0.45, -0.9]));
+  limb(
+    D,
+    o,
+    4,
+    5,
+    Rc,
+    shR,
+    GH,
+    add(mul(ar, pis ? 0.5 : 0.55), [0, 0, pis ? -0.9 : H.style === 'hip' ? -0.8 : -0.6]),
+    k
+  ); // out a little and down: seen from above a flared elbow reads as an arm hanging
+  limb(D, o, 6, 7, Rc, shL, HL, add(mul(ar, pis ? -0.5 : 0.15), [0, 0, -1]), k);
   const q = o + NB * 12,
     L = HERO_LOOK[p.npc ? 1 + (id % (HERO_LOOK.length - 1)) : 0],
     fl = p.hitT > 0 ? 0.12 : 0;
