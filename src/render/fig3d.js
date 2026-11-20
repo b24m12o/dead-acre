@@ -1922,6 +1922,10 @@ function heroArms(p, D, o, C) {
     D3(C.hands[0], RfR, wR);
     D3(C.hands[1], RfL, wL);
   }
+  heroLooks(p, D, o, id);
+}
+// the hero's (or a survivor's) looks, after its bones in its row
+function heroLooks(p, D, o, id) {
   const q = o + NB * 12,
     L = HERO_LOOK[p.npc ? 1 + (id % (HERO_LOOK.length - 1)) : 0],
     fl = p.hitT > 0 ? 0.12 : 0;
@@ -1977,6 +1981,38 @@ function fkAdd(c, t, w, loop) {
     rb = c.root[loop ? (i + 1) % n : Math.min(i + 1, n - 1)];
   for (let j = 0; j < 3; j++) FKR[j] += (ra[j] * (1 - f) + rb[j] * f) * w;
 }
+const FK2 = new Float32Array(22 * 4),
+  FKR2 = new Float32Array(3);
+const fkNorm = Q => {
+  for (let b = 0; b < 22; b++) {
+    const o4 = b * 4,
+      l = Math.hypot(Q[o4], Q[o4 + 1], Q[o4 + 2], Q[o4 + 3]) || 1;
+    for (let j = 0; j < 4; j++) Q[o4 + j] /= l;
+  }
+};
+// one clip's moment alone, into Q (and its hips' place into Rt)
+function fkSnap(Q, Rt, c, t, loop) {
+  const sq = FKQ.slice(),
+    sr = FKR.slice();
+  FKQ.fill(0);
+  FKR.fill(0);
+  fkAdd(c, t, 1, loop);
+  fkNorm(FKQ);
+  Q.set(FKQ);
+  Rt.set(FKR);
+  FKQ.set(sq);
+  FKR.set(sr);
+}
+// bone b of Q moved toward Q2's by w
+function fkMix(Q, Q2, b, w) {
+  const o4 = b * 4;
+  let d = 0;
+  for (let j = 0; j < 4; j++) d += Q[o4 + j] * Q2[o4 + j];
+  const s2 = d < 0 ? -1 : 1;
+  for (let j = 0; j < 4; j++) Q[o4 + j] += (Q2[o4 + j] * s2 - Q[o4 + j]) * w;
+  const l = Math.hypot(Q[o4], Q[o4 + 1], Q[o4 + 2], Q[o4 + 3]) || 1;
+  for (let j = 0; j < 4; j++) Q[o4 + j] /= l;
+}
 // each bone's turn from our rest to the recording's T-pose (the shortest one: both stand facing forward)
 function fkAlign(MM) {
   if (MM.fkA) return MM.fkA;
@@ -2027,30 +2063,58 @@ function poseHeroFK(p, D, o) {
   }
   const yaw = p._legA,
     tw = clamp(angDiff(yaw, aim + blade), -1.7, 1.7);
-  // which recordings, how much of each: standing, walking, running, by the speed
+  // which recordings, how much of each: standing, walking, running, by the speed. Running, the recorded stride is
+  // long (an athlete's): the legs swing a shorter arc, at a quicker beat, over the same ground
   const C = FK.clips,
     wMove = clamp((sL - 0.08) / 0.35, 0, 1),
     wJ = clamp((sL - 1.2) / 2.0, 0, 1),
     wW = (1 - wJ) * wMove,
     wJog = wJ * wMove,
-    cyc = wW * C.walk.v * C.walk.dur + wJog * C.jog.v * C.jog.dur; // the ground a stride covers, blended
+    shortK = 1 - 0.3 * wJ, // how much of the recorded swing
+    cyc = (wW * C.walk.v * C.walk.dur + wJog * C.jog.v * C.jog.dur) * shortK; // the ground a stride covers
   p._fph = (p._fph || 0) + (cyc > 0.01 ? ((back ? -1 : 1) * dt * sL) / (cyc / Math.max(wMove, 0.01)) : 0);
+  const ph = ((p._fph % 1) + 1) % 1;
   FKQ.fill(0);
   FKR.fill(0);
-  const ph = ((p._fph % 1) + 1) % 1;
   fkAdd(C.idle, t, 1 - wMove, true);
   fkAdd(C.walk, ((ph + C.walk.ph0) % 1) * C.walk.dur, wW, true);
   fkAdd(C.jog, ((ph + C.jog.ph0) % 1) * C.jog.dur, wJog, true);
+  fkNorm(FKQ);
+  // the legs' shorter arc: their turns drawn back toward standing
+  if (shortK < 1 && wMove > 0) {
+    fkSnap(FK2, FKR2, C.idle, t, true);
+    for (let b = 14; b < 22; b++) fkMix(FKQ, FK2, b, 1 - shortK);
+  }
+  // a hit: the trunk and head jolted back, as the recording flinches
+  const hurtK = p.hurt > 0 ? Math.sin(Math.PI * clamp(1 - p.hurt / 0.18, 0, 1)) * 0.85 : 0;
+  if (hurtK > 0) {
+    fkSnap(FK2, FKR2, C.hit, 0.14, false);
+    for (let b = 1; b <= 5; b++) fkMix(FKQ, FK2, b, hurtK);
+  }
+  // the dodge roll: the recording's roll, through in half a second, the way it was thrown; then back on its feet
+  if (p.dashT > 0 && !(t - (p._rollT0 ?? -9) < 0.55)) {
+    p._rollT0 = t;
+    p._rollA = p.dashA ?? yaw;
+  }
+  const rollU = (t - (p._rollT0 ?? -9)) / 0.5,
+    rollK = rollU >= 0 && rollU < 1 ? Math.min(1, rollU / 0.08, (1 - rollU) / 0.15) : 0;
+  if (rollK > 0) {
+    fkSnap(FK2, FKR2, C.roll, 0.45 + rollU * 1.05, false); // (the tuck and roll, not the dive before it)
+    for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, rollK);
+    for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * rollK;
+  }
+  const yawR = rollK > 0 ? p._rollA + angDiff(p._rollA, yaw) * (1 - rollK) : yaw;
   // place the bones: each turned as recorded (and the trunk on round to the aim), its joint where its parent's bone
   // puts it (our lengths, their turns)
-  const Ry = Rz(yaw),
+  const Ry = Rz(yawR),
     J = [],
     R = [];
-  const twistOf = b => (b === 1 ? 0.25 : b === 2 ? 0.6 : b >= 3 && b <= 13 ? 1 : 0);
+  const twistOf = b => (rollK > 0 ? 0 : b === 1 ? 0.25 : b === 2 ? 0.6 : b >= 3 && b <= 13 ? 1 : 0);
   for (let b = 0; b < 22; b++) {
-    const q4 = [FKQ[b * 4], FKQ[b * 4 + 1], FKQ[b * 4 + 2], FKQ[b * 4 + 3]],
-      l = Math.hypot(...q4) || 1,
-      Rb = mm(mm(Rz(yaw + tw * twistOf(b)), q9(q4.map(x => x / l))), A[b]);
+    const Rb = mm(
+      mm(Rz(yawR + tw * twistOf(b)), q9([FKQ[b * 4], FKQ[b * 4 + 1], FKQ[b * 4 + 2], FKQ[b * 4 + 3]])),
+      A[b]
+    );
     R[b] = Array.from(Rb);
     if (b === 0) {
       const rr = mv(Ry, [FKR[0] * Hl, FKR[1] * Hl, 0]);
@@ -2060,7 +2124,50 @@ function poseHeroFK(p, D, o) {
         d = mv(R[pj], sc3(sub(r[b], r[pj]), k));
       J[b] = [J[pj][0] + d[0], J[pj][1] + d[1], J[pj][2] + d[2]];
     }
-    if (b < 6 || b >= 14 || b === 6 || b === 10) D3(b, R[b], J[b]);
+    if (b < 6 || b >= 14 || b === 6 || b === 10 || rollK > 0) D3(b, R[b], J[b]);
+  }
+  // the feet: each held where it was put down while the recording has it on the ground (no sliding, the body may
+  // turn and change pace over it), the leg reaching to it; let go as it lifts
+  {
+    const stK = (1 - wJ) * MOTION.walk.st + wJ * MOTION.jog.st,
+      lk = p._lk || (p._lk = [{ on: false }, { on: false }]);
+    for (const [i, ti] of [
+      [0, 14],
+      [1, 18],
+    ]) {
+      const L = lk[i],
+        fp = ((((back ? 1 - ph : ph) + i * 0.5) % 1) + 1) % 1,
+        down = rollK > 0 ? false : wMove < 0.05 ? true : fp < stK,
+        ank = J[ti + 2];
+      if (!down) L.on = false;
+      else if (!L.on) {
+        L.on = true;
+        L.x = ank[0];
+        L.y = ank[1];
+      }
+      if (!L.on) continue;
+      if (Math.hypot(L.x - ank[0], L.y - ank[1]) > 0.45 * Hl) {
+        L.on = false; // left too far behind: let it go (the next step puts it down again)
+        continue;
+      }
+      const w = wMove < 0.05 ? 1 : clamp(Math.min(fp / stK, 1 - fp / stK) / 0.12, 0, 1),
+        tg = [ank[0] + (L.x - ank[0]) * w, ank[1] + (L.y - ank[1]) * w, ank[2]],
+        mid = mul(add(J[ti], ank), 0.5),
+        [, E] = limb(D, o, ti, ti + 1, R[0], J[ti], tg, sub(J[ti + 1], mid), k);
+      D3(ti + 2, R[ti + 2], E);
+      const toe = add(E, mv(R[ti + 2], sc3(sub(r[ti + 3], r[ti + 2]), k)));
+      D3(ti + 3, R[ti + 3], toe);
+    }
+  }
+  if (rollK > 0 && rollU < 0.7) {
+    // mid-roll the gun stays in the right hand (coming up out of it, the hands go back to it)
+    const hd = sub(J[9], J[8]),
+      Rg = rotTo([1, 0, 0], hd);
+    p._grip = add(J[9], mul(hd, 0.4));
+    p._gunR = Array.from(Rg);
+    p._mz = null;
+    heroLooks(p, D, o, id);
+    return;
   }
   // the arms and the gun as before, from the recorded shoulders
   heroArms(p, D, o, {
@@ -2231,7 +2338,8 @@ export function modelOf(e) {
 // you (or a survivor) in 3D, with your gun: when the meshes are in, and you're on your feet (rolling, down or riding
 // out, the pictures still draw)
 export function drawHero3D(p) {
-  if (!fig3dOn() || !FIG.models.hero || p.down > 0 || p.dashT > 0 || p.ride || p.hp <= 0) return false;
+  if (!fig3dOn() || !FIG.models.hero || p.down > 0 || p.ride || p.hp <= 0) return false;
+  if (p.dashT > 0 && !(FIG.models.hero.rest.length > 14)) return false; // (the roll, recorded, on the fuller skeleton)
   if (p.id === undefined) p.id = 9000 + Math.floor(Math.random() * 999);
   p.hero3d = true;
   if (p._f3 === frame && p._pT !== p.throwT) p._f3 = -1; // thrown since it was posed this frame: posed afresh
