@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { BOON, boonOn } from '../game/boons.js';
-import { BOX, GK, bodyTop } from '../core/scale.js';
+import { BOX, GK, TILT, bodyTop } from '../core/scale.js';
 import { roofStop } from '../world/roofs.js';
 import { camKick } from '../render/camera.js';
 import { GS } from '../core/gs.js';
@@ -16,6 +16,17 @@ import { noise, playS, spat, SBV } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, gd, heroGun, startReload } from '../game/state.js';
 import { makeEnemy } from './enemies.js';
+// where the shots are seen to leave: the 3D gun's muzzle (fig3d.js poses it each frame), or, drawn flat, out along the
+// aim at the gun's height. The round itself flies down the aim line through you, so nothing at point blank is missed:
+// what's drawn of it rides beside that line, out of the muzzle (lx, ly across it; h its height)
+const muzzleOf = (p, G, c, s) => {
+  const m = p._mz && GS.time - (p._mzT ?? -9) < 0.25 ? p._mz : null;
+  if (!m) return { x: p.x + c * G.muzzle, y: p.y + s * G.muzzle, h: 32, lx: 0, ly: 0, f: G.muzzle };
+  const dx = m[0] - p.x,
+    dy = m[1] - p.y,
+    l = -dx * s + dy * c;
+  return { x: m[0], y: m[1], h: m[2], lx: -s * l, ly: c * l, f: dx * c + dy * s };
+};
 import {
   bleed,
   bloodOf,
@@ -68,6 +79,7 @@ export function firePlayer(cwx, cwy, p, target) {
       s = Math.sin(p.aimA),
       mxp = p.x + c * G.muzzle,
       myp = p.y + s * G.muzzle,
+      M = muzzleOf(p, G, c, s),
       dm = G.dmg * S.dmg * hb.dmg * km.dmg * (g === 'pistol' && TW('pistol') ? 1.6 : 1) * (duty ? BOON.duty.dmg : 1),
       dp = duty ? BOON.duty.pierce : 0; // duty rounds (boons.js): through them, and harder
     let base = p.aimA;
@@ -131,7 +143,10 @@ export function firePlayer(cwx, cwy, p, target) {
         y: p.y + s * 14 * GK,
         sx: p.x + c * 14 * GK,
         sy: p.y + s * 14 * GK,
-        mz: G.muzzle - 14 * GK,
+        mz: Math.max(0, M.f - 14 * GK),
+        h: M.h,
+        lx: M.lx,
+        ly: M.ly,
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp,
         life: (G.life * 2.2 + G.muzzle / sp) * S.rangeK,
@@ -160,7 +175,10 @@ export function firePlayer(cwx, cwy, p, target) {
           y: p.y + s * 14 * GK,
           sx: p.x + c * 14 * GK,
           sy: p.y + s * 14 * GK,
-          mz: G.muzzle - 14 * GK,
+          mz: Math.max(0, M.f - 14 * GK),
+          h: M.h,
+          lx: M.lx,
+          ly: M.ly,
           ox: p.x + c * 14 * GK,
           oy: p.y + s * 14 * GK,
           vx: Math.cos(a) * sp,
@@ -213,6 +231,7 @@ export function firePlayer(cwx, cwy, p, target) {
         if (!q) return;
         const cc = Math.cos(aa),
           ss = Math.sin(aa),
+          QM = muzzleOf(q, G, cc, ss),
           br = (g === 'rifle' && Math.hypot(q.vx, q.vy) < 40 * GK) || braced,
           a =
             aa +
@@ -227,7 +246,10 @@ export function firePlayer(cwx, cwy, p, target) {
           y: q.y + ss * 14 * GK,
           sx: q.x + cc * 14 * GK,
           sy: q.y + ss * 14 * GK,
-          mz: G.muzzle - 14 * GK,
+          mz: Math.max(0, QM.f - 14 * GK),
+          h: QM.h,
+          lx: QM.lx,
+          ly: QM.ly,
           vx: Math.cos(a) * G.speed,
           vy: Math.sin(a) * G.speed,
           life: G.life + G.muzzle / G.speed,
@@ -259,10 +281,12 @@ export function firePlayer(cwx, cwy, p, target) {
             if (!GS.P || GS.state !== 'play' || GS.P.gun !== g) return;
             shot(GS.P.aimA, [0.4, 0.3, 0.25][i - 1] ?? 0.25);
             const cc = Math.cos(GS.P.aimA),
-              ss = Math.sin(GS.P.aimA);
+              ss = Math.sin(GS.P.aimA),
+              FM = muzzleOf(GS.P, G, cc, ss);
             GS.flashes.push({
-              x: GS.P.x + cc * (G.muzzle + 4),
-              y: GS.P.y + ss * (G.muzzle + 4),
+              x: FM.x + cc * 2 * GK,
+              y: FM.y + ss * 2 * GK,
+              h: FM.h,
               rot: GS.P.aimA,
               life: 0.04,
               max: 0.04,
@@ -317,8 +341,9 @@ export function firePlayer(cwx, cwy, p, target) {
     if (g === 'shotgun') p.pumpT = 0.56;
     makeNoise(p.x, p.y, (LOUD[g] || 700) * (sup ? 0.45 : 1));
     GS.flashes.push({
-      x: mxp + c * 4,
-      y: myp + s * 4,
+      x: M.x + c * 2 * GK,
+      y: M.y + s * 2 * GK,
+      h: M.h,
       rot: p.aimA + rand(-0.08, 0.08),
       life: 0.05,
       max: 0.05,
@@ -334,8 +359,8 @@ export function firePlayer(cwx, cwy, p, target) {
     for (let i = 0; i < (G.pellets || g === 'hunter' ? 2 : 1); i++)
       part({
         k: 2,
-        x: mxp + c * 8 * GK,
-        y: myp + s * 8 * GK,
+        x: M.x + c * 4 * GK,
+        y: M.y + s * 4 * GK - M.h * TILT, // the smoke where the muzzle is seen
         vx: c * rand(30, 70) + rand(-12, 12),
         vy: s * rand(30, 70) + rand(-12, 12),
         life: rand(1.3, 2.2),

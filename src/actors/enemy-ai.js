@@ -79,6 +79,21 @@ export const SIGHT = { half: 1.92, behind: 60 * GK };
 export const sieging = e => !!e.sg && !!GS.obj && GS.obj.type === 'siege' && !GS.obj.done;
 // one that can't or won't come (stuck behind something, lost in a corner, milling where its horde gathered): it climbs
 // back out of the dark just out of sight of you, and comes for you this time, not back to whatever noise it stood at
+// how fast a body on its feet can come round, radians a second: a hound's quick, the big ones slow; a runner's quicker
+// than a walker
+const turnRate = e =>
+  e.type === 'hound'
+    ? 7
+    : e.big || e.type === 'beetle' || e.brute
+      ? 1.7
+      : e.type === 'hopper' || e.kind === 'spore'
+        ? 2.4
+        : e.run || e.st === 'sprint'
+          ? 5.2
+          : e.crawl
+            ? 2.2
+            : 3.4;
+
 export function comeRound(e, r0 = 420, r1 = 560) {
   const [sx, sy] = spawnRing(r0, r1);
   e.offN = 0;
@@ -746,6 +761,32 @@ export function updateEnemy(e, dt, p) {
     tvx *= k;
     tvy *= k;
   } // the director's pace for the far crowd (director.js)
+  // a body on the move can't turn on the spot: its heading comes round at its own rate (a hound's quick, a brute's
+  // slow), and it slows into a sharp turn rather than reversing in a stride. Standing, it can turn where it is
+  if (
+    (tvx || tvy) &&
+    rate &&
+    em &&
+    !e.lure &&
+    !(e.down > 0) &&
+    e.type !== 'queen' &&
+    e.type !== 'wasp' &&
+    e.type !== 'egg'
+  ) {
+    const ts = Math.hypot(tvx, tvy),
+      cs = Math.hypot(e.vx, e.vy),
+      want = Math.atan2(tvy, tvx);
+    if (cs > 14 * GK) {
+      const cur = e.mh ?? Math.atan2(e.vy, e.vx),
+        wMax = turnRate(e),
+        d = angDiff(cur, want),
+        nh = cur + clamp(d, -wMax * dt, wMax * dt),
+        slow = Math.max(0.35, Math.cos(Math.min(Math.abs(d), Math.PI / 2)));
+      e.mh = nh;
+      tvx = Math.cos(nh) * ts * slow;
+      tvy = Math.sin(nh) * ts * slow;
+    } else e.mh = want;
+  }
   if (rate) {
     const k = damp(rate, dt);
     e.vx += (tvx - e.vx) * k;
@@ -806,6 +847,14 @@ export function updateEnemy(e, dt, p) {
             : 10,
         dt
       ); // a boss that's recovering turns slowly: that's when you get round its back
+  if (e.type !== 'queen' && !(e.down > 0) && !(e.shield && shieldUp(e))) {
+    // ... and no faster than a body can come round (the change above, held to it)
+    const wF = turnRate(e) * 1.6 * dt,
+      pa = e.__pa ?? e.a,
+      dd = angDiff(pa, e.a);
+    if (Math.abs(dd) > wF) e.a = pa + Math.sign(dd) * wF;
+  }
+  e.__pa = e.a;
   if (HUMAN[e.type] && !(e.down > 0 && downEl(e) < 1.12)) {
     const tg = aware || e.down > 0 ? Math.atan2(p.y - e.y, p.x - e.x) : e.a + Math.sin(GS.time * 0.7 + e.id) * 0.7;
     e.hl = (e.hl ?? e.a) + angDiff(e.hl ?? e.a, tg) * damp(e.down > 0 ? 4 : 7, dt);

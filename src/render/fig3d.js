@@ -11,7 +11,7 @@ import { angDiff, clamp, lerp } from '../core/util.js';
 import { gl, progFinish } from './gl.js';
 import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
 import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
-import { GK, HEROIC, PER_M, TILT, strideLen } from '../core/scale.js';
+import { GK, HEROIC, PER_M, TILT, gaitOfSpeed, strideLen } from '../core/scale.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
 
@@ -1071,12 +1071,30 @@ function poseZombie(e, D, o) {
   const stepL = (strideLen(e) * (chg ? 1.15 : 1) * mvv) / (4 * 0.9 * k[0]) / (run || chg ? 1 : e.cad || 1), // a quarter stride each way: the planted foot keeps pace with the street
     drag = run ? 1 : 0.55;
   const W = (lx, ly, lz) => [e.x + fwd[0] * lx + rt[0] * ly, e.y + fwd[1] * lx + rt[1] * ly, lz];
+  // on its feet and walking the street, its feet are planted where they land (stepFeet): no sliding, no spinning on a
+  // spot; its gait (a limp, a dragged leg, a lift) carried over
+  const dtz = clamp(t - (e._ft ?? t), 0, 0.1);
+  e._ft = t;
+  const SF =
+    !feet && em >= 1 && !crouch && !climb && !(e.wbT > 0 && mvv < 0.1)
+      ? stepFeet(e, dtz, yaw, 4.3 * kp * (brute || fat ? 1.25 : 1) * (run ? 1 : G.stance), 0, {
+          L: (strideLen(e) * (chg ? 1.15 : 1)) / (run || chg ? 1 : e.cad || 1),
+          ph: e.stride || 0,
+          runK: run || chg ? 1 : 0,
+          lift: run ? 1.1 : limp ? 0.5 : 0.75 * G.lift,
+          sz: k[1] / (FIGK * 1.0),
+          short: [limp ? 0.3 : run ? 1 : drag + 0.2, 1],
+        })
+      : null;
   for (const sd of [1, -1]) {
     const ti = sd > 0 ? 8 : 11,
       hip = add(Jp, mv(Rpp, sc3(sub(r[ti], r[0]), k)));
     let foot;
     if (feet) foot = feet[sd > 0 ? 0 : 1];
-    else {
+    else if (SF) {
+      const F = SF.feet[sd > 0 ? 0 : 1];
+      foot = [F.x, F.y, r[ti + 2][2] * k[1] + F.z + Math.max(0, F.pitch) * 2.4 * k[1]];
+    } else {
       const bad = limp && sd > 0,
         s1 = Math.sin(ph + (sd > 0 ? Math.PI : 0)),
         f = s1 * stepL * (bad ? 0.3 : sd > 0 ? drag : 1) * (run || sd !== G.hs ? 1 : G.hitch) - (bad ? 4 * mvv : 0),
@@ -1091,7 +1109,11 @@ function poseZombie(e, D, o) {
     const pole = lieR && !feet ? mv(Rpp, [1, sd * 0.15, 0]) : mv(Rpp, [1, sd * 0.15, 0]),
       [Rsh, ank] = limb(D, o, ti, ti + 1, Rpp, hip, foot, pole, k);
     // the foot: flat, pointing where the body points (turned out a little); on the ground, along the shin
-    const flat = mm(Rz(yaw + sd * G.toe + (limp && sd > 0 ? 0.5 : 0)), Ryb(0)),
+    const Fs = SF && SF.feet[sd > 0 ? 0 : 1],
+      flat = mm(
+        Rz((Fs ? Fs.yaw - sd * 0.1 : yaw) + sd * G.toe + (limp && sd > 0 ? 0.5 : 0)),
+        Ryb(Fs ? Fs.pitch * 0.7 : 0)
+      ),
       Rf = ground ? slerpR(mm(Rsh, Ryb(Math.PI / 2)), flat, uprightK) : flat; // on the ground the foot points on along the shin (kneeling, it rests on its instep)
     D3(ti + 2, Rf, ank);
   }
@@ -1468,18 +1490,166 @@ const HOLD = {
   lmg: { style: 'hip', butt: [-9.8, 0, 1.4], fore: [12, 0, 0.6], mag: [3, 0, -2.8], blade: 0.42 },
   pistol: { style: 'pistol', butt: [0, 0, 0], fore: [-0.2, -0.95, -0.5], mag: [0, 0, -1.6], blade: 0 },
 };
+// where each one's bore comes out (tools/mesh/guns.mjs): the shots are seen to leave from there
+const TIP = {
+  rifle: [21, 0, 1.9],
+  shotgun: [25, 0, 2],
+  smg: [13.5, 0, 1.9],
+  auto: [24, 0, 1.9],
+  hunter: [27, 0, 1.9],
+  lever: [24, 0, 2],
+  lmg: [28, 0, 2],
+  launcher: [16, 0, 2.3],
+  pistol: [6.4, 0, 1.9],
+};
 const lerp3 = (a, b, f) => v3(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
-// a walking foot over one stride (ph 0..1): planted for the first 60% (it stays where it was put while the body goes
-// over it), then lifted and swung through to land ahead. Returns [along (-1 behind .. 1 ahead), lift (0..1), pitch]
-function footCycle(ph) {
-  const ST = 0.6;
-  if (ph < ST) {
-    const t = ph / ST;
-    return [1 - 2 * t, 0, t < 0.15 ? -0.3 * (1 - t / 0.15) : t > 0.7 ? 0.55 * ((t - 0.7) / 0.3) : 0]; // heel down first; heel up to push off
+// ---------- the feet: a stride from the speed, each foot planted in the street while it bears ----------
+// Each foot is put down ahead of its hip by half the way the body will go while it bears, and stays exactly there,
+// whatever the body does, until it lifts; in the air it swings through to where it will next come down (so it never
+// slides, changing direction included). Stopping, the step under way is finished; standing, a foot that has been left
+// behind or twisted under a turn is picked up and set down again, one at a time. sp: from the middle to each foot
+// o (for the dead that walk): L, the ground a stride covers (the stride then set by the street, not the beat); ph, the
+// stride's own count (enemy-ai.js keeps it, its lurches go with it); runK; lift and size (sz) against a man's;
+// short, how much of a full step each foot takes (a limp, a dragged leg)
+function stepFeet(p, dt, hy, sp, top, o = null) {
+  const vx = p.vx || 0,
+    vy = p.vy || 0,
+    v = Math.hypot(vx, vy),
+    gs = o ? { runK: o.runK || 0, f: Math.max(0.55, v / o.L), st: 0.6 - 0.24 * (o.runK || 0) } : gaitOfSpeed(v, top),
+    { runK, st } = gs,
+    // no step longer than the legs allow (a foot lands at most this far ahead of its hip): faster, the beat quickens
+    Amax = 10.5 * GK * 2.4 * (o ? o.sz || 1 : 1),
+    f = Math.max(gs.f, (v * st) / (2 * Amax)),
+    synced = !o || f <= gs.f * 1.02,
+    mk = o ? clamp(v / (14 * GK), 0, 1) : clamp(v / (0.18 * top), 0, 1),
+    SZ = o ? o.sz || 1 : 1,
+    hr = [-Math.sin(hy), Math.cos(hy)],
+    rest = sd => [p.x + hr[0] * sd * sp, p.y + hr[1] * sd * sp];
+  let g = p._sf;
+  if (!g || Math.hypot(g.cx - p.x, g.cy - p.y) > 70 * GK) {
+    // a first frame, or it was carried off (a dash, a respawn): the feet set under it
+    g = p._sf = { ph: 0, idle: -1, it: 0, cx: p.x, cy: p.y, feet: null };
+    g.feet = [1, -1].map(sd => {
+      const R = rest(sd);
+      return { x: R[0], y: R[1], z: 0, lx: R[0], ly: R[1], yaw: hy + sd * 0.1, pitch: 0, st: true };
+    });
   }
-  const t = (ph - ST) / (1 - ST),
-    e = t * t * (3 - 2 * t);
-  return [-1 + 2 * e, Math.sin(Math.PI * t), 0.55 * (1 - t) - (0.3 * Math.max(0, t - 0.6)) / 0.4];
+  g.cx = p.x;
+  g.cy = p.y;
+  if (mk > 0.04) {
+    if (o && o.ph !== undefined && synced && Math.abs(o.ph - g.ph) < 0.6) g.ph = o.ph;
+    else g.ph += dt * f; // (the beat set by the speed, and the step's length by the beat: never stretched)
+  } else if ((g.ph * 2) % 1 > 0.2) g.ph += dt * 1.6; // the step under way finished: then both feet are down
+  const A = (v * st) / (2 * f), // a foot lands this far ahead of its hip
+    dx = v > 1 ? vx / v : 0,
+    dy = v > 1 ? vy / v : 0,
+    lift = (2.0 + 2.4 * runK) * GK * 2.4 * (o ? o.lift : 1) * SZ,
+    reach = 17 * GK * 2.4 * SZ; // past this from its hip a foot is dragged rather than the leg pulled off
+  let bob = 0,
+    sway = 0,
+    down = 0;
+  g.feet.forEach((F, i) => {
+    const sd = i ? -1 : 1,
+      ph = (g.ph + i * 0.5) % 1,
+      R = rest(sd),
+      walking = mk > 0.04 || (g.ph * 2) % 1 > 0.2;
+    if (!walking) return;
+    const inSt = ph < st;
+    if (inSt && !F.st) {
+      F.st = true;
+      F.yaw = hy + sd * 0.1;
+    }
+    if (!inSt && F.st) {
+      F.st = false;
+      F.lx = F.x;
+      F.ly = F.y;
+    }
+    if (inSt) {
+      const u = ph / st,
+        c = Math.sin(Math.PI * u);
+      F.z = 0;
+      F.pitch = mk * (u < 0.15 ? -0.3 * (1 - u / 0.15) : u > 0.7 ? 0.6 * ((u - 0.7) / 0.3) : 0); // heel first; heel up to push off
+      bob += c * (0.5 * (1 - runK) - 0.8 * runK) * mk; // walking, vaulting over the leg; running, sinking into it
+      sway += sd * c * 0.45 * (1 - 0.6 * runK) * mk;
+      down++;
+    } else {
+      const u = (ph - st) / (1 - st),
+        left = ((1 - u) * (1 - st)) / f, // seconds before it lands
+        // walking, the foot eases off and eases down; running, it comes through briskly, folded up under the hip
+        ee = lerp(u * u * (3 - 2 * u), 1 - (1 - u) * (1 - u), runK);
+      const Af = A * (o && o.short ? o.short[i] : 1);
+      let tx = R[0] + vx * left + dx * Af,
+        ty = R[1] + vy * left + dy * Af;
+      // never across the other foot
+      const lat = (tx - p.x) * hr[0] + (ty - p.y) * hr[1],
+        ok = sd > 0 ? Math.max(lat, sp * 0.65) : Math.min(lat, -sp * 0.65);
+      tx += hr[0] * (ok - lat);
+      ty += hr[1] * (ok - lat);
+      F.x = F.lx + (tx - F.lx) * ee;
+      F.y = F.ly + (ty - F.ly) * ee;
+      F.z =
+        Math.sin(Math.PI * u) * lift * Math.max(mk, 0.4) * (o && o.short ? 0.25 + 0.75 * o.short[i] : 1) +
+        runK * mk * Math.sin(Math.PI * Math.min(1, u * 1.7)) * lift * 0.9; // and the heel kicked up behind
+      F.yaw += angDiff(F.yaw, hy + sd * 0.1) * Math.min(1, dt * 14);
+      F.pitch = mk * (0.6 * (1 - u) - (0.3 * Math.max(0, u - 0.6)) / 0.4);
+    }
+  });
+  if (!(mk > 0.04 || (g.ph * 2) % 1 > 0.2)) {
+    // standing: a foot left behind, or twisted under a turn, stepped back under the hip
+    if (g.idle < 0)
+      for (let i = 0; i < 2; i++) {
+        const F = g.feet[i],
+          R = rest(i ? -1 : 1);
+        if (Math.hypot(F.x - R[0], F.y - R[1]) > 3.2 * GK * 2.4 * SZ || Math.abs(angDiff(F.yaw, hy)) > 0.75) {
+          g.idle = i;
+          g.it = 0;
+          F.lx = F.x;
+          F.ly = F.y;
+          break;
+        }
+      }
+    if (g.idle >= 0) {
+      const i = g.idle,
+        F = g.feet[i],
+        sd = i ? -1 : 1,
+        R = rest(sd);
+      g.it = Math.min(1, g.it + dt / 0.26);
+      const e = g.it * g.it * (3 - 2 * g.it);
+      F.x = F.lx + (R[0] - F.lx) * e;
+      F.y = F.ly + (R[1] - F.ly) * e;
+      F.z = Math.sin(Math.PI * g.it) * 2.2 * GK * 2.4;
+      F.yaw += angDiff(F.yaw, hy + sd * 0.1) * Math.min(1, dt * 12);
+      F.pitch = 0.25 * Math.sin(Math.PI * g.it);
+      F.st = true;
+      sway -= sd * 0.35 * Math.sin(Math.PI * g.it); // the weight on the other foot
+      if (g.it >= 1) g.idle = -1;
+    } else
+      for (const F of g.feet) {
+        F.z = 0;
+        F.pitch = 0;
+      }
+  }
+  // a planted foot the body has run away from (a shove, a hit) is dragged rather than the leg torn off
+  for (let i = 0; i < 2; i++) {
+    const F = g.feet[i],
+      R = rest(i ? -1 : 1),
+      ddx = F.x - R[0],
+      ddy = F.y - R[1],
+      dd = Math.hypot(ddx, ddy);
+    if (dd > reach) {
+      F.x = R[0] + (ddx / dd) * reach;
+      F.y = R[1] + (ddy / dd) * reach;
+    }
+  }
+  if (!down && runK > 0.3) bob += 0.6 * runK * mk; // both feet off the ground, running
+  return {
+    feet: g.feet,
+    runK,
+    mk,
+    bob: bob - (0.3 + 0.9 * runK) * mk, // a little lower, the faster it goes
+    sway,
+    twist: 0.1 * mk * (0.4 + runK) * Math.sin(2 * Math.PI * g.ph),
+  };
 }
 function poseHero(p, D, o) {
   poolReset();
@@ -1494,7 +1664,6 @@ function poseHero(p, D, o) {
     k = [bs, bs],
     D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]),
     aim = p.npc ? (p.aim ?? p.bodyA) : p.bodyA,
-    amp = clamp(p.strideAmp || 0, 0, 1),
     gm = gunModel(p.gun),
     H = HOLD[gm] || HOLD.rifle,
     kick = clamp((p.recoil || 0) / 8, 0, 1), // the gun's kick, back into the shoulder
@@ -1504,76 +1673,69 @@ function poseHero(p, D, o) {
     breathe = Math.sin(t * 2.2 + id) * 0.25,
     dt = clamp(t - (p._hipT ?? t), 0, 0.1);
   p._hipT = t;
-  // the hips face the aim, turned a little toward the way you're going (or, backing off, away from it): the feet step
-  // whichever way you move. Standing, they stay put till the body has twisted too far over them, then step round
-  const spd = Math.hypot(p.vx || 0, p.vy || 0),
-    mA = spd > 4 ? Math.atan2(p.vy, p.vx) : (p.moveA ?? aim),
+  // the hips face the aim, turned a little toward the way you're going (or, backing off, away from it); standing, they
+  // follow the aim once it has turned well past them. The feet do the rest (stepFeet)
+  const vx = p.vx || 0,
+    vy = p.vy || 0,
+    spd = Math.hypot(vx, vy),
+    top = 260 * GK,
+    mA = spd > 4 ? Math.atan2(vy, vx) : (p.moveA ?? aim),
     rel = angDiff(aim, mA),
     back = Math.abs(rel) > 1.95,
-    moving = amp > 0.08;
+    moving = spd > 0.12 * top;
   if (p._hipA === undefined) p._hipA = aim;
-  let turn = 0;
-  if (moving) {
-    const want = aim + clamp(back ? angDiff(aim, mA + Math.PI) : rel, -0.7, 0.7) * 0.55;
-    p._hipA += angDiff(p._hipA, want) * Math.min(1, dt * 9);
-    p._hipStep = 0;
-  } else {
-    const off = angDiff(p._hipA, aim);
-    if (Math.abs(off) > 0.85) p._hipStep = 1;
-    if (p._hipStep) {
-      p._hipA += off * Math.min(1, dt * 7);
-      p._stepPh = (p._stepPh || 0) + dt * 2.6; // short steps on the spot
-      if (Math.abs(off) < 0.1) p._hipStep = 0;
-    }
+  {
+    const off = angDiff(p._hipA, aim),
+      want = moving
+        ? aim + clamp(back ? angDiff(aim, mA + Math.PI) : rel, -1.05, 1.05) * 0.9
+        : Math.abs(off) > 0.45
+          ? aim
+          : p._hipA;
+    p._hipA += angDiff(p._hipA, want) * Math.min(1, dt * (moving ? 9 : 6));
   }
-  p._turnK = lerp(p._turnK || 0, p._hipStep ? 1 : 0, Math.min(1, dt * 12));
-  turn = p._turnK;
-  const hy = p._hipA,
+  // leaning: forward into speed and into a hard start, back as it stops, over into a turn
+  {
+    const ax = (vx - (p._pvx ?? vx)) / Math.max(dt, 1e-3),
+      ay = (vy - (p._pvy ?? vy)) / Math.max(dt, 1e-3);
+    p._pvx = vx;
+    p._pvy = vy;
+    const kk = Math.min(1, dt * 8);
+    p._ax = lerp(p._ax || 0, ax, kk);
+    p._ay = lerp(p._ay || 0, ay, kk);
+  }
+  const hy0 = p._hipA,
+    G0 = stepFeet(p, dt, hy0, 4.4 * k[0], top),
+    hy = hy0 + G0.twist, // the pelvis swings round with the leg going through
     blade = (H.blade + shv * 0.1) * (1 - rl * 0.4), // side-on behind a long gun, square behind a pistol
     tw = clamp(angDiff(hy, aim + blade), -1.3, 1.3),
-    ph = moving ? p.stride || 0 : p._stepPh || 0,
-    gA = Math.max(amp, turn * 0.35), // how hard it's walking
-    phs = [ph % 1, (ph + 0.5) % 1], // the right foot, the left half a stride on
-    fc = phs.map(footCycle),
-    bob = (Math.cos(ph * Math.PI * 4) * 0.5 + 0.5) * 0.9 * gA, // lowest as each foot lands
-    sway = (fc[0][1] > 0 ? -1 : fc[1][1] > 0 ? 1 : 0) * 0.5 * gA; // over the foot it stands on
-  // hips over the legs, the trunk twisting up to the aim; a lean into the gun, a shove's lunge
-  const hr = [-Math.sin(hy), Math.cos(hy), 0],
-    Rp = mm(Rz(hy), mm(Rxb(sway * 0.05), Ryb(0.04 * amp))),
-    Jp = [p.x + hr[0] * sway * k[0], p.y + hr[1] * sway * k[0], (r[0][2] - 0.7 * gA - bob - shv * 0.6) * k[1]],
-    Rs = mm(Rp, mm(Rz(tw * 0.45), Ryb(0.06 + amp * 0.04 + shv * 0.12))),
-    Rc = mm(Rs, mm(Rz(tw * 0.55), Ryb(0.05 + breathe * 0.01 - kick * 0.06 + shv * 0.1))),
+    hr = [-Math.sin(hy0), Math.cos(hy0), 0],
+    fwd = [Math.cos(hy0), Math.sin(hy0), 0],
+    aF = (p._ax * fwd[0] + p._ay * fwd[1]) / top,
+    aR = (p._ax * hr[0] + p._ay * hr[1]) / top,
+    leanF = clamp(0.04 + 0.14 * G0.runK * G0.mk + aF * 0.025, -0.12, 0.3),
+    leanR = clamp(aR * 0.02, -0.12, 0.12);
+  // hips over the legs, the trunk twisting up to the aim, leaning; a shove's lunge
+  const Rp = mm(Rz(hy), mm(Rxb(G0.sway * 0.04 + leanR * 0.5), Ryb(leanF * 0.4))),
+    Jp = [p.x + hr[0] * G0.sway * k[0], p.y + hr[1] * G0.sway * k[0], (r[0][2] + G0.bob - shv * 0.6) * k[1]],
+    Rs = mm(Rp, mm(Rz(tw * 0.45), mm(Rxb(leanR * 0.5), Ryb(0.04 + leanF * 0.6 + shv * 0.12)))),
+    Rc = mm(Rs, mm(Rz(tw * 0.55), Ryb(0.04 + breathe * 0.01 - kick * 0.06 + shv * 0.1 - leanF * 0.25))),
     Js = add(Jp, mv(Rp, sc3(sub(r[1], r[0]), k))),
     Jc = add(Js, mv(Rs, sc3(sub(r[2], r[1]), k)));
   D3(0, Rp, Jp);
   D3(1, Rs, Js);
   D3(2, Rc, Jc);
-  // the legs: feet under the hips, a hand's width apart, each planted while it bears and swung through to land ahead
-  const md = [Math.cos(back ? mA : mA), Math.sin(mA), 0],
-    A = moving ? ((76 * GK) / 4) * amp : 1.2 * k[0] * turn, // half a step, in the street's units
-    fwdH = [Math.cos(hy), Math.sin(hy), 0],
-    dirS = moving ? md : fwdH;
+  // the legs reach down to where the feet are
   for (const [i, sd] of [
     [0, 1],
     [1, -1],
   ]) {
     const ti = sd > 0 ? 8 : 11,
-      [al, lift, pitch] = fc[i],
+      F = G0.feet[i],
       hip = add(Jp, mv(Rp, sc3(sub(r[ti], r[0]), k))),
-      spread = 4.3 * k[0];
-    let fx = dirS[0] * al * A,
-      fy = dirS[1] * al * A;
-    // never across the other foot: what of the step goes sideways is held to its own side
-    const lat = fx * hr[0] + fy * hr[1],
-      side = sd * spread + lat,
-      ok = sd > 0 ? Math.max(side, 2.8 * k[0]) : Math.min(side, -2.8 * k[0]);
-    fx += hr[0] * (ok - lat);
-    fy += hr[1] * (ok - lat);
-    const hl = lift * (2.6 + 1.2 * amp) * gA * k[1],
-      pz = Math.max(0, pitch) * 3.2 * k[1] * gA, // the heel off the ground as it pushes off
-      foot = [p.x + fx, p.y + fy, r[ti + 2][2] * k[1] + hl + pz];
-    const [, ank] = limb(D, o, ti, ti + 1, Rp, hip, foot, add(fwdH, [hr[0] * sd * 0.15, hr[1] * sd * 0.15, 0]), k);
-    D3(ti + 2, mm(Rz(hy + sd * 0.1), Ryb(pitch * gA)), ank);
+      foot = [F.x, F.y, r[ti + 2][2] * k[1] + F.z + Math.max(0, F.pitch) * 3.0 * k[1]],
+      kf = [Math.cos(F.yaw), Math.sin(F.yaw), 0];
+    const [, ank] = limb(D, o, ti, ti + 1, Rp, hip, foot, add(kf, [hr[0] * sd * 0.12, hr[1] * sd * 0.12, 0]), k);
+    D3(ti + 2, mm(Rz(F.yaw), Ryb(F.pitch)), ank);
   }
   // the gun, held as that kind is: a long gun's stock in the shoulder, the cheek down on it; a submachine gun tucked
   // in tight; the machine gun at the hip under the arm; a pistol out in both hands at arm's length
@@ -1605,6 +1767,11 @@ function poseHero(p, D, o) {
   }
   p._grip = [G[0], G[1], G[2]]; // copies: the pools are handed out afresh when the gun itself is posed
   p._gunR = Rg.slice();
+  {
+    const m = add(G, W(TIP[gm] || TIP.rifle));
+    p._mz = [m[0], m[1], m[2]]; // the muzzle, for the shots (player-weapons.js)
+    p._mzT = t;
+  }
   // the other hand: on the fore-end (sliding back with a shotgun's pump), at the magazine reloading, or thrown
   const pump = H.pump && p.pumpT > 0 && p.pumpT < 0.24 ? Math.sin((1 - p.pumpT / 0.24) * Math.PI) : 0,
     foreP = [H.fore[0] - pump * 3.2, H.fore[1], H.fore[2]],

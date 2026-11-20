@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { cineTick } from '../game/cine.js';
-import { GK } from '../core/scale.js';
+import { GK, gaitOfSpeed } from '../core/scale.js';
 import { DAWN_IDLE, dawnBusy } from '../game/night-flow.js';
 import { takePouch } from '../game/pockets.js';
 import { BOON, boonOn, tickBoons } from '../game/boons.js';
@@ -212,12 +212,17 @@ export function update(dt) {
         pileSlow(p.x, p.y, true) *
         (p.gun === 'lmg' && !S.evo.walkfire && GS.time - (p.lastShotT || -9) < 0.22 ? 0.6 : 1) *
         (boonOn('adren') ? BOON.speed : 1),
-      tvx = mx * S.speed * dz2,
-      tvy = my * S.speed * dz2,
+      // backing off you're a little slower than going forward (strafing, a touch): the legs aren't made for it
+      bk = mx || my ? Math.max(0, -Math.cos(angDiff(p.bodyA, Math.atan2(my, mx)))) : 0,
+      dz3 = dz2 * (1 - 0.16 * bk),
+      tvx = mx * S.speed * dz3,
+      tvy = my * S.speed * dz3,
       dvx = tvx - p.vx,
       dvy = tvy - p.vy,
       dl = Math.hypot(dvx, dvy),
-      acc = (mx || my ? 2000 : 2400) * GK * dt;
+      // a body has weight: up to speed in about a fifth of a second, down from it in a sixth, a turn about carries it
+      // on a moment; quick enough to dodge with
+      acc = S.speed * (mx || my ? 5.5 : 6.5) * dt;
     if (dl <= acc) {
       p.vx = tvx;
       p.vy = tvy;
@@ -233,7 +238,12 @@ export function update(dt) {
   if (spd > 20 * GK) p.moveA += angDiff(p.moveA, Math.atan2(p.vy, p.vx)) * damp(12, dt);
   p.strideAmp = lerp(p.strideAmp, Math.min(1, spd / S.speed), damp(10, dt));
   const ps = p.stride;
-  p.stride += (spd * dt) / (76 * GK);
+  {
+    // the stride's beat from the speed (scale.js): a footstep with each half
+    const { f } = gaitOfSpeed(spd, S.speed),
+      mk = clamp(spd / (0.18 * S.speed), 0, 1);
+    p.stride += mk > 0.04 ? dt * f : 0;
+  }
   // the legs keep their own heading: walking, the way you go (backing off, the way you face, stepping backward);
   // standing, where they were, until the body has turned too far over them, and then they step round after it
   if (p.legA === undefined) p.legA = p.bodyA;

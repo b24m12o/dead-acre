@@ -813,12 +813,13 @@ export function render() {
       gc = S.evo.gold && !b.small ? [2.8, 2.2, 0.8] : b.pellet ? [2.4, 1.6, 0.7] : [2.8, 1.7, 0.6];
     if (b.tr === undefined) b.tr = S.evo.gold || Math.random() < (b.pellet ? 0.12 : b.small ? 0.2 : 0.3);
     const tk = b.tr ? 1 : 0.32;
-    if (b.tr)
-      quad(R.glow, b.x, b.y - BUL_UP, 0, 0.16 * sc, 0.16 * sc, 0, 0, 0, 1, gc[0] * 0.18, gc[1] * 0.18, gc[2] * 0.18, 0);
+    const bx = b.x + (b.lx || 0),
+      by = b.y + (b.ly || 0) - (b.h === undefined ? BUL_UP : b.h * TILT); // beside the aim line, out of the muzzle
+    if (b.tr) quad(R.glow, bx, by, 0, 0.16 * sc, 0.16 * sc, 0, 0, 0, 1, gc[0] * 0.18, gc[1] * 0.18, gc[2] * 0.18, 0);
     quad(
       R.bolt,
-      b.x - Math.cos(a) * 12 * sc,
-      b.y - Math.sin(a) * 12 * sc - BUL_UP,
+      bx - Math.cos(a) * 12 * sc,
+      by - Math.sin(a) * 12 * sc,
       a,
       1.05 * sc,
       0.28 * (b.pellet ? 0.8 : 1) * BOLT_W, // thinner than the barrel it left
@@ -1063,7 +1064,8 @@ export function render() {
     }
   }
   for (const f of GS.flashes) {
-    if (f.reg) quad(f.reg, f.x, f.y, f.rot, f.fs * GK, f.fs * GK, 0, 0, 0, f.life / f.max, 3.6, 2.3, 0.9, 0);
+    if (f.reg)
+      quad(f.reg, f.x, f.y - (f.h || 0) * TILT, f.rot, f.fs * GK, f.fs * GK, 0, 0, 0, f.life / f.max, 3.6, 2.3, 0.9, 0);
     else
       quad(
         R.muzzle,

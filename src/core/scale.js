@@ -60,3 +60,11 @@ export const bodyTop = e =>
   (e.crawl || e.down > 0 || e.half
     ? 8
     : (e.type === 'hound' ? 22 : e.type === 'queen' ? 120 : 50) * (figK(e) / PEOPLE));
+// a body's gait at a speed v (its top speed top): how far it has gone from a walk into a run (runK), strides a second
+// (f: a step with each foot), and the part of a stride each foot is down (st: past half, both are down at once, walking;
+// well under, there are moments with neither, running). People change the length of their stride more than its beat
+export const gaitOfSpeed = (v, top) => {
+  const x = Math.min(1, Math.max(0, (v / top - 0.42) / 0.4)),
+    runK = x * x * (3 - 2 * x);
+  return { runK, f: 0.95 + 1.0 * runK, st: 0.6 - 0.22 * runK }; // (a soldier with his gun up: a quick, short-stepped jog)
+};
