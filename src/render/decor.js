@@ -532,19 +532,14 @@ export function decorLights() {
       if (on) {
         for (const sd of [1, -1])
           addLight(c.x + Math.cos(c.a) * 36 * sd, c.y + Math.sin(c.a) * 36 * sd, 170, 1.1, 0.62, 0.12);
-        addLight(c.x + Math.cos(c.a) * 40, c.y + Math.sin(c.a) * 40, 360, 0.8, 0.78, 0.66, c.a, 0.9);
+        headBeams(c, 0.8, 0.78, 0.66, 1);
       }
     }
     if (c.police) {
       const on = Math.sin(GS.time * 14) > 0;
       addLight(c.x, c.y, 300, on ? 0.12 : 0.75, 0.08, on ? 0.85 : 0.12);
     }
-    if (c.lights) {
-      const k = c.hp < c.max * 0.5 && Math.sin(GS.time * 23 + c.x) > 0.3 ? 0.15 : 1,
-        fx = c.x + Math.cos(c.a) * 40,
-        fy = c.y + Math.sin(c.a) * 40;
-      addLight(fx, fy, 380, 1.0 * k, 0.95 * k, 0.8 * k, c.a, 0.9);
-    }
+    if (c.lights) headBeams(c, 1.0, 0.95, 0.8, 0);
   }
   for (let i = 0; i < GS.grassFire.length; i += 5) {
     const g = GS.grassFire[i],
@@ -559,6 +554,30 @@ export function decorLights() {
         col = s === 2 ? [0.1, 0.6, 0.25] : s === 1 ? [0.7, 0.5, 0.08] : [0.75, 0.1, 0.08];
       addLight(ax, d.y, 120, col[0], col[1], col[2]);
     }
+}
+// a car's headlamps: a beam from each lamp, splayed a touch apart. Shot up, one of them flickers on a bad
+// connection, and past a quarter of its strength it's gone (alarm: both flash, whatever the damage)
+function headBeams(c, r, g, b, alarm) {
+  const L = c.truck ? 60 : c.tanker ? 40 : 37, // the nose (fig3d's models: a truck's cab, the fuel van's, a car's)
+    Wl = c.truck ? 14.5 : 13.5,
+    ca = Math.cos(c.a),
+    sa = Math.sin(c.a),
+    bad = alarm ? 0 : c.hp < c.max * 0.25 ? 2 : c.hp < c.max * 0.5 ? 1 : 0,
+    weak = (c.x * 7.3 + c.y) % 2 < 1 ? 1 : -1; // which lamp took the hit
+  for (const sd of [1, -1]) {
+    const k = sd !== weak || !bad ? 1 : bad === 2 ? 0 : Math.sin(GS.time * 23 + c.x) > 0.3 ? 0.12 : 1;
+    if (!k) continue;
+    addLight(
+      c.x + ca * L - sa * Wl * sd,
+      c.y + sa * L + ca * Wl * sd,
+      340,
+      0.72 * r * k,
+      0.72 * g * k,
+      0.72 * b * k,
+      c.a + sd * 0.07,
+      0.93
+    );
+  }
 }
 export function drawHouseRoofs() {
   for (const o of houses) {

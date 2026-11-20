@@ -475,7 +475,7 @@ float feetD(vec3 p){ float fk=mix(1.0,LT,0.5); return min(boot(vec3(p.x,p.y,p.z)
       [Math.min(fe[0], fo[0]) - 3 * FK, -(Math.max(fe[1], fo[1]) + 3.2 * FK), -0.6],
       [Math.max(fe[0], fo[0]) + 3 * FK, Math.max(fe[1], fo[1]) + 3.2 * FK, 6.2 * FK],
     ],
-    RES: 0.32,
+    RES: 0.25,
   };
   return { BONES: B, BOUNDS: [lo, hi], GLSL, REGION, SCALE: P.scale, MRES: P.mres, KN, kits, FINE };
 }

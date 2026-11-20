@@ -295,15 +295,14 @@ int extraReg(vec3 p, vec3 n){ if(tank(p)<0.4&&p.z>11.6) return abs(p.z-21.5)<1.1
     }
   ),
 };
-const model = (GLSL, B, mres = 1.25) => ({
+const model = (GLSL, B, mres = 0.7) => ({
   BONES,
   BOUNDS: B,
   GLSL,
   REGION,
   SCALE: 1,
   RIGID: true,
-  MRES: mres, // big and smooth: a coarse grid does them, and one mesh near and far (a street has only a few)
-  ONE: true,
+  MRES: mres, // fine enough for their seams, lamps and the dish of a wheel; a coarser one far off
 });
 const CARB = [
   [-42, -21.5, -0.5],
@@ -315,10 +314,14 @@ const TRUCKB = [
 ];
 export const VEHICLES = {
   ...Object.fromEntries(Object.entries(BODIES).map(([n, C]) => [n, model(vehicle(C), CARB)])),
-  v_truck: model(TRUCKS.v_truck, TRUCKB, 1.6),
-  v_tanker: model(TRUCKS.v_tanker, TRUCKB, 1.6),
-  v_fuelvan: model(TRUCKS.v_fuelvan, [
-    [-42, -21.5, -0.5],
-    [42, 21.5, 38],
-  ]),
+  v_truck: model(TRUCKS.v_truck, TRUCKB, 1.05),
+  v_tanker: model(TRUCKS.v_tanker, TRUCKB, 1.05),
+  v_fuelvan: model(
+    TRUCKS.v_fuelvan,
+    [
+      [-42, -21.5, -0.5],
+      [42, 21.5, 38],
+    ],
+    0.85
+  ),
 };
