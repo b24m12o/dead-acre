@@ -26,7 +26,8 @@ const leanPlugin = {
     b.onLoad({ filter: LEAN }, a => {
       const out = readFileSync(a.path, 'utf8')
         .replace(/bakeGroup\(\s*'(\w+)',\s*`[\s\S]*?`\s*\);/g, (_, g) => `bakeGroup('${g}', '');`)
-        .replace(/bakeGroup\(\s*'gb',\s*GB_GLSL\s*\)/, "bakeGroup('gb', '')"); // the bosses' shapes stay (GB_GLSL): the live 3D bosses draw them
+        .replace(/bakeGroup\(\s*'gb',\s*GB_GLSL\s*\)/, "bakeGroup('gb', '')")
+        .replace(/export const CR_GLSL = `[\s\S]*?`;/, "export const CR_GLSL = '';"); // the bosses' shapes stay (GB_GLSL): the live 3D bosses draw them
       if (out.replace(/export const GB_GLSL = `[\s\S]*?`;/, '').includes('float map(vec3 p)'))
         throw new Error('shape code was not stripped from ' + a.path);
       return { contents: out, loader: 'js' };

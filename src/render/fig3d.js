@@ -59,6 +59,7 @@ export function meshArrived(buf) {
         scale: m.scale || 1,
         kn: m.kn || null,
       };
+      if (name.startsWith('v_') && !name.includes('@')) M[name].top = topOf(dv, base + m.vo, m.nv);
     }
     // each build against the ordinary zombie's: how wide its shoulders and hips, how long its arms and legs, how tall,
     // how big its head; the poses scale their reaches and steps by them
@@ -78,6 +79,30 @@ export function meshArrived(buf) {
   } catch (err) {
     console.warn('Dead Acre: the 3D figures could not be read, so the pictures stand in', err);
   }
+}
+// a car's top, from its own corners: the highest in each 4-unit cell of its plan (a bullet's hole sits on it)
+const TOPC = 4,
+  TOPX = 32,
+  TOPY = 12;
+function topOf(dv, o, nv) {
+  const h = new Float32Array(TOPX * TOPY);
+  for (let i = 0; i < nv; i++) {
+    const x = dv.getInt16(o + i * 16, true) / 256,
+      y = dv.getInt16(o + i * 16 + 2, true) / 256,
+      z = dv.getInt16(o + i * 16 + 4, true) / 256,
+      cx = Math.floor(x / TOPC + TOPX / 2),
+      cy = Math.floor(y / TOPC + TOPY / 2);
+    if (cx >= 0 && cx < TOPX && cy >= 0 && cy < TOPY && z > h[cy * TOPX + cx]) h[cy * TOPX + cx] = z;
+  }
+  return h;
+}
+// how high a car's top stands at u along it, v across (0 if it isn't drawn in 3D)
+export function carTop(c, u, v) {
+  const T = c.veh3d && FIG.models?.[c.veh3d]?.top;
+  if (!T) return 0;
+  const cx = Math.floor(u / TOPC + TOPX / 2),
+    cy = Math.floor(v / TOPC + TOPY / 2);
+  return cx >= 0 && cx < TOPX && cy >= 0 && cy < TOPY ? T[cy * TOPX + cx] : 0;
 }
 let RB = null;
 const rowBuf = () => {
@@ -151,10 +176,29 @@ void main(){
   else if(reg==25) c=vec3(0.075,0.08,0.085); // a gun's blued steel
   else if(reg==26) c=vec3(0.15,0.145,0.13); // its polymer
   else if(reg==27) c=vec3(0.95,0.92,0.8); // the lens of its light
+  else if(reg==28) c=vec3(0.07,0.065,0.06); // a sole, black rubber
+  else if(reg==29) c=vec3(0.11,0.11,0.1); // a glove
+  else if(reg==42) c=(HA.w>0.5?SK.rgb*0.8:vec3(0.13,0.11,0.1))*1.9+0.03; // a boot's laces
+  else if(reg==43) c=(HA.w>0.5?SK.rgb*0.8:vec3(0.13,0.11,0.1))*0.7; // its collar and toe cap, darker leather
+  // a car: its own paint, glass, trim, tyres, lamps (lit, they shine), a police car's white doors, a truck's box or tank
+  else if(reg==30) c=SH.rgb;
+  else if(reg==31) c=vec3(0.06,0.075,0.09);
+  else if(reg==32) c=vec3(0.05,0.05,0.055);
+  else if(reg==33) c=vec3(0.035,0.033,0.032);
+  else if(reg==34) c=vec3(0.8,0.8,0.74);
+  else if(reg==35) c=vec3(0.48,0.05,0.04);
+  else if(reg==36) c=vec3(0.8,0.8,0.78);
+  else if(reg==37) c=vec3(0.075,0.075,0.075);
+  else if(reg==38) c=vec3(0.58,0.6,0.62);
+  else if(reg==39) c=vec3(0.52,0.08,0.06);
+  else if(reg==40) c=vec3(0.1,0.085,0.075);
+  else if(reg==41) c=vec3(0.6,0.6,0.58);
+  else if(reg==44) c=vec3(0.06,0.12,0.55);
   else if(reg==17) c=TI.w<-0.5?vec3(0.3,0.1,0.08):SK.rgb*vec3(1.08,0.96,0.7); // raw flesh (on a dog), or swollen, stretched and veined
   vC=c*TI.rgb; vS=shirt; vPat=TI.w;
   bool hd=aB.x==3u&&aW.x>0.5; // on the head
-  vM=vec4(reg==5||reg==9||reg==10?1.0:0.0, hd&&reg==1?1.0:0.0, hd&&reg==0?1.0:0.0, reg==12?1.0:0.0); // trousers, scalp, face, eyes
+  float gloss=reg==31?1.0:reg==30||reg==36||reg==39?0.55:reg==38||reg==41?0.35:0.0; // a car's paint and glass catch the sky
+  vM=vec4(reg==5||reg==9||reg==10?1.0:0.0, hd&&reg==1?1.0:0.0, reg>=30?gloss:hd&&reg==0?1.0:0.0, reg==12?1.0:reg==34?X7.w:reg==35?X7.w*0.45:0.0); // trousers, scalp, face (a car's gloss), eyes (a car's lamps, lit)
   vE=X7.xyz; vH=HA.rgb; vSk=SK.rgb; vSty=X6.z;`
   }
 }`;
@@ -261,11 +305,13 @@ void main(){
     if(sty==1||sty==2) c=mix(c,vH*0.8,vM.z*step(0.9,q.x)*step(q.z,-0.4)*step(-4.4,q.z)*(0.75+0.25*vn(q.yz*6.0)));
     if(sty==2) c=mix(c,mix(vec3(0.5,0.09,0.07),vec3(0.82,0.76,0.64),step(0.68,vn(q.yz*3.2+q.x))),vM.y);
     if(sty==3) c=mix(c,vSk*0.62*(0.8+0.4*vn(q.yz*9.0)),vM.y); }
-  c*=0.8+0.34*fbm(vO.yz*0.42+vO.x*0.3+seed); // dirt, wear, the cloth's weave and the skin's mottling
-  float bl=smoothstep(0.58,0.7,fbm(vO.xz*0.16+vO.y*0.11+seed*1.7))*vK.w; // old blood, soaked in
+  if(vK.w<-0.5) c*=0.9+0.16*fbm(vO.xy*0.06+vO.z*0.05+seed); // a car: grime in broad patches, not a cloth's weave
+  else c*=0.8+0.34*fbm(vO.yz*0.42+vO.x*0.3+seed); // dirt, wear, the cloth's weave and the skin's mottling
+  float bl=smoothstep(0.58,0.7,fbm(vO.xz*0.16+vO.y*0.11+seed*1.7))*max(vK.w,0.0); // old blood, soaked in
   c=mix(c,vec3(0.21,0.03,0.025),bl*0.9);
   float sh=(0.46+0.54*pow(nz,1.2))*mix(1.0,vAO,0.7)*mix(0.62,1.0,smoothstep(0.0,26.0,vZ));
-  vec3 em=vec3(0.5,0.64,0.82)*pow(1.0-nz,1.7)*0.3+vec3(vK.y)+vE*vM.w; // the moon on its edges; a hit's flare; its eyes, if they shine
+  vec3 em=vec3(0.5,0.64,0.82)*pow(1.0-nz,1.7)*0.3+vec3(vK.y)+vE*vM.w;
+  if(sty==0) em+=vec3(0.42,0.52,0.66)*vM.z*(0.1*smoothstep(0.55,1.0,nz)*(0.55+0.45*vn(vO.xy*0.07+seed))+0.12*pow(1.0-nz,2.5)); // a car's paint and glass, the sky in them // the moon on its edges; a hit's flare; its eyes, if they shine
   o0=vec4(c*sh*a,a); o1=vec4(em*a,a); o2=vec4((n.xy*0.5+0.5)*a,0.1*a,a);`
   }
 }`;
@@ -1470,7 +1516,26 @@ function poseHero(p, D, o) {
   p._gunR = mm(Rz(aim), Ryb(rl * 0.5));
   const shL = add(Jc, mv(Rc, sc3(sub(r[6], r[2]), k)));
   limb(D, o, 4, 5, Rc, sh, G, mv(Rc, [-0.3, 1, -1]), k);
-  limb(D, o, 6, 7, Rc, shL, H2, mv(Rc, [-0.2, -1, -1]), k);
+  // a throw: the free hand comes off the gun, back past the shoulder, and through the way it is thrown
+  const tt = t - (p.throwT ?? -9),
+    tk = tt >= 0 && tt < 0.36 && !(p.reload > 0) ? tt / 0.36 : -1;
+  let HL = H2;
+  if (tk >= 0) {
+    const ta = p.throwA ?? aim,
+      tc = Math.cos(ta),
+      ts = Math.sin(ta),
+      back = v3(shL[0] - tc * 13 * k[0], shL[1] - ts * 13 * k[0], shL[2] + 2.5 * k[1]),
+      out = v3(shL[0] + tc * 34 * k[0], shL[1] + ts * 34 * k[0], shL[2] + 0.5 * k[1]), // at full stretch
+      mx = (a, b, f) => v3(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+    HL =
+      tk < 0.08
+        ? mx(H2, back, tk / 0.08)
+        : tk < 0.3
+          ? mx(back, out, (tk - 0.08) / 0.22)
+          : mx(out, H2, (tk - 0.3) / 0.7);
+  }
+  p.__th = [HL[0], HL[1]]; // where the free hand is (the tests read it)
+  limb(D, o, 6, 7, Rc, shL, HL, mv(Rc, [-0.2, -1, -1]), k);
   const q = o + NB * 12,
     L = HERO_LOOK[p.npc ? 1 + (id % (HERO_LOOK.length - 1)) : 0],
     fl = p.hitT > 0 ? 0.12 : 0;
@@ -1507,8 +1572,69 @@ function poseGun(g, D, o) {
   D.set([0, 0, 0, 0], q + 24); // nothing lost (a set bit there paints a stump's raw red)
   D.set([0, 0, 0, 0], q + 28);
 }
+// ---------- the cars and trucks: one rigid bone, at their true size, each in its own paint ----------
+// which model a car is drawn with
+export const vehOf = c =>
+  c.burnt || c.fire > 0.5
+    ? c.truck
+      ? c.tanker
+        ? 'v_tanker'
+        : 'v_truck'
+      : c.tanker
+        ? 'v_fuelvan'
+        : 'v_burnt'
+    : c.tanker
+      ? c.truck
+        ? 'v_tanker'
+        : 'v_fuelvan'
+      : c.police
+        ? 'v_police'
+        : c.truck
+          ? 'v_truck'
+          : { hatchback: 'v_hatch', wagon: 'v_wagon', pickup: 'v_pickup', suv: 'v_suv' }[c.body] || 'v_car';
+function poseCar(c, D, o) {
+  poolReset();
+  c._kits = null;
+  const MM = FIG.models[c.veh3d];
+  REST = MM.rest;
+  MODEL_END = MM.ends;
+  const burnt = c.burnt || c.fire > 0.5;
+  bone(D, o, 0, mul3(Rz(c.a || 0), [1, 1]), [c.x, c.y, 0], REST[0]);
+  for (let b = 1; b < NB; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], [c.x, c.y, 0], REST[b]);
+  const q = o + NB * 12,
+    t = c.police ? [0.07, 0.08, 0.1] : c.tint || [0.8, 0.8, 0.8],
+    pk = c.police ? 1 : 0.82, // the paint: its tint over a pale grey, as the pictures have it
+    hk =
+      burnt && !c.burnt
+        ? 0.5
+        : (c.burnt ? (c.truck || c.tanker ? 0.3 : 1) : 0.62 + 0.38 * clamp(c.hp / c.max, 0, 1)) * (c.fire ? 0.85 : 1),
+    lit = c.lights && !burnt ? (c.hp < c.max * 0.5 && Math.sin(GS.time * 23 + c.x) > 0.3 ? 0.15 : 1) : 0;
+  D.set([c.x, c.y + 40, 1, c.flash > 0 ? 0.12 : 0], q);
+  D.set([0.6, 0.6, 0.6, 0], q + 4);
+  D.set([t[0] * pk, t[1] * pk, t[2] * pk, -1], q + 8);
+  D.set([0.3, 0.3, 0.3, 1], q + 12);
+  D.set([0.3, 0.3, 0.3, 0], q + 16);
+  D.set([hk, hk * (c.fire ? 0.9 : 1), hk * (c.fire ? 0.82 : 1), 0], q + 20);
+  D.set([0, 0, 0, -1], q + 24); // (-1: a car, see FS)
+  D.set([1.6 * lit, 1.5 * lit, 1.25 * lit, lit ? 1 : 0], q + 28);
+}
+// a car in 3D (cars.js), drawn where it falls among the street's things: what's queued before it goes first
+export function drawCar3D(c) {
+  if (!fig3dOn() || opt.car3d === false) return false;
+  const m = vehOf(c);
+  if (!FIG.models[m]) return false;
+  if (c.id === undefined) c.id = 7000 + Math.floor(Math.random() * 999);
+  c.veh3d = m;
+  figFlush();
+  CLR = true;
+  if (!drawFig3D(c)) return false;
+  figFlush();
+  CLR = true;
+  return true;
+}
 const poseFig = (e, D, o) => {
   const m = modelOf(e);
+  if (e.veh3d) return poseCar(e, D, o);
   return m === 'dog'
     ? poseDog(e, D, o)
     : m === 'egg'
@@ -1524,6 +1650,7 @@ let POSE = poseFig;
 // ---------- which figures draw in 3D ----------
 // the model each of the dead is drawn with: by its type, its special kind or its elite trait
 export function modelOf(e) {
+  if (e.veh3d) return e.veh3d;
   if (e.hero3d) return 'hero';
   if (e.holder) return e.gm;
   switch (e.type) {
@@ -1567,6 +1694,8 @@ export function drawHero3D(p) {
   if (!fig3dOn() || !FIG.models.hero || p.down > 0 || p.dashT > 0 || p.ride || p.hp <= 0) return false;
   if (p.id === undefined) p.id = 9000 + Math.floor(Math.random() * 999);
   p.hero3d = true;
+  if (p._f3 === frame && p._pT !== p.throwT) p._f3 = -1; // thrown since it was posed this frame: posed afresh
+  p._pT = p.throwT;
   if (!drawFig3D(p)) return false;
   const gm = gunModel(p.gun);
   if (FIG.models[gm] && p._grip) {
@@ -1594,6 +1723,7 @@ export function figCam(rect, size) {
 
 // ---------- drawing ----------
 const queue = [];
+let CLR = false; // a car: its depth (and the next figures') afresh, since each figure's depth is its own (see VS)
 const depths = {}; // depth buffers by size (the screen's, the remains pass's), and the frame each was last cleared in
 const mode = () => (GS.SHMODE === 3 || GS.SHMODE === 4 ? 2 : GS.SHMODE === 2 ? 3 : GS.SHMODE ? 1 : 0);
 // down on the street: dead, knocked down, crawling, or what's left of one
@@ -1631,7 +1761,7 @@ export function figFlush() {
     const d = Pl ? Math.hypot(e.x - Pl.x, e.y - Pl.y) : 0,
       full = d < 460 && FIG.drawn + near < 90,
       mn = modelOf(e) || 'zombie',
-      key = mn + (full ? '' : '@1');
+      key = mn + (full || !FIG.models[mn + '@1'] ? '' : '@1'); // (a car has the one mesh)
     if (full) near++;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(e);
@@ -1689,7 +1819,8 @@ export function figFlush() {
       for (const k2 in depths) if (k2 !== key && !CSZ && k2 !== 'keep') delete depths[k2]; // the screen changed size
     }
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, d.rb);
-    if (d.f !== frame || CSZ) {
+    if (d.f !== frame || CSZ || CLR) {
+      CLR = false;
       const sc = gl.isEnabled(gl.SCISSOR_TEST);
       gl.disable(gl.SCISSOR_TEST);
       gl.depthMask(true);

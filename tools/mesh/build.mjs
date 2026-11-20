@@ -14,6 +14,7 @@ import { SDF_LIB } from '../../src/render/sdf-lib.js';
 import { MODELS as PEOPLE } from './humanoid.mjs';
 import { DOG, EGG } from './creatures.mjs';
 import { GUNS } from './guns.mjs';
+import { VEHICLES } from './vehicles.mjs';
 
 const arg = (k, d) => {
   const i = process.argv.indexOf(k);
@@ -23,7 +24,7 @@ const LODS = [+arg('--res', 1.0), +arg('--res-lo', 1.7)]; // each model twice: c
 const ONLY = arg('--only', null); // just these models (comma-separated), for a quick look
 // each model, and what its kind may wear over it (zombie+cap, riot+shield: see humanoid.mjs's KIT)
 const MODELS = Object.fromEntries(
-  Object.entries({ ...PEOPLE, dog: DOG, egg: EGG, ...GUNS })
+  Object.entries({ ...PEOPLE, dog: DOG, egg: EGG, ...GUNS, ...VEHICLES, ...(globalThis.__EXTRA || {}) })
     .flatMap(([n, M]) => [[n, M], ...Object.entries(M.kits || {}).map(([k, K]) => [n + '+' + k, K])])
     .filter(([n]) => !ONLY || ONLY.split(',').some(o => n === o || n.startsWith(o + '+')))
 );
@@ -163,7 +164,7 @@ void main(){ vec3 q=uV*(aP-uC); gl_Position=vec4(q.x/uS,q.y/uS,-q.z/100.0,1.0); 
         gl.FRAGMENT_SHADER,
         `#version 300 es
 precision highp float; in vec3 vN; in float vR; out vec4 o;
-void main(){ int r=int(vR+0.5); vec3 c=r==0?vec3(0.62,0.66,0.52):r==1?vec3(0.2,0.17,0.14):r==2?vec3(0.58,0.62,0.5):r<=4?vec3(0.36,0.44,0.52):r==5?vec3(0.22,0.22,0.26):r==6?vec3(0.36,0.44,0.52):r<=8?vec3(0.62,0.66,0.52):r<=10?vec3(0.22,0.22,0.26):r==11?vec3(0.12,0.1,0.09):r==14?vec3(0.2,0.22,0.2):r==15?vec3(0.14,0.15,0.17):r==16?vec3(0.35,0.4,0.45):r==17?vec3(0.5,0.42,0.3):vec3(0.3,0.03,0.02);
+void main(){ int r=int(vR+0.5); vec3 c=r==0?vec3(0.62,0.66,0.52):r==1?vec3(0.2,0.17,0.14):r==2?vec3(0.58,0.62,0.5):r<=4?vec3(0.36,0.44,0.52):r==5?vec3(0.22,0.22,0.26):r==6?vec3(0.36,0.44,0.52):r<=8?vec3(0.62,0.66,0.52):r<=10?vec3(0.22,0.22,0.26):r==11?vec3(0.12,0.1,0.09):r==14?vec3(0.2,0.22,0.2):r==15?vec3(0.14,0.15,0.17):r==16?vec3(0.35,0.4,0.45):r==17?vec3(0.5,0.42,0.3):r==24?vec3(0.27,0.28,0.2):r==25?vec3(0.08):r==26?vec3(0.15,0.145,0.13):r==27?vec3(0.95,0.92,0.8):r==28?vec3(0.07):r==29?vec3(0.11):r==30?vec3(0.45,0.5,0.6):r==31?vec3(0.1,0.13,0.16):r==32?vec3(0.06):r==33?vec3(0.03):r==34?vec3(1.0,0.95,0.8):r==35?vec3(0.8,0.05,0.04):r==36?vec3(0.9):r==37?vec3(0.15):r==38?vec3(0.7,0.72,0.74):r==39?vec3(0.6,0.1,0.07):r==40?vec3(0.12,0.1,0.09):r==41?vec3(0.62,0.62,0.6):vec3(0.3,0.03,0.02);
   vec3 n=normalize(vN); float l=0.3+0.7*max(dot(n,normalize(vec3(0.4,0.6,0.7))),0.0); o=vec4(c*l,1.0); }`
       );
       gl.linkProgram(p);
@@ -327,35 +328,51 @@ try {
       const RES = RES0 * (M.MRES || 1), // the big ones coarser: they're scaled up anyway
         t0 = Date.now(),
         name = li ? `${name0}@${li}` : name0;
-      const [lo, hi] = M.BOUNDS,
-        nx = Math.ceil((hi[0] - lo[0]) / RES) + 1,
-        ny = Math.ceil((hi[1] - lo[1]) / RES) + 1,
-        nz = Math.ceil((hi[2] - lo[2]) / RES) + 1;
-      const d = f32(
-        await pg.evaluate(
-          ([lib, g, o, r, x, y, z]) => window.MESH.grid(lib, g, o, r, x, y, z),
-          [SDF_LIB, M.GLSL, lo, RES, nx, ny, nz]
-        )
-      );
-      const net = surfaceNets(d, nx, ny, nz, lo, RES);
-      const [P, N, A] = (
-        await pg.evaluate(([lib, g, p]) => window.MESH.attrs(lib, g, p), [SDF_LIB, M.GLSL, b64f(net.pos)])
-      ).map(f32);
-      const nv = net.pos.length / 3,
+      const [lo, hi] = M.BOUNDS;
+      // one grid's surface: its corners (where, which way they face, how creased, which part, region, along) and triangles
+      const grid = async (glsl, lo, hi, RES) => {
+        const nx = Math.ceil((hi[0] - lo[0]) / RES) + 1,
+          ny = Math.ceil((hi[1] - lo[1]) / RES) + 1,
+          nz = Math.ceil((hi[2] - lo[2]) / RES) + 1;
+        const d = f32(
+          await pg.evaluate(
+            ([lib, g, o, r, x, y, z]) => window.MESH.grid(lib, g, o, r, x, y, z),
+            [SDF_LIB, glsl, lo, RES, nx, ny, nz]
+          )
+        );
+        const net = surfaceNets(d, nx, ny, nz, lo, RES);
+        const [P, N, A] = (
+          await pg.evaluate(([lib, g, p]) => window.MESH.attrs(lib, g, p), [SDF_LIB, glsl, b64f(net.pos)])
+        ).map(f32);
+        return { P, N, A, idx: net.idx, nv: net.pos.length / 3 };
+      };
+      // close up, the small things (boots) carved out of the body and built again on their own finer grid
+      const F = !li && M.FINE;
+      const G = [await grid(F ? F.CUT : M.GLSL, lo, hi, RES)];
+      if (F) G.push(await grid(F.GLSL, F.BOUNDS[0], F.BOUNDS[1], F.RES));
+      const nv = G.reduce((a, g) => a + g.nv, 0),
         pos = new Float32Array(nv * 3),
         nrm = new Float32Array(nv * 3),
         ao = new Float32Array(nv),
         part = new Uint8Array(nv),
         reg = new Float32Array(nv),
-        u = new Float32Array(nv);
-      for (let i = 0; i < nv; i++) {
-        pos.set([P[i * 4], P[i * 4 + 1], P[i * 4 + 2]], i * 3);
-        nrm.set([N[i * 4], N[i * 4 + 1], N[i * 4 + 2]], i * 3);
-        ao[i] = N[i * 4 + 3];
-        part[i] = A[i * 4];
-        reg[i] = A[i * 4 + 1];
-        u[i] = A[i * 4 + 2];
+        u = new Float32Array(nv),
+        idx = [];
+      let o = 0;
+      for (const { P, N, A, idx: gi, nv: gn } of G) {
+        for (let j = 0; j < gn; j++) {
+          const i = o + j;
+          pos.set([P[j * 4], P[j * 4 + 1], P[j * 4 + 2]], i * 3);
+          nrm.set([N[j * 4], N[j * 4 + 1], N[j * 4 + 2]], i * 3);
+          ao[i] = N[j * 4 + 3];
+          part[i] = A[j * 4];
+          reg[i] = A[j * 4 + 1];
+          u[i] = A[j * 4 + 2];
+        }
+        for (const t of gi) idx.push(t + o);
+        o += gn;
       }
+      const net = { idx: new Uint32Array(idx) };
       const W = weights(pos, part, M.BONES, M.RIGID);
       built.push({ name, M, pos, nrm, ao, reg, u, idx: net.idx, W });
       console.log(

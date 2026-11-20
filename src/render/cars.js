@@ -5,6 +5,7 @@ import { clamp } from '../core/util.js';
 import { quad, setH } from './sprites.js';
 import { R } from './atlas.js';
 import { cars } from '../world/map.js';
+import { carTop, drawCar3D } from './fig3d.js';
 export function carKey(c) {
   return c.y + Math.abs(Math.sin(c.a)) * (c.truck ? 58 : 39) + Math.abs(Math.cos(c.a)) * 20;
 }
@@ -73,9 +74,14 @@ function drawCar0(c) {
               ? R.truck
               : R[c.body] || R.car,
     sc = (c.burnt || c.fire > 0.5) && c.truck ? 1.45 : 1;
+  if (GS.SHMODE && drawCar3D(c)) return; // its shadow, from the mesh
   if (GS.SHMODE) {
     setH(c.truck ? 24 : 16);
     quad(reg, c.x, c.y, c.a, sc, sc, 1, 1, 1, 1, 0, 0, 0, 0);
+    return;
+  }
+  if (drawCar3D(c)) {
+    if (!GS.SHMODE) carMarks(c);
     return;
   }
   const t = c.police || c.tanker || c.burnt || c.fire > 0.5 ? [1, 1, 1] : c.tint,
@@ -168,4 +174,56 @@ export function drawWreck(w) {
       d = i < n - 1 ? 0.3 + 0.2 * f : 0.9;
     quad(R.carburn, w.x, w.y - up * f, w.a, w.s, w.s, d, d, d, 1, 0, 0, 0, 0);
   } // a burnt-out shell standing on its rims, the same way
+}
+// what sits on a 3D car's skin: the bullet holes and the cracks in its glass, each where the shot struck it (at the
+// height of the car there, up the screen at the camera's tilt), and a police car's light bar, flashing
+function carMarks(c) {
+  const ca = Math.cos(c.a),
+    sa = Math.sin(c.a);
+  if (c.holes && !c.burnt)
+    for (const h of c.holes) {
+      const z = carTop(c, h.u, h.v) * TILT;
+      quad(
+        h.g ? R.gcrack : R.bhole,
+        c.x + h.u * ca - h.v * sa,
+        c.y + h.u * sa + h.v * ca - z,
+        h.r,
+        h.g ? 0.42 : 0.26,
+        h.g ? 0.42 : 0.26,
+        h.g ? 0.8 : 0.5,
+        h.g ? 0.85 : 0.5,
+        h.g ? 0.9 : 0.5,
+        h.g ? 0.7 : 1,
+        0,
+        0,
+        0,
+        0
+      );
+    }
+  if (c.amb && !c.burnt) {
+    const z = (carTop(c, 34, 0) + 0.5) * TILT;
+    quad(R.lightbar2, c.x + ca * 34, c.y + sa * 34 - z, c.a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0); // its dead light bar, over the cab
+  }
+  if (c.police && !c.burnt && !(c.fire > 0.5)) {
+    const on = Math.sin(GS.time * 14) > 0,
+      u = -4,
+      z = (carTop(c, u, 0) + 0.5) * TILT;
+    for (const s of [-1, 1])
+      quad(
+        R.glow,
+        c.x + u * ca - s * 5 * sa,
+        c.y + u * sa + s * 5 * ca - z,
+        0,
+        0.05,
+        0.05,
+        0,
+        0,
+        0,
+        1,
+        s > 0 === on ? 2.4 : 0.1,
+        0.1,
+        s > 0 === on ? 0.1 : 2.4,
+        0
+      );
+  }
 }

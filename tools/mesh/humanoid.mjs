@@ -43,6 +43,8 @@ export const REGION = {
   gun: 25, // a gun's blued steel
   grip: 26, // its polymer: stock, grip, magazine
   lens: 27, // the lens of the light on it
+  sole: 28, // a boot's sole and heel
+  glove: 29, // a glove
 };
 // the ordinary zombie's skeleton: each bone from its joint (where it turns) to its end; parent first
 const BASE = [
@@ -210,6 +212,7 @@ export function humanoid(P0 = {}) {
     neck: 1,
     gear: null,
     pack: 0,
+    kit: 0,
     dress: 0,
     scale: 1,
     mres: 1,
@@ -325,6 +328,27 @@ float arm(vec3 p, float s, out float dU, out float dF, out float dH){
   dU=u; dF=f; dH=h;
   return smin(smin(u,f,0.8*LT),h,0.6*hk);
 }
+// a boot, in the foot's own frame (x along the foot from the ankle, y across, z up from the street): a sole that
+// stands proud of the upper all round, a heel block under the back, the toe sprung up off the ground; the upper over
+// the instep, a toe cap, a shaft up round the ankle to a padded collar, the tongue and laces down the front
+vec3 fq(vec3 q, float fk){ vec3 a=ANK; vec3 d=normalize(vec3(TOE.x-a.x,TOE.y-a.y,0.0)); vec3 w=vec3(-d.y,d.x,0.0);
+  vec3 r=q-vec3(a.x,a.y,0.0); return vec3(dot(r,d),dot(r,w),r.z)/fk; }
+// the boot's footprint on the ground: round at the heel, widest across the ball, a rounded toe
+float bootFp(vec3 f){ float L=TOE.x-ANK.x+0.4; return sdCap(vec3(f.x,f.y,0.0),vec3(-0.75,0.0,0.0),vec3(L-1.05,0.0,0.0),0.98,1.16); }
+float bootSole(vec3 f){ float L=TOE.x-ANK.x+0.4;
+  float spring=0.3*smoothstep(L-2.2,L+0.4,f.x); // the toe sprung up
+  float th=f.x<0.55?0.82:0.5; // the heel block thicker than the sole under the ball, a step under the arch
+  float s=smax(bootFp(f),abs(f.z-spring-th*0.5)-th*0.5,0.12);
+  return smax(s,-f.z,0.1); }
+float bootUpper(vec3 f){ float L=TOE.x-ANK.x+0.4;
+  float h=mix(2.85,1.3,smoothstep(0.4,L-0.6,f.x)); // high over the instep, falling to the toe
+  float u=smax(bootFp(f)+0.1,f.z-h,0.75); // the upper, just inside the sole's edge, its top rounded over
+  u=smin(u,sdCap(f,vec3(-0.3,0.0,1.0),vec3(-0.12,0.0,4.25),1.16,1.04),0.7); // the shaft round the ankle
+  u=smin(u,sdCap(f,vec3(-0.2,0.0,4.15),vec3(-0.1,0.0,4.42),1.16,1.14),0.15); // its padded collar
+  u+=0.05*smoothstep(0.3,0.0,abs(fract(f.x*1.7)-0.5))*step(0.4,f.x)*step(f.x,L*0.58)*step(abs(f.y),0.4); // laces across the tongue
+  u+=0.04*smoothstep(0.08,0.0,abs(f.x-L*0.72)); // the seam round the toe cap
+  return smax(u,0.42-f.z,0.12); }
+float boot(vec3 q, float fk){ vec3 f=fq(q,fk); return min(bootSole(f),bootUpper(f))*fk; }
 float leg(vec3 p, float s, out float dT, out float dS, out float dFt){
   vec3 q=vec3(p.x,p.y*s,p.z);
   float lk=mix(1.0,LT,0.8);
@@ -332,18 +356,23 @@ float leg(vec3 p, float s, out float dT, out float dS, out float dFt){
   float sh=sdCap(q,KNEE,ANK+vec3(0.0,0.0,0.5),1.85*lk,1.2*lk); sh=smin(sh,sdEll(q,mix(KNEE,ANK,0.28)+vec3(-0.8,0.0,0.0)*lk,vec3(1.2,1.3,2.9)*lk),0.7*lk); // the calf
   float tr=folds(p,1.0)*0.9; t+=tr+boils(p)*0.6; sh+=tr*0.8;
   float fk=mix(1.0,LT,0.5);
-  float ft=sdCap(q,ANK+vec3(-0.9,0.0,-1.2)*fk,TOE+vec3(0.0,0.0,0.3),1.35*fk,1.05*fk); ft=smax(ft,-q.z,0.4); // the shoe, flat underneath, slim at the toe
-  ft=smin(ft,sdSph(q,ANK+vec3(-0.4,0.0,-0.2)*fk,1.45*fk),0.6);
+  float ft=boot(q,fk);
   dT=t; dS=sh; dFt=ft;
   return smin(smin(t,sh,0.8*lk),ft,0.6);
 }
 ${
+  (P.kit
+    ? `// a soldier's kit, kept plain: a holster on the right thigh (and gloves: see attrs)
+float kitD(vec3 p){ vec3 q=vec3(p.x,p.y,p.z-ZU);
+  return sdBox(q,vec3(0.3,6.1,22.5),vec3(1.3,0.9,2.6),0.4); }
+float helmKit(vec3 p){ return 1e3; }
+`
+    : '') +
   (P.pack
-    ? `// a backpack high on the back, a rolled sleeping mat strapped across its top
+    ? `// a small backpack high on the back
 float pack(vec3 p){ vec3 q=vec3(p.x,p.y,p.z-ZU);
   float b=sdBox(q,vec3(-5.9*TD,0.0,39.4),vec3(1.7,3.6,4.4),1.1);
   b=smin(b,sdBox(q,vec3(-7.6*TD,0.0,37.8),vec3(0.6,2.5,2.2),0.5),0.5); // the front pocket
-  b=min(b,sdCap(q,vec3(-5.7*TD,-4.2,44.6),vec3(-5.7*TD,4.2,44.6),1.15,1.15)); // the mat
   return b; }
 `
     : '') +
@@ -370,6 +399,7 @@ float model(vec3 p){
   d=smin(d,leg(p,1.0,t,s,ft),1.6); d=smin(d,leg(p,-1.0,t,s,ft),1.6);
   ${P.gear ? 'd=min(d,vest(p)); d=min(d,helmet(p));' : ''}
   ${P.pack ? 'd=min(d,pack(p));' : ''}
+  ${P.kit ? 'd=min(d,kitD(p)); d=min(d,helmKit(p));' : ''}
   return d;
 }
 // what the point p on the body is (sets gPart, gReg, gU)
@@ -388,9 +418,17 @@ void attrs(vec3 p){
     vec3 WRI=ELB+normalize(FIN-ELB)*length(FIN-ELB)*0.57;
     near(u,k==0?4:6,6,along(q,SHO,ELB)); near(f,k==0?5:7,7,along(q,ELB,WRI)); near(hh,k==0?5:7,8,1.0);
     float t,sh,ft; leg(p,s,t,sh,ft);
-    near(t,k==0?8:11,9,along(q,HIP,KNEE)); near(sh,k==0?9:12,10,along(q,KNEE,ANK)); near(ft,k==0?10:13,11,along(q,ANK,TOE)); }
+    near(t,k==0?8:11,9,along(q,HIP,KNEE)); near(sh,k==0?9:12,10,along(q,KNEE,ANK)); near(ft,k==0?10:13,11,along(q,ANK,TOE));
+    { float fk=mix(1.0,LT,0.5); vec3 f=fq(q,fk); float L=TOE.x-ANK.x+0.4;
+      if(bootSole(f)*fk<best+0.04&&f.z<1.0){ best=bootSole(f)*fk; gPart=k==0?10:13; gReg=28; gU=0.5; }
+      else if(bootUpper(f)*fk<best+0.04){ best=bootUpper(f)*fk; gPart=k==0?10:13; gReg=11; gU=along(q,ANK,TOE);
+        if(abs(f.y)<0.42&&f.x>0.3&&f.x<L*0.6&&f.z>1.3) gReg=42; // the laces down the tongue
+        if(f.z>3.9) gReg=43; // the padded collar
+        if(f.x>L*0.72) gReg=43; } } } // the toe cap, scuffed
   ${P.gear ? 'if(vest(p)<best+0.05){ best=vest(p); gPart=2; gReg=14; gU=0.5; } if(helmet(p)<best+0.05){ best=helmet(p); gPart=3; gReg=15; gU=0.5; }' : ''}
   ${P.pack ? 'if(pack(p)<best+0.05){ best=pack(p); gPart=2; gReg=24; gU=0.5; }' : ''}
+  ${P.kit ? 'if(kitD(p)<best+0.05){ best=kitD(p); gPart=p.z-ZU<18.0?(p.y>0.0?9:12):p.z-ZU<26.0?(p.y>0.0?8:11):p.z-ZU>40.0?2:0; gReg=14; gU=0.5; } if(helmKit(p)<best+0.05){ best=helmKit(p); gPart=3; gReg=15; gU=0.5; }' : ''}
+  ${P.kit ? 'for(int k=0;k<2;k++){ float s=k==0?1.0:-1.0; float u,f,hh; arm(p,s,u,f,hh); if(hh<best+0.04&&gReg==8){ gReg=29; } }' : ''}
 }
 `;
   // what the game needs to paint clothes onto it: the trunk's depth and width, how far its trunk is raised, its head's
@@ -419,7 +457,27 @@ void attrs(vec3 p){
       RIGID: K.bone === 7,
     };
   }
-  return { BONES: B, BOUNDS: [lo, hi], GLSL, REGION, SCALE: P.scale, MRES: P.mres, KN, kits };
+  // the boots too small for the body's grid to show (a sole, a heel, a toe cap, laces): the close mesh carves them out
+  // of the body and builds them again on a grid three times finer (see build.mjs's FINE)
+  const fe = J.footR,
+    fo = J.footRE,
+    FK = 1.12;
+  const FEET = `
+float feetD(vec3 p){ float fk=mix(1.0,LT,0.5); return min(boot(vec3(p.x,p.y,p.z),fk),boot(vec3(p.x,-p.y,p.z),fk)); }`;
+  const FINE = {
+    CUT:
+      GLSL.replace('float model(vec3 p){', 'float full_(vec3 p){') +
+      FEET +
+      '\nfloat model(vec3 p){ return max(full_(p),-(feetD(p)-0.25)); }',
+    GLSL:
+      GLSL.replace('float model(vec3 p){', 'float full_(vec3 p){') + FEET + '\nfloat model(vec3 p){ return feetD(p); }',
+    BOUNDS: [
+      [Math.min(fe[0], fo[0]) - 3 * FK, -(Math.max(fe[1], fo[1]) + 3.2 * FK), -0.6],
+      [Math.max(fe[0], fo[0]) + 3 * FK, Math.max(fe[1], fo[1]) + 3.2 * FK, 6.2 * FK],
+    ],
+    RES: 0.32,
+  };
+  return { BONES: B, BOUNDS: [lo, hi], GLSL, REGION, SCALE: P.scale, MRES: P.mres, KN, kits, FINE };
 }
 
 // the people-shaped dead, each by its knobs (see humanoid)
@@ -431,7 +489,7 @@ export const MODELS = {
   spitter: humanoid({ tw: 0.95, lt: 0.92, throat: 1, jaw: 0.35 }), // the spitter: its throat a sac of what it spits
   armored: humanoid({ tw: 1.06, sw: 1.04, lt: 1.05, gear: 'armor' }), // in a plate carrier and helmet
   riot: humanoid({ tw: 1.06, sw: 1.04, lt: 1.05, gear: 'riot' }), // and a riot shield
-  hero: humanoid({ tw: 1.04, td: 1.08, sw: 1.06, lt: 1.12, ll: 0.97, gear: 'armor', pack: 1 }), // you, and the survivors with you: fed and fit, a plate carrier and helmet, a pack on the back
+  hero: humanoid({ tw: 1.04, td: 1.08, sw: 1.06, lt: 1.12, ll: 0.97, gear: 'armor', pack: 1, kit: 1 }), // you, and the survivors with you: fed and fit, a plate carrier and helmet, a pack on the back
   bloat: humanoid({ tw: 1.3, td: 1.25, lt: 1.3, belly: 1, bumps: 0.5, scale: 1.08, mres: 1.25 }), // swollen: the bloater among them, and the spore
   drag: humanoid({
     tw: 1.35,
