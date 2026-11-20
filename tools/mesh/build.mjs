@@ -447,6 +447,7 @@ if (!process.argv.includes('--preview-only')) {
     if (nv > 65535) throw new Error(m.name + ': too many corners for 16-bit indices');
     head.models[m.name] = {
       bones: m.M.BONES,
+      ...(m.M.B14 ? { b14: m.M.B14 } : {}),
       scale: m.M.SCALE || 1,
       ...(m.M.KN ? { kn: m.M.KN } : {}),
       nv,

@@ -63,22 +63,28 @@ export function meshArrived(buf) {
           0,
           m.bones.findIndex(b => b[0] === 'head')
         ), // its head's bone
+        // the 14 bones it was made on (the poses worked out on those are moved on to its 22: see poseZombie22)
+        rest14: m.b14 ? m.b14.map(b => b[2]) : null,
+        ends14: m.b14 ? m.b14.map(b => b[3]) : null,
       };
       if (name.startsWith('v_') && !name.includes('@')) M[name].top = topOf(dv, base + m.vo, m.nv);
     }
     // each build against the ordinary zombie's: how wide its shoulders and hips, how long its arms and legs, how tall,
     // how big its head; the poses scale their reaches and steps by them
-    const Z = M.zombie,
+    // (measured on the 14 bones each was made on)
+    const r14 = X => X.rest14 || X.rest,
+      e14 = X => X.ends14 || X.ends,
+      Z = M.zombie,
       L = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]),
-      arm = X => L(X.rest[4], X.rest[5]) + L(X.rest[5], X.ends[5]);
+      arm = X => L(r14(X)[4], r14(X)[5]) + L(r14(X)[5], e14(X)[5]);
     for (const X of Object.values(M))
       X.f = {
-        bw: X.rest[4][1] / Z.rest[4][1],
-        hw: X.rest[8][1] / Z.rest[8][1],
+        bw: r14(X)[4][1] / r14(Z)[4][1],
+        hw: r14(X)[8][1] / r14(Z)[8][1],
         ba: arm(X) / arm(Z),
-        bl: X.rest[8][2] / Z.rest[8][2],
-        bh: X.ends[3][2] / Z.ends[3][2],
-        hs: L(X.rest[3], X.ends[3]) / L(Z.rest[3], Z.ends[3]),
+        bl: r14(X)[8][2] / r14(Z)[8][2],
+        bh: e14(X)[3][2] / e14(Z)[3][2],
+        hs: L(r14(X)[3], e14(X)[3]) / L(r14(Z)[3], e14(Z)[3]),
       };
     FIG.models = M;
   } catch (err) {
@@ -790,8 +796,8 @@ function poseZombie(e, D, o) {
   const name = modelOf(e) || 'zombie',
     MM = FIG.models[name] || FIG.models.zombie,
     F = MM.f;
-  REST = MM.rest;
-  MODEL_END = MM.ends;
+  REST = MM.rest14 || MM.rest;
+  MODEL_END = MM.ends14 || MM.ends;
   const r = REST,
     dead = e.dying !== undefined,
     id = e.id || 0,
@@ -2090,8 +2096,12 @@ function poseHeroFK(p, D, o) {
   // held toward standing, more the higher it is
   if (wMove > 0) {
     fkSnap(FK2, FKR2, C.idle, t, true);
-    const STEADY = [0, 0.4, 0.65, 0.85, 0.85, 0, 0.9, 0, 0, 0, 0.9];
-    for (let b = 1; b <= 10; b++) if (STEADY[b]) fkMix(FKQ, FK2, b, STEADY[b] * wMove);
+    // how still, by how it's held: a rifle or shotgun in the shoulder stillest (a little of the run left in it); a
+    // submachine gun tucked in, nearly; a pistol out in both hands lets the shoulders work more; the machine gun's
+    // weight at the hip sways the trunk most
+    const STEADY = [0, 0.4, 0.65, 0.85, 0.85, 0, 0.9, 0, 0, 0, 0.9],
+      sk = { shoulder: 1, compact: 0.9, pistol: 0.72, hip: 0.62 }[H.style] ?? 1;
+    for (let b = 1; b <= 10; b++) if (STEADY[b]) fkMix(FKQ, FK2, b, STEADY[b] * sk * wMove);
   }
   // a hit: the trunk and head jolted back, as the recording flinches
   const hurtK = p.hurt > 0 ? Math.sin(Math.PI * clamp(1 - p.hurt / 0.18, 0, 1)) * 0.85 : 0;
@@ -2143,7 +2153,7 @@ function poseHeroFK(p, D, o) {
   // turn and change pace over it), the leg reaching to it; let go as it lifts
   {
     const stK = (1 - wJ) * MOTION.walk.st + wJ * MOTION.jog.st,
-      lk = p._lk || (p._lk = [{ on: false }, { on: false }]);
+      lk = p._flk || (p._flk = [{ on: false }, { on: false }]);
     for (const [i, ti] of [
       [0, 14],
       [1, 18],
@@ -2303,8 +2313,135 @@ const poseFig = (e, D, o) => {
           : poseHero(e, D, o)
         : e.holder
           ? poseGun(e, D, o)
-          : poseZombie(e, D, o);
+          : (FIG.models[m || 'zombie'] || FIG.models.zombie).rest14
+            ? poseZombie22(e, D, o)
+            : poseZombie(e, D, o);
 };
+// a pose worked out on the 14 bones, moved on to the 22 the mesh is skinned to: each of the 22 is a part of one of the
+// 14 (the spine's upper pieces and the collarbones of the chest, the neck of the head, the hands of the forearms, the
+// toes of the feet) and moves with it exactly
+const X22 = [0, 1, 2, 2, 3, 3, 2, 4, 5, 5, 2, 6, 7, 7, 8, 9, 10, 10, 11, 12, 13, 13],
+  ZT = new Float32Array(TW * 4);
+function poseZombie22(e, D, o) {
+  poseZombie(e, ZT, 0);
+  const MM = FIG.models[modelOf(e) || 'zombie'] || FIG.models.zombie;
+  for (let b = 0; b < 22; b++) D.set(ZT.subarray(X22[b] * 12, X22[b] * 12 + 12), o + b * 12);
+  D.set(ZT.subarray(NB * 12, NB * 12 + 32), o + NB * 12);
+  const q = o + NB * 12 + 24, // what it has lost, a bit a bone: on to the 22
+    m14 = D[q];
+  if (m14) {
+    let m22 = 0;
+    for (let b = 0; b < 22; b++) if ((m14 >> X22[b]) & 1) m22 |= 1 << b;
+    D[q] = m22;
+  }
+  // on its feet and going about, its legs walk as the recording does (its hips and all above them as its own pose has
+  // them: the lurch, the hunch, the reach)
+  if (
+    e.dying === undefined &&
+    !(e.down > 0) &&
+    !e.crawl &&
+    !e.half &&
+    !(e.emerge < 1) &&
+    e.st !== 'crouch' &&
+    e.kind !== 'climb' &&
+    e.type !== 'hopper' &&
+    !(e.z > 2) &&
+    !m14
+  )
+    fkLegs(e, D, o, MM);
+}
+// the recorded legs under a figure whose hips are already placed (row o of D): blended walk to run by its speed, its
+// stride shortened for a shamble or drawn stiff for a limp, each foot held where it was put down
+function fkLegs(e, D, o, MM) {
+  REST = MM.rest;
+  MODEL_END = MM.ends;
+  const r = REST,
+    t = GS.time,
+    R0 = [D[o], D[o + 1], D[o + 2], D[o + 4], D[o + 5], D[o + 6], D[o + 8], D[o + 9], D[o + 10]],
+    t0 = [D[o + 3], D[o + 7], D[o + 11]],
+    k = [Math.hypot(R0[0], R0[3], R0[6]), Math.hypot(R0[2], R0[5], R0[8])],
+    yaw = Math.atan2(R0[3], R0[0]),
+    Hl = r[14][2] * k[1],
+    dt = clamp(t - (e._lgT ?? t), 0, 0.1),
+    A = fkAlign(MM),
+    par = MM.bones.map(b => b[1]),
+    D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]);
+  e._lgT = t;
+  const vx = e.vx || 0,
+    vy = e.vy || 0,
+    spd = Math.hypot(vx, vy),
+    sL = spd / Hl,
+    back = spd > 4 && Math.cos(Math.atan2(vy, vx) - yaw) < -0.3,
+    run = !!e.run,
+    C = FK.clips,
+    wMove = clamp((sL - 0.08) / 0.35, 0, 1),
+    wJ = clamp((sL - 1.6) / 2.0, 0, 1),
+    wW = (1 - wJ) * wMove,
+    wJog = wJ * wMove,
+    shortK = run ? 0.8 : 0.9, // a shamble: a little shorter than a man's
+    cyc = (wW * C.walk.v * C.walk.dur + wJog * C.jog.v * C.jog.dur) * shortK;
+  e._fph = (e._fph ?? Math.random()) + (cyc > 0.01 ? ((back ? -1 : 1) * dt * sL) / (cyc / Math.max(wMove, 0.01)) : 0);
+  const ph = ((e._fph % 1) + 1) % 1;
+  FKQ.fill(0);
+  FKR.fill(0);
+  fkAdd(C.idle, t + (e.id || 0), 1 - wMove, true);
+  fkAdd(C.walk, ((ph + C.walk.ph0) % 1) * C.walk.dur, wW, true);
+  fkAdd(C.jog, ((ph + C.jog.ph0) % 1) * C.jog.dur, wJog, true);
+  fkNorm(FKQ);
+  fkSnap(FK2, FKR2, C.idle, t + (e.id || 0), true);
+  if (wMove > 0) for (let b = 14; b < 22; b++) fkMix(FKQ, FK2, b, 1 - shortK);
+  // a lame leg (its right) barely bends: dragged, or swung stiff
+  const lame = e.kind === 'drag' ? 0.75 : e.limp && !run ? 0.55 : 0;
+  if (lame) for (let b = 14; b < 18; b++) fkMix(FKQ, FK2, b, lame);
+  const J = [],
+    R = [];
+  for (const b of [14, 15, 16, 17, 18, 19, 20, 21]) {
+    R[b] = Array.from(mm(mm(Rz(yaw), q9([FKQ[b * 4], FKQ[b * 4 + 1], FKQ[b * 4 + 2], FKQ[b * 4 + 3]])), A[b]));
+    const pj = par[b];
+    if (pj === 0)
+      J[b] = [
+        R0[0] * r[b][0] + R0[1] * r[b][1] + R0[2] * r[b][2] + t0[0],
+        R0[3] * r[b][0] + R0[4] * r[b][1] + R0[5] * r[b][2] + t0[1],
+        R0[6] * r[b][0] + R0[7] * r[b][1] + R0[8] * r[b][2] + t0[2],
+      ];
+    else {
+      const d = mv(R[pj], sc3(sub(r[b], r[pj]), k));
+      J[b] = [J[pj][0] + d[0], J[pj][1] + d[1], J[pj][2] + d[2]];
+    }
+    D3(b, R[b], J[b]);
+  }
+  // the feet held where they were put down
+  const stK = (1 - wJ) * MOTION.walk.st + wJ * MOTION.jog.st,
+    lk = e._flk || (e._flk = [{ on: false }, { on: false }]),
+    Rp = Rz(yaw);
+  for (const [i, ti] of [
+    [0, 14],
+    [1, 18],
+  ]) {
+    const L = lk[i],
+      fp = ((((back ? 1 - ph : ph) + i * 0.5) % 1) + 1) % 1,
+      down = wMove < 0.05 ? true : fp < stK,
+      ank = J[ti + 2];
+    // the ground under the foot: never through it (its hips may have sunk in a lurch)
+    if (!down) L.on = false;
+    else if (!L.on) {
+      L.on = true;
+      L.x = ank[0];
+      L.y = ank[1];
+    }
+    if (!L.on) continue;
+    if (Math.hypot(L.x - ank[0], L.y - ank[1]) > 0.45 * Hl) {
+      L.on = false;
+      continue;
+    }
+    const w = wMove < 0.05 ? 1 : clamp(Math.min(fp / stK, 1 - fp / stK) / 0.12, 0, 1),
+      tg = [ank[0] + (L.x - ank[0]) * w, ank[1] + (L.y - ank[1]) * w, Math.max(ank[2], r[ti + 2][2] * k[1] * 0.9)],
+      mid = mul(add(J[ti], ank), 0.5),
+      [, E] = limb(D, o, ti, ti + 1, Rp, J[ti], tg, sub(J[ti + 1], mid), k);
+    D3(ti + 2, R[ti + 2], E);
+    D3(ti + 3, R[ti + 3], add(E, mv(R[ti + 2], sc3(sub(r[ti + 3], r[ti + 2]), k))));
+  }
+}
 let POSE = poseFig;
 
 // ---------- which figures draw in 3D ----------

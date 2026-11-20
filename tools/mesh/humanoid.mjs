@@ -478,12 +478,11 @@ float feetD(vec3 p){ float fk=mix(1.0,LT,0.5); return min(boot(vec3(p.x,p.y,p.z)
     ],
     RES: 0.25,
   };
-  if (P.fk) {
-    // the fuller skeleton, for recorded motion (fk22.mjs)
-    const { BONES, REMAP } = fk22(B, REGION);
-    return { BONES, BOUNDS: [lo, hi], GLSL, REGION, SCALE: P.scale, MRES: P.mres, KN, kits, FINE, REMAP, FKB: 1 };
-  }
-  return { BONES: B, BOUNDS: [lo, hi], GLSL, REGION, SCALE: P.scale, MRES: P.mres, KN, kits, FINE };
+  // the fuller skeleton, for recorded motion (fk22.mjs); the 14 bones it was made from kept too (B14), for the poses
+  // worked out on those (fig3d.js moves them on to the 22)
+  const { BONES, REMAP } = fk22(B, REGION);
+  for (const K of Object.values(kits)) Object.assign(K, { BONES, REMAP, B14: B });
+  return { BONES, BOUNDS: [lo, hi], GLSL, REGION, SCALE: P.scale, MRES: P.mres, KN, kits, FINE, REMAP, B14: B };
 }
 
 // the people-shaped dead, each by its knobs (see humanoid)
@@ -495,7 +494,7 @@ export const MODELS = {
   spitter: humanoid({ tw: 0.95, lt: 0.92, throat: 1, jaw: 0.35 }), // the spitter: its throat a sac of what it spits
   armored: humanoid({ tw: 1.06, sw: 1.04, lt: 1.05, gear: 'armor' }), // in a plate carrier and helmet
   riot: humanoid({ tw: 1.06, sw: 1.04, lt: 1.05, gear: 'riot' }), // and a riot shield
-  hero: humanoid({ tw: 1.04, td: 1.08, sw: 1.06, lt: 1.12, ll: 0.97, gear: 'armor', pack: 1, kit: 1, fk: 1 }), // you, and the survivors with you: fed and fit, a plate carrier and helmet, a pack on the back
+  hero: humanoid({ tw: 1.04, td: 1.08, sw: 1.06, lt: 1.12, ll: 0.97, gear: 'armor', pack: 1, kit: 1 }), // you, and the survivors with you: fed and fit, a plate carrier and helmet, a pack on the back
   bloat: humanoid({ tw: 1.3, td: 1.25, lt: 1.3, belly: 1, bumps: 0.5, scale: 1.08, mres: 1.25 }), // swollen: the bloater among them, and the spore
   drag: humanoid({
     tw: 1.35,
