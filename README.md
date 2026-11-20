@@ -10,6 +10,10 @@ Desktop, keyboard and mouse. WebGL2.
 **Copyright (c) 2026 b24m12o. All rights reserved.** The source is public to read, not to reuse.
 See [LICENSE](LICENSE).
 
+The way the figures walk and run is taken from Quaternius' [Universal Animation
+Library](https://quaternius.com/packs/universalanimationlibrary.html), released under CC0 (no rights reserved);
+`tools/anim/ual.mjs` turns it into `src/render/motion.js`.
+
 ## Play
 
 - **On your computer:** run the build (below), then open `build/dead-acre.html` in a browser. It is the whole

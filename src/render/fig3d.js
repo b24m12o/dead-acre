@@ -12,6 +12,7 @@ import { gl, progFinish } from './gl.js';
 import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
 import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
 import { GK, HEROIC, PER_M, TILT, gaitOfSpeed, strideLen } from '../core/scale.js';
+import { MOTION } from './motion.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
 
@@ -1077,7 +1078,7 @@ function poseZombie(e, D, o) {
   e._ft = t;
   const SF =
     !feet && em >= 1 && !crouch && !climb && !(e.wbT > 0 && mvv < 0.1)
-      ? stepFeet(e, dtz, yaw, 4.3 * kp * (brute || fat ? 1.25 : 1) * (run ? 1 : G.stance), 0, {
+      ? stepFeet(e, dtz, yaw, 4.3 * kp * (brute || fat ? 1.25 : 1) * (run ? 1 : G.stance), 0, r[8][2] * k[1], {
           L: (strideLen(e) * (chg ? 1.15 : 1)) / (run || chg ? 1 : e.cad || 1),
           ph: e.stride || 0,
           runK: run || chg ? 1 : 0,
@@ -1503,6 +1504,25 @@ const TIP = {
   pistol: [6.4, 0, 1.9],
 };
 const lerp3 = (a, b, f) => v3(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+// a recorded loop's row at a moment of its stride (0..1), column j (motion.js), between its samples
+const moRow = (m, ph, j) => {
+  const R = m.rows,
+    n = R.length,
+    x = (((ph % 1) + 1) % 1) * n,
+    i = Math.floor(x),
+    f = x - i;
+  return R[i % n][j] * (1 - f) + R[(i + 1) % n][j] * f;
+};
+// our stride's moment on to the recording's: its time down matched to ours, its time in the air to ours
+const moPh = (ph, st, sc) => {
+  ph = ((ph % 1) + 1) % 1;
+  return ph < st ? (ph / st) * sc : sc + ((ph - st) / (1 - st)) * (1 - sc);
+};
+// a turn kept as axis × angle (motion.js) as a matrix
+const rotV = v => {
+  const a = Math.hypot(v[0], v[1], v[2]);
+  return a < 1e-5 ? Rz(0) : rotA([v[0] / a, v[1] / a, v[2] / a], a);
+};
 // ---------- the feet: a stride from the speed, each foot planted in the street while it bears ----------
 // Each foot is put down ahead of its hip by half the way the body will go while it bears, and stays exactly there,
 // whatever the body does, until it lifts; in the air it swings through to where it will next come down (so it never
@@ -1511,7 +1531,7 @@ const lerp3 = (a, b, f) => v3(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f
 // o (for the dead that walk): L, the ground a stride covers (the stride then set by the street, not the beat); ph, the
 // stride's own count (enemy-ai.js keeps it, its lurches go with it); runK; lift and size (sz) against a man's;
 // short, how much of a full step each foot takes (a limp, a dragged leg)
-function stepFeet(p, dt, hy, sp, top, o = null) {
+function stepFeet(p, dt, hy, sp, top, Hl, o = null) {
   const vx = p.vx || 0,
     vy = p.vy || 0,
     v = Math.hypot(vx, vy),
@@ -1541,13 +1561,41 @@ function stepFeet(p, dt, hy, sp, top, o = null) {
     else g.ph += dt * f; // (the beat set by the speed, and the step's length by the beat: never stretched)
   } else if ((g.ph * 2) % 1 > 0.2) g.ph += dt * 1.6; // the step under way finished: then both feet are down
   const A = (v * st) / (2 * f), // a foot lands this far ahead of its hip
+    // the recorded walk and run (motion.js), blended by the speed in leg lengths a second: the swing's path, the heel
+    // and the toes, the hips; their lift kept to the length of our step
+    wJ = o ? (runK > 0.5 ? 1 : 0) : clamp((v / Hl - 1.1) / 1.9, 0, 1),
+    MW = wJ < 1 ? [MOTION.walk, 1 - wJ] : null,
+    MJ = wJ > 0 ? [MOTION.jog, wJ] : null,
+    moAt = (ph, j) =>
+      (MW ? moRow(MW[0], moPh(ph, st, MW[0].st), j) * MW[1] : 0) +
+      (MJ ? moRow(MJ[0], moPh(ph, st, MJ[0].st), j) * MJ[1] : 0),
+    // the recorded foot's swing from where it lifts to where it lands, 0..1 (a heel kicked back can take it below 0)
+    swingE = ph => {
+      let e = 0;
+      for (const M of [MW, MJ]) {
+        if (!M) continue;
+        const m = M[0],
+          a0 = moRow(m, m.st, 0),
+          a1 = moRow(m, 0, 0),
+          a = moRow(m, moPh(ph, st, m.st), 0);
+        e += clamp((a - a0) / (a1 - a0 || 1), 0, 1) * M[1]; // (its heel kicked back up behind, not the foot left trailing)
+      }
+      return e;
+    },
+    hsc = clamp(
+      A /
+        Hl /
+        (0.5 * (MW ? MOTION.walk.S * MOTION.walk.st * MW[1] : 0) +
+          0.5 * (MJ ? MOTION.jog.S * MOTION.jog.st * MJ[1] : 0) || 1),
+      0.55,
+      1
+    ),
     dx = v > 1 ? vx / v : 0,
     dy = v > 1 ? vy / v : 0,
     lift = (2.0 + 2.4 * runK) * GK * 2.4 * (o ? o.lift : 1) * SZ,
     reach = 17 * GK * 2.4 * SZ; // past this from its hip a foot is dragged rather than the leg pulled off
   let bob = 0,
-    sway = 0,
-    down = 0;
+    sway = 0;
   g.feet.forEach((F, i) => {
     const sd = i ? -1 : 1,
       ph = (g.ph + i * 0.5) % 1,
@@ -1567,16 +1615,13 @@ function stepFeet(p, dt, hy, sp, top, o = null) {
     if (inSt) {
       const u = ph / st,
         c = Math.sin(Math.PI * u);
-      F.z = 0;
-      F.pitch = mk * (u < 0.15 ? -0.3 * (1 - u / 0.15) : u > 0.7 ? 0.6 * ((u - 0.7) / 0.3) : 0); // heel first; heel up to push off
-      bob += c * (0.5 * (1 - runK) - 0.8 * runK) * mk; // walking, vaulting over the leg; running, sinking into it
-      sway += sd * c * 0.45 * (1 - 0.6 * runK) * mk;
-      down++;
+      F.z = Math.max(0, moAt(ph, 2)) * Hl * hsc * mk; // the heel rising as it rolls on to its toes
+      F.pitch = mk * clamp(moAt(ph, 3) * 0.85, -0.5, 1); // heel first, then the roll forward to the toes
+      void c;
     } else {
       const u = (ph - st) / (1 - st),
         left = ((1 - u) * (1 - st)) / f, // seconds before it lands
-        // walking, the foot eases off and eases down; running, it comes through briskly, folded up under the hip
-        ee = lerp(u * u * (3 - 2 * u), 1 - (1 - u) * (1 - u), runK);
+        ee = swingE(ph); // as the recorded foot swings through
       const Af = A * (o && o.short ? o.short[i] : 1);
       let tx = R[0] + vx * left + dx * Af,
         ty = R[1] + vy * left + dy * Af;
@@ -1588,10 +1633,14 @@ function stepFeet(p, dt, hy, sp, top, o = null) {
       F.x = F.lx + (tx - F.lx) * ee;
       F.y = F.ly + (ty - F.ly) * ee;
       F.z =
-        Math.sin(Math.PI * u) * lift * Math.max(mk, 0.4) * (o && o.short ? 0.25 + 0.75 * o.short[i] : 1) +
-        runK * mk * Math.sin(Math.PI * Math.min(1, u * 1.7)) * lift * 0.9; // and the heel kicked up behind
+        Math.max(0, moAt(ph, 2)) *
+        Hl *
+        hsc *
+        Math.max(mk, 0.4) *
+        (o && o.short ? 0.25 + 0.75 * o.short[i] : 1) *
+        (o ? o.lift : 1); // as high as the recorded foot
       F.yaw += angDiff(F.yaw, hy + sd * 0.1) * Math.min(1, dt * 14);
-      F.pitch = mk * (0.6 * (1 - u) - (0.3 * Math.max(0, u - 0.6)) / 0.4);
+      F.pitch = mk * clamp(moAt(ph, 3) * 0.85, -0.5, 1);
     }
   });
   if (!(mk > 0.04 || (g.ph * 2) % 1 > 0.2)) {
@@ -1641,8 +1690,18 @@ function stepFeet(p, dt, hy, sp, top, o = null) {
       F.y = R[1] + (ddy / dd) * reach;
     }
   }
-  if (!down && runK > 0.3) bob += 0.6 * runK * mk; // both feet off the ground, running
+  // the hips and chest as the recording has them, a stride along (as the right foot's)
+  const walking = mk > 0.04 || (g.ph * 2) % 1 > 0.2,
+    phR = g.ph % 1,
+    pk = walking ? Math.max(mk, 0.3) : 0;
+  bob += moAt(phR, 10) * 28 * pk * hsc; // (in the model's units: a leg's 28 of them)
+  sway += moAt(phR, 9) * 28 * pk;
+  const prot = [moAt(phR, 11), moAt(phR, 12), moAt(phR, 13)].map(x => x * pk),
+    crot = [moAt(phR, 14), moAt(phR, 15), moAt(phR, 16)].map(x => x * pk);
+  void lift;
   return {
+    prot,
+    crot,
     feet: g.feet,
     runK,
     mk,
@@ -1704,7 +1763,7 @@ function poseHero(p, D, o) {
     p._ay = lerp(p._ay || 0, ay, kk);
   }
   const hy0 = p._hipA,
-    G0 = stepFeet(p, dt, hy0, 4.4 * k[0], top),
+    G0 = stepFeet(p, dt, hy0, 4.4 * k[0], top, r[8][2] * k[1]),
     hy = hy0 + G0.twist, // the pelvis swings round with the leg going through
     blade = (H.blade + shv * 0.1) * (1 - rl * 0.4), // side-on behind a long gun, square behind a pistol
     tw = clamp(angDiff(hy, aim + blade), -1.3, 1.3),
@@ -1715,9 +1774,12 @@ function poseHero(p, D, o) {
     leanF = clamp(0.04 + 0.14 * G0.runK * G0.mk + aF * 0.025, -0.12, 0.3),
     leanR = clamp(aR * 0.02, -0.12, 0.12);
   // hips over the legs, the trunk twisting up to the aim, leaning; a shove's lunge
-  const Rp = mm(Rz(hy), mm(Rxb(G0.sway * 0.04 + leanR * 0.5), Ryb(leanF * 0.4))),
+  const Rp = mm(Rz(hy), mm(rotV(G0.prot), mm(Rxb(leanR * 0.5), Ryb(leanF * 0.4)))),
     Jp = [p.x + hr[0] * G0.sway * k[0], p.y + hr[1] * G0.sway * k[0], (r[0][2] + G0.bob - shv * 0.6) * k[1]],
-    Rs = mm(Rp, mm(Rz(tw * 0.45), mm(Rxb(leanR * 0.5), Ryb(0.04 + leanF * 0.6 + shv * 0.12)))),
+    Rs = mm(
+      Rp,
+      mm(Rz(tw * 0.45), mm(rotV(G0.crot.map(x => x * 0.3)), mm(Rxb(leanR * 0.5), Ryb(0.04 + leanF * 0.6 + shv * 0.12))))
+    ), // the recorded chest's counter-swing, held in by the gun
     Rc = mm(Rs, mm(Rz(tw * 0.55), Ryb(0.04 + breathe * 0.01 - kick * 0.06 + shv * 0.1 - leanF * 0.25))),
     Js = add(Jp, mv(Rp, sc3(sub(r[1], r[0]), k))),
     Jc = add(Js, mv(Rs, sc3(sub(r[2], r[1]), k)));
