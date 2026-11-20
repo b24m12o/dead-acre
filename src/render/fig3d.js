@@ -13,6 +13,7 @@ import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
 import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
 import { GK, HEROIC, PER_M, TILT, gaitOfSpeed, strideLen } from '../core/scale.js';
 import { FK, MOTION } from './motion.js';
+import { FKC } from './motion-cmu.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
 
@@ -1987,6 +1988,8 @@ function fkAdd(c, t, w, loop) {
     rb = c.root[loop ? (i + 1) % n : Math.min(i + 1, n - 1)];
   for (let j = 0; j < 3; j++) FKR[j] += (ra[j] * (1 - f) + rb[j] * f) * w;
 }
+// a looped recording's time at a stride's phase (its right foot landing at each whole one; over its strides in turn)
+const fkT = (c, fph) => (((((fph + (c.ph0 || 0)) / (c.ns || 1)) % 1) + 1) % 1) * c.dur;
 const FK2 = new Float32Array(22 * 4),
   FKR2 = new Float32Array(3);
 const fkNorm = Q => {
@@ -2053,43 +2056,93 @@ function poseHeroFK(p, D, o) {
     par = MM.bones.map(b => b[1]),
     Hl = r[14][2] * k[1]; // a leg's length: the hips' height
   p._hipT = t;
-  // the legs go the way it's going (backing off, they walk backward: the recording run in reverse); the trunk turns
-  // from them to the aim. Standing, they turn after the trunk once it's twisted too far
+  // where it's going against where it aims (+ to its right), and the recordings for it: forward the walk or the run;
+  // backward, or to a side, a walk backward or sideways, or faster a backpedal or a sideways shuffle (CMU's:
+  // motion-cmu.js). Blended by the direction, each turned so that its going is the hero's: its body faces the aim
   const vx = p.vx || 0,
     vy = p.vy || 0,
     spd = Math.hypot(vx, vy),
     sL = spd / Hl, // leg lengths a second
     mA = spd > 4 ? Math.atan2(vy, vx) : aim,
-    back = Math.abs(angDiff(aim, mA)) > 1.75,
-    blade = (H.blade + shv * 0.1) * (1 - rl * 0.4);
+    blade = (H.blade + shv * 0.1) * (1 - rl * 0.4),
+    C = FK.clips,
+    X = FKC,
+    wMove = clamp((sL - 0.08) / 0.35, 0, 1),
+    wJ = clamp((sL - 1.2) / 2.0, 0, 1),
+    shortK = 1 - 0.3 * wJ, // running, the recorded athlete's stride is long: a shorter arc, at a quicker beat
+    DIRS = [
+      [C.walk, C.jog],
+      [X.sideM, X.shufM],
+      [X.back, X.bpedal],
+      [X.side, X.shuf],
+    ],
+    // each direction's going (at this pace): forward, right, back, left, round the circle
+    G = DIRS.map(([a, b], d) =>
+      d ? (a.go < 0 ? a.go + 2 * Math.PI : a.go) * (1 - wJ) + (b.go < 0 ? b.go + 2 * Math.PI : b.go) * wJ : 0
+    ),
+    rel = spd > 4 ? angDiff(aim, mA) : 0,
+    rr = rel < 0 ? rel + 2 * Math.PI : rel,
+    dw = p._dw || (p._dw = [1, 0, 0, 0]);
+  {
+    // the two directions it's between, and how far
+    const W = [0, 0, 0, 0];
+    for (let d = 0; d < 4; d++) {
+      const a = G[d],
+        b = d < 3 ? G[d + 1] : 2 * Math.PI;
+      if (rr >= a && rr <= b) {
+        const u = (rr - a) / Math.max(1e-3, b - a);
+        W[d] = 1 - u;
+        W[(d + 1) % 4] += u;
+        break;
+      }
+    }
+    // (its legs change over in a moment, not in a frame)
+    let sm = 0;
+    for (let d = 0; d < 4; d++) sm += dw[d] += (W[d] - dw[d]) * Math.min(1, dt * 10);
+    for (let d = 0; d < 4; d++) dw[d] /= sm || 1;
+  }
   if (p._legA === undefined) p._legA = aim;
   {
-    const want = sL > 0.25 ? (back ? mA + Math.PI : mA) : Math.abs(angDiff(p._legA, aim + blade)) > 1.1 ? aim : p._legA;
+    // moving, the body turned off its going by the blend's own going (facing the aim, once the blend has caught up);
+    // standing, the legs turn after the trunk once it's twisted too far
+    let gB = 0;
+    for (let d = 0; d < 4; d++) gB += dw[d] * (G[d] + 2 * Math.PI * Math.round((rr - G[d]) / (2 * Math.PI)));
+    const want = sL > 0.25 ? mA - gB : Math.abs(angDiff(p._legA, aim + blade)) > 1.1 ? aim : p._legA;
     p._legA += angDiff(p._legA, want) * Math.min(1, dt * (sL > 0.25 ? 10 : 5));
   }
   const yaw = p._legA,
     tw = clamp(angDiff(yaw, aim + blade), -1.7, 1.7);
-  // which recordings, how much of each: standing, walking, running, by the speed. Running, the recorded stride is
-  // long (an athlete's): the legs swing a shorter arc, at a quicker beat, over the same ground
-  const C = FK.clips,
-    wMove = clamp((sL - 0.08) / 0.35, 0, 1),
-    wJ = clamp((sL - 1.2) / 2.0, 0, 1),
-    wW = (1 - wJ) * wMove,
-    wJog = wJ * wMove,
-    shortK = 1 - 0.3 * wJ, // how much of the recorded swing
-    cyc = (wW * C.walk.v * C.walk.dur + wJog * C.jog.v * C.jog.dur) * shortK; // the ground a stride covers
-  p._fph = (p._fph || 0) + (cyc > 0.01 ? ((back ? -1 : 1) * dt * sL) / (cyc / Math.max(wMove, 0.01)) : 0);
-  const ph = ((p._fph % 1) + 1) % 1;
+  // each recording's weight, how much of its swing (the athlete's run shortened; CMU's slower walks lengthened to
+  // the hero's pace, half by a longer step and half by a quicker one), and so the ground a stride covers
+  let cyc = 0,
+    aB = 0,
+    stK = 0;
+  const use = [];
+  for (let d = 0; d < 4; d++)
+    for (const [c, w] of [
+      [DIRS[d][0], dw[d] * (1 - wJ)],
+      [DIRS[d][1], dw[d] * wJ],
+    ]) {
+      if (w < 1e-3) continue;
+      const own = c === C.walk || c === C.jog,
+        a = own ? shortK : clamp(Math.sqrt(sL / c.v), 0.75, 1.5);
+      cyc += w * ((c.v * c.dur) / (c.ns || 1)) * a;
+      aB += w * a;
+      stK += w * (c === C.walk ? MOTION.walk.st : c === C.jog ? MOTION.jog.st : c.st);
+      use.push([c, w]);
+    }
+  p._fph = (p._fph || 0) + (cyc > 0.01 && wMove > 0 ? (dt * sL) / cyc : 0);
+  const ph = ((p._fph % 1) + 1) % 1,
+    wJog = wJ * wMove * dw[0];
   FKQ.fill(0);
   FKR.fill(0);
   fkAdd(C.idle, t, 1 - wMove, true);
-  fkAdd(C.walk, ((ph + C.walk.ph0) % 1) * C.walk.dur, wW, true);
-  fkAdd(C.jog, ((ph + C.jog.ph0) % 1) * C.jog.dur, wJog, true);
+  for (const [c, w] of use) fkAdd(c, fkT(c, p._fph), w * wMove, true);
   fkNorm(FKQ);
-  // the legs' shorter arc: their turns drawn back toward standing
-  if (shortK < 1 && wMove > 0) {
+  // the legs' arc: their turns drawn toward standing (shorter), or on past the recording's (longer)
+  if (Math.abs(1 - aB) > 0.01 && wMove > 0) {
     fkSnap(FK2, FKR2, C.idle, t, true);
-    for (let b = 14; b < 22; b++) fkMix(FKQ, FK2, b, 1 - shortK);
+    for (let b = 14; b < 22; b++) fkMix(FKQ, FK2, b, 1 - aB);
   }
   // a gun up is carried steady: the recorded runner's trunk and shoulders swing with free arms, and a man holding a
   // rifle at his shoulder keeps them still over the hips (the hips and legs move as recorded). Each bone of the trunk
@@ -2152,14 +2205,13 @@ function poseHeroFK(p, D, o) {
   // the feet: each held where it was put down while the recording has it on the ground (no sliding, the body may
   // turn and change pace over it), the leg reaching to it; let go as it lifts
   {
-    const stK = (1 - wJ) * MOTION.walk.st + wJ * MOTION.jog.st,
-      lk = p._flk || (p._flk = [{ on: false }, { on: false }]);
+    const lk = p._flk || (p._flk = [{ on: false }, { on: false }]);
     for (const [i, ti] of [
       [0, 14],
       [1, 18],
     ]) {
       const L = lk[i],
-        fp = ((((back ? 1 - ph : ph) + i * 0.5) % 1) + 1) % 1,
+        fp = (ph + i * 0.5) % 1,
         down = rollK > 0 ? false : wMove < 0.05 ? true : fp < stK,
         ank = J[ti + 2];
       if (!down) L.on = false;
@@ -2350,22 +2402,35 @@ function poseZombie22(e, D, o) {
   )
     fkLegs(e, D, o, MM);
 }
+// the dead's own carriage, recorded (CMU's): a zombie's shamble, another's, a drunk's stagger, a man walking on a hurt
+// leg; each of the walking dead given one (a limper its limp, legs and all). Its trunk, arms and head as the recording
+// carries them, in step with its legs; its own pose back for all it does besides walking (a lunge, a stagger, a
+// scream), and in part for a hit
+const ZUP = ['zwalk', 'zwalk2', 'drunk', 'zwalk', 'zwalk2', 'hurt', 'zwalk'];
+function zCarriage(e) {
+  if (e.run || e.hunch > 0 || e.shield || e.type !== 'skitter') return null;
+  const m = modelOf(e);
+  if (m !== 'zombie' && m !== 'gaunt' && m !== 'armored' && m !== 'lean' && m !== 'drag') return null;
+  return FKC[e.limp ? 'limp' : m === 'drag' ? 'hurt' : ZUP[Math.floor(hsh(e.id || 0, 11) * ZUP.length) % ZUP.length]];
+}
+const ZROW = new Float32Array(14 * 12);
 // the recorded legs under a figure whose hips are already placed (row o of D): blended walk to run by its speed, its
-// stride shortened for a shamble or drawn stiff for a limp, each foot held where it was put down
+// stride shortened for a shamble or drawn stiff for a limp, each foot held where it was put down; above them, its
+// recorded carriage, if it has one
 function fkLegs(e, D, o, MM) {
   REST = MM.rest;
   MODEL_END = MM.ends;
   const r = REST,
     t = GS.time,
-    R0 = [D[o], D[o + 1], D[o + 2], D[o + 4], D[o + 5], D[o + 6], D[o + 8], D[o + 9], D[o + 10]],
-    t0 = [D[o + 3], D[o + 7], D[o + 11]],
-    k = [Math.hypot(R0[0], R0[3], R0[6]), Math.hypot(R0[2], R0[5], R0[8])],
-    yaw = Math.atan2(R0[3], R0[0]),
-    Hl = r[14][2] * k[1],
     dt = clamp(t - (e._lgT ?? t), 0, 0.1),
     A = fkAlign(MM),
     par = MM.bones.map(b => b[1]),
     D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]);
+  let R0 = [D[o], D[o + 1], D[o + 2], D[o + 4], D[o + 5], D[o + 6], D[o + 8], D[o + 9], D[o + 10]],
+    t0 = [D[o + 3], D[o + 7], D[o + 11]];
+  const k = [Math.hypot(R0[0], R0[3], R0[6]), Math.hypot(R0[2], R0[5], R0[8])],
+    yaw = Math.atan2(R0[3], R0[0]),
+    Hl = r[14][2] * k[1];
   e._lgT = t;
   const vx = e.vx || 0,
     vy = e.vy || 0,
@@ -2374,24 +2439,67 @@ function fkLegs(e, D, o, MM) {
     back = spd > 4 && Math.cos(Math.atan2(vy, vx) - yaw) < -0.3,
     run = !!e.run,
     C = FK.clips,
+    Z = zCarriage(e),
+    ZL = Z === FKC.limp, // the limp walks its own legs too
     wMove = clamp((sL - 0.08) / 0.35, 0, 1),
-    wJ = clamp((sL - 1.6) / 2.0, 0, 1),
+    wJ = ZL ? 0 : clamp((sL - 1.6) / 2.0, 0, 1),
     wW = (1 - wJ) * wMove,
     wJog = wJ * wMove,
-    shortK = run ? 0.8 : 0.9, // a shamble: a little shorter than a man's
-    cyc = (wW * C.walk.v * C.walk.dur + wJog * C.jog.v * C.jog.dur) * shortK;
-  e._fph = (e._fph ?? Math.random()) + (cyc > 0.01 ? ((back ? -1 : 1) * dt * sL) / (cyc / Math.max(wMove, 0.01)) : 0);
+    LW = ZL ? Z : C.walk,
+    aL = ZL ? clamp(Math.sqrt(sL / Z.v), 0.8, 1.3) : 1, // (the limp brought to its pace, half by a longer step)
+    shortK = ZL ? aL : run ? 0.8 : 0.9, // a shamble: a little shorter than a man's
+    cyc = (wW * ((LW.v * LW.dur) / (LW.ns || 1)) + wJog * C.jog.v * C.jog.dur) * shortK;
+  e._fph =
+    (e._fph ?? Math.random() * 8) + (cyc > 0.01 ? ((back ? -1 : 1) * dt * sL) / (cyc / Math.max(wMove, 0.01)) : 0);
   const ph = ((e._fph % 1) + 1) % 1;
+  // its carriage: how much of it (eased in and out as it walks, lunges, staggers, is hit)
+  if (Z) {
+    const want = e.lunge > 0 || e.wbT > 0 || e.scrIn > 0 || e.st === 'crouch' || wMove < 0.3 ? 0 : e.flT > 0 ? 0.35 : 1,
+      zk0 = e._zk ?? want;
+    e._zk = zk0 + (want - zk0) * Math.min(1, dt * (want < zk0 ? 14 : 4));
+  } else e._zk = 0;
+  const zk = e._zk;
+  if (zk > 0.01) {
+    fkSnap(FK2, FKR2, Z, fkT(Z, e._fph), true);
+    // as recorded from the hips up, the hips where its own pose has them (swaying about there as recorded)
+    const Ry = Rz(yaw),
+      J = [],
+      R = [],
+      sw = mv(Ry, [FKR2[0] * Hl, FKR2[1] * Hl, 0]);
+    for (let b = 0; b < 14; b++) {
+      R[b] = mm(mm(Ry, q9([FK2[b * 4], FK2[b * 4 + 1], FK2[b * 4 + 2], FK2[b * 4 + 3]])), A[b]);
+      if (b === 0)
+        J[0] = add(add(mv(R0, r[0]), t0), sw); // (R0 scaled: the row maps rest to the street)
+      else {
+        const pj = par[b],
+          d = mv(R[pj], sc3(sub(r[b], r[pj]), k));
+        J[b] = [J[pj][0] + d[0], J[pj][1] + d[1], J[pj][2] + d[2]];
+      }
+      bone(ZROW, 0, b, mul3(R[b], k), J[b], r[b]);
+    }
+    for (let b = 0; b < 14; b++)
+      for (let j = 0; j < 12; j++) D[o + b * 12 + j] += (ZROW[b * 12 + j] - D[o + b * 12 + j]) * zk;
+    R0 = [D[o], D[o + 1], D[o + 2], D[o + 4], D[o + 5], D[o + 6], D[o + 8], D[o + 9], D[o + 10]];
+    t0 = [D[o + 3], D[o + 7], D[o + 11]];
+    // its head, for the eyes the flashlight catches (as poseZombie keeps it)
+    if (zk > 0.5) {
+      const Rh = R[5],
+        hc = add(J[5], mv(Rh, sc3(mul(sub(MODEL_END[5], r[5]), 0.55), k)));
+      e.__hx = e.__lhx = hc[0];
+      e.__hy = e.__lhy = hc[1] - hc[2] * TILT;
+      e.__ha = Math.atan2(Rh[3], Rh[0]);
+    }
+  }
   FKQ.fill(0);
   FKR.fill(0);
   fkAdd(C.idle, t + (e.id || 0), 1 - wMove, true);
-  fkAdd(C.walk, ((ph + C.walk.ph0) % 1) * C.walk.dur, wW, true);
+  fkAdd(LW, fkT(LW, e._fph), wW, true);
   fkAdd(C.jog, ((ph + C.jog.ph0) % 1) * C.jog.dur, wJog, true);
   fkNorm(FKQ);
   fkSnap(FK2, FKR2, C.idle, t + (e.id || 0), true);
   if (wMove > 0) for (let b = 14; b < 22; b++) fkMix(FKQ, FK2, b, 1 - shortK);
-  // a lame leg (its right) barely bends: dragged, or swung stiff
-  const lame = e.kind === 'drag' ? 0.75 : e.limp && !run ? 0.55 : 0;
+  // a lame leg (its right) barely bends: dragged, or swung stiff (a recorded limp limps of itself)
+  const lame = ZL ? 0 : e.kind === 'drag' ? 0.75 : e.limp && !run ? 0.55 : 0;
   if (lame) for (let b = 14; b < 18; b++) fkMix(FKQ, FK2, b, lame);
   const J = [],
     R = [];
@@ -2411,7 +2519,7 @@ function fkLegs(e, D, o, MM) {
     D3(b, R[b], J[b]);
   }
   // the feet held where they were put down
-  const stK = (1 - wJ) * MOTION.walk.st + wJ * MOTION.jog.st,
+  const stK = ZL ? Z.st : (1 - wJ) * MOTION.walk.st + wJ * MOTION.jog.st,
     lk = e._flk || (e._flk = [{ on: false }, { on: false }]),
     Rp = Rz(yaw);
   for (const [i, ti] of [

@@ -14,6 +14,11 @@ The way the figures walk and run is taken from Quaternius' [Universal Animation
 Library](https://quaternius.com/packs/universalanimationlibrary.html), released under CC0 (no rights reserved);
 `tools/anim/ual.mjs` turns it into `src/render/motion.js`.
 
+The zombies' shambles, the limp, the drunk's stagger and the hero's backpedal and sidestep come from the Carnegie
+Mellon University Graphics Lab Motion Capture Database (in Bruce Hahne's BVH conversion);
+`tools/anim/cmu.mjs` turns them into `src/render/motion-cmu.js`. The data used in this project was obtained from
+mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.
+
 ## Play
 
 - **On your computer:** run the build (below), then open `build/dead-acre.html` in a browser. It is the whole
