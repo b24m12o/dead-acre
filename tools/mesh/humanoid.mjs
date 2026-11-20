@@ -52,10 +52,10 @@ const BASE = [
   ['farmL', 6, [-0.5, -13.7, 36.6], [-0.2, -22.6, 25.9]],
   ['thighR', 0, [0, 4, 28.4], [0.6, 4.3, 15.3]],
   ['shinR', 8, [0.6, 4.3, 15.3], [0, 4.5, 2.6]],
-  ['footR', 9, [0, 4.5, 2.6], [7.4, 4.7, 0.9]],
+  ['footR', 9, [0, 4.5, 2.6], [5.4, 4.6, 1.0]], // a foot about a sixth of a man's height: any longer and they read as clown shoes
   ['thighL', 0, [0, -4, 28.4], [0.6, -4.3, 15.3]],
   ['shinL', 11, [0.6, -4.3, 15.3], [0, -4.5, 2.6]],
-  ['footL', 12, [0, -4.5, 2.6], [7.4, -4.7, 0.9]],
+  ['footL', 12, [0, -4.5, 2.6], [5.4, -4.6, 1.0]],
 ];
 const f = x => (Number.isInteger(x) ? x + '.0' : String(+x.toFixed(4)));
 
@@ -327,8 +327,8 @@ float leg(vec3 p, float s, out float dT, out float dS, out float dFt){
   float sh=sdCap(q,KNEE,ANK+vec3(0.0,0.0,0.5),1.85*lk,1.2*lk); sh=smin(sh,sdEll(q,mix(KNEE,ANK,0.28)+vec3(-0.8,0.0,0.0)*lk,vec3(1.2,1.3,2.9)*lk),0.7*lk); // the calf
   float tr=folds(p,1.0)*0.9; t+=tr+boils(p)*0.6; sh+=tr*0.8;
   float fk=mix(1.0,LT,0.5);
-  float ft=sdCap(q,ANK+vec3(-1.2,0.0,-1.2)*fk,TOE+vec3(0.0,0.0,0.35),1.5*fk,1.25*fk); ft=smax(ft,-q.z,0.4); // the shoe, flat underneath
-  ft=smin(ft,sdSph(q,ANK+vec3(-0.5,0.0,-0.2)*fk,1.55*fk),0.7);
+  float ft=sdCap(q,ANK+vec3(-0.9,0.0,-1.2)*fk,TOE+vec3(0.0,0.0,0.3),1.35*fk,1.05*fk); ft=smax(ft,-q.z,0.4); // the shoe, flat underneath, slim at the toe
+  ft=smin(ft,sdSph(q,ANK+vec3(-0.4,0.0,-0.2)*fk,1.45*fk),0.6);
   dT=t; dS=sh; dFt=ft;
   return smin(smin(t,sh,0.8*lk),ft,0.6);
 }

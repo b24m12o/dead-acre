@@ -701,6 +701,34 @@ const EYE = [0, 0, 0];
 // tall, so 0.64 of that is 1.75 m; a big dog 1.1 m from nose to tail; the brute a little bigger again
 const FIGK = ((1.75 * PER_M) / 55) * HEROIC,
   DOGK = 0.45 * HEROIC;
+// how this one walks, its own from the start (a hash of who it is): how much it rolls from side to side, how far it
+// leans into the walk and lurches forward now and then, how high it lifts its feet (a shuffler barely does), how wide
+// it stands and turns its toes out, one leg taking a shorter step than the other, its head nodding or hanging to a
+// side, its shoulders twisting, its arms swinging or hardly at all
+function gaitOf(e) {
+  if (e._g && e._g.id === e.id) return e._g;
+  const id = e.id || 0,
+    h = n => hsh(id, 200 + n),
+    shuffle = h(1) < 0.3;
+  e._g = {
+    id: e.id,
+    sway: 0.55 + h(2) * 1.2,
+    lean: -0.04 + h(3) * 0.3,
+    lurch: h(4) < 0.35 ? 0.35 + h(5) * 0.4 : 0,
+    lift: shuffle ? 0.2 + h(6) * 0.25 : 0.8 + h(6) * 0.6,
+    stance: 0.8 + h(7) * 0.55,
+    toe: -0.1 + h(8) * 0.45,
+    hitch: h(9) < 0.4 ? 0.55 + h(10) * 0.3 : 1,
+    hs: h(11) < 0.5 ? 1 : -1,
+    bob: h(12) < 0.4 ? 0.05 + h(13) * 0.1 : 0,
+    tilt: h(14) < 0.3 ? (h(15) - 0.5) * 0.9 : 0,
+    twist: h(16) * 0.12,
+    arms: h(17) < 0.25 ? 0.25 : 0.7 + h(18) * 0.7,
+  };
+  return e._g;
+}
+// a lurch: every few steps it pitches forward and catches itself (0..1, a short pulse)
+const lurchOf = (e, ph) => Math.pow(Math.max(0, Math.sin(ph * 0.25 + (e.id || 0) * 1.3)), 10);
 function poseZombie(e, D, o) {
   poolReset();
   const name = modelOf(e) || 'zombie',
@@ -866,7 +894,8 @@ function poseZombie(e, D, o) {
     }
   }
   // ---- on its feet (or climbing out of the ground, or getting the last of the way up) ----
-  const mvv = dead || ground ? 0 : Math.min(1, Math.hypot(e.vx || 0, e.vy || 0) / 50),
+  const G = gaitOf(e),
+    mvv = dead || ground ? 0 : Math.min(1, Math.hypot(e.vx || 0, e.vy || 0) / 50),
     ph = (e.stride || 0) * Math.PI * 2,
     run = !!e.run,
     limp = e.limp && !run,
@@ -893,7 +922,10 @@ function poseZombie(e, D, o) {
     climb = live && e.kind === 'climb',
     hu = run ? 0 : brute ? 0.55 + stun * 0.4 : (e.hunch || 0) + spt * 0.6 + (name === 'drag' ? 0.5 : 0),
     sway =
-      ((run ? 0.8 : limp ? 2.8 : fat ? 3.2 : brute ? 2.2 : 1.6) * Math.sin(ph) * mvv * (run ? 1 : e.swK || 1) +
+      ((run ? 0.8 : limp ? 2.8 : fat ? 3.2 : brute ? 2.2 : 1.6) *
+        Math.sin(ph) *
+        mvv *
+        (run ? 1 : (e.swK || 1) * G.sway) +
         (dead || run ? 0 : (1 - mvv) * Math.sin(t * 1.4 + id * 1.7) * 1.3 * (e.swK || 1)) +
         (e.wbT > 0 ? Math.sin(t * 9 + id) * 3.4 * Math.min(1, e.wbT / 0.5) : 0) +
         stun * Math.sin(t * 5 + id) * 3 +
@@ -929,7 +961,8 @@ function poseZombie(e, D, o) {
         crouch * 0.35 +
         lk * 0.25 +
         hf * 0.55 +
-        mvv * (run ? 0.25 : 0.06) -
+        mvv * (run ? 0.25 : 0.06) +
+        (run ? 0 : G.lean + G.lurch * lurchOf(e, ph) * mvv) -
         rear * 0.75 +
         chg * 0.5 -
         scrm * 0.3 +
@@ -940,7 +973,10 @@ function poseZombie(e, D, o) {
     Rpp = mm(Rp, mm(Rxb(sway * 0.6 + side * 0.3), Ryb(lean * 0.35))),
     Rs = mm(
       Rpp,
-      mm(Ryb(lean * 0.3 + chestBend * 0.5), Rz(-sway * 0.8 + Math.sin(ph) * 0.08 * mvv + chestSide * 0.5 + tw0))
+      mm(
+        Ryb(lean * 0.3 + chestBend * 0.5),
+        Rz(-sway * 0.8 + Math.sin(ph) * (0.08 + G.twist) * mvv + chestSide * 0.5 + tw0)
+      )
     ),
     Rc = mm(
       Rs,
@@ -963,8 +999,9 @@ function poseZombie(e, D, o) {
       spt * 0.55 -
       rear * 0.4 +
       stun * 0.5 -
-      (climb ? 1.0 : 0),
-    loll = (hsh(id, 7) - 0.5) * 0.5 + Math.sin(t * 0.9 + id) * 0.08 * (dead ? 0 : 1),
+      (climb ? 1.0 : 0) +
+      Math.sin(ph * 2) * G.bob * mvv, // its head nodding with each step, if it does
+    loll = (hsh(id, 7) - 0.5) * 0.5 + Math.sin(t * 0.9 + id) * 0.08 * (dead ? 0 : 1) + G.tilt,
     Rh = mm(Rc, mm(Rz(look * 0.8), mm(Ryb(droop - lean * 0.4), Rxb(loll)))),
     Jh = add(Jc, mv(Rc, sc3(sub(r[3], r[2]), k)));
   D3(3, Rh, Jh);
@@ -991,11 +1028,11 @@ function poseZombie(e, D, o) {
     else {
       const bad = limp && sd > 0,
         s1 = Math.sin(ph + (sd > 0 ? Math.PI : 0)),
-        f = s1 * stepL * (bad ? 0.3 : sd > 0 ? drag : 1) - (bad ? 4 * mvv : 0),
-        lift = Math.max(0, Math.cos(ph + (sd > 0 ? Math.PI : 0))) * (run ? 6 : bad ? 0.6 : 2.6) * mvv;
+        f = s1 * stepL * (bad ? 0.3 : sd > 0 ? drag : 1) * (run || sd !== G.hs ? 1 : G.hitch) - (bad ? 4 * mvv : 0),
+        lift = Math.max(0, Math.cos(ph + (sd > 0 ? Math.PI : 0))) * (run ? 6 : bad ? 0.6 : 2.6 * G.lift) * mvv;
       foot = W(
         f * k[0] * 0.9 + (crouch ? -3 : 0) + (climb ? -2 : 0),
-        sd * 4.3 * kp * (brute || fat ? 1.25 : 1) + (bad ? 1.2 : 0),
+        sd * 4.3 * kp * (brute || fat ? 1.25 : 1) * (run ? 1 : G.stance) + (bad ? 1.2 : 0),
         r[ti + 2][2] * k[1] + lift - (1 - em) * 30
       );
       if (em < 1) foot = W(-3 * k[0], sd * 6 * k[0], Jp[2] - 18 * k[1]); // still under the street, hanging below it
@@ -1003,13 +1040,13 @@ function poseZombie(e, D, o) {
     const pole = lieR && !feet ? mv(Rpp, [1, sd * 0.15, 0]) : mv(Rpp, [1, sd * 0.15, 0]),
       [Rsh, ank] = limb(D, o, ti, ti + 1, Rpp, hip, foot, pole, k);
     // the foot: flat, pointing where the body points (turned out a little); on the ground, along the shin
-    const flat = mm(Rz(yaw + sd * 0.12 + (limp && sd > 0 ? 0.5 : 0)), Ryb(0)),
+    const flat = mm(Rz(yaw + sd * G.toe + (limp && sd > 0 ? 0.5 : 0)), Ryb(0)),
       Rf = ground ? slerpR(mm(Rsh, Ryb(Math.PI / 2)), flat, uprightK) : flat; // on the ground the foot points on along the shin (kneeling, it rests on its instep)
     D3(ti + 2, Rf, ank);
   }
   // the arms: reaching for you at shoulder height, or hanging and swinging, per its pose (as its pictures do)
   const tw = dead ? 0 : Math.sin(t * 2.2 + id) * 3,
-    sw = Math.sin(ph),
+    sw = Math.sin(ph) * G.arms,
     pose = e.st === 'crouch' ? 0 : e.pose || 0,
     reach = crouch ? 4 : 0;
   let hd2;
