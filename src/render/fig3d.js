@@ -2069,8 +2069,14 @@ function poseHeroFK(p, D, o) {
     blade = (H.blade + shv * 0.1) * (1 - rl * 0.4),
     C = FK.clips,
     X = FKC,
-    wMove = clamp((sL - 0.08) / 0.35, 0, 1),
-    wJ = clamp((sL - 1.2) / 2.0, 0, 1),
+    wM0 = clamp((sL - 0.08) / 0.35, 0, 1),
+    // how much it's going, and how much running: eased, up in a tenth of a second or so, down over a quarter (a
+    // runner can't stop his legs in a frame: the stride carries on to the next foot down and he settles from there)
+    started = wM0 > 0 && !((p._wm ?? 0) > 0.05),
+    wMove = (p._wm =
+      (p._wm ?? wM0) + (wM0 - (p._wm ?? wM0)) * Math.min(1, dt * (wM0 > (p._wm ?? 0) ? 12 : p._phr > 0 ? 3 : 8))),
+    wJ0 = clamp((sL - 1.2) / 2.0, 0, 1),
+    wJ = (p._wj = (p._wj ?? wJ0) + (wJ0 - (p._wj ?? wJ0)) * Math.min(1, dt * (wM0 > 0 ? 10 : 3))),
     shortK = 1 - 0.3 * wJ, // running, the recorded athlete's stride is long: a shorter arc, at a quicker beat
     WALKS = [C.walk, X.sideM, X.back, X.side],
     // each walk's going: forward, right, back, left, round the circle
@@ -2130,7 +2136,22 @@ function poseHeroFK(p, D, o) {
     stK += w * (c === C.walk ? MOTION.walk.st : c === C.jog ? MOTION.jog.st : c.st);
     use.push([c, w]);
   }
-  p._fph = (p._fph || 0) + (cyc > 0.01 && wMove > 0 ? (dt * sL) / cyc : 0);
+  // setting off, it pushes off: the stride taken up where a foot leaves the ground. Stopping, the stride runs on
+  // to the next foot down (the braking step), and holds there
+  if (started) p._fph = Math.floor(p._fph || 0) + 0.5;
+  const rate = cyc > 0.01 && sL > 0.25 ? sL / cyc : 0;
+  if (rate > 0) {
+    p._fph = (p._fph || 0) + dt * rate;
+    p._phr = rate;
+  } else if (p._phr > 0) {
+    const f0 = (((p._fph || 0) % 0.5) + 0.5) % 0.5,
+      st = dt * p._phr;
+    if (f0 + st >= 0.5) {
+      p._fph += 0.5 - f0;
+      p._phr = 0;
+    } else p._fph += st;
+  }
+  const still = !(rate > 0) && !(p._phr > 0); // (stopped, the last step down)
   const ph = ((p._fph % 1) + 1) % 1,
     wJog = wJ * wMove * (1 - bk);
   FKQ.fill(0);
@@ -2192,12 +2213,30 @@ function poseHeroFK(p, D, o) {
               : b >= 3 && b <= 13
                 ? 1
                 : 0,
-    lean = 0.13 * wJog * (1 - rollK); // leaning into the run (the steadied trunk would stand up straight)
+    // leaning into the run (the steadied trunk would stand up straight); and into a change of pace, as a body with
+    // weight does: forward setting off, back pulling up, into a turn's side
+    acc = (() => {
+      const a = p._acc || (p._acc = [0, 0]),
+        pv = p._pv || [vx, vy],
+        g = dt > 0 ? Math.min(1, dt * 12) : 0;
+      if (dt > 0) {
+        a[0] += ((vx - pv[0]) / dt - a[0]) * g;
+        a[1] += ((vy - pv[1]) / dt - a[1]) * g;
+      }
+      p._pv = [vx, vy];
+      const A = 26 * Hl; // (about the hardest it speeds up or stops)
+      return [
+        clamp((a[0] * Math.cos(yawR) + a[1] * Math.sin(yawR)) / A, -1, 1),
+        clamp((-a[0] * Math.sin(yawR) + a[1] * Math.cos(yawR)) / A, -1, 1),
+      ];
+    })(),
+    lean = (0.13 * wJog + 0.16 * acc[0]) * (1 - rollK),
+    roll = 0.09 * acc[1] * (1 - rollK);
   for (let b = 0; b < 22; b++) {
     const lf = b === 1 ? 0.4 : b === 2 ? 0.7 : b >= 3 && b <= 13 ? 1 : 0,
       Rb = mm(
         mm(
-          mm(Rz(yawR + tw * twistOf(b)), Ryb(lean * lf)),
+          mm(Rz(yawR + tw * twistOf(b)), mm(Ryb(lean * lf), Rxb(roll * lf))),
           q9([FKQ[b * 4], FKQ[b * 4 + 1], FKQ[b * 4 + 2], FKQ[b * 4 + 3]])
         ),
         A[b]
@@ -2223,21 +2262,41 @@ function poseHeroFK(p, D, o) {
     ]) {
       const L = lk[i],
         fp = (ph + i * 0.5) % 1,
-        down = rollK > 0 ? false : wMove < 0.05 ? true : fp < stK,
+        down = rollK > 0 ? false : still || wMove < 0.05 ? true : fp < stK,
         ank = J[ti + 2];
       if (!down) L.on = false;
       else if (!L.on) {
         L.on = true;
         L.x = ank[0];
         L.y = ank[1];
+        L.u = -1;
       }
       if (!L.on) continue;
-      if (Math.hypot(L.x - ank[0], L.y - ank[1]) > 0.45 * Hl) {
+      // standing with a foot left out of place (stopped mid-stride, or turned on the spot), it steps it under him:
+      // lifted, carried and put down, one foot at a time
+      let lift = 0;
+      if (still) {
+        const off = Math.hypot(L.x - ank[0], L.y - ank[1]);
+        if (!(L.u >= 0) && off > 0.14 * Hl && !(lk[1 - i].u >= 0)) {
+          L.u = 0;
+          L.sx = L.x;
+          L.sy = L.y;
+        }
+        if (L.u >= 0) {
+          L.u = Math.min(1, L.u + dt / 0.22);
+          const e = L.u * L.u * (3 - 2 * L.u);
+          L.x = L.sx + (ank[0] - L.sx) * e;
+          L.y = L.sy + (ank[1] - L.sy) * e;
+          lift = Math.sin(Math.PI * L.u) * 0.09 * Hl;
+          if (L.u >= 1) L.u = -1;
+        }
+      } else L.u = -1;
+      if (Math.hypot(L.x - ank[0], L.y - ank[1]) > 0.6 * Hl) {
         L.on = false; // left too far behind: let it go (the next step puts it down again)
         continue;
       }
-      const w = wMove < 0.05 ? 1 : clamp(Math.min(fp / stK, 1 - fp / stK) / 0.12, 0, 1),
-        tg = [ank[0] + (L.x - ank[0]) * w, ank[1] + (L.y - ank[1]) * w, ank[2]],
+      const w = still || wMove < 0.05 ? 1 : clamp(Math.min(fp / stK, 1 - fp / stK) / 0.12, 0, 1),
+        tg = [ank[0] + (L.x - ank[0]) * w, ank[1] + (L.y - ank[1]) * w, ank[2] + lift],
         mid = mul(add(J[ti], ank), 0.5),
         [, E] = limb(D, o, ti, ti + 1, R[0], J[ti], tg, sub(J[ti + 1], mid), k);
       D3(ti + 2, R[ti + 2], E);
