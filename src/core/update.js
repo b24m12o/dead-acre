@@ -234,6 +234,23 @@ export function update(dt) {
   p.strideAmp = lerp(p.strideAmp, Math.min(1, spd / S.speed), damp(10, dt));
   const ps = p.stride;
   p.stride += (spd * dt) / (76 * GK);
+  // the legs keep their own heading: walking, the way you go (backing off, the way you face, stepping backward);
+  // standing, where they were, until the body has turned too far over them, and then they step round after it
+  if (p.legA === undefined) p.legA = p.bodyA;
+  if (spd > 20 * GK) {
+    const back = Math.abs(angDiff(p.bodyA, p.moveA)) > 1.95;
+    p.legA += angDiff(p.legA, back ? p.moveA + Math.PI : p.moveA) * damp(12, dt);
+    p.turnStep = 0;
+  } else {
+    const off = angDiff(p.legA, p.bodyA);
+    if (Math.abs(off) > 1.05) p.turnStep = 1;
+    if (p.turnStep) {
+      p.legA += off * damp(9, dt);
+      p.stride += dt * 2.4; // short steps on the spot
+      if (Math.abs(off) < 0.12) p.turnStep = 0;
+    }
+  }
+  p.turnAmp = lerp(p.turnAmp || 0, p.turnStep ? 0.45 : 0, damp(14, dt));
   if (spd > 60 * GK && Math.floor(ps * 2) !== Math.floor(p.stride * 2)) {
     sfx.step();
     if (Math.random() < 0.5) dust(p.x - Math.cos(p.moveA) * 8 * GK, p.y - Math.sin(p.moveA) * 8 * GK, 1, 12, 0.35, 0.5);

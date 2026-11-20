@@ -112,7 +112,22 @@ function drawCar0(c) {
     const ca = Math.cos(c.a),
       sa = Math.sin(c.a);
     for (const h of c.holes)
-      quad(R.bhole, c.x + h.u * ca - h.v * sa, yU + h.u * sa + h.v * ca, h.r, 0.8, 0.8, 0.5, 0.5, 0.5, 1, 0, 0, 0, 0);
+      quad(
+        h.g ? R.gcrack : R.bhole,
+        c.x + h.u * ca - h.v * sa,
+        yU + h.u * sa + h.v * ca,
+        h.r,
+        h.g ? 0.5 : 0.32,
+        h.g ? 0.5 : 0.32,
+        h.g ? 0.8 : 0.5,
+        h.g ? 0.85 : 0.5,
+        h.g ? 0.9 : 0.5,
+        h.g ? 0.7 : 1,
+        0,
+        0,
+        0,
+        0
+      );
   }
   if (c.amb && !c.burnt) {
     setH(26);

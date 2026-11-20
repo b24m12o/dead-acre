@@ -161,6 +161,37 @@ export function paintInteriors() {
     0.6,
     0.6
   );
+  // a round through a car's window: a star of cracks out from a white chip, and a ring or two round it
+  region(
+    'gcrack',
+    18,
+    18,
+    a => {
+      a.strokeStyle = 'rgba(225,235,240,0.75)';
+      a.lineWidth = 0.45;
+      for (let i = 0; i < 9; i++) {
+        const t = (i / 9) * Math.PI * 2 + Math.sin(i * 7.3) * 0.25,
+          L = 5.5 + Math.abs(Math.sin(i * 3.7)) * 3;
+        a.beginPath();
+        a.moveTo(0, 0);
+        a.lineTo(Math.cos(t) * L * 0.5 + Math.sin(i) * 0.6, Math.sin(t) * L * 0.5 + Math.cos(i) * 0.6);
+        a.lineTo(Math.cos(t) * L, Math.sin(t) * L);
+        a.stroke();
+      }
+      a.strokeStyle = 'rgba(225,235,240,0.4)';
+      for (const r of [2.4, 4.6]) {
+        a.beginPath();
+        a.arc(0, 0, r, 0, Math.PI * 2);
+        a.stroke();
+      }
+      a.fillStyle = 'rgba(240,245,248,0.9)';
+      circ(a, 0, 0, 1.1);
+      a.fill();
+    },
+    0.5,
+    0.4,
+    0.6
+  );
   region(
     'blob',
     32,

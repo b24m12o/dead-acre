@@ -184,10 +184,11 @@ function drawRanger0(p) {
     st = HSTYLE[look],
     ot = p.npc ? p.tint || [1, 1, 1] : GS.state === 'menu' ? [1, 1, 1] : YOU_TINT;
   const dn = p.down > 0,
-    amp = dn ? 0 : p.strideAmp,
+    amp = dn ? 0 : Math.max(p.strideAmp, p.turnAmp || 0),
     ph = p.stride * TAU,
-    c = Math.cos(dn ? p.bodyA : p.moveA),
-    s = Math.sin(dn ? p.bodyA : p.moveA); // down: sitting on the ground, legs out in front
+    la = dn ? p.bodyA : (p.legA ?? p.moveA), // the legs' own heading (update.js): they step round after the body, never under a spinning one
+    c = Math.cos(la),
+    s = Math.sin(la); // down: sitting on the ground, legs out in front
   const T = GS.time,
     rp = p.dashT > 0 ? Math.sin(clamp(1 - p.dashT / 0.17, 0, 1) * Math.PI) : 0, // the roll: tucked in, turned the way you go
     bt = T - (p.blowT ?? -9),

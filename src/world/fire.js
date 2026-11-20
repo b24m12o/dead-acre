@@ -197,12 +197,18 @@ export function hitCar(tx, ty, dmg, x, y) {
     const c = cars[i];
     if (x !== undefined && !c.dead && !c.burnt) {
       c.holes = c.holes || [];
-      if (c.holes.length > 14) c.holes.shift();
+      if (c.holes.length > 40) c.holes.shift(); // (they're small: a car shot up keeps more of them)
       const dx = x - c.x,
         dy = y - c.y,
         ca = Math.cos(-c.a),
         sa = Math.sin(-c.a);
-      c.holes.push({ u: clamp(dx * ca - dy * sa, -30, 30), v: clamp(dx * sa + dy * ca, -14, 14), r: rand(0, TAU) });
+      const u = clamp(dx * ca - dy * sa, -30, 30),
+        v = clamp(dx * sa + dy * ca, -14, 14);
+      // a round through the glass (the cabin, on a car) cracks it in a star; anywhere else it's a small dark hole in
+      // the metal, a centimetre or two with its chipped paint
+      const cab = !c.truck && u > -22 && u < 14 && Math.abs(v) < 13,
+        roof = Math.abs(u + 4) < 11 && Math.abs(v) < 9.5; // the windscreen, the back window and the side glass round the roof
+      c.holes.push({ u, v, r: rand(0, TAU), g: cab && !roof });
     }
     damageCar(c, dmg);
   }

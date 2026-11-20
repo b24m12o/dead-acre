@@ -31,8 +31,9 @@ export function wallHit(i, x, y) {
   if (!H || st === 'fence') return;
   const front = y > cy + 8;
   let h;
-  if (front) h = { f: 1, dx: clamp(x - cx, -17, 17), dy: 20 - rand(3, H - 3), r: rand(0, TAU), s: rand(0.8, 1.2) };
-  else h = { f: 0, dx: clamp(x - cx, -18, 18), dy: clamp(y - cy, -18, 18) - H, r: rand(0, TAU), s: rand(0.8, 1.2) };
+  if (front)
+    h = { f: 1, dx: clamp(x - cx, -17, 17), dy: 20 - rand(3, H - 3), r: rand(0, TAU), s: rand(0.26, 0.4) }; // a round's hole in brick, at life size
+  else h = { f: 0, dx: clamp(x - cx, -18, 18), dy: clamp(y - cy, -18, 18) - H, r: rand(0, TAU), s: rand(0.26, 0.4) };
   let L = WHOLES.get(i);
   if (!L) WHOLES.set(i, (L = []));
   L.push(h);
