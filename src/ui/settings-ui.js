@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { setTilt } from '../core/scale.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU } from '../core/util.js';
@@ -147,6 +148,7 @@ export function syncOpts() {
     ['flashBtn', opt.flash],
     ['goreBtn', opt.gore],
     ['b3dBtn', opt.b3d],
+    ['tiltBtn', opt.tilt],
     ['grainBtn', opt.grain],
     ['losBtn', opt.los],
     ['chLine', GS.meta.ch.line],
@@ -318,6 +320,12 @@ export function init() {
     opt.b3d = !opt.b3d;
     store.set('rr_b3d', opt.b3d ? '1' : '0');
     warmBoss3D();
+    syncOpts();
+  });
+  $('tiltBtn').addEventListener('click', () => {
+    opt.tilt = !opt.tilt;
+    store.set('rr_tilt', opt.tilt ? '1' : '0');
+    setTilt(opt.tilt);
     syncOpts();
   });
   $('dmgBtn').addEventListener('click', () => {

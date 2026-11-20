@@ -39,7 +39,7 @@ export function drawPole(x, y, h, w, col = 0.16) {
   }
   lineQ(x, y, x, y - h, w, col, col, col * 1.08, 1, 0, 0, 0, 0, R.pixel);
 }
-export const LAMPV = L => (L.lantern ? 30 : POLE_H) * TILT; // seen from almost straight above, a lamp head sits just above its light pool, not a pole's height up the screen (the shadow still shows how tall it is)
+export const LAMPV = L => (L.lantern ? 30 : POLE_H) * (TILT || 0.28); // (straight down, a short stub of it still shows) // seen from almost straight above, a lamp head sits just above its light pool, not a pole's height up the screen (the shadow still shows how tall it is)
 // A street lamp, kept plain: a square base, a slim grey pole, a thin arm out over the street and a flat head seen from
 // its top (about 70 by 30 cm), its lens showing as a line of light along the edge when lit. Standing, falling or lying
 // in the road it is the same pole, arm and head

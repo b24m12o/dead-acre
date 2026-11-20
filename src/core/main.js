@@ -5,7 +5,8 @@ import { breathe, loadStep, watchSounds } from '../ui/loading.js';
 import { GS } from './gs.js';
 import { $, fatalStopped } from './errors.js';
 import { clamp } from './util.js';
-import { saveMeta } from './settings.js';
+import { opt, saveMeta } from './settings.js';
+import { setTilt } from './scale.js';
 import { gl, glc } from '../render/gl.js';
 import { BAKE, bakePrep } from '../render/bake.js';
 import { assetsPrep } from './assets.js';
@@ -119,6 +120,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 async function boot() {
+  setTilt(opt.tilt); // the camera's tilt, as last set (Settings: Camera)
   glc.addEventListener('webglcontextlost', ev => {
     // the GPU driver reset or ran out of memory: say so plainly instead of leaving a black screen
     ev.preventDefault();

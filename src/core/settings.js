@@ -116,6 +116,7 @@ export function init() {
     flash: store.get('rr_flash') === '1' || (store.get('rr_flash') == null && reduceMotion()),
     quality: 'ultra',
     b3d: store.get('rr_b3d') !== '0', // the bosses drawn live in 3D (boss3d.js); off: their pictures
+    tilt: store.get('rr_tilt') !== '0', // the camera tilted, so the figures stand up (core/scale.js); off: straight down
   };
   // Graphics quality is intentionally fixed at Ultra. Keep old profile data compatible but never let it downgrade rendering.
   store.set('rr_quality', 'ultra');

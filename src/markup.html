@@ -127,8 +127,8 @@
     <div class="heroes" id="heroes"></div>
     <div class="infrow abpick" id="abPick" hidden></div>
     <p class="rec keysline" id="keysLine">
-      WASD move · Mouse aim · Hold click to fire · Shift or right-click roll · Space shove · E ability · 1–9 or mouse wheel
-      swap guns · Q last gun, hold Q for the gun wheel · R reload · Esc pause · M sound · N music
+      WASD move · Mouse aim · Hold click to fire · Shift or right-click roll · Space shove · E ability · 1–9 or mouse
+      wheel swap guns · Q last gun, hold Q for the gun wheel · R reload · Esc pause · M sound · N music
     </p>
     <div class="btns">
       <span class="seeds" id="menuSeeds"></span><span class="rec" id="menuRec">No runs logged yet</span>
@@ -150,30 +150,30 @@
       <ol class="road-list" id="roadList"></ol>
     </div>
     <div class="scol">
-    <div class="infrow">
-      <span class="sec">Infection</span>
-      <div class="seg" id="infSeg" role="group" aria-label="Infection level"></div>
-    </div>
-    <p class="note" id="infDesc"></p>
-    <div class="infrow">
-      <span class="sec">Difficulty</span>
-      <div class="seg diffSeg" id="diffSeg2" role="group" aria-label="Difficulty">
-        <button type="button" data-d="relaxed">Relaxed · ×0.7 scrap</button
-        ><button type="button" data-d="normal">Normal</button
-        ><button type="button" data-d="hard">Hard · ×1.5 scrap</button>
+      <div class="infrow">
+        <span class="sec">Infection</span>
+        <div class="seg" id="infSeg" role="group" aria-label="Infection level"></div>
       </div>
-    </div>
-    <p class="note diffDesc" id="diffDesc2"></p>
-    <div class="sec">Twists</div>
-    <div class="twists chips" id="twists" role="group" aria-label="Twists"></div>
-    <p class="note" id="twHint"></p>
-    <p class="note sum" id="twDesc"></p>
-    <div class="btns">
-      <button class="btn" id="startBtn" type="button">Hold the line</button
-      ><button class="btn ghost" id="survBack" type="button">Back</button>
-    </div>
-    <p class="loadsnd" id="newRunWarn" hidden></p>
-    <p class="loadsnd" id="loadSnd2" hidden></p>
+      <p class="note" id="infDesc"></p>
+      <div class="infrow">
+        <span class="sec">Difficulty</span>
+        <div class="seg diffSeg" id="diffSeg2" role="group" aria-label="Difficulty">
+          <button type="button" data-d="relaxed">Relaxed · ×0.7 scrap</button
+          ><button type="button" data-d="normal">Normal</button
+          ><button type="button" data-d="hard">Hard · ×1.5 scrap</button>
+        </div>
+      </div>
+      <p class="note diffDesc" id="diffDesc2"></p>
+      <div class="sec">Twists</div>
+      <div class="twists chips" id="twists" role="group" aria-label="Twists"></div>
+      <p class="note" id="twHint"></p>
+      <p class="note sum" id="twDesc"></p>
+      <div class="btns">
+        <button class="btn" id="startBtn" type="button">Hold the line</button
+        ><button class="btn ghost" id="survBack" type="button">Back</button>
+      </div>
+      <p class="loadsnd" id="newRunWarn" hidden></p>
+      <p class="loadsnd" id="loadSnd2" hidden></p>
     </div>
   </div>
 </div>
@@ -450,6 +450,11 @@
       <div class="seg">
         <button type="button" class="tog" id="b3dBtn">3D models</button
         ><span class="segnote">Bosses and the dead in 3D. Off: flat pictures, lighter on a slow machine</span>
+      </div>
+      <label>Camera</label>
+      <div class="seg">
+        <button type="button" class="tog" id="tiltBtn">Tilted</button
+        ><span class="segnote">Seen at an angle, so people and cars stand up. Off: straight down</span>
       </div>
       <label>Readouts</label>
       <div class="seg"><button type="button" class="tog" id="dmgBtn">Damage numbers</button></div>

@@ -93,7 +93,7 @@ const rowBuf = () => {
 const VS = shadow => `#version 300 es
 precision highp float; precision highp int;
 layout(location=0) in vec3 aP; layout(location=1) in vec2 aN; layout(location=2) in uvec2 aB; layout(location=3) in vec4 aW; layout(location=4) in float aRow;
-uniform highp sampler2D uBones; uniform vec4 uCam; uniform int uMode; uniform vec2 uSun; uniform vec4 uLight; uniform vec4 uKt; uniform vec3 uKp;
+uniform highp sampler2D uBones; uniform float uTilt; uniform vec4 uCam; uniform int uMode; uniform vec2 uSun; uniform vec4 uLight; uniform vec4 uKt; uniform vec3 uKp;
 out vec3 vC; out vec3 vN; out vec3 vO; out float vAO; out float vZ; out float vS; out vec4 vM; flat out vec4 vK; flat out float vPat; flat out vec3 vE; flat out vec3 vH; flat out vec3 vSk; flat out float vSty;
 vec4 T(int x, int r){ return texelFetch(uBones,ivec2(x,r),0); }
 const vec3 HAT[16]=vec3[16](vec3(0.55,0.1,0.08),vec3(0.8,0.78,0.72),vec3(0.1,0.12,0.2),vec3(0.06,0.06,0.07),vec3(0.86,0.7,0.1),vec3(0.86,0.38,0.07),vec3(0.82,0.82,0.78),vec3(0.2,0.32,0.2),
@@ -110,13 +110,13 @@ void main(){
   vec4 E=T(${NB * 3},r); // its eye (x, y), how solid it is, the flare of a hit
   vK=vec4(E.z,E.w,T(${NB * 3 + 7},r).w,T(${NB * 3 + 6},r).w);
   vec2 g;
-  if(uMode==0){ g=W.xy-vec2(0.0,W.z*${TILT.toFixed(3)}); } // seen from a camera tilted toward the top of the screen: each unit of height a little way up it
+  if(uMode==0){ g=W.xy-vec2(0.0,W.z*uTilt); } // seen from a camera tilted toward the top of the screen: each unit of height a little way up it
   else if(uMode==1){ g=W.xy+uSun*max(W.z,0.0); } // the moon's shadow
   else { vec2 d=W.xy-uLight.xy; float l=max(length(d),1.0); // a lamp's (uMode 2) or your flashlight's (3), thrown away from it
     float hz=max(W.z,0.0), off=uMode==2?min(uLight.w,hz*l/max(34.0,uLight.z-hz)):min(hz*${SH3}*(0.55+l/${(150 * GK).toFixed(2)}),hz*${SH3}+${(30 * GK).toFixed(2)}); /* the torch's: as long as the pictured figures' (sprites.js), never a ghost down the beam */
     g=W.xy+d/l*off; }
   vec2 s=(g-uCam.xy)/uCam.zw;
-  gl_Position=vec4(s.x*2.0-1.0,1.0-s.y*2.0,clamp(0.5-(W.z+(W.y-E.y)*${TILT.toFixed(3)})/160.0,-1.0,1.0),1.0); // nearer the camera: higher, or further down the screen
+  gl_Position=vec4(s.x*2.0-1.0,1.0-s.y*2.0,clamp(0.5-(W.z+(W.y-E.y)*uTilt)/160.0,-1.0,1.0),1.0); // nearer the camera: higher, or further down the screen
   ${
     shadow
       ? 'vC=vec3(0.0); vS=0.0; vPat=0.0; vM=vec4(0.0); vE=vec3(0.0); vH=vec3(0.0); vSk=vec3(0.0); vSty=0.0;'
@@ -1520,6 +1520,7 @@ export function figFlush() {
   gl.useProgram(prog.p);
   gl.uniform1i(u.uBones, 7);
   gl.uniform4f(u.uCam, cam[0], cam[1], cam[2], cam[3]);
+  if (u.uTilt) gl.uniform1f(u.uTilt, TILT);
   gl.uniform1i(u.uMode, m);
   gl.uniform2f(u.uSun, SUNV[0], SUNV[1]);
   if (m === 2) {
