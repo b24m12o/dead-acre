@@ -7,6 +7,8 @@ import { ZOOM } from '../render/sprites.js';
 import { S, magSize } from '../game/state.js';
 import { mouse } from '../core/input.js';
 import { gunPose } from '../game/evac-ride.js';
+import { aimH } from '../actors/player-weapons.js';
+import { TILT } from '../core/scale.js';
 export const CH_COLS = {
   white: '#f2efe6',
   amber: '#ffc04a',
@@ -26,8 +28,10 @@ export function drawCrosshair() {
   // aim line from the muzzle to the cursor
   if (ch.line) {
     const G = GS.evac && GS.evac.ride ? gunPose(GS.evac) : null, // on the chopper: from its door gun
-      px = ((G ? G.fx : GS.P.x + Math.cos(GS.P.aimA) * S.muzzle) - GS.camX) * ZOOM,
-      py = ((G ? G.fy : GS.P.y + Math.sin(GS.P.aimA) * S.muzzle) - GS.camY) * ZOOM,
+      P = GS.P,
+      mz = !G && P._mz && GS.time - (P._mzT ?? -9) < 0.25 ? P._mz : null, // (the gun's own muzzle, as drawn)
+      px = ((G ? G.fx : mz ? mz[0] : P.x + Math.cos(P.aimA) * S.muzzle) - GS.camX) * ZOOM,
+      py = ((G ? G.fy : mz ? mz[1] - mz[2] * TILT : P.y + Math.sin(P.aimA) * S.muzzle) - GS.camY) * ZOOM,
       L = Math.hypot(mx - px, my - py);
     if (L > 40) {
       ui.save();
@@ -49,7 +53,7 @@ export function drawCrosshair() {
   }
   // is a creature under the cursor?
   const wx = GS.camX + mx / ZOOM,
-    wy = GS.camY + my / ZOOM;
+    wy = GS.camY + my / ZOOM + aimH(GS.P) * TILT; // (aimed at the gun's height)
   let hot = false;
   for (const e of GS.enemies)
     if (!e.dead && d2(wx, wy, e.x, e.y - e.z) < (e.r + 10) ** 2) {

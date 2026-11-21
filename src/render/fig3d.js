@@ -2189,15 +2189,20 @@ function poseHeroFK(p, D, o) {
     fkSnap(FK2, FKR2, C.hit, 0.14, false);
     for (let b = 1; b <= 5; b++) fkMix(FKQ, FK2, b, hurtK);
   }
-  // the dodge roll: the recording's roll, through in half a second, the way it was thrown; then back on its feet
+  // the dodge roll: the recording's roll, through in half a second, the way it was thrown; then back on its feet.
+  // Thrown back the way he faces (backing off), he doesn't turn round to roll and turn back: he rolls over
+  // backward, the forward roll run the other way, still facing where he was
   if (p.dashT > 0 && !(t - (p._rollT0 ?? -9) < 0.55)) {
+    const da = p.dashA ?? yaw;
     p._rollT0 = t;
-    p._rollA = p.dashA ?? yaw;
+    p._rollB = Math.abs(angDiff(da, aim)) > 1.9;
+    p._rollA = p._rollB ? da + Math.PI : da;
   }
   const rollU = (t - (p._rollT0 ?? -9)) / 0.5,
     rollK = rollU >= 0 && rollU < 1 ? Math.min(1, rollU / 0.08, (1 - rollU) / 0.15) : 0;
   if (rollK > 0) {
-    fkSnap(FK2, FKR2, C.roll, 0.45 + rollU * 1.05, false); // (the tuck and roll, not the dive before it)
+    // (the tuck and roll, not the dive before it)
+    fkSnap(FK2, FKR2, C.roll, p._rollB ? 1.5 - rollU * 1.05 : 0.45 + rollU * 1.05, false);
     for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, rollK);
     for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * rollK;
   }
@@ -2259,12 +2264,32 @@ function poseHeroFK(p, D, o) {
       ];
     })(),
     lean = (0.13 * wJog + 0.16 * acc[0]) * (1 - allK),
-    roll = 0.09 * acc[1] * (1 - allK);
+    roll = 0.09 * acc[1] * (1 - allK),
+    // each shot jolts the trunk: back, and round off the gun shoulder, on a stiff spring that rebounds a little and
+    // settles in a fifth of a second; kicked as hard as the gun kicks (a shotgun rocks him, a pistol barely). The
+    // head, aimed on its own, stays on the target, and the gun, carried by the chest, goes back with it
+    rc = (() => {
+      const S = p._rc || (p._rc = { x: 0, v: 0, shot: p.lastShotT ?? -9 });
+      if (p.lastShotT !== undefined && p.lastShotT !== S.shot) {
+        S.shot = p.lastShotT;
+        if (t - p.lastShotT < 0.1) S.v += clamp((p.recoil || 0) / 8, 0.2, 1.6) * 2.4;
+      }
+      for (let left = dt; left > 1e-4; ) {
+        const h = Math.min(left, 1 / 120),
+          w = 21,
+          z = 0.45;
+        left -= h;
+        S.v += (-w * w * S.x - 2 * z * w * S.v) * h;
+        S.x += S.v * h;
+      }
+      return S.x * (1 - allK);
+    })();
   for (let b = 0; b < 22; b++) {
     const lf = b === 1 ? 0.4 : b === 2 ? 0.7 : b >= 3 && b <= 13 ? 1 : 0,
+      rf = b === 1 ? 0.25 : b === 2 ? 0.55 : b >= 3 && b <= 13 ? 1 : 0, // (the jolt mostly high in the chest)
       Rb = mm(
         mm(
-          mm(Rz(yawR + tw * twistOf(b)), mm(Ryb(lean * lf), Rxb(roll * lf))),
+          mm(Rz(yawR + tw * twistOf(b) + rc * 0.35 * rf), mm(Ryb(lean * lf - rc * rf), Rxb(roll * lf))),
           q9([FKQ[b * 4], FKQ[b * 4 + 1], FKQ[b * 4 + 2], FKQ[b * 4 + 3]])
         ),
         A[b]

@@ -813,8 +813,10 @@ export function render() {
       gc = S.evo.gold && !b.small ? [2.8, 2.2, 0.8] : b.pellet ? [2.4, 1.6, 0.7] : [2.8, 1.7, 0.6];
     if (b.tr === undefined) b.tr = S.evo.gold || Math.random() < (b.pellet ? 0.12 : b.small ? 0.2 : 0.3);
     const tk = b.tr ? 1 : 0.32;
-    const bx = b.x + (b.lx || 0),
-      by = b.y + (b.ly || 0) - (b.h === undefined ? BUL_UP : b.h * TILT); // beside the aim line, out of the muzzle
+    // beside the aim line, out of the muzzle, closing on it to meet the crosshair point
+    const cv = b.cv > 1 ? clamp(1 - Math.hypot(b.x - b.sx, b.y - b.sy) / b.cv, 0, 1) : 1,
+      bx = b.x + (b.lx || 0) * cv,
+      by = b.y + (b.ly || 0) * cv - (b.h === undefined ? BUL_UP : b.h * TILT);
     if (b.tr) quad(R.glow, bx, by, 0, 0.16 * sc, 0.16 * sc, 0, 0, 0, 1, gc[0] * 0.18, gc[1] * 0.18, gc[2] * 0.18, 0);
     quad(
       R.bolt,

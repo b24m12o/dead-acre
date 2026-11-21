@@ -16,6 +16,10 @@ import { noise, playS, spat, SBV } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, gd, heroGun, startReload } from '../game/state.js';
 import { makeEnemy } from './enemies.js';
+// the height you aim at: the gun's (its muzzle's, as posed). The crosshair marks the point at that height under it,
+// so the rounds, drawn at the gun's height, pass through it; and the crosshair on one of the dead's chests aims at
+// that one, not at the street behind it
+export const aimH = p => (p && p._mz && GS.time - (p._mzT ?? -9) < 0.25 ? p._mz[2] : 32);
 // where the shots are seen to leave: the 3D gun's muzzle (fig3d.js poses it each frame), or, drawn flat, out along the
 // aim at the gun's height. The round itself flies down the aim line through you, so nothing at point blank is missed:
 // what's drawn of it rides beside that line, out of the muzzle (lx, ly across it; h its height)
@@ -58,6 +62,15 @@ const boxHit = (c, x, y) => {
   return d2(x, y, c.x, ny) < (28 * BOX) ** 2;
 };
 export function firePlayer(cwx, cwy, p, target) {
+  const nB = GS.pbullets.length;
+  firePlayer0(cwx, cwy, p, target);
+  // what's drawn of each round comes in from beside the aim line (out of the muzzle) to meet the crosshair point
+  for (let i = nB; i < GS.pbullets.length; i++) {
+    const b = GS.pbullets[i];
+    if (!b.shell && b.lx !== undefined) b.cv = Math.hypot(cwx - b.sx, cwy - b.sy);
+  }
+}
+function firePlayer0(cwx, cwy, p, target) {
   const g = p.gun,
     G = GUNS[g],
     hb = heroGun(g),

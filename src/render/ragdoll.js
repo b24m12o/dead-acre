@@ -135,7 +135,7 @@ const row = (D, q) => [D[q], D[q + 1], D[q + 2], D[q + 4], D[q + 5], D[q + 6], D
 
 // the body, as it stood when it died (the figure's rows in D, at o): its weights, how long its links are, and how it
 // starts to go over
-function start(e, D, o, MM) {
+function start(e, D, o, MM, knock) {
   const r = MM.rest,
     P = new Float32Array(NP * 3);
   for (let b = 0; b < 22; b++) {
@@ -157,7 +157,12 @@ function start(e, D, o, MM) {
     fa = e.fallA ?? (e.a || 0) + Math.PI,
     u = [Math.cos(fa), Math.sin(fa)],
     thrown = rv > 135,
-    vt = e.headless ? 0.2 * PER_M : (1.1 + Math.min(3, rv / (5 * PER_M)) * (thrown ? 1.6 : 0.6)) * PER_M,
+    // (knocked down, the game doesn't throw the body as it throws the dead: a shove over hard enough to go flat)
+    vt = knock
+      ? 2.8 * PER_M
+      : e.headless
+        ? 0.2 * PER_M
+        : (1.1 + Math.min(3, rv / (5 * PER_M)) * (thrown ? 1.6 : 0.6)) * PER_M,
     lift = thrown ? 1.6 * PER_M + (e.vz || 0) * 0.5 : 0,
     hip = P[2],
     top = Math.max(P[5 * 3 + 2] - hip, 1),
@@ -176,11 +181,13 @@ function start(e, D, o, MM) {
   const Q = new Float32Array(NP * 3),
     h0 = 1 / 60;
   for (let i = 0; i < NP * 3; i++) Q[i] = P[i] - V[i] * h0;
-  return { P, Q, len, leg, t: GS.time, t0: GS.time, still: 0, frozen: null, h0, MM };
+  return { P, Q, len, leg, t: GS.time, t0: GS.time, still: 0, frozen: null, h0, MM, damp: 0.998 };
 }
 
-// a knee bends forward, toward the toes: one found bent the wrong way is put right
-function knees(P) {
+// a knee bends forward, toward the toes: one found bent the wrong way is brought back to straight (moved, not
+// flung: its last place moved with it, so the fix gives it no speed). A leg near straight, or a foot pointed along
+// the leg, says too little about which way is forward: left as it is
+function knees(P, Q) {
   for (const [h, k, a, t] of [
     [14, 15, 16, 17],
     [18, 19, 20, 21],
@@ -192,14 +199,18 @@ function knees(P) {
       m = [(H[0] + A[0]) / 2, (H[1] + A[1]) / 2, (H[2] + A[2]) / 2],
       v = sub(at(k), m),
       f = sub(at(t), A),
-      fp = nrm(
-        sub(
-          f,
-          ax.map(x => x * dot(f, ax))
-        )
-      ),
+      fq = sub(
+        f,
+        ax.map(x => x * dot(f, ax))
+      );
+    if (Math.hypot(...fq) < 0.3 * Math.hypot(...f)) continue;
+    const fp = nrm(fq),
       vp = dot(v, fp);
-    if (vp < 0) for (let j = 0; j < 3; j++) P[k * 3 + j] -= 2 * vp * fp[j];
+    if (vp < -0.02 * Math.hypot(...sub(A, H)))
+      for (let j = 0; j < 3; j++) {
+        P[k * 3 + j] -= vp * fp[j];
+        Q[k * 3 + j] -= vp * fp[j];
+      }
   }
 }
 
@@ -210,7 +221,7 @@ function step(R, h, floor) {
   for (let i = 0; i < NP; i++) {
     const j = i * 3;
     for (let c = 0; c < 3; c++) {
-      const v = (P[j + c] - Q[j + c]) * 0.998;
+      const v = (P[j + c] - Q[j + c]) * R.damp;
       Q[j + c] = P[j + c];
       P[j + c] += v + (c === 2 ? -G * h * h : 0);
     }
@@ -247,7 +258,7 @@ function step(R, h, floor) {
       }
     }
   }
-  knees(P);
+  knees(P, Q);
   // a wall or a car in the way: it comes up against it and stops there
   for (let i = 0; i < NP; i++) {
     const j = i * 3;
@@ -278,7 +289,7 @@ export function ragPose(e, D, o, MM) {
 // goes down, where it falls from. False: not one to fall this way
 export function ragKnock(e, D, o, MM, out, oo) {
   if (e._rk === undefined)
-    e._rk = e.down > 0 && !e.crawl && !e.half && !e.lurk && !(e.z > 2) ? start(e, D, o, MM) : null;
+    e._rk = e.down > 0 && !e.crawl && !e.half && !e.lurk && !(e.z > 2) ? start(e, D, o, MM, true) : null;
   if (!e._rk) return false;
   advance(e, e._rk);
   pose(e._rk.P, out, oo, MM, scaleOf(D, o));
@@ -306,10 +317,11 @@ function advance(e, R) {
         R.Q[i * 3] += dx;
         R.Q[i * 3 + 1] += dy;
       }
-      R.still = mx < 0.06 * PER_M ? R.still + h : 0;
+      R.still = mx < 0.5 * PER_M ? R.still + h : 0;
     }
     const age = GS.time - R.t0;
-    if ((age > 1 && R.still > 0.4) || age > 4) {
+    R.damp = age > 0.7 ? 0.85 : 0.998; // (down a moment, what swing it has left dies away)
+    if ((age > 0.8 && R.still > 0.15) || age > 2) {
       // at rest: kept as it lies, about its hips; and where its head points (and whether it lies face up) told to
       // the game, which lays the body's shadow and its pile by it, and gets a knocked-down one up by it
       const L = new Float32Array(NP * 3);

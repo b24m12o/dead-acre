@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { cineTick } from '../game/cine.js';
-import { GK, gaitOfSpeed } from '../core/scale.js';
+import { GK, TILT, gaitOfSpeed } from '../core/scale.js';
 import { DAWN_IDLE, dawnBusy } from '../game/night-flow.js';
 import { takePouch } from '../game/pockets.js';
 import { BOON, boonOn, tickBoons } from '../game/boons.js';
@@ -45,7 +45,7 @@ import { mouse, moveInput } from './input.js';
 import { PK } from '../ui/hangar.js';
 import { rope, runLater } from './later.js';
 import { comeRound, sieging, updateEnemy } from '../actors/enemy-ai.js';
-import { firePlayer, updateBang, updateMortar, updatePBullet } from '../actors/player-weapons.js';
+import { aimH, firePlayer, updateBang, updateMortar, updatePBullet } from '../actors/player-weapons.js';
 import { bossProj } from '../actors/projectiles.js';
 import { BILE } from '../render/draw-enemies.js';
 import { throwMolotov } from '../world/fire.js';
@@ -274,7 +274,7 @@ export function update(dt) {
   let firing = false,
     target = p.aimA;
   const cwx = cam.x + mouse.x / ZOOM,
-    cwy = cam.y + mouse.y / ZOOM;
+    cwy = cam.y + mouse.y / ZOOM + aimH(p) * TILT; // (aimed at the gun's height: player-weapons.js)
   if (d2(cwx, cwy, p.x, p.y) > (40 * GK) ** 2) target = Math.atan2(cwy - p.y, cwx - p.x);
   firing = mouse.down;
   if (WHEEL.open) {
