@@ -2885,23 +2885,44 @@ function fkLegs(e, D, o, MM) {
     const L = lk[i],
       fp = ((((back ? 1 - ph : ph) + i * 0.5) % 1) + 1) % 1,
       down = wMove < 0.05 ? true : fp < stK,
-      ank = J[ti + 2];
-    // the ground under the foot: never through it (its hips may have sunk in a lurch)
-    if (!down) L.on = false;
-    else if (!L.on) {
+      ank = J[ti + 2],
+      // (a hold let go, or eased in or out, eases the foot over a few frames, as the hero's do)
+      dec = Math.exp(-dt / 0.045),
+      free = () => {
+        L.on = false;
+        L.rx += L.px || 0;
+        L.ry += L.py || 0;
+        L.pw = L.px = L.py = 0;
+      };
+    L.rx = (L.rx || 0) * dec;
+    L.ry = (L.ry || 0) * dec;
+    if (!down) {
+      if (L.on) free();
+    } else if (!L.on) {
       L.on = true;
       L.x = ank[0];
       L.y = ank[1];
+      L.pw = 0;
     }
-    if (!L.on) continue;
-    if (Math.hypot(L.x - ank[0], L.y - ank[1]) > 0.45 * Hl) {
-      L.on = false;
-      continue;
+    let ox = 0,
+      oy = 0;
+    if (L.on) {
+      if (Math.hypot(L.x - ank[0], L.y - ank[1]) > 0.45 * Hl) free();
+      else {
+        const w = wMove < 0.05 ? 1 : clamp(Math.min(fp / stK, 1 - fp / stK) / 0.12, 0, 1),
+          dw = (L.pw || 0) - w;
+        L.rx += dw * (L.x - ank[0]);
+        L.ry += dw * (L.y - ank[1]);
+        L.pw = w;
+        ox = L.px = (L.x - ank[0]) * w;
+        oy = L.py = (L.y - ank[1]) * w;
+      }
     }
-    const w = wMove < 0.05 ? 1 : clamp(Math.min(fp / stK, 1 - fp / stK) / 0.12, 0, 1),
-      tg = [ank[0] + (L.x - ank[0]) * w, ank[1] + (L.y - ank[1]) * w, Math.max(ank[2], r[ti + 2][2] * k[1] * 0.9)],
+    if (!L.on && Math.hypot(L.rx, L.ry) < 0.05) continue;
+    // the ground under the foot: never through it (its hips may have sunk in a lurch)
+    const tg = [ank[0] + ox + L.rx, ank[1] + oy + L.ry, Math.max(ank[2], r[ti + 2][2] * k[1] * 0.9)],
       mid = mul(add(J[ti], ank), 0.5),
-      [, E] = limb(D, o, ti, ti + 1, Rp, J[ti], tg, sub(J[ti + 1], mid), k);
+      [, E] = limb(D, o, ti, ti + 1, Rp, J[ti], tg, sub(J[ti + 1], mid), k, [R[ti], R[ti + 1]]);
     D3(ti + 2, R[ti + 2], E);
     D3(ti + 3, R[ti + 3], add(E, mv(R[ti + 2], sc3(sub(r[ti + 3], r[ti + 2]), k))));
   }
