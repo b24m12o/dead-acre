@@ -2304,16 +2304,28 @@ function poseHeroFK(p, D, o) {
     for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, rollK);
     for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * rollK;
   }
-  // killed: his knees go and he falls back, as recorded, and lies there (the gun still in his hand)
-  const deadU = p.hp <= 0 && GS.state === 'over' ? t - (p._deadT ?? (p._deadT = t)) : -1,
+  // killed (or one of your people, downed): his knees go and he falls back, as recorded, and lies there (the gun still
+  // in his hand); one of your people brought round gets up as recorded (Library 2's get-up)
+  const downed = (p.hp <= 0 && GS.state === 'over' && p === GS.P) || (p.npc && p.down > 0),
+    deadU = downed ? t - (p._deadT ?? (p._deadT = t)) : -1,
     dK = deadU >= 0 ? Math.min(1, deadU / 0.15) : 0;
-  if (deadU < 0) p._deadT = undefined;
+  if (deadU < 0 && p._deadT !== undefined) {
+    p._deadT = undefined;
+    if (p.npc) p._upT = t; // (back on their feet: up off the ground)
+  }
   if (dK > 0) {
     fkSnap(FK2, FKR2, C.death, Math.min(deadU, C.death.dur - 0.01), false);
     for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, dK);
     for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * dK;
   }
-  const allK = Math.max(stepB > 0 ? 0 : rollK, dK); // (every bone as recorded: rolling, or dead)
+  const upU = t - (p._upT ?? -99),
+    uK = upU >= 0 && upU < C.getup.dur ? Math.min(1, (C.getup.dur - upU) / 0.25) : 0;
+  if (uK > 0) {
+    fkSnap(FK2, FKR2, C.getup, upU, false);
+    for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, uK);
+    for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * uK;
+  }
+  const allK = Math.max(stepB > 0 ? 0 : rollK, dK, uK); // (every bone as recorded: rolling, down, getting up)
   // a throw: the trunk winds up and comes through with it as recorded (the overhand throw's wind-up to its follow-
   // through, at the toss's own quick pace; the arm keeps its own path, as heroArms throws it)
   {
@@ -2456,7 +2468,7 @@ function poseHeroFK(p, D, o) {
       D3(ti + 3, R[ti + 3], toe);
     }
   }
-  if ((rollK > 0 && !stepB && rollU < 0.7) || dK > 0) {
+  if ((rollK > 0 && !stepB && rollU < 0.7) || dK > 0 || uK > 0) {
     // mid-roll (or fallen) the gun stays in the right hand (coming up out of a roll, the hands go back to it)
     const hd = sub(J[9], J[8]),
       Rg = rotTo([1, 0, 0], hd);
@@ -2910,7 +2922,8 @@ export function modelOf(e) {
 // you (or a survivor) in 3D, with your gun: when the meshes are in, and you're on your feet (rolling, down or riding
 // out, the pictures still draw)
 export function drawHero3D(p) {
-  const fell = GS.state === 'over' && p === GS.P && FIG.models.hero && FIG.models.hero.rest.length > 14; // (he falls as recorded)
+  // (he falls as recorded; so does one of your people, downed)
+  const fell = (GS.state === 'over' ? p === GS.P : !!p.npc) && FIG.models.hero && FIG.models.hero.rest.length > 14;
   if (!fig3dOn() || !FIG.models.hero || ((p.down > 0 || p.hp <= 0) && !fell) || p.ride) return false;
   if (p.dashT > 0 && !(FIG.models.hero.rest.length > 14)) return false; // (the roll, recorded, on the fuller skeleton)
   if (p.id === undefined) p.id = 9000 + Math.floor(Math.random() * 999);

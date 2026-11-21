@@ -42,7 +42,7 @@ export function aimPoint(p, gx, gy) {
 // where the shots are seen to leave: the 3D gun's muzzle (fig3d.js poses it each frame), or, drawn flat, out along the
 // aim at the gun's height. The round itself flies down the aim line through you, so nothing at point blank is missed:
 // what's drawn of it rides beside that line, out of the muzzle (lx, ly across it; h its height)
-const muzzleOf = (p, G, c, s) => {
+export const muzzleOf = (p, G, c, s) => {
   const m = p._mz && GS.time - (p._mzT ?? -9) < 0.25 ? p._mz : null;
   if (!m) return { x: p.x + c * G.muzzle, y: p.y + s * G.muzzle, h: 32, lx: 0, ly: 0, f: G.muzzle };
   const dx = m[0] - p.x,

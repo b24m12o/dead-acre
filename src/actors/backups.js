@@ -10,6 +10,7 @@ import { R } from '../render/atlas.js';
 import { MH, MW, TILE, WH, WW, isWall } from '../world/map.js';
 import { N8, collide, flow, los, query, blockPt } from '../world/nav.js';
 import { budKey, playR, playS, thr, tone } from '../audio/audio.js';
+import { muzzleOf } from './player-weapons.js';
 import { sfx } from '../audio/sfx.js';
 import { LV, S, ammoFill, ammoTypes, cam, gd } from '../game/state.js';
 import { renderMods } from '../game/upgrades.js';
@@ -122,6 +123,19 @@ const BRLD = {
   shotgun: ['magOutR', 'magInR', 'rack'],
   rifle: ['magOutR', 'magInR', 'rack'],
 };
+// where their shots are seen to leave: their own gun's muzzle, as posed (as yours are: player-weapons.js); the
+// round from in front of them on their aim line, drawn beside it, out of the muzzle
+const BMZ = { muzzle: 32 * GK },
+  outOf = (M, s, c, sn) => ({
+    x: s.x + c * 14 * GK,
+    y: s.y + sn * 14 * GK,
+    sx: s.x + c * 14 * GK,
+    sy: s.y + sn * 14 * GK,
+    mz: Math.max(0, M.f - 14 * GK),
+    h: M.h,
+    lx: M.lx,
+    ly: M.ly,
+  });
 function budReload(s, rt, loud) {
   s.rl = rt;
   const k = BRLD[s.gun] || BRLD.pistol;
@@ -134,6 +148,10 @@ export function buddyShoot(s, dt, slow) {
   s.cd -= dt / (slow || 1);
   const [mag, rt] = BMAG[s.gun] || BMAG.pistol;
   if (s.mag === undefined) s.mag = mag;
+  // (reloading: drawn as yours is, the hands through it, fig3d.js)
+  s.reload = Math.max(0, s.rl || 0);
+  s.reloadMax = rt;
+  s.rk = (s.rk || 0) + ((s.rl > 0 ? 1 : 0) - (s.rk || 0)) * Math.min(1, dt * 12);
   if (s.rl > 0) {
     s.rl -= dt / (slow || 1);
     if (s.rl <= 0) s.mag = mag;
@@ -181,12 +199,13 @@ export function buddyShoot(s, dt, slow) {
     Math.abs(angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x))) < 0.12
   ) {
     const c = Math.cos(s.aim),
-      sn = Math.sin(s.aim);
+      sn = Math.sin(s.aim),
+      M = muzzleOf(s, BMZ, c, sn);
+    s.lastShotT = GS.time; // (the shot jolts their trunk, as yours: fig3d.js)
     if (mm) {
       s.cd = S.buddyCd * 2;
       GS.pbullets.push({
-        x: s.x + c * 34 * GK,
-        y: s.y + sn * 34 * GK,
+        ...outOf(M, s, c, sn),
         vx: c * 1500 * GK,
         vy: sn * 1500 * GK,
         life: 0.5,
@@ -197,8 +216,9 @@ export function buddyShoot(s, dt, slow) {
         small: true,
       });
       GS.flashes.push({
-        x: s.x + c * 40 * GK,
-        y: s.y + sn * 40 * GK,
+        x: M.x + c * 2 * GK,
+        y: M.y + sn * 2 * GK,
+        h: M.h,
         rot: s.aim,
         life: 0.06,
         max: 0.06,
@@ -212,8 +232,7 @@ export function buddyShoot(s, dt, slow) {
         const a = s.aim + rand(-0.16, 0.16),
           v = rand(900, 1050) * GK;
         GS.pbullets.push({
-          x: s.x + c * 32 * GK,
-          y: s.y + sn * 32 * GK,
+          ...outOf(M, s, c, sn),
           vx: Math.cos(a) * v,
           vy: Math.sin(a) * v,
           life: 0.3,
@@ -226,8 +245,9 @@ export function buddyShoot(s, dt, slow) {
         });
       }
       GS.flashes.push({
-        x: s.x + c * 36 * GK,
-        y: s.y + sn * 36 * GK,
+        x: M.x + c * 2 * GK,
+        y: M.y + sn * 2 * GK,
+        h: M.h,
         rot: s.aim,
         life: 0.06,
         max: 0.06,
@@ -244,9 +264,12 @@ export function buddyShoot(s, dt, slow) {
     s.aim += angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x)) * damp(14, dt);
     if (ready && s.cd <= 0 && !mm && !cop) {
       s.cd = S.buddyCd * 0.87;
+      const c = Math.cos(s.aim),
+        sn = Math.sin(s.aim),
+        M = muzzleOf(s, BMZ, c, sn);
+      s.lastShotT = GS.time;
       GS.pbullets.push({
-        x: s.x + Math.cos(s.aim) * 30 * GK,
-        y: s.y + Math.sin(s.aim) * 30 * GK,
+        ...outOf(M, s, c, sn),
         vx: Math.cos(s.aim) * 1000 * GK,
         vy: Math.sin(s.aim) * 1000 * GK,
         life: 0.6,
@@ -259,8 +282,9 @@ export function buddyShoot(s, dt, slow) {
       s.recoil = 4;
       if (thr('bnoise', 400)) makeNoise(s.x, s.y, 480, true);
       GS.flashes.push({
-        x: s.x + Math.cos(s.aim) * 34 * GK,
-        y: s.y + Math.sin(s.aim) * 34 * GK,
+        x: M.x + c * 2 * GK,
+        y: M.y + sn * 2 * GK,
+        h: M.h,
         rot: s.aim,
         life: 0.05,
         max: 0.05,
