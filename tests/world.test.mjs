@@ -19,7 +19,9 @@ export async function run(b) {
     out.miss = lampShot(bx - 60, by - 25, bx + 60, by - 25); out.missK = lampK(L) > 0 || L.broken;
     out.hit = lampShot(bx - 60, by + 3, bx + 60, by - 3); out.hitK = lampK(L); out.shot = !!L.shot;
     // a real round, fired by the gun at the bulb of another lamp
-    const L2 = lamps.find(l => !l.down && !l.lantern && !l.shot && l !== L), [b2x, b2y] = bulbAt(L2);
+    // (one with clear street across to it: a wall in the way stops the round short, and the map is random)
+    const clear = l => { const [x, y] = bulbAt(l); for (let d = 0; d <= 160; d += 8) if (blockPt(x - 160 + d, y)) return false; return true; };
+    const L2 = lamps.find(l => !l.down && !l.lantern && !l.shot && l !== L && clear(l)) || lamps.find(l => !l.down && !l.lantern && !l.shot && l !== L), [b2x, b2y] = bulbAt(L2);
     GS.P.x = b2x - 140; GS.P.y = b2y; GS.P.vx = GS.P.vy = 0;
     GS.pbullets.push({ x: GS.P.x + 20, y: b2y, sx: GS.P.x + 20, sy: b2y, mz: 0, vx: 1400, vy: 0, life: 0.5, dmg: 10, pierce: 0, crit: 0, fall: 0.85, ap: 0, gun: 'pistol', bounce: 0, hits: [], kb: 1 });
     fr(0.3); out.real = !!L2.shot;

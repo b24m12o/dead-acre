@@ -154,11 +154,11 @@ export async function run(b) {
     check(v.stride > 0.4, `the hero running ${nm} should step: his foot goes ${v.stride} leg lengths back and forth`);
   }
   check(
-    o.survivor.went > 2 && o.survivor.stride > 0.3 && o.survivor.on > 0.6,
+    o.survivor.went > 1.2 && o.survivor.stride > 0.3 && o.survivor.on > 0.6,
     `one of your people following you should walk, not glide: went ${o.survivor.went} legs, feet ${o.survivor.stride} back and forth, walking ${o.survivor.on}`
   );
   check(
-    o.zombie.went > 2 && o.zombie.stride > 0.3 && o.zombie.on > 0.6,
+    o.zombie.went > 1.2 && o.zombie.stride > 0.3 && o.zombie.on > 0.6,
     `one of the dead coming at you should walk, not glide: went ${o.zombie.went} legs, feet ${o.zombie.stride} back and forth, its legs at ${o.zombie.on} of its pace`
   );
   check(

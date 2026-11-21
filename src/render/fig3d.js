@@ -1840,6 +1840,72 @@ function poseHero(p, D, o) {
   });
 }
 // the arms and the gun on whichever skeleton (C: the pose so far, and its bones' numbers)
+// the guns loaded a shell at a time (each shell its own reload)
+const PER_SHELL = { shotgun: 1, lever: 1 };
+// the free hand through a reload, at its point u (0..1): a magazine's out, dropped; a fresh one fetched from the
+// front of the vest, brought up and seated (0.6, when its sound plays); then, if the gun ran dry, the bolt or slide
+// racked (0.84) and the hand back. A shell at a time: to the pouch on the belt, back, and thumbed into the gate
+function reloadHand(p, H, G, W, hand, Jc, Rc, k) {
+  const u = clamp(1 - p.reload / (p.reloadMax || 1), 0, 1),
+    gm = gunModel(p.gun),
+    well = hand(H.mag),
+    below = hand(add(H.mag, [-0.5, 0.5, -6])), // (a magazine's length below the well)
+    pouch = add(Jc, mv(Rc, sc3([3.2, -2.2, -7.5], k))), // (on the vest's front, the free hand's side, low)
+    path = (keys, u) => {
+      let i = 0;
+      while (i < keys.length - 2 && u > keys[i + 1][0]) i++;
+      const [u0, a] = keys[i],
+        [u1, b] = keys[i + 1],
+        x = clamp((u - u0) / Math.max(1e-3, u1 - u0), 0, 1);
+      return lerp3(a, b, x * x * (3 - 2 * x));
+    };
+  if (PER_SHELL[gm]) {
+    const gate = hand(add(H.mag, [0, 0.3, -0.8])),
+      push = hand(add(H.mag, [1.8, 0.3, -0.6]));
+    return path(
+      [
+        [0, gate],
+        [0.4, pouch],
+        [0.78, gate],
+        [0.9, push],
+        [1, gate],
+      ],
+      u
+    );
+  }
+  const rack = !!(p.rl && p.rl.steps && p.rl.steps.some(s => s[2])),
+    bolt = hand(gm === 'pistol' ? [-1.8, 0.4, 1.6] : add(H.mag, [-1.5, 1.8, 3.6])),
+    pulled = hand(gm === 'pistol' ? [-4.6, 0.4, 1.6] : add(H.mag, [-5.5, 1.8, 3.6])),
+    fore = hand(H.fore);
+  return path(
+    rack
+      ? [
+          [0, fore],
+          [0.06, well],
+          [0.2, below],
+          [0.38, pouch],
+          [0.52, below],
+          [0.6, well],
+          [0.72, bolt],
+          [0.82, bolt],
+          [0.86, pulled],
+          [0.94, fore],
+          [1, fore],
+        ]
+      : [
+          [0, fore],
+          [0.06, well],
+          [0.2, below],
+          [0.38, pouch],
+          [0.52, below],
+          [0.6, well],
+          [0.66, well],
+          [0.82, fore],
+          [1, fore],
+        ],
+    u
+  );
+}
 function heroArms(p, D, o, C) {
   const { aim, k, r, D3, H, gm, kick, rl, sw, shv, t, id, Jc, Rc, shR, shL } = C;
   void r;
@@ -1849,7 +1915,14 @@ function heroArms(p, D, o, C) {
     ar = [-Math.sin(aim), Math.cos(aim), 0],
     up = [0, 0, 1],
     low = rl * 0.5 + sw * 0.9, // the muzzle down: reloading, swapping
-    Rg = mm(Rz(aim + rl * 0.25), mm(Ryb(low - kick * 0.12 - shv * 0.2), Rxb(rl * 0.55))),
+    // where in the reload (its sounds' beats: the magazine out, the fresh one seated at 0.6, the bolt racked at 0.84);
+    // the gun jolted up as the magazine's seated, back as the bolt's let go
+    RU = p.reload > 0 ? clamp(1 - p.reload / (p.reloadMax || 1), 0, 1) : -1,
+    seat =
+      RU >= 0 && !PER_SHELL[gm]
+        ? Math.exp(-(((RU - 0.6) / 0.035) ** 2)) - 0.5 * Math.exp(-(((RU - 0.86) / 0.03) ** 2))
+        : 0,
+    Rg = mm(Rz(aim + rl * 0.25), mm(Ryb(low - kick * 0.12 - shv * 0.2 - seat * 0.09), Rxb(rl * 0.55))),
     W = (v, s = 1) => sc3(mv(Rg, v), [k[0] * s, k[1] * s]); // a point of the gun, in the street
   let G;
   if (H.style === 'pistol') {
@@ -1876,15 +1949,19 @@ function heroArms(p, D, o, C) {
     p._mz = [m[0], m[1], m[2]]; // the muzzle, for the shots (player-weapons.js)
     p._mzT = t;
   }
-  // the other hand: on the fore-end (sliding back with a shotgun's pump), at the magazine reloading, or thrown
+  // the other hand: on the fore-end (sliding back with a shotgun's pump), reloading, or thrown
   const pump = H.pump && p.pumpT > 0 && p.pumpT < 0.24 ? Math.sin((1 - p.pumpT / 0.24) * Math.PI) : 0,
     foreP = [H.fore[0] - pump * 3.2, H.fore[1], H.fore[2]],
-    H2 = add(G, W(add(rl > 0.5 ? H.mag : foreP, [0.6, -0.5, -0.7])));
+    hand = v => add(G, W(add(v, [0.6, -0.5, -0.7]))),
+    H2 =
+      rl > 0.02 && RU >= 0
+        ? lerp3(hand(foreP), reloadHand(p, H, G, W, hand, Jc, Rc, k), Math.min(1, rl * 1.4))
+        : hand(foreP);
   // the head: to the aim; down on the stock behind a long gun
   const cheek = H.style === 'shoulder' ? 1 : H.style === 'compact' ? 0.5 : 0,
     Rh = mm(
       Rz(aim),
-      mm(Rxb(cheek * (0.16 + (H.cheek ? 0.06 : 0)) * (1 - rl)), Ryb(0.06 + cheek * 0.1 - kick * 0.05 + rl * 0.25))
+      mm(Rxb(cheek * (0.16 + (H.cheek ? 0.06 : 0)) * (1 - rl)), Ryb(0.06 + cheek * 0.1 - kick * 0.05 + rl * 0.42))
     ),
     Jh = C.Jh;
   D3(C.headB, Rh, Jh);
@@ -2284,7 +2361,8 @@ function poseHeroFK(p, D, o) {
         clamp((-a[0] * Math.sin(yawR) + a[1] * Math.cos(yawR)) / A, -1, 1),
       ];
     })(),
-    lean = (0.05 * wJog + 0.16 * acc[0]) * (1 - allK), // (the recorded run leans of itself)
+    // (the recorded run leans of itself; reloading, he hunches in over the gun a little)
+    lean = (0.05 * wJog + 0.16 * acc[0] + 0.07 * clamp(p.rk || 0, 0, 1)) * (1 - allK),
     roll = 0.09 * acc[1] * (1 - allK),
     // each shot jolts the trunk: back, and round off the gun shoulder, on a stiff spring that rebounds a little and
     // settles in a fifth of a second; kicked as hard as the gun kicks (a shotgun rocks him, a pistol barely). The
