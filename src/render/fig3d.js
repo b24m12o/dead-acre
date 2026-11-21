@@ -14,6 +14,7 @@ import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
 import { GK, HEROIC, PER_M, TILT, gaitOfSpeed, strideLen } from '../core/scale.js';
 import { FK, MOTION } from './motion.js';
 import { FKC } from './motion-cmu.js';
+import { ragPose } from './ragdoll.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
 
@@ -2194,6 +2195,27 @@ function poseHeroFK(p, D, o) {
     for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, rollK);
     for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * rollK;
   }
+  // killed: his knees go and he falls back, as recorded, and lies there (the gun still in his hand)
+  const deadU = p.hp <= 0 && GS.state === 'over' ? t - (p._deadT ?? (p._deadT = t)) : -1,
+    dK = deadU >= 0 ? Math.min(1, deadU / 0.15) : 0;
+  if (deadU < 0) p._deadT = undefined;
+  if (dK > 0) {
+    fkSnap(FK2, FKR2, C.death, Math.min(deadU, C.death.dur - 0.01), false);
+    for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, dK);
+    for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * dK;
+  }
+  const allK = Math.max(rollK, dK); // (every bone as recorded: rolling, or dead)
+  // a throw: the trunk winds up and comes through with it as recorded (the overhand throw's wind-up to its follow-
+  // through, at the toss's own quick pace; the arm keeps its own path, as heroArms throws it)
+  {
+    const tt = t - (p.throwT ?? -9),
+      tk = tt >= 0 && tt < 0.36 && !(p.reload > 0) && allK === 0 ? tt / 0.36 : -1;
+    if (tk >= 0) {
+      fkSnap(FK2, FKR2, C.throw, 0.3 + tk * 0.5, false);
+      const w = Math.sin(Math.PI * tk) * 0.7;
+      for (const b of [1, 2, 3, 4, 5]) fkMix(FKQ, FK2, b, w);
+    }
+  }
   const yawR = rollK > 0 ? p._rollA + angDiff(p._rollA, yaw) * (1 - rollK) : yaw;
   // place the bones: each turned as recorded (and the trunk on round to the aim), its joint where its parent's bone
   // puts it (our lengths, their turns)
@@ -2202,7 +2224,7 @@ function poseHeroFK(p, D, o) {
     R = [];
   const rk = wJ * wMove, // (running the trunk round, a little more of the twist low, the hips taking some)
     twistOf = b =>
-      rollK > 0
+      allK > 0
         ? 0
         : b === 0
           ? 0.12 * rk
@@ -2230,8 +2252,8 @@ function poseHeroFK(p, D, o) {
         clamp((-a[0] * Math.sin(yawR) + a[1] * Math.cos(yawR)) / A, -1, 1),
       ];
     })(),
-    lean = (0.13 * wJog + 0.16 * acc[0]) * (1 - rollK),
-    roll = 0.09 * acc[1] * (1 - rollK);
+    lean = (0.13 * wJog + 0.16 * acc[0]) * (1 - allK),
+    roll = 0.09 * acc[1] * (1 - allK);
   for (let b = 0; b < 22; b++) {
     const lf = b === 1 ? 0.4 : b === 2 ? 0.7 : b >= 3 && b <= 13 ? 1 : 0,
       Rb = mm(
@@ -2250,7 +2272,7 @@ function poseHeroFK(p, D, o) {
         d = mv(R[pj], sc3(sub(r[b], r[pj]), k));
       J[b] = [J[pj][0] + d[0], J[pj][1] + d[1], J[pj][2] + d[2]];
     }
-    if (b < 6 || b >= 14 || b === 6 || b === 10 || rollK > 0) D3(b, R[b], J[b]);
+    if (b < 6 || b >= 14 || b === 6 || b === 10 || allK > 0) D3(b, R[b], J[b]);
   }
   // the feet: each held where it was put down while the recording has it on the ground (no sliding, the body may
   // turn and change pace over it), the leg reaching to it; let go as it lifts
@@ -2262,7 +2284,7 @@ function poseHeroFK(p, D, o) {
     ]) {
       const L = lk[i],
         fp = (ph + i * 0.5) % 1,
-        down = rollK > 0 ? false : still || wMove < 0.05 ? true : fp < stK,
+        down = allK > 0 ? false : still || wMove < 0.05 ? true : fp < stK,
         ank = J[ti + 2];
       if (!down) L.on = false;
       else if (!L.on) {
@@ -2304,8 +2326,8 @@ function poseHeroFK(p, D, o) {
       D3(ti + 3, R[ti + 3], toe);
     }
   }
-  if (rollK > 0 && rollU < 0.7) {
-    // mid-roll the gun stays in the right hand (coming up out of it, the hands go back to it)
+  if ((rollK > 0 && rollU < 0.7) || dK > 0) {
+    // mid-roll (or fallen) the gun stays in the right hand (coming up out of a roll, the hands go back to it)
     const hd = sub(J[9], J[8]),
       Rg = rotTo([1, 0, 0], hd);
     p._grip = add(J[9], mul(hd, 0.4));
@@ -2471,6 +2493,8 @@ function poseZombie22(e, D, o) {
     !m14
   )
     fkLegs(e, D, o, MM);
+  // killed: it falls as a body does (ragdoll.js), from the pose it died in
+  else if (e.dying !== undefined && !e.giant) ragPose(e, D, o, MM);
 }
 // the dead's own carriage, recorded: CMU's zombie shambles, a drunk's stagger, a man walking on a hurt leg, and
 // Quaternius' zombie walk (its dragged leg and all); each of the walking dead given one (a limper its limp, legs and
@@ -2683,7 +2707,8 @@ export function modelOf(e) {
 // you (or a survivor) in 3D, with your gun: when the meshes are in, and you're on your feet (rolling, down or riding
 // out, the pictures still draw)
 export function drawHero3D(p) {
-  if (!fig3dOn() || !FIG.models.hero || p.down > 0 || p.ride || p.hp <= 0) return false;
+  const fell = GS.state === 'over' && p === GS.P && FIG.models.hero && FIG.models.hero.rest.length > 14; // (he falls as recorded)
+  if (!fig3dOn() || !FIG.models.hero || ((p.down > 0 || p.hp <= 0) && !fell) || p.ride) return false;
   if (p.dashT > 0 && !(FIG.models.hero.rest.length > 14)) return false; // (the roll, recorded, on the fuller skeleton)
   if (p.id === undefined) p.id = 9000 + Math.floor(Math.random() * 999);
   p.hero3d = true;
