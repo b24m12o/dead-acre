@@ -206,7 +206,13 @@ for (const [key, file, a0, a1, mir] of CLIPS) {
       const s = S[Math.max(0, i)],
         Ru = Rz(-s.h),
         Q = [],
-        d = [s.hip[0] - s.cx, s.hip[1] - s.cy],
+        // (its hips against the straight line its strides make: the hips at the stride's two ends, the same moment
+        // of a stride, joined. A smoothed path lags over a short take, and the hips would drift along it and back)
+        u = (i - i0) / (i1 - i0),
+        d = [
+          s.hip[0] - (S[i0].hip[0] + (S[i1].hip[0] - S[i0].hip[0]) * u),
+          s.hip[1] - (S[i0].hip[1] + (S[i1].hip[1] - S[i0].hip[1]) * u),
+        ],
         c = Math.cos(-s.h),
         sn = Math.sin(-s.h);
       for (let b = 0; b < 22; b++) {
@@ -239,8 +245,14 @@ for (const [key, file, a0, a1, mir] of CLIPS) {
       for (let j = 0; j < 3; j++) a.r[j] += (b.r[j] - a.r[j]) * w;
     }
     frames.push(a.Q.map(q3));
-    root.push(a.r.map(q3));
+    root.push(a.r);
   }
+  // (centred: what's left is its sway, about where it is)
+  for (const j of [0, 1]) {
+    const m = root.reduce((t, r) => t + r[j], 0) / root.length;
+    for (const r of root) r[j] -= m;
+  }
+  for (let k = 0; k < root.length; k++) root[k] = root[k].map(q3);
   // its seam: the last tenth of a second eased into the first frame
   OUT[key] = {
     src: 'cmu',
