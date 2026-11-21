@@ -2032,6 +2032,23 @@ function heroLooks(p, D, o, id) {
   D.set([0, 0, 0, 0.25], q + 24);
   D.set([0, 0, 0, 0], q + 28);
 }
+// which way a reaching leg's knee goes: where the recording has it, and a little forward, as knees bend (a leg held
+// near straight, as a lame one is, has its knee almost on the line from hip to foot, and the reach could flip it
+// from one side to the other frame to frame)
+const kneeTo = (knee, mid, yaw, Hl) => add(sub(knee, mid), [Math.cos(yaw) * 0.1 * Hl, Math.sin(yaw) * 0.1 * Hl, 0]);
+// a foot let go of (or its hold eased): what it was held off the recording by (rx, ry) settles out as a stiff
+// spring does, from rest, so it doesn't set off at a jump; mostly gone in a sixth of a second
+function settle(L, dt) {
+  const w = 26;
+  for (let left = dt; left > 1e-4; ) {
+    const h = Math.min(left, 1 / 120);
+    left -= h;
+    L.vx = (L.vx || 0) + (-w * w * (L.rx || 0) - 2 * w * (L.vx || 0)) * h;
+    L.vy = (L.vy || 0) + (-w * w * (L.ry || 0) - 2 * w * (L.vy || 0)) * h;
+    L.rx = (L.rx || 0) + L.vx * h;
+    L.ry = (L.ry || 0) + L.vy * h;
+  }
+}
 // ---------- recorded motion, every bone (motion.js's FK), on the hero's fuller skeleton (tools/mesh/fk22.mjs) ----------
 // a quaternion (x, y, z, w) as a turn
 const q9 = q => {
@@ -2208,6 +2225,7 @@ function poseHeroFK(p, D, o) {
         break;
       }
     }
+    p._dwT = W; // (the directions as wanted: what the legs face by)
     // (its legs change over in a moment, not in a frame)
     let sm = 0;
     for (let d = 0; d < 4; d++) sm += dw[d] += (W[d] - dw[d]) * Math.min(1, dt * 10);
@@ -2220,15 +2238,19 @@ function poseHeroFK(p, D, o) {
     // moving, the body turned off its going by the blend's own going: walking, it faces the aim (once the blend has
     // caught up); running, the legs face the way it runs, or backpedalling, the aim again. Standing, the legs turn
     // after the trunk once it's twisted too far
+    // (by the directions as wanted, as the backpedal below: eased, setting off back from a run, the legs would turn
+    // to face the way he goes, and back again)
+    const dT = p._dwT || dw;
     let gW = 0;
-    for (let d = 0; d < 4; d++) gW += dw[d] * (G[d] + 2 * Math.PI * Math.round((rr - G[d]) / (2 * Math.PI)));
+    for (let d = 0; d < 4; d++) gW += dT[d] * (G[d] + 2 * Math.PI * Math.round((rr - G[d]) / (2 * Math.PI)));
     gW -= 2 * Math.PI * Math.round(gW / (2 * Math.PI) - rel / (2 * Math.PI));
     // (the backpedal as it's wanted, not as eased in: the legs' own turn is eased, and reversing, a legs' going
     // eased from the run's would set them turning round to face the way he now goes, and back)
     const bkT = bkW * bkW * (3 - 2 * bkW),
       gB = gW * (1 - wJ) + bkT * goBP * wJ,
       want = sL > 0.25 ? mA - gB : Math.abs(angDiff(p._legA, aim + blade)) > 1.1 ? aim : p._legA;
-    p._legA += angDiff(p._legA, want) * Math.min(1, dt * (sL > 0.25 ? 10 : 5));
+    // (no faster than a body pivots on its feet: reversing a run sideways, the legs turn half round)
+    p._legA += clamp(angDiff(p._legA, want) * Math.min(1, dt * (sL > 0.25 ? 10 : 5)), -9 * dt, 9 * dt);
   }
   const yaw = p._legA,
     tw = clamp(angDiff(yaw, aim + blade), -1.75, 1.75);
@@ -2440,16 +2462,14 @@ function poseHeroFK(p, D, o) {
         down = allK > 0 || stepB > 0 ? false : still || wMove < 0.05 ? true : fp < stK,
         ank = J[ti + 2],
         // a hold let go, or eased in or out, takes the foot from where it was to where the recording has it over a
-        // few frames, not in one (what was let go of decays: half gone in a thirtieth of a second)
-        dec = Math.exp(-dt / 0.045),
+        // few frames, not in one (settle)
         free = () => {
           L.on = false;
           L.rx += L.px || 0;
           L.ry += L.py || 0;
           L.pw = L.px = L.py = 0;
         };
-      L.rx = (L.rx || 0) * dec;
-      L.ry = (L.ry || 0) * dec;
+      settle(L, dt);
       if (!down) {
         if (L.on) free();
       } else if (!L.on) {
@@ -2493,10 +2513,10 @@ function poseHeroFK(p, D, o) {
           oy = L.py = (L.y - ank[1]) * w;
         }
       }
-      if (!L.on && Math.hypot(L.rx, L.ry) < 0.05) continue;
+      if (!L.on && Math.hypot(L.rx, L.ry) < 0.05 && Math.hypot(L.vx, L.vy) < 1) continue;
       const tg = [ank[0] + ox + L.rx, ank[1] + oy + L.ry, ank[2] + lift],
         mid = mul(add(J[ti], ank), 0.5),
-        [, E] = limb(D, o, ti, ti + 1, R[0], J[ti], tg, sub(J[ti + 1], mid), k, [R[ti], R[ti + 1]]);
+        [, E] = limb(D, o, ti, ti + 1, R[0], J[ti], tg, kneeTo(J[ti + 1], mid, yawR, Hl), k, [R[ti], R[ti + 1]]);
       D3(ti + 2, R[ti + 2], E);
       const toe = add(E, mv(R[ti + 2], sc3(sub(r[ti + 3], r[ti + 2]), k)));
       D3(ti + 3, R[ti + 3], toe);
@@ -2891,15 +2911,13 @@ function fkLegs(e, D, o, MM) {
       down = wMove < 0.05 ? true : fp < stK,
       ank = J[ti + 2],
       // (a hold let go, or eased in or out, eases the foot over a few frames, as the hero's do)
-      dec = Math.exp(-dt / 0.045),
       free = () => {
         L.on = false;
         L.rx += L.px || 0;
         L.ry += L.py || 0;
         L.pw = L.px = L.py = 0;
       };
-    L.rx = (L.rx || 0) * dec;
-    L.ry = (L.ry || 0) * dec;
+    settle(L, dt);
     if (!down) {
       if (L.on) free();
     } else if (!L.on) {
@@ -2922,11 +2940,11 @@ function fkLegs(e, D, o, MM) {
         oy = L.py = (L.y - ank[1]) * w;
       }
     }
-    if (!L.on && Math.hypot(L.rx, L.ry) < 0.05) continue;
+    if (!L.on && Math.hypot(L.rx, L.ry) < 0.05 && Math.hypot(L.vx, L.vy) < 1) continue;
     // the ground under the foot: never through it (its hips may have sunk in a lurch)
     const tg = [ank[0] + ox + L.rx, ank[1] + oy + L.ry, Math.max(ank[2], r[ti + 2][2] * k[1] * 0.9)],
       mid = mul(add(J[ti], ank), 0.5),
-      [, E] = limb(D, o, ti, ti + 1, Rp, J[ti], tg, sub(J[ti + 1], mid), k, [R[ti], R[ti + 1]]);
+      [, E] = limb(D, o, ti, ti + 1, Rp, J[ti], tg, kneeTo(J[ti + 1], mid, yaw, Hl), k, [R[ti], R[ti + 1]]);
     D3(ti + 2, R[ti + 2], E);
     D3(ti + 3, R[ti + 3], add(E, mv(R[ti + 2], sc3(sub(r[ti + 3], r[ti + 2]), k))));
   }

@@ -3,7 +3,8 @@
 // jumping between frames, a loop's end meeting its start, its hips swaying about where the body is (not drifting
 // along it and snapping back, as the run once did: the hero shook a leg's length every stride). And in the game:
 // the hero runs steady every way, legs step whenever a body goes somewhere (yours, one of your people's, one of the
-// dead's: none glide), and one of the dead knocked down lies still once it's down.
+// dead's: none glide), no leg snaps as the hero or the dead set off, stop, reverse or turn, and one of the dead
+// knocked down lies still once it's down.
 import { openGame, check } from './lib/harness.mjs';
 import { FK } from '../src/render/motion.js';
 import { FKC } from '../src/render/motion-cmu.js';
@@ -112,6 +113,35 @@ export async function run(b) {
       out.run[nm] = { jump: +jump.toFixed(2), sway: +sway.toFixed(2), stride: +((foot[1] - foot[0]) / Hl).toFixed(2), nan };
     }
     keys.clear();
+    // the most any thigh or shin of a figure turns in a frame (its row's turn against last frame's, by the trace)
+    const RB = (e, b) => { const q = e._r3 * TWn * 4 + b * 12, D = DATA, c = [0, 1, 2].map(j => { const v = [D[q + j], D[q + 4 + j], D[q + 8 + j]], n = Math.hypot(...v) || 1; return v.map(x => x / n); }); return c; };
+    const LEGS = [14, 15, 18, 19], legTurn = (A, B) => { let m = 0; for (let i = 0; i < 4; i++) { let tr = 0; for (let j = 0; j < 3; j++) for (let l = 0; l < 3; l++) tr += A[i][j][l] * B[i][j][l]; m = Math.max(m, Math.acos(Math.max(-1, Math.min(1, (tr - 1) / 2)))); } return m; };
+    let open = null;
+    for (let t = 0; t < 40000 && !open; t++) { const x = 600 + Math.random() * (WW - 1200), y = 600 + Math.random() * (WH - 1200); let ok = true;
+      for (let dx = -160; dx <= 160 && ok; dx += 20) for (let dy = -120; dy <= 120 && ok; dy += 20) if (blockPt(x + dx, y + dy)) ok = false; if (ok) open = [x, y]; }
+    if (!open) return { err: 'no open ground to turn about on' };
+    // the hero setting off, pulling up, reversing, turning, strafing one way and back (aimed east): no leg snaps
+    {
+      P.x = open[0]; P.y = open[1]; P.vx = P.vy = 0; let prev = null, worst = 0, at = '';
+      for (const [ks, n] of [['', 20], ['d', 40], ['', 30], ['a', 40], ['d', 25], ['s', 35], ['w', 35], ['', 30]])
+        for (let f = 0; f < n; f++) { keys.clear(); for (const k of ks) keys.add(k); cam.x = P.x - viewW / 2; cam.y = P.y - viewH / 2; mouse.x = viewW * ZOOM / 2 + 300; mouse.y = viewH * ZOOM / 2;
+          frame([P]); const cur = LEGS.map(b => RB(P, b)); if (prev) { const a = legTurn(prev, cur); if (a > worst) { worst = a; at = ks || 'stopping'; } } prev = cur; }
+      out.turns = { worst: +worst.toFixed(2), at };
+    }
+    keys.clear();
+    // a pack of the dead after him as he goes round a square: they set off, turn, close in; no leg snaps either (as
+    // they walk: a pounce, or a swipe, is its own quick move)
+    {
+      P.x = open[0]; P.y = open[1]; P.vx = P.vy = 0;
+      const pack = [{}, { trait: 'runner' }, { kind: 'drag' }, { limp: true }].map((sp, i) => { const a = i * 1.57 + 0.4, e = makeEnemy('skitter', P.x + 200 * Math.cos(a), P.y + 200 * Math.sin(a)); Object.assign(e, sp); e.emerge = 1; e.aw = 9; e.dmg = 0; e.hp = e.maxHp = 1e6; return e; });
+      const prev = new Map(); let worst = 0, who = '';
+      for (let f = 0; f < 240; f++) { keys.clear(); keys.add('dsaw'[Math.floor(f / 40) % 4]); cam.x = P.x - viewW / 2; cam.y = P.y - viewH / 2; mouse.x = viewW * ZOOM / 2 + 300; mouse.y = viewH * ZOOM / 2;
+        frame([P, ...pack]);
+        for (const e of pack) { const cur = LEGS.map(b => RB(e, b)), walking = e.st === 'move' && !(e.lunge > 0) && !(e.stag > 0); if (prev.has(e) && f > 5 && walking && e._walk) { const a = legTurn(prev.get(e), cur); if (a > worst) { worst = a; who = (e.trait || e.kind || (e.limp ? 'limp' : 'walker')) + ' at frame ' + f + ' (going ' + Math.round(Math.hypot(e._mvx || 0, e._mvy || 0)) + ', carriage ' + (e._zk || 0).toFixed(2) + ', feet ' + (e._flk || []).map(L => (L.on ? 'down ' : 'up ') + (L.pw || 0).toFixed(1)).join(' and ') + (e._in && e._in.off ? ', easing a jump' : '') + (Math.hypot(e.kx || 0, e.ky || 0) > 1 ? ', shoved' : '') + ')'; } } prev.set(e, cur); e._walk = walking; } }
+      for (const e of pack) e.dead = true; GS.enemies = GS.enemies.filter(e => !pack.includes(e));
+      out.pack = { worst: +worst.toFixed(2), who };
+    }
+    keys.clear();
     // one of your people following you, and one of the dead walking at you: their feet go back and forth under them
     const legsOf = (e, MMe, n, move) => { const re = MMe.rest; let lo = 1e9, hi = -1e9, dist = 0, x0 = e.x, y0 = e.y; const H = re[14][2] * MMe.scale * FIGK * (e.sc || 1);
       for (let f = 0; f < n; f++) { move(f); frame([P, e]); if (f < 30) { x0 = e.x; y0 = e.y; continue; }
@@ -153,6 +183,16 @@ export async function run(b) {
     );
     check(v.stride > 0.4, `the hero running ${nm} should step: his foot goes ${v.stride} leg lengths back and forth`);
   }
+  // (smooth, his turn at most 0.36 a frame, reversing a run sideways, the dead's 0.4; a foot let go in a frame, a
+  // leg's twist taken from its hips, or a straight leg's knee flipping, turned them 0.5 to 0.86)
+  check(
+    o.turns.worst < 0.45,
+    `the hero's legs should not snap as he sets off, stops, reverses or turns: a thigh or shin turned ${o.turns.worst} rad in one frame (${o.turns.at})`
+  );
+  check(
+    o.pack.worst < 0.45,
+    `the legs of the dead after him should not snap as they set off and turn: a thigh or shin turned ${o.pack.worst} rad in one frame (a ${o.pack.who})`
+  );
   check(
     o.survivor.went > 1.2 && o.survivor.stride > 0.3 && o.survivor.on > 0.6,
     `one of your people following you should walk, not glide: went ${o.survivor.went} legs, feet ${o.survivor.stride} back and forth, walking ${o.survivor.on}`
@@ -167,5 +207,5 @@ export async function run(b) {
   );
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   const R = o.run;
-  return `run: jumps ≤ ${Math.max(...Object.values(R).map(v => v.jump))}, sway ≤ ${Math.max(...Object.values(R).map(v => v.sway))}; strides ${o.survivor.stride} (yours) ${o.zombie.stride} (the dead); down, legs move ${o.lying.legMove}`;
+  return `legs turn ≤ ${o.turns.worst} a frame (his), ${o.pack.worst} (the dead's); run: jumps ≤ ${Math.max(...Object.values(R).map(v => v.jump))}, sway ≤ ${Math.max(...Object.values(R).map(v => v.sway))}; strides ${o.survivor.stride} (yours) ${o.zombie.stride} (the dead); down, legs move ${o.lying.legMove}`;
 }
