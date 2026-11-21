@@ -9,19 +9,6 @@ import { GS } from '../core/gs.js';
 
 const T = 0.2; // how long a jump takes to ease out
 // rotation of a row (its 3×3 without the bone's scale), and the joint the row carries (where rest[b] lands)
-function rot(D, q, k) {
-  return [
-    D[q] / k[0],
-    D[q + 1] / k[1],
-    D[q + 2] / k[2],
-    D[q + 4] / k[0],
-    D[q + 5] / k[1],
-    D[q + 6] / k[2],
-    D[q + 8] / k[0],
-    D[q + 9] / k[1],
-    D[q + 10] / k[2],
-  ];
-}
 const mTm = (A, B) => {
     // Aᵀ·B
     const O = new Array(9);
@@ -46,6 +33,24 @@ const mTm = (A, B) => {
     M[2] * v[0] + M[5] * v[1] + M[8] * v[2],
   ];
 // the angle of a turn
+const RS = [],
+  rotInto = (O, D, q, k) => {
+    O[0] = D[q] / k[0];
+    O[1] = D[q + 1] / k[1];
+    O[2] = D[q + 2] / k[2];
+    O[3] = D[q + 4] / k[0];
+    O[4] = D[q + 5] / k[1];
+    O[5] = D[q + 6] / k[2];
+    O[6] = D[q + 8] / k[0];
+    O[7] = D[q + 9] / k[1];
+    O[8] = D[q + 10] / k[2];
+    return O;
+  },
+  mTmInto = (O, A, B) => {
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++) O[i * 3 + j] = A[i] * B[j] + A[3 + i] * B[3 + j] + A[6 + i] * B[6 + j];
+    return O;
+  };
 const angleOf = R => Math.acos(Math.max(-1, Math.min(1, (R[0] + R[4] + R[8] - 1) / 2)));
 // a turn as an axis times its angle, and back
 function logR(R) {
@@ -93,30 +98,38 @@ export function inert(e, D, o, MM, hero) {
   k[1] = k[0];
   if (!(k[0] > 0) || !(k[2] > 0)) return;
   // this frame's turns: each bone's against its parent (the hips' against the world)
-  const R = [],
-    loc = [];
-  for (let b = 0; b < nb; b++) {
-    R[b] = rot(D, o + b * 12, k);
-    loc[b] = b ? mTm(R[par[b]], R[b]) : R[b];
-  }
-  const S = e._in,
-    t = GS.time,
+  // (each bone's turn into scratch, and its turn from its parent's into this body's spare buffer: nothing made anew
+  // a frame while it's only being watched for a jump, as nearly all of the time)
+  const R = RS;
+  for (let b = 0; b < nb; b++) R[b] = rotInto(R[b] || (R[b] = new Float64Array(9)), D, o + b * 12, k);
+  let S = e._in;
+  const t = GS.time,
     fresh = !S || t - S.t > 0.1 || t < S.t || S.nb !== nb;
+  if (fresh) S = e._in = { t, nb, last: null, spare: null, off: null, t0: 0 };
+  const loc = S.spare || (S.spare = Array.from({ length: nb }, () => new Float64Array(9)));
+  loc[0].set(R[0]);
+  for (let b = 1; b < nb; b++) mTmInto(loc[b], R[par[b]], R[b]);
+  S.spare = S.last;
   if (fresh) {
-    e._in = { t, nb, last: loc, off: null, t0: 0 };
+    S.last = loc;
     return;
   }
   const dt = t - S.t;
   S.t = t;
-  if (dt <= 0) return;
-  // a jump: a joint turned further this frame than a body turns. The hero's arms move steadily (a swapped gun or a
-  // reload starting jumps them up to two radians); the dead swing theirs hard (a shamble's arms, sped to its legs,
-  // can turn three quarters of a radian a frame), so only a real break in theirs counts
-  const lim = hero ? Math.max(0.6, 24 * dt) : Math.max(1.0, 40 * dt);
+  if (dt <= 0) {
+    S.spare = loc;
+    return;
+  }
+  const lim = Math.cos(hero ? Math.max(0.6, 24 * dt) : Math.max(1.0, 40 * dt));
   let jump = false;
   for (let b = 0; b < nb && !jump; b++) {
     if (hero && !(b >= 6 && b <= 13)) continue;
-    if (angleOf(mTm(S.last[b], loc[b])) > lim) jump = true;
+    // (the turn between last frame's and this one's, by its trace: cos of its angle)
+    const A = S.last[b],
+      B = loc[b];
+    let tr = 0;
+    for (let i = 0; i < 9; i++) tr += A[i] * B[i];
+    if ((tr - 1) / 2 < lim) jump = true;
   }
   if (jump) {
     // from here, what it was showing: each joint's turn from the new one back to where it was (the hips' left be:
@@ -131,6 +144,7 @@ export function inert(e, D, o, MM, hero) {
   S.last = loc;
   S.cur = null;
   if (!S.off) return;
+  // (from here, rare: a jump being eased out)
   const u = (t - S.t0) / T;
   if (u >= 1) {
     S.off = null;

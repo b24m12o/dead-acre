@@ -2050,54 +2050,58 @@ const q9 = q => {
 };
 const FKQ = new Float32Array(22 * 4),
   FKR = new Float32Array(3);
-// add a clip's moment (t seconds in; a loop wraps) into the blend, w its share: every bone's turn and the hips' place
-function fkAdd(c, t, w, loop) {
+// add a clip's moment (t seconds in; a loop wraps) into a blend (Q, and Rt its hips' place; FKQ and FKR unless
+// given), w its share: every bone's turn and the hips' place
+function fkAdd(c, t, w, loop, Q = FKQ, Rt = FKR) {
   if (w <= 0) return;
   const n = c.frames.length,
     x = (loop ? (((t / c.dur) % 1) + 1) % 1 : clamp(t / c.dur, 0, 0.9999)) * n,
     i = Math.floor(x),
     f = x - i,
+    i2 = loop ? (i + 1) % n : Math.min(i + 1, n - 1),
     A = c.frames[i % n],
-    B = c.frames[loop ? (i + 1) % n : Math.min(i + 1, n - 1)];
-  for (let b = 0; b < 22; b++) {
-    const o4 = b * 4;
-    let d = 0;
-    for (let j = 0; j < 4; j++) d += A[o4 + j] * B[o4 + j];
-    const sB = d < 0 ? -1 : 1;
-    let qa = 0;
-    const qq = [0, 0, 0, 0];
-    for (let j = 0; j < 4; j++) qq[j] = A[o4 + j] * (1 - f) + B[o4 + j] * sB * f;
-    for (let j = 0; j < 4; j++) qa += qq[j] * FKQ[o4 + j];
-    const sA = qa < 0 ? -1 : 1;
-    for (let j = 0; j < 4; j++) FKQ[o4 + j] += qq[j] * sA * w;
+    B = c.frames[i2];
+  for (let o4 = 0; o4 < 88; o4 += 4) {
+    const a0 = A[o4],
+      a1 = A[o4 + 1],
+      a2 = A[o4 + 2],
+      a3 = A[o4 + 3],
+      sB = a0 * B[o4] + a1 * B[o4 + 1] + a2 * B[o4 + 2] + a3 * B[o4 + 3] < 0 ? -f : f,
+      g = 1 - f,
+      q0 = a0 * g + B[o4] * sB,
+      q1 = a1 * g + B[o4 + 1] * sB,
+      q2 = a2 * g + B[o4 + 2] * sB,
+      q3 = a3 * g + B[o4 + 3] * sB,
+      sw = q0 * Q[o4] + q1 * Q[o4 + 1] + q2 * Q[o4 + 2] + q3 * Q[o4 + 3] < 0 ? -w : w;
+    Q[o4] += q0 * sw;
+    Q[o4 + 1] += q1 * sw;
+    Q[o4 + 2] += q2 * sw;
+    Q[o4 + 3] += q3 * sw;
   }
   const ra = c.root[i % n],
-    rb = c.root[loop ? (i + 1) % n : Math.min(i + 1, n - 1)];
-  for (let j = 0; j < 3; j++) FKR[j] += (ra[j] * (1 - f) + rb[j] * f) * w;
+    rb = c.root[i2];
+  for (let j = 0; j < 3; j++) Rt[j] += (ra[j] * (1 - f) + rb[j] * f) * w;
 }
 // a looped recording's time at a stride's phase (its right foot landing at each whole one; over its strides in turn)
 const fkT = (c, fph) => (((((fph + (c.ph0 || 0)) / (c.ns || 1)) % 1) + 1) % 1) * c.dur;
 const FK2 = new Float32Array(22 * 4),
   FKR2 = new Float32Array(3);
 const fkNorm = Q => {
-  for (let b = 0; b < 22; b++) {
-    const o4 = b * 4,
-      l = Math.hypot(Q[o4], Q[o4 + 1], Q[o4 + 2], Q[o4 + 3]) || 1;
-    for (let j = 0; j < 4; j++) Q[o4 + j] /= l;
+  for (let o4 = 0; o4 < 88; o4 += 4) {
+    const l =
+      1 / (Math.sqrt(Q[o4] * Q[o4] + Q[o4 + 1] * Q[o4 + 1] + Q[o4 + 2] * Q[o4 + 2] + Q[o4 + 3] * Q[o4 + 3]) || 1);
+    Q[o4] *= l;
+    Q[o4 + 1] *= l;
+    Q[o4 + 2] *= l;
+    Q[o4 + 3] *= l;
   }
 };
 // one clip's moment alone, into Q (and its hips' place into Rt)
 function fkSnap(Q, Rt, c, t, loop) {
-  const sq = FKQ.slice(),
-    sr = FKR.slice();
-  FKQ.fill(0);
-  FKR.fill(0);
-  fkAdd(c, t, 1, loop);
-  fkNorm(FKQ);
-  Q.set(FKQ);
-  Rt.set(FKR);
-  FKQ.set(sq);
-  FKR.set(sr);
+  Q.fill(0);
+  Rt.fill(0);
+  fkAdd(c, t, 1, loop, Q, Rt);
+  fkNorm(Q);
 }
 // bone b of Q moved toward Q2's by w
 function fkMix(Q, Q2, b, w) {
@@ -2106,8 +2110,8 @@ function fkMix(Q, Q2, b, w) {
   for (let j = 0; j < 4; j++) d += Q[o4 + j] * Q2[o4 + j];
   const s2 = d < 0 ? -1 : 1;
   for (let j = 0; j < 4; j++) Q[o4 + j] += (Q2[o4 + j] * s2 - Q[o4 + j]) * w;
-  const l = Math.hypot(Q[o4], Q[o4 + 1], Q[o4 + 2], Q[o4 + 3]) || 1;
-  for (let j = 0; j < 4; j++) Q[o4 + j] /= l;
+  const l = 1 / (Math.sqrt(Q[o4] * Q[o4] + Q[o4 + 1] * Q[o4 + 1] + Q[o4 + 2] * Q[o4 + 2] + Q[o4 + 3] * Q[o4 + 3]) || 1);
+  for (let j = 0; j < 4; j++) Q[o4 + j] *= l;
 }
 // each bone's turn from our rest to the recording's T-pose (the shortest one: both stand facing forward)
 function fkAlign(MM) {
