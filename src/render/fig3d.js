@@ -2068,8 +2068,24 @@ function poseHeroFK(p, D, o) {
   // so that its going is the hero's and its body faces the aim. Running, no one shuffles sideways at a run: the legs
   // run the way it's going and the trunk twists back to the aim, as far as a trunk can; further round than that, it
   // backpedals
-  const vx = p.vx || 0,
-    vy = p.vy || 0,
+  // how he moves: yours, as the game drives you; one of your people, as they actually go (they're steered by a
+  // velocity of their own, and nudged, jostled, boarded)
+  if (p.npc) {
+    const lx = p._lgX ?? p.x,
+      ly = p._lgY ?? p.y,
+      mx = dt > 0 ? (p.x - lx) / dt : 0,
+      my = dt > 0 ? (p.y - ly) / dt : 0,
+      ok = dt > 0 && Math.hypot(mx, my) < 600,
+      g = Math.min(1, dt * 14);
+    p._lgX = p.x;
+    p._lgY = p.y;
+    if (ok) {
+      p._mvx = (p._mvx ?? 0) + (mx - (p._mvx ?? 0)) * g;
+      p._mvy = (p._mvy ?? 0) + (my - (p._mvy ?? 0)) * g;
+    }
+  }
+  const vx = p.npc ? (p._mvx ?? 0) : p.vx || 0,
+    vy = p.npc ? (p._mvy ?? 0) : p.vy || 0,
     spd = Math.hypot(vx, vy),
     sL = spd / Hl, // leg lengths a second
     mA = spd > 4 ? Math.atan2(vy, vx) : aim,
@@ -2620,8 +2636,22 @@ function fkLegs(e, D, o, MM) {
     yaw = Math.atan2(R0[3], R0[0]),
     Hl = r[14][2] * k[1];
   e._lgT = t;
-  const vx = e.vx || 0,
-    vy = e.vy || 0,
+  // how it actually moves (its stride and all, and a hit's shove back, a crowd's jostle: its own going is only
+  // part of that), so its legs step with whatever carries it
+  {
+    const lx = e._lgX ?? e.x,
+      ly = e._lgY ?? e.y,
+      mx = dt > 0 ? (e.x - lx) / dt : 0,
+      my = dt > 0 ? (e.y - ly) / dt : 0,
+      ok = Math.hypot(mx, my) < 600, // (not a jump across the map)
+      g = Math.min(1, dt * 14);
+    e._lgX = e.x;
+    e._lgY = e.y;
+    e._mvx = (e._mvx ?? e.vx ?? 0) + ((ok ? mx : e.vx || 0) - (e._mvx ?? e.vx ?? 0)) * g;
+    e._mvy = (e._mvy ?? e.vy ?? 0) + ((ok ? my : e.vy || 0) - (e._mvy ?? e.vy ?? 0)) * g;
+  }
+  const vx = e._mvx,
+    vy = e._mvy,
     spd = Math.hypot(vx, vy),
     sL = spd / Hl,
     back = spd > 4 && Math.cos(Math.atan2(vy, vx) - yaw) < -0.3,

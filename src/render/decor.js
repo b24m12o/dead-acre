@@ -133,7 +133,7 @@ export function drawTrunk(t) {
   quad(R.glow, t.x, t.y, 0, 0.3 * t.s, 0.16 * t.s, 0, 0, 0, 0.5, 0, 0, 0, 0);
 } // the trunk: brown bark, thicker at the root flare, the same colour as the limbs above
 /* ---------- decor ---------- */
-const DECOR = {
+export const DECOR = {
   hydrant: { reg: 'p_hydrant', n: 6, step: 2, shoot: true, o: 'o_hydrant' },
   mailbox: { reg: 'p_mailbox', n: 9, step: 2, o: 'o_mailbox' },
   trash: { reg: 'p_trash', n: 7, step: 2, shoot: true, o: 'o_bin' },
@@ -457,9 +457,10 @@ export function decorShot(b) {
     if (!D || !D.shoot || d.down) continue;
     if (d2(b.x, b.y, d.x, d.y - 6) > 13 * 13) continue;
     if (d.kind === 'hydrant') {
-      if (!d.jet) {
+      if (!(d.jet > 0)) {
+        // (spent, shot again: it bursts again)
         d.jet = 8;
-        GS.jets.push(d);
+        if (!GS.jets.includes(d)) GS.jets.push(d);
         playS('dry', 0.2, 0.6, 0, 0);
         noise(0.6, 0.12, 2400, 1200, 'bandpass');
       }

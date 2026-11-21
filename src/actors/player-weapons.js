@@ -20,6 +20,25 @@ import { makeEnemy } from './enemies.js';
 // so the rounds, drawn at the gun's height, pass through it; and the crosshair on one of the dead's chests aims at
 // that one, not at the street behind it
 export const aimH = p => (p && p._mz && GS.time - (p._mzT ?? -9) < 0.25 ? p._mz[2] : 32);
+// where on the street the crosshair (at gx, gy, read on the ground) aims: something low drawn under it (a hydrant, a
+// bin, a barrel, an electrical box) aimed at where it stands, as it's drawn there; anything else at the gun's height
+export function aimPoint(p, gx, gy) {
+  let best = null,
+    bd = 1e9;
+  // (its picture: r either side of it, from its foot up to top)
+  const look = (x, y, r, top) => {
+    if (Math.abs(gx - x) > r || gy < y - top * TILT - 4 || gy > y + 4) return;
+    const d = Math.abs(gx - x) + Math.abs(gy - (y - (top * TILT) / 2));
+    if (d < bd) {
+      bd = d;
+      best = [x, y];
+    }
+  };
+  for (const d of GS.decor) if (DECOR[d.kind] && DECOR[d.kind].shoot && !d.down) look(d.x, d.y - 6, 13, 24);
+  for (const br of GS.barrels) if (!br.dead) look(br.x, br.y, br.r + 4, 30);
+  for (const cr of crystals) if (cr.alive) look(cr.x, cr.y, 28 * BOX, 44 * BOX);
+  return best || [gx, gy + aimH(p) * TILT];
+}
 // where the shots are seen to leave: the 3D gun's muzzle (fig3d.js poses it each frame), or, drawn flat, out along the
 // aim at the gun's height. The round itself flies down the aim line through you, so nothing at point blank is missed:
 // what's drawn of it rides beside that line, out of the muzzle (lx, ly across it; h its height)
@@ -50,7 +69,7 @@ import { mouse } from '../core/input.js';
 import { fragBurst, hitSign, pumpDrop, queenTail, shellBoom, tailHit, toWorld } from './projectiles.js';
 import { BILE, BLOOD } from '../render/draw-enemies.js';
 import { grassIgnite } from '../world/physics.js';
-import { decorShot } from '../render/decor.js';
+import { DECOR, decorShot } from '../render/decor.js';
 import { firePool } from '../world/fire.js';
 import { LOUD, SUPP, makeNoise } from '../game/noise.js';
 import { TW } from '../game/districts.js';
