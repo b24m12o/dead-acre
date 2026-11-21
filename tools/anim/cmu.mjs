@@ -102,9 +102,23 @@ for (const [key, file, a0, a1, mir] of CLIPS) {
     rest = poseBVH(B, null),
     H = rest.P[J('Hips')][1] - Math.min(rest.P[J('RightFoot')][1], rest.P[J('LeftFoot')][1]); // a leg's length, about
   // each bone's rest direction here; its turns taken onto motion.js's rest (FK.dir), so that both blend as one
-  const DIR = idx.map(([j, e], b) => {
-      const d = e >= 0 ? our(rest.P[e].map((x, i) => x - rest.P[j][i])) : b === 5 ? [0, 0, 1] : our(B.joints[j].end);
+  // (some of CMU's joints sit on top of the next: the hips on the lower back, the upper spine on the neck, a hand on its
+  // finger base. A bone's direction is then taken on down the chain, to the first joint that isn't where it is)
+  const kids = j => B.joints.map((q, i) => (q.parent === j ? i : -1)).filter(i => i >= 0),
+    DIR = idx.map(([j, e], b) => {
+      let d = e >= 0 ? our(rest.P[e].map((x, i) => x - rest.P[j][i])) : b === 5 ? [0, 0, 1] : our(B.joints[j].end);
+      for (let at = e, n = 0; Math.hypot(...d) < 1e-6 && at >= 0 && n < 4; n++) {
+        const c = kids(at);
+        if (c.length) {
+          at = c[0];
+          d = our(rest.P[at].map((x, i) => x - rest.P[j][i]));
+        } else {
+          d = our(B.joints[at].end || [0, 0, 0]);
+          at = -1;
+        }
+      }
       const l = Math.hypot(...d);
+      if (!(l > 1e-6)) throw new Error(`${key}: bone ${b} has no direction`);
       return d.map(x => x / l);
     }),
     REB = DIR.map((d, b) =>

@@ -14,6 +14,7 @@ import { DOWN_T, downEl, downReal, lyState, pantsOf, supOK } from './draw-bodies
 import { GK, HEROIC, PER_M, TILT, gaitOfSpeed, strideLen } from '../core/scale.js';
 import { FK, MOTION } from './motion.js';
 import { FKC } from './motion-cmu.js';
+import { inert } from './inertia.js';
 import { ragKnock, ragPose } from './ragdoll.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
@@ -418,6 +419,10 @@ function rowOf(e) {
   e._f3 = frame;
   e._r3 = rowN++;
   POSE(e, DATA, e._r3 * TW * 4);
+  // (a jump in its pose since last frame eased out: inertia.js)
+  const MM = e.__MM;
+  if (MM && e.dying === undefined && !(e.down > 0) && !e.ride && !(e.hp <= 0 && e === GS.P))
+    inert(e, DATA, e._r3 * TW * 4, MM, e === GS.P || !!e.npc);
   return e._r3;
 }
 
@@ -2037,6 +2042,7 @@ function poseHeroFK(p, D, o) {
   poolReset();
   p._kits = null;
   const MM = FIG.models.hero;
+  p.__MM = MM;
   REST = MM.rest;
   MODEL_END = MM.ends;
   const r = REST,
@@ -2469,6 +2475,7 @@ const X22 = [0, 1, 2, 2, 3, 3, 2, 4, 5, 5, 2, 6, 7, 7, 8, 9, 10, 10, 11, 12, 13,
 function poseZombie22(e, D, o) {
   poseZombie(e, ZT, 0);
   const MM = FIG.models[modelOf(e) || 'zombie'] || FIG.models.zombie;
+  e.__MM = MM;
   for (let b = 0; b < 22; b++) D.set(ZT.subarray(X22[b] * 12, X22[b] * 12 + 12), o + b * 12);
   D.set(ZT.subarray(NB * 12, NB * 12 + 32), o + NB * 12);
   const q = o + NB * 12 + 24, // what it has lost, a bit a bone: on to the 22
