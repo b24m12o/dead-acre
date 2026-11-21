@@ -50,6 +50,8 @@ const CLIPS = [
   ['bpedal', '006/06_06.bvh', 0.3, 3.0], // basketball: backward dribble (a quick backpedal)
   ['shuf', '006/06_08.bvh', 0.5, 2.7], // basketball: sideways dribble (a shuffle)
   ['shufM', '006/06_08.bvh', 0.5, 2.7, 1],
+  ['bstep', '076/76_11.bvh', 0.6, 2.9], // quick large steps backwards (the dodge, backing off)
+  ['run', '016/16_45.bvh', 0.05, 1.12], // run/jog: a natural run at about the hero's pace
 ];
 // a bone's other-side twin (mirrored clips take it)
 const TWIN = [0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 6, 7, 8, 9, 18, 19, 20, 21, 14, 15, 16, 17];
@@ -189,8 +191,10 @@ for (const [key, file, a0, a1, mir] of CLIPS) {
   for (let i = i0; i < i1; i++) st += down[i] ? 1 : 0;
   st /= i1 - i0;
   // its going: speed and direction against its heading
-  const dx = S[i1].cx - S[i0].cx,
-    dy = S[i1].cy - S[i0].cy,
+  // (the hips themselves, a whole number of strides apart, the same moment of a stride at both ends: their bob and
+  // sway cancel. The smoothed path, cut short at a short take's ends, would come up short)
+  const dx = S[i1].hip[0] - S[i0].hip[0],
+    dy = S[i1].hip[1] - S[i0].hip[1],
     T = (i1 - i0) * B.dt,
     hm = S[Math.round((i0 + i1) / 2)].h,
     go = Math.atan2(dy, dx) - hm;

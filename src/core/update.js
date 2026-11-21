@@ -212,9 +212,16 @@ export function update(dt) {
         pileSlow(p.x, p.y, true) *
         (p.gun === 'lmg' && !S.evo.walkfire && GS.time - (p.lastShotT || -9) < 0.22 ? 0.6 : 1) *
         (boonOn('adren') ? BOON.speed : 1),
-      // backing off you're a little slower than going forward (strafing, a touch): the legs aren't made for it
-      bk = mx || my ? Math.max(0, -Math.cos(angDiff(p.bodyA, Math.atan2(my, mx)))) : 0,
-      dz3 = dz2 * (1 - 0.16 * bk),
+      // facing one way and going another you're slower, as anyone is: full pace within 45° of the way you face,
+      // three quarters going sideways, 60% backing off (a backpedal or a sidestep is quick short steps, not a run)
+      off = mx || my ? Math.abs(angDiff(p.bodyA, Math.atan2(my, mx))) : 0,
+      dz3 =
+        dz2 *
+        (off <= Math.PI / 4
+          ? 1
+          : off <= Math.PI / 2
+            ? 1 - (0.25 * (off - Math.PI / 4)) / (Math.PI / 4)
+            : 0.75 - (0.15 * (off - Math.PI / 2)) / (Math.PI / 2)),
       tvx = mx * S.speed * dz3,
       tvy = my * S.speed * dz3,
       dvx = tvx - p.vx,

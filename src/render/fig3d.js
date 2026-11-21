@@ -2144,13 +2144,14 @@ function poseHeroFK(p, D, o) {
   }
   const yaw = p._legA,
     tw = clamp(angDiff(yaw, aim + blade), -1.75, 1.75);
-  // each recording's weight, how much of its swing (the athlete's run shortened; CMU's slower ones lengthened to the
-  // hero's pace, half by a longer step and half by a quicker one), and so the ground a stride covers
+  // each recording's weight, how much of its swing (a recording slower or faster than he goes brought to his pace,
+  // half by a longer or shorter step and half by a quicker or slower one), and so the ground a stride covers
   let cyc = 0,
     aB = 0,
     stK = 0;
   const use = [];
-  for (const [c, w] of [...WALKS.map((c, d) => [c, dw[d] * (1 - wJ)]), [C.jog, (1 - bk) * wJ], [X.bpedal, bk * wJ]]) {
+  // (running, CMU's run, at about his pace: the library's athletic jog bounds and floats, and read as a skip)
+  for (const [c, w] of [...WALKS.map((c, d) => [c, dw[d] * (1 - wJ)]), [X.run, (1 - bk) * wJ], [X.bpedal, bk * wJ]]) {
     if (w < 1e-3) continue;
     const own = c === C.walk || c === C.jog,
       a = own ? shortK : clamp(Math.sqrt(sL / c.v), 0.75, 1.5);
@@ -2206,8 +2207,8 @@ function poseHeroFK(p, D, o) {
     for (let b = 1; b <= 5; b++) fkMix(FKQ, FK2, b, hurtK);
   }
   // the dodge roll: the recording's roll, through in half a second, the way it was thrown; then back on its feet.
-  // Thrown back the way he faces (backing off), he doesn't turn round to roll and turn back: he rolls over
-  // backward, the forward roll run the other way, still facing where he was
+  // Thrown back the way he faces (backing off), he doesn't turn round to roll and turn back: he steps back hard,
+  // two quick long steps (CMU's), still facing his aim, the gun still up
   if (p.dashT > 0 && !(t - (p._rollT0 ?? -9) < 0.55)) {
     const da = p.dashA ?? yaw;
     p._rollT0 = t;
@@ -2216,9 +2217,13 @@ function poseHeroFK(p, D, o) {
   }
   const rollU = (t - (p._rollT0 ?? -9)) / 0.5,
     rollK = rollU >= 0 && rollU < 1 ? Math.min(1, rollU / 0.08, (1 - rollU) / 0.15) : 0;
-  if (rollK > 0) {
-    // (the tuck and roll, not the dive before it)
-    fkSnap(FK2, FKR2, C.roll, p._rollB ? 1.5 - rollU * 1.05 : 0.45 + rollU * 1.05, false);
+  const stepB = rollK > 0 && p._rollB ? rollK : 0; // (the backstep: legs and trunk as recorded, the arms his own)
+  if (stepB > 0) {
+    fkSnap(FK2, FKR2, X.bstep, Math.min(rollU, 0.999) * X.bstep.dur, false);
+    for (let b = 0; b < 22; b++) if (b < 6 || b > 13) fkMix(FKQ, FK2, b, stepB);
+    for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * stepB;
+  } else if (rollK > 0) {
+    fkSnap(FK2, FKR2, C.roll, 0.45 + rollU * 1.05, false); // (the tuck and roll, not the dive before it)
     for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, rollK);
     for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * rollK;
   }
@@ -2231,7 +2236,7 @@ function poseHeroFK(p, D, o) {
     for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, dK);
     for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * dK;
   }
-  const allK = Math.max(rollK, dK); // (every bone as recorded: rolling, or dead)
+  const allK = Math.max(stepB > 0 ? 0 : rollK, dK); // (every bone as recorded: rolling, or dead)
   // a throw: the trunk winds up and comes through with it as recorded (the overhand throw's wind-up to its follow-
   // through, at the toss's own quick pace; the arm keeps its own path, as heroArms throws it)
   {
@@ -2279,7 +2284,7 @@ function poseHeroFK(p, D, o) {
         clamp((-a[0] * Math.sin(yawR) + a[1] * Math.cos(yawR)) / A, -1, 1),
       ];
     })(),
-    lean = (0.13 * wJog + 0.16 * acc[0]) * (1 - allK),
+    lean = (0.05 * wJog + 0.16 * acc[0]) * (1 - allK), // (the recorded run leans of itself)
     roll = 0.09 * acc[1] * (1 - allK),
     // each shot jolts the trunk: back, and round off the gun shoulder, on a stiff spring that rebounds a little and
     // settles in a fifth of a second; kicked as hard as the gun kicks (a shotgun rocks him, a pistol barely). The
@@ -2331,7 +2336,7 @@ function poseHeroFK(p, D, o) {
     ]) {
       const L = lk[i],
         fp = (ph + i * 0.5) % 1,
-        down = allK > 0 ? false : still || wMove < 0.05 ? true : fp < stK,
+        down = allK > 0 || stepB > 0 ? false : still || wMove < 0.05 ? true : fp < stK,
         ank = J[ti + 2];
       if (!down) L.on = false;
       else if (!L.on) {
@@ -2373,7 +2378,7 @@ function poseHeroFK(p, D, o) {
       D3(ti + 3, R[ti + 3], toe);
     }
   }
-  if ((rollK > 0 && rollU < 0.7) || dK > 0) {
+  if ((rollK > 0 && !stepB && rollU < 0.7) || dK > 0) {
     // mid-roll (or fallen) the gun stays in the right hand (coming up out of a roll, the hands go back to it)
     const hd = sub(J[9], J[8]),
       Rg = rotTo([1, 0, 0], hd);
