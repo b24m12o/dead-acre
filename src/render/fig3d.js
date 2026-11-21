@@ -528,7 +528,9 @@ function bone(D, o, b, R, J, j0) {
   }
 }
 // a limb of two bones (b1 from joint a, b2 to its end) turned so the end reaches tgt; parent turn Rp
-function limb(D, o, b1, b2, Rp, A, tgt, pole, k) {
+// (given the limb's own turns, Rb, as posed: each bone turned from its own only as far as it must be to reach, so
+// its twist about its length is kept: reaching where it already is, it stays exactly as it was)
+function limb(D, o, b1, b2, Rp, A, tgt, pole, k, Rb) {
   const r = REST,
     j1 = r[b1],
     j2 = r[b2],
@@ -536,8 +538,10 @@ function limb(D, o, b1, b2, Rp, A, tgt, pole, k) {
     u1 = sc3(sub(j2, j1), k),
     u2 = sc3(sub(j3, j2), k),
     [M, E] = ik(A, tgt, len(u1), len(u2), pole),
-    R1 = mm(rotTo(mv(Rp, u1), sub(M, A)), Rp),
-    R2 = mm(rotTo(mv(R1, u2), sub(E, M)), R1);
+    B1 = Rb ? Rb[0] : Rp,
+    R1 = mm(rotTo(mv(B1, u1), sub(M, A)), B1),
+    B2 = Rb ? mm(rotTo(mv(B1, u1), sub(M, A)), Rb[1]) : R1,
+    R2 = mm(rotTo(mv(B2, u2), sub(E, M)), B2);
   bone(D, o, b1, mul3(R1, k), A, j1);
   bone(D, o, b2, mul3(R2, k), M, j2);
   return [R2, E, M];
@@ -2215,7 +2219,10 @@ function poseHeroFK(p, D, o) {
     let gW = 0;
     for (let d = 0; d < 4; d++) gW += dw[d] * (G[d] + 2 * Math.PI * Math.round((rr - G[d]) / (2 * Math.PI)));
     gW -= 2 * Math.PI * Math.round(gW / (2 * Math.PI) - rel / (2 * Math.PI));
-    const gB = gW * (1 - wJ) + bk * goBP * wJ,
+    // (the backpedal as it's wanted, not as eased in: the legs' own turn is eased, and reversing, a legs' going
+    // eased from the run's would set them turning round to face the way he now goes, and back)
+    const bkT = bkW * bkW * (3 - 2 * bkW),
+      gB = gW * (1 - wJ) + bkT * goBP * wJ,
       want = sL > 0.25 ? mA - gB : Math.abs(angDiff(p._legA, aim + blade)) > 1.1 ? aim : p._legA;
     p._legA += angDiff(p._legA, want) * Math.min(1, dt * (sL > 0.25 ? 10 : 5));
   }
@@ -2427,42 +2434,65 @@ function poseHeroFK(p, D, o) {
       const L = lk[i],
         fp = (ph + i * 0.5) % 1,
         down = allK > 0 || stepB > 0 ? false : still || wMove < 0.05 ? true : fp < stK,
-        ank = J[ti + 2];
-      if (!down) L.on = false;
-      else if (!L.on) {
+        ank = J[ti + 2],
+        // a hold let go, or eased in or out, takes the foot from where it was to where the recording has it over a
+        // few frames, not in one (what was let go of decays: half gone in a thirtieth of a second)
+        dec = Math.exp(-dt / 0.045),
+        free = () => {
+          L.on = false;
+          L.rx += L.px || 0;
+          L.ry += L.py || 0;
+          L.pw = L.px = L.py = 0;
+        };
+      L.rx = (L.rx || 0) * dec;
+      L.ry = (L.ry || 0) * dec;
+      if (!down) {
+        if (L.on) free();
+      } else if (!L.on) {
         L.on = true;
         L.x = ank[0];
         L.y = ank[1];
         L.u = -1;
+        L.pw = 0;
       }
-      if (!L.on) continue;
       // standing with a foot left out of place (stopped mid-stride, or turned on the spot), it steps it under him:
       // lifted, carried and put down, one foot at a time
-      let lift = 0;
-      if (still) {
-        const off = Math.hypot(L.x - ank[0], L.y - ank[1]);
-        if (!(L.u >= 0) && off > 0.14 * Hl && !(lk[1 - i].u >= 0)) {
-          L.u = 0;
-          L.sx = L.x;
-          L.sy = L.y;
+      let lift = 0,
+        ox = 0,
+        oy = 0;
+      if (L.on) {
+        if (still) {
+          const off = Math.hypot(L.x - ank[0], L.y - ank[1]);
+          if (!(L.u >= 0) && off > 0.14 * Hl && !(lk[1 - i].u >= 0)) {
+            L.u = 0;
+            L.sx = L.x;
+            L.sy = L.y;
+          }
+          if (L.u >= 0) {
+            L.u = Math.min(1, L.u + dt / 0.22);
+            const e = L.u * L.u * (3 - 2 * L.u);
+            L.x = L.sx + (ank[0] - L.sx) * e;
+            L.y = L.sy + (ank[1] - L.sy) * e;
+            lift = Math.sin(Math.PI * L.u) * 0.09 * Hl;
+            if (L.u >= 1) L.u = -1;
+          }
+        } else L.u = -1;
+        if (Math.hypot(L.x - ank[0], L.y - ank[1]) > 0.6 * Hl)
+          free(); // left too far behind: let it go (the next step puts it down again)
+        else {
+          const w = still || wMove < 0.05 ? 1 : clamp(Math.min(fp / stK, 1 - fp / stK) / 0.12, 0, 1),
+            dw = (L.pw || 0) - w;
+          L.rx += dw * (L.x - ank[0]);
+          L.ry += dw * (L.y - ank[1]);
+          L.pw = w;
+          ox = L.px = (L.x - ank[0]) * w;
+          oy = L.py = (L.y - ank[1]) * w;
         }
-        if (L.u >= 0) {
-          L.u = Math.min(1, L.u + dt / 0.22);
-          const e = L.u * L.u * (3 - 2 * L.u);
-          L.x = L.sx + (ank[0] - L.sx) * e;
-          L.y = L.sy + (ank[1] - L.sy) * e;
-          lift = Math.sin(Math.PI * L.u) * 0.09 * Hl;
-          if (L.u >= 1) L.u = -1;
-        }
-      } else L.u = -1;
-      if (Math.hypot(L.x - ank[0], L.y - ank[1]) > 0.6 * Hl) {
-        L.on = false; // left too far behind: let it go (the next step puts it down again)
-        continue;
       }
-      const w = still || wMove < 0.05 ? 1 : clamp(Math.min(fp / stK, 1 - fp / stK) / 0.12, 0, 1),
-        tg = [ank[0] + (L.x - ank[0]) * w, ank[1] + (L.y - ank[1]) * w, ank[2] + lift],
+      if (!L.on && Math.hypot(L.rx, L.ry) < 0.05) continue;
+      const tg = [ank[0] + ox + L.rx, ank[1] + oy + L.ry, ank[2] + lift],
         mid = mul(add(J[ti], ank), 0.5),
-        [, E] = limb(D, o, ti, ti + 1, R[0], J[ti], tg, sub(J[ti + 1], mid), k);
+        [, E] = limb(D, o, ti, ti + 1, R[0], J[ti], tg, sub(J[ti + 1], mid), k, [R[ti], R[ti + 1]]);
       D3(ti + 2, R[ti + 2], E);
       const toe = add(E, mv(R[ti + 2], sc3(sub(r[ti + 3], r[ti + 2]), k)));
       D3(ti + 3, R[ti + 3], toe);
