@@ -2663,6 +2663,8 @@ const poseFig = (e, D, o) => {
 // toes of the feet) and moves with it exactly
 const X22 = [0, 1, 2, 2, 3, 3, 2, 4, 5, 5, 2, 6, 7, 7, 8, 9, 10, 10, 11, 12, 13, 13],
   ZT = new Float32Array(TW * 4);
+// (its legs and hips, of the 14: lost, it can't walk on recorded legs; an arm or its head gone, it still can)
+const LEGS14 = 0b11111100000001;
 let IN22 = false; // (posing one of the dead on the 14 for its 22: its hits are the recorded ones, flinch.js)
 function poseZombie22(e, D, o) {
   IN22 = true;
@@ -2691,13 +2693,13 @@ function poseZombie22(e, D, o) {
     e.kind !== 'climb' &&
     e.type !== 'hopper' &&
     !(e.z > 2) &&
-    !m14
+    !(m14 & LEGS14)
   )
     fkLegs(e, D, o, MM);
   // killed: it falls as a body does (ragdoll.js), from the pose it died in
   else if (e.dying !== undefined && !e.giant) ragPose(e, D, o, MM);
   // knocked down: likewise, and up again
-  else if (e.down > 0 && !e.giant && !m14) knockPose(e, D, o, MM);
+  else if (e.down > 0 && !e.giant && !(m14 & LEGS14)) knockPose(e, D, o, MM);
   if (e.dying === undefined && !(e.down > 0)) e._rk = undefined;
   // on its feet: each hit knocks it back as the recorded hits do (flinch.js)
   if (e.dying === undefined && !(e.down > 0) && !e.crawl && !e.half && !(e.emerge < 1) && !(e.z > 2))
@@ -2870,7 +2872,7 @@ function fkLegs(e, D, o, MM) {
     R0 = [D[o], D[o + 1], D[o + 2], D[o + 4], D[o + 5], D[o + 6], D[o + 8], D[o + 9], D[o + 10]];
     t0 = [D[o + 3], D[o + 7], D[o + 11]];
     // its head, for the eyes the flashlight catches (as poseZombie keeps it)
-    if (zk > 0.5) {
+    if (zk > 0.5 && !e.headless) {
       const Rh = R[5],
         hc = add(J[5], mv(Rh, sc3(mul(sub(MODEL_END[5], r[5]), 0.55), k)));
       e.__hx = e.__lhx = hc[0];
