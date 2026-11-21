@@ -17,8 +17,18 @@ export function lyThud(e) {
   for (const t of [-32, -4, 26]) dust(e.x + c * t * K, e.y + s * t * K, 1, 16 * K, 0.42, 0.32); // a little grit kicked up, not a cloud
   if (thr('thud', 45)) playS('dry', 0.1, 0.5, 0, 0);
 } // the body slaps down along its whole length
-export const downEl = e => (((e.dT || DOWN_T) - e.down) * DOWN_T) / (e.dT || DOWN_T); // time since it went down, on the standard clock (each zombie gets up at its own pace)
-export const DOWN_T = 1.55,
+// a knocked-down zombie: how long since it went down, on the standard clock (each zombie gets up at its own pace).
+// It goes down (to 0.45), lies still a while (DOWN_HOLD: long enough to get up as a body does, ragdoll.js and the
+// recorded get-up), then gets up; downEl tells the drawing and the game where it is in that, the stillness taken out
+export const downReal = e => (((e.dT || DOWN_T) - e.down) * DOWN_T) / (e.dT || DOWN_T),
+  DOWN_HOLD = 0.85,
+  downEl = e => {
+    const t = downReal(e);
+    return t < 0.45 ? t : Math.max(0.45, t - DOWN_HOLD);
+  },
+  // the raw e.down that puts it at standard time el (for setting a knocked-down zombie partway through)
+  downAt = (e, el) => e.dT - ((el < 0.45 ? el : el + DOWN_HOLD) * e.dT) / DOWN_T;
+export const DOWN_T = 2.4,
   LY_SC = 0.62,
   LY_FOOT = 48 * LY_SC; // the body on the ground is drawn to the same scale as the zombie standing // how long a knocked-down zombie takes to get back up; how far its waist lies from its feet
 const PANTS = [

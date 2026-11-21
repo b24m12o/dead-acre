@@ -45,7 +45,7 @@ import { hitSign, signKnocked, toWorld } from '../actors/projectiles.js';
 import { STAGGERABLE, breakLantern, interruptBoss, tankHit } from '../actors/bosses.js';
 import { BILE, BLOOD, ZSKIN } from '../render/draw-enemies.js';
 import { blow } from '../render/draw-player.js';
-import { DOWN_T, lyAngle, pantsOf, supOK } from '../render/draw-bodies.js';
+import { DOWN_T, downAt, lyAngle, pantsOf, supOK } from '../render/draw-bodies.js';
 import { scorchWalls, wallHit } from '../world/wear.js';
 import { WINDX, blastWorld } from '../world/physics.js';
 import { chuteGeom } from '../render/draw-props.js';
@@ -174,7 +174,7 @@ export function makeLurker(x, y) {
   e.emerge = 1;
   e.run = false;
   e.dT = DOWN_T;
-  e.down = e.dT - 0.9;
+  e.down = downAt(e, 0.9);
   e.fallA = rand(0, TAU);
   e.sup = supOK(e) && Math.random() < 0.6;
   e.splay = rand(0.2, 1);
@@ -192,7 +192,7 @@ export function releaseGrab(push = 1) {
   if (e && !e.dead) {
     e.lurk = null;
     e.aw = 9;
-    if (e.dT) e.down = Math.min(e.down, e.dT - 0.95);
+    if (e.dT) e.down = Math.min(e.down, downAt(e, 0.95));
     const dx = e.x - GS.P.x,
       dy = e.y - GS.P.y,
       dl = Math.hypot(dx, dy) || 1;

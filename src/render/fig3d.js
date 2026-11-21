@@ -10,11 +10,11 @@ import { opt } from '../core/settings.js';
 import { angDiff, clamp, lerp } from '../core/util.js';
 import { gl, progFinish } from './gl.js';
 import { SUNV, flush, inking, lampNow, viewH, viewW } from './sprites.js';
-import { downEl, lyState, pantsOf, supOK } from './draw-bodies.js';
+import { DOWN_T, downEl, downReal, lyState, pantsOf, supOK } from './draw-bodies.js';
 import { GK, HEROIC, PER_M, TILT, gaitOfSpeed, strideLen } from '../core/scale.js';
 import { FK, MOTION } from './motion.js';
 import { FKC } from './motion-cmu.js';
-import { ragPose } from './ragdoll.js';
+import { ragKnock, ragPose } from './ragdoll.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
 
@@ -2495,6 +2495,64 @@ function poseZombie22(e, D, o) {
     fkLegs(e, D, o, MM);
   // killed: it falls as a body does (ragdoll.js), from the pose it died in
   else if (e.dying !== undefined && !e.giant) ragPose(e, D, o, MM);
+  // knocked down: likewise, and up again
+  else if (e.down > 0 && !e.giant && !m14) knockPose(e, D, o, MM);
+  if (e.dying === undefined && !(e.down > 0)) e._rk = undefined;
+}
+// a zombie knocked off its feet: down as a body goes down (ragdoll.js), and lying as it fell; then, on its back, up
+// again as Quaternius' recorded get-up has it (its last moment met by its own standing pose), or on its face, the
+// hands it plants (its own pose) taking it from there
+const KB = new Float32Array(22 * 12),
+  KC = new Float32Array(22 * 12);
+function knockPose(e, D, o, MM) {
+  if (!ragKnock(e, D, o, MM, KB, 0)) return;
+  const n = 22 * 12,
+    tr = downReal(e),
+    el = downEl(e),
+    GU = FK.clips.getup,
+    ct = tr - (DOWN_T - GU.dur), // (its get-up timed to finish as the game stands it up)
+    mix = (S, w) => {
+      if (w > 0) for (let i = 0; i < n; i++) D[o + i] += (S[i] - D[o + i]) * w;
+    };
+  if (e.sup && supOK(e) && ct > 0) {
+    getupRows(e, D, o, MM, GU, ct);
+    // (lying as it fell, eased into the recording's first moment; and at its last, into its own standing pose,
+    // already in D)
+    const wR = 1 - lyS2(0, 0.3, ct),
+      wE = lyS2(GU.dur - 0.2, GU.dur, ct);
+    for (let i = 0; i < n; i++) KC[i] += (KB[i] - KC[i]) * wR;
+    mix(KC, 1 - wE);
+  } else mix(KB, 1 - lyS2(0.55, 0.75, el));
+}
+const lyS2 = (a, b, x) => {
+  const t = clamp((x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+// the recorded get-up at time ct, into KC: facing the way it'll stand (away from where its head lay), finishing with
+// its hips where the game stands it
+function getupRows(e, D, o, MM, GU, ct) {
+  REST = MM.rest;
+  MODEL_END = MM.ends;
+  const r = REST,
+    A = fkAlign(MM),
+    par = MM.bones.map(b => b[1]),
+    k = [Math.hypot(D[o], D[o + 4], D[o + 8]), Math.hypot(D[o + 2], D[o + 6], D[o + 10])],
+    Hl = r[14][2] * k[1],
+    Ry = Rz((e.fallA ?? 0) + Math.PI),
+    end = GU.root[GU.root.length - 1];
+  fkSnap(FK2, FKR2, GU, Math.min(ct, GU.dur - 0.001), false);
+  const sw = mv(Ry, [(FKR2[0] - end[0]) * Hl, (FKR2[1] - end[1]) * Hl, 0]),
+    J = [],
+    R = [];
+  for (let b = 0; b < 22; b++) {
+    R[b] = mm(mm(Ry, q9([FK2[b * 4], FK2[b * 4 + 1], FK2[b * 4 + 2], FK2[b * 4 + 3]])), A[b]);
+    if (b === 0) J[0] = [e.x + sw[0], e.y + sw[1], r[0][2] * k[1] + FKR2[2] * Hl];
+    else {
+      const d = mv(R[par[b]], sc3(sub(r[b], r[par[b]]), k));
+      J[b] = [J[par[b]][0] + d[0], J[par[b]][1] + d[1], J[par[b]][2] + d[2]];
+    }
+    bone(KC, 0, b, mul3(R[b], k), J[b], r[b]);
+  }
 }
 // the dead's own carriage, recorded: CMU's zombie shambles, a drunk's stagger, a man walking on a hurt leg, and
 // Quaternius' zombie walk (its dragged leg and all); each of the walking dead given one (a limper its limp, legs and

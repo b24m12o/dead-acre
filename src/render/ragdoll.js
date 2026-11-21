@@ -4,10 +4,12 @@
 // way knees bend. It falls under its own weight from the pose it died in, toppled the way the game threw it (harder
 // for buckshot or a blast), comes down on the street, slumps against a wall or a car it meets, and lies as it landed.
 // The game still decides where the body goes (it slides it, piles it, paints it into the ground): the hips are kept
-// to that place and the rest of it follows. Still, its pose is kept for as long as it lies there.
+// to that place and the rest of it follows. Still, its pose is kept for as long as it lies there. A zombie knocked
+// off its feet goes down the same way (and lies as it fell until it gets up: fig3d.js's knockPose).
 import { GS } from '../core/gs.js';
 import { PER_M } from '../core/scale.js';
 import { blockPt } from '../world/nav.js';
+import { supOK } from './draw-bodies.js';
 
 // the weights: each bone's joint (the 22, fig3d.js's skeleton), then the ends of the head, the hands and the toes
 const NP = 27,
@@ -174,7 +176,7 @@ function start(e, D, o, MM) {
   const Q = new Float32Array(NP * 3),
     h0 = 1 / 60;
   for (let i = 0; i < NP * 3; i++) Q[i] = P[i] - V[i] * h0;
-  return { P, Q, len, leg, t: GS.time, still: 0, frozen: null, h0 };
+  return { P, Q, len, leg, t: GS.time, t0: GS.time, still: 0, frozen: null, h0, MM };
 }
 
 // a knee bends forward, toward the toes: one found bent the wrong way is put right
@@ -258,15 +260,35 @@ function step(R, h, floor) {
 }
 
 // the body's pose for this frame, written over the figure's rows in D (at o). False: it isn't one to fall this way
-// (it was already on the ground, or first seen after it had fallen), and the figure's own pose stands
+// (it was already on the ground, or first seen after it had fallen), and the figure's own pose stands. Knocked down
+// before it died, the body it already is carries on
 export function ragPose(e, D, o, MM) {
-  let R = e._rg;
-  if (R === undefined) {
-    R = e._rg = e.dying < 0.12 && !(e.down > 0) && !e.crawl && !e.half && !(e.z > 2) ? start(e, D, o, MM) : null;
-  }
-  if (!R) return false;
-  const k0 = Math.hypot(D[o], D[o + 4], D[o + 8]),
-    k1 = Math.hypot(D[o + 2], D[o + 6], D[o + 10]);
+  if (e._rg === undefined)
+    e._rg = e._rk
+      ? e._rk
+      : e.dying < 0.12 && !(e.down > 0) && !e.crawl && !e.half && !(e.z > 2)
+        ? start(e, D, o, MM)
+        : null;
+  if (!e._rg) return false;
+  advance(e, e._rg);
+  pose(e._rg.P, D, o, MM, scaleOf(D, o));
+  return true;
+}
+// knocked down: the fallen body's pose, into out (at oo), the figure's own (in D at o) its scale and, the moment it
+// goes down, where it falls from. False: not one to fall this way
+export function ragKnock(e, D, o, MM, out, oo) {
+  if (e._rk === undefined)
+    e._rk = e.down > 0 && !e.crawl && !e.half && !e.lurk && !(e.z > 2) ? start(e, D, o, MM) : null;
+  if (!e._rk) return false;
+  advance(e, e._rk);
+  pose(e._rk.P, out, oo, MM, scaleOf(D, o));
+  return true;
+}
+const scaleOf = (D, o) => {
+  const k0 = Math.hypot(D[o], D[o + 4], D[o + 8]);
+  return [k0, k0, Math.hypot(D[o + 2], D[o + 6], D[o + 10])];
+};
+function advance(e, R) {
   if (!R.frozen) {
     let dt = Math.min(0.1, GS.time - R.t);
     R.t = GS.time;
@@ -286,9 +308,10 @@ export function ragPose(e, D, o, MM) {
       }
       R.still = mx < 0.06 * PER_M ? R.still + h : 0;
     }
-    if ((e.dying > 1 && R.still > 0.4) || e.dying > 4) {
-      // at rest: kept as it lies, about its hips; and where its head points told to the game, which lays the body's
-      // shadow and its pile by it
+    const age = GS.time - R.t0;
+    if ((age > 1 && R.still > 0.4) || age > 4) {
+      // at rest: kept as it lies, about its hips; and where its head points (and whether it lies face up) told to
+      // the game, which lays the body's shadow and its pile by it, and gets a knocked-down one up by it
       const L = new Float32Array(NP * 3);
       for (let i = 0; i < NP; i++) {
         L[i * 3] = R.P[i * 3] - R.P[0];
@@ -296,6 +319,7 @@ export function ragPose(e, D, o, MM) {
         L[i * 3 + 2] = R.P[i * 3 + 2];
       }
       e.fallA = Math.atan2(R.P[5 * 3 + 1] - R.P[1], R.P[5 * 3] - R.P[0]);
+      if (e.down > 0 && e.dying === undefined) e.sup = faceUp(R.P, R.MM) && supOK(e);
       R.frozen = { L, fa: e.fallA };
       R.Q = null;
     }
@@ -314,8 +338,13 @@ export function ragPose(e, D, o, MM) {
       R.P[i * 3 + 2] = L[i * 3 + 2];
     }
   }
-  pose(R.P, D, o, MM, [k0, k0, k1]);
-  return true;
+}
+// whether it lies face up: its chest's front (the rest's forward, +x, turned as the chest lies) facing the sky
+function faceUp(P, MM) {
+  const r = MM.rest,
+    at = i => [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]],
+    T = turnFrames(sub(r[3], r[0]), sub(r[11], r[7]), sub(at(3), at(0)), sub(at(11), at(7)));
+  return T[6] > 0;
 }
 
 // each bone turned to lie between its weights: the hips and the chest by two directions each (along and across),

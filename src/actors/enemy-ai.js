@@ -34,7 +34,7 @@ import { SHIELD_TURN, hurtPlayer, killEnemy, releaseGrab, shieldUp, tripOver } f
 import { toWorld } from './projectiles.js';
 import { updateQueen } from './queen.js';
 import { BILE, BLOOD } from '../render/draw-enemies.js';
-import { downEl, lyMove, lyState, lyThud } from '../render/draw-bodies.js';
+import { downAt, downEl, lyMove, lyState, lyThud } from '../render/draw-bodies.js';
 import { breakTile, corpseMass, ragKick } from '../world/physics.js';
 import { burnTick, carAt, damageCar } from '../world/fire.js';
 import { poundCar, screamAt } from '../game/noise.js';
@@ -266,7 +266,7 @@ export function updateEnemy(e, dt, p) {
           // playing dead: it breathes (a puff of breath in the cold is the only tell), then takes your ankle as you pass
           tvx = tvy = 0;
           rate = 10;
-          e.down = e.dT - 0.9 + dt;
+          e.down = downAt(e, 0.9) + dt;
           const dP = Math.sqrt(pd2);
           e.puffT = (e.puffT ?? rand(1.5, 4)) - dt;
           if (e.puffT <= 0 && e.__lhx !== undefined) {
@@ -294,7 +294,7 @@ export function updateEnemy(e, dt, p) {
             if (e.hp < e.maxHp || (!GS.queue.length && !GS.enemies.some(o => o !== e && !o.dead && !o.lurk))) {
               e.lurk = null;
               e.aw = 9;
-              e.down = Math.min(e.down, e.dT - 0.95);
+              e.down = Math.min(e.down, downAt(e, 0.95));
               sfx.groan(e.x, e.y);
             } // shot, or the last one left: it gives up the act and gets up
             else if (dP < 48 * GK && !(p.dashT > 0) && !p.held && GS.state === 'play' && em) {
@@ -317,7 +317,7 @@ export function updateEnemy(e, dt, p) {
           } else if (e.lurk === 'grab') {
             if (p.held !== e || GS.state !== 'play') {
               e.lurk = null;
-              e.down = Math.min(e.down, e.dT - 0.95);
+              e.down = Math.min(e.down, downAt(e, 0.95));
               if (p.held === e) p.held = null;
             } else {
               e.gT += dt;
