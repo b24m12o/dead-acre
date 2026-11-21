@@ -4,7 +4,7 @@
 // along it and snapping back, as the run once did: the hero shook a leg's length every stride). And in the game:
 // the hero runs steady every way, legs step whenever a body goes somewhere (yours, one of your people's, one of the
 // dead's: none glide), no leg snaps as the hero or the dead set off, stop, reverse or turn, and one of the dead
-// knocked down lies still once it's down.
+// knocked down lies still once it's down; one of the dead hit reels away from the shot.
 import { openGame, check } from './lib/harness.mjs';
 import { FK } from '../src/render/motion.js';
 import { FKC } from '../src/render/motion-cmu.js';
@@ -142,6 +142,22 @@ export async function run(b) {
       out.pack = { worst: +worst.toFixed(2), who };
     }
     keys.clear();
+    // one of the dead hit: it reels (its spring kicked), and the bend takes its head away from the shot, whichever
+    // side the shot comes from
+    {
+      const e = makeEnemy('skitter', open[0] - 200, open[1]); e.emerge = 1; e.aw = 0; e.dmg = 0; e.hp = e.maxHp = 100;
+      for (let f = 0; f < 4; f++) frame([P, e]);
+      e.hp = 100; hurtEnemy(e, 25, false, -1, 0, 1, 'bolt', e.x, e.y - 20);
+      let peak = 0; for (let f = 0; f < 8; f++) { e.hp = 100; frame([P, e]); peak = Math.max(peak, e._hs ? e._hs.x : 0); }
+      const MZ = FIG.models[modelOf(e)], o = e._r3 * TWn * 4, away = [];
+      for (const from of [0, 90, 180, 270]) { const D2 = DATA.slice(), ps = from * Math.PI / 180;
+        e._hs = { x: 1, v: 0, t: GS.time, psi: ps, head: 0, hk: 0 }; e.hitAcc = 0; flinch(e, D2, o, MZ);
+        const q = o + 5 * 12, v = MZ.rest[5], hx = D => D[q] * v[0] + D[q + 1] * v[1] + D[q + 2] * v[2] + D[q + 3], hy = D => D[q + 4] * v[0] + D[q + 5] * v[1] + D[q + 6] * v[2] + D[q + 7];
+        away.push(+(-(hx(D2) - hx(DATA)) * Math.cos(ps) - (hy(D2) - hy(DATA)) * Math.sin(ps)).toFixed(1)); }
+      e.dead = true; GS.enemies = GS.enemies.filter(x => x !== e);
+      out.hit = { peak: +peak.toFixed(2), away };
+    }
+    keys.clear();
     // one of your people following you, and one of the dead walking at you: their feet go back and forth under them
     const legsOf = (e, MMe, n, move) => { const re = MMe.rest; let lo = 1e9, hi = -1e9, dist = 0, x0 = e.x, y0 = e.y; const H = re[14][2] * MMe.scale * FIGK * (e.sc || 1);
       for (let f = 0; f < n; f++) { move(f); frame([P, e]); if (f < 30) { x0 = e.x; y0 = e.y; continue; }
@@ -194,6 +210,10 @@ export async function run(b) {
     `the legs of the dead after him should not snap as they set off and turn: a thigh or shin turned ${o.pack.worst} rad in one frame (a ${o.pack.who})`
   );
   check(
+    o.hit.peak > 0.5 && o.hit.away.every(a => a > 2),
+    `one of the dead hit should reel away from the shot: its bend reached ${o.hit.peak}, its head went ${o.hit.away.join(', ')} away from shots from the east, south, west, north`
+  );
+  check(
     o.survivor.went > 1.2 && o.survivor.stride > 0.3 && o.survivor.on > 0.6,
     `one of your people following you should walk, not glide: went ${o.survivor.went} legs, feet ${o.survivor.stride} back and forth, walking ${o.survivor.on}`
   );
@@ -207,5 +227,5 @@ export async function run(b) {
   );
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   const R = o.run;
-  return `legs turn ≤ ${o.turns.worst} a frame (his), ${o.pack.worst} (the dead's); run: jumps ≤ ${Math.max(...Object.values(R).map(v => v.jump))}, sway ≤ ${Math.max(...Object.values(R).map(v => v.sway))}; strides ${o.survivor.stride} (yours) ${o.zombie.stride} (the dead); down, legs move ${o.lying.legMove}`;
+  return `hit, reels ${o.hit.peak}, head ${Math.min(...o.hit.away)}+ away; legs turn ≤ ${o.turns.worst} a frame (his), ${o.pack.worst} (the dead's); run: jumps ≤ ${Math.max(...Object.values(R).map(v => v.jump))}, sway ≤ ${Math.max(...Object.values(R).map(v => v.sway))}; strides ${o.survivor.stride} (yours) ${o.zombie.stride} (the dead); down, legs move ${o.lying.legMove}`;
 }

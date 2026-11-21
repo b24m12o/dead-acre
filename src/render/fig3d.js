@@ -14,6 +14,7 @@ import { DOWN_T, downEl, downReal, lyState, pantsOf, supOK } from './draw-bodies
 import { GK, HEROIC, PER_M, TILT, gaitOfSpeed, strideLen } from '../core/scale.js';
 import { FK, MOTION } from './motion.js';
 import { FKC } from './motion-cmu.js';
+import { flinch } from './flinch.js';
 import { inert } from './inertia.js';
 import { ragKnock, ragPose } from './ragdoll.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
@@ -973,7 +974,7 @@ function poseZombie(e, D, o) {
     run = !!e.run,
     limp = e.limp && !run,
     em = e.emerge < 1 ? e.emerge : 1,
-    fk = e.flT > 0 && !dead ? e.flT / 0.16 : 0,
+    fk = e.flT > 0 && !dead ? (e.flT / 0.16) * (IN22 ? 0.3 : 1) : 0, // (on the 22, a little: the recorded hit does the rest)
     U = uprightK,
     // each kind's own moves (0..1): the brute rearing, charging, stunned against a wall; the bloater swelling to burst;
     // the spitter hunched to spit; the screamer drawing breath and screaming, head back and arms out; the riot cop
@@ -2662,8 +2663,11 @@ const poseFig = (e, D, o) => {
 // toes of the feet) and moves with it exactly
 const X22 = [0, 1, 2, 2, 3, 3, 2, 4, 5, 5, 2, 6, 7, 7, 8, 9, 10, 10, 11, 12, 13, 13],
   ZT = new Float32Array(TW * 4);
+let IN22 = false; // (posing one of the dead on the 14 for its 22: its hits are the recorded ones, flinch.js)
 function poseZombie22(e, D, o) {
+  IN22 = true;
   poseZombie(e, ZT, 0);
+  IN22 = false;
   const MM = FIG.models[modelOf(e) || 'zombie'] || FIG.models.zombie;
   e.__MM = MM;
   for (let b = 0; b < 22; b++) D.set(ZT.subarray(X22[b] * 12, X22[b] * 12 + 12), o + b * 12);
@@ -2695,6 +2699,10 @@ function poseZombie22(e, D, o) {
   // knocked down: likewise, and up again
   else if (e.down > 0 && !e.giant && !m14) knockPose(e, D, o, MM);
   if (e.dying === undefined && !(e.down > 0)) e._rk = undefined;
+  // on its feet: each hit knocks it back as the recorded hits do (flinch.js)
+  if (e.dying === undefined && !(e.down > 0) && !e.crawl && !e.half && !(e.emerge < 1) && !(e.z > 2))
+    flinch(e, D, o, MM);
+  else e.hitAcc = 0;
 }
 // a zombie knocked off its feet: down as a body goes down (ragdoll.js), and lying as it fell; then, on its back, up
 // again as Quaternius' recorded get-up has it (its last moment met by its own standing pose), or on its face, the
@@ -2754,8 +2762,8 @@ function getupRows(e, D, o, MM, GU, ct) {
 // the dead's own carriage, recorded: CMU's zombie shambles, a drunk's stagger, a man walking on a hurt leg, and
 // Quaternius' zombie walk (its dragged leg and all); each of the walking dead given one (a limper its limp, legs and
 // all). Its trunk, arms and head as the recording carries them, in step with its legs, hunched as a zombie stands
-// when it stands, swiping as recorded when it lunges; its own pose back for a stagger or a scream, and in part for a
-// hit
+// when it stands, swiping as recorded when it lunges; its own pose back for a stagger or a scream (a hit knocks it
+// back over all of this: flinch.js)
 const ZUP = ['zwalk', 'zwalk2', 'drunk', 'shamble', 'zwalk2', 'hurt', 'zwalk', 'shamble', 'zwalk'];
 function zCarriage(e) {
   if (e.run || e.hunch > 0 || e.shield || e.type !== 'skitter') return null;
@@ -2822,7 +2830,7 @@ function fkLegs(e, D, o, MM) {
   const ph = ((e._fph % 1) + 1) % 1;
   // its carriage: how much of it (eased in and out as it walks, lunges, staggers, is hit)
   if (Z) {
-    const want = e.lunge > 0 ? 1 : e.wbT > 0 || e.scrIn > 0 || e.st === 'crouch' ? 0 : e.flT > 0 ? 0.35 : 1,
+    const want = e.lunge > 0 ? 1 : e.wbT > 0 || e.scrIn > 0 || e.st === 'crouch' ? 0 : 1,
       zk0 = e._zk ?? want;
     e._zk = zk0 + (want - zk0) * Math.min(1, dt * (want < zk0 ? 14 : 4));
   } else e._zk = 0;

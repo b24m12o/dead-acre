@@ -311,6 +311,7 @@ clipsOf([
   ['crouch', 'Crouch_Fwd_Loop', 1],
   ['roll', 'Roll', 0],
   ['hit', 'Hit_Chest', 0],
+  ['hithead', 'Hit_Head', 0],
   ['death', 'Death01', 0],
   ['push', 'Push_Loop', 0],
 ]);

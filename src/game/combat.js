@@ -388,6 +388,7 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
     e.fdx = kx / fl2;
     e.fdy = ky / fl2;
     e.flS = Math.random() < 0.5 ? -1 : 1;
+    e.hitAcc = (e.hitAcc || 0) + Math.max(0, dmg) / Math.max(1, e.maxHp); // (how hard: the 3D figure reels by it, flinch.js)
   } // the body snaps away from the hit
   e.hp -= dmg;
   e.flash = 0.08;
@@ -603,6 +604,7 @@ export function shoveEnemy(e, kx, ky) {
     e.fdx = ux;
     e.fdy = uy;
     e.flS = Math.random() < 0.5 ? -1 : 1;
+    e.hitAcc = (e.hitAcc || 0) + 0.45 * (front ? 0.35 : 1) * mass; // (a shove reels it as a fair hit does)
   }
   if (e === (GS.P && GS.P.held)) releaseGrab(1.4);
   if (!boss && !brute && !front && !armd && HUMAN[e.type] && !e.crawl && !e.half && !(e.down > 0)) {
