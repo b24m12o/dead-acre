@@ -29,6 +29,7 @@ const ALL = [
   'doors',
   'lighting',
   'characters',
+  'anim',
   'quit',
   'director',
   'stall',
