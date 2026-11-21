@@ -124,6 +124,7 @@ export function newRun(forMenu = false) {
   GS.arcs = [];
   GS.darts = [];
   GS.buddies = [];
+  GS.fallen = [];
   GS.pickups = [];
   GS.boonDrops = []; // what the dead in uniform dropped (boons.js)
   GS.boonT = -99;

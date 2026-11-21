@@ -261,6 +261,7 @@ export function render() {
       ao(GS.P.x - 0.25, GS.P.y + 0.5, 12 * PEOPLE * 1.2, YOU_AO.a, GS.P.bodyA, 1.1); // a darker core right under you: you stand out on a lit road
     }
     for (const b of GS.buddies) ao(b.x - 0.5, b.y + 1, 18 * PEOPLE * 1.2, 0.4, b.bodyA, 1.15);
+    for (const b of GS.fallen || []) ao(b.x - 0.5, b.y + 1, 22 * PEOPLE * 1.2, 0.3, b.bodyA, 1.6);
     for (const e of GS.enemies)
       if (!e.dead && !e.fly && (e.z || 0) < 10)
         ao(

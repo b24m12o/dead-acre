@@ -8,7 +8,7 @@ import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
 import { drawRanger, lampHot } from './draw-player.js';
 import { drawEnemy } from './draw-enemies.js';
-import { figFlush } from './fig3d.js';
+import { drawHero3D, figFlush } from './fig3d.js';
 import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
 import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk, propShadow } from './decor.js';
@@ -369,6 +369,7 @@ export function drawCasters() {
   for (const c of GS.crates) push(c.y, drawCrate, c);
   for (const h of GS.chutesDown) if (vis(h.x, h.y, 160)) push(h.cy - 30, drawChuteDown, h);
   if (!GS.NOHERO || GS.SHMODE === 1) for (const b of GS.buddies) push(b.y, drawRanger, b);
+  for (const b of GS.fallen || []) if (vis(b.x, b.y)) push(b.y - 18, drawHero3D, b); // (lying: under whoever stands by them)
   for (const c of crystals) if (c.alive && vis(c.x, c.y)) push(c.y + 16, drawCrystal, c);
   for (const f of fires) if (vis(f.x, f.y)) push(f.y + 12, drawBurnBarrel, f);
   for (const b of GS.barrels) if (!b.dead && vis(b.x, b.y)) push(b.y + 10, drawBarrel, b);

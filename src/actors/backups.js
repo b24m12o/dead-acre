@@ -404,6 +404,11 @@ export function buddyHurt(s, p, dt) {
     // bled out
     const i = GS.buddies.indexOf(s);
     if (i >= 0) GS.buddies.splice(i, 1);
+    // they lie where they fell, as they fell (drawn in 3D, as the recorded fall leaves them); the last few kept
+    s.gone = true;
+    s.down = 0;
+    (GS.fallen = GS.fallen || []).push(s);
+    if (GS.fallen.length > 6) GS.fallen.shift();
     S.buddy = Math.max(0, S.buddy - 1);
     if ((LV.buddy || 0) > 0) LV.buddy--;
     pool(s.x, s.y, 1.6, BLOOD);

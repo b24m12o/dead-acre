@@ -421,7 +421,7 @@ function rowOf(e) {
   POSE(e, DATA, e._r3 * TW * 4);
   // (a jump in its pose since last frame eased out: inertia.js)
   const MM = e.__MM;
-  if (MM && e.dying === undefined && !(e.down > 0) && !e.ride && !(e.hp <= 0 && e === GS.P))
+  if (MM && e.dying === undefined && !(e.down > 0) && !e.gone && !e.ride && !(e.hp <= 0 && e === GS.P))
     inert(e, DATA, e._r3 * TW * 4, MM, e === GS.P || !!e.npc);
   return e._r3;
 }
@@ -2313,7 +2313,7 @@ function poseHeroFK(p, D, o) {
   }
   // killed (or one of your people, downed): his knees go and he falls back, as recorded, and lies there (the gun still
   // in his hand); one of your people brought round gets up as recorded (Library 2's get-up)
-  const downed = (p.hp <= 0 && GS.state === 'over' && p === GS.P) || (p.npc && p.down > 0),
+  const downed = (p.hp <= 0 && GS.state === 'over' && p === GS.P) || (p.npc && (p.down > 0 || p.gone)),
     deadU = downed ? t - (p._deadT ?? (p._deadT = t)) : -1,
     dK = deadU >= 0 ? Math.min(1, deadU / 0.15) : 0;
   if (deadU < 0 && p._deadT !== undefined) {

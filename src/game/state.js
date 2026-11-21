@@ -41,6 +41,7 @@ GS.ebullets = [];
 GS.arcs = []; // a shorted box's current, jumping to the dead it catches (render.js)
 GS.darts = [];
 GS.buddies = [];
+GS.fallen = []; // your people who bled out, lying where they fell (backups.js)
 GS.pickups = [];
 GS.parts = [];
 GS.decals = [];

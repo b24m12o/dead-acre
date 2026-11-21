@@ -695,6 +695,7 @@ function startRide(T) {
   T.parked = false;
   T.bud = GS.buddies; // your people are in the cab
   GS.buddies = [];
+  GS.fallen = []; // (left behind with the place)
   P.ride = 'truck';
   P.inv = 1e9;
   P.vx = P.vy = 0;
