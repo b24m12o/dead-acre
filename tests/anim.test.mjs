@@ -142,6 +142,20 @@ export async function run(b) {
       out.pack = { worst: +worst.toFixed(2), who };
     }
     keys.clear();
+    // dogs and brutes after him too: no bone of theirs snaps (a dog's leap and a brute's charge are quick, but eased)
+    {
+      P.x = open[0]; P.y = open[1]; P.vx = P.vy = 0;
+      const pack = ['hound', 'hound', 'beetle', 'beetle'].map((T, i) => { const a = i * 1.57 + 0.4, e = makeEnemy(T, P.x + 220 * Math.cos(a), P.y + 220 * Math.sin(a)); e.emerge = 1; e.aw = 9; e.dmg = 0; e.hp = e.maxHp = 1e6; return e; });
+      const prev = new Map(); let worst = 0, who = '';
+      for (let f = 0; f < 240; f++) { keys.clear(); keys.add('dsaw'[Math.floor(f / 40) % 4]); cam.x = P.x - viewW / 2; cam.y = P.y - viewH / 2; mouse.x = viewW * ZOOM / 2 + 300; mouse.y = viewH * ZOOM / 2;
+        frame([P, ...pack]);
+        for (const e of pack) { if (e.dead) continue; const nb = FIG.models[modelOf(e)].rest.length, cur = []; for (let b = 0; b < nb; b++) cur.push(RB(e, b));
+          if (prev.has(e) && f > 5) for (let b = 0; b < nb; b++) { let tr = 0; for (let j = 0; j < 3; j++) for (let l = 0; l < 3; l++) tr += prev.get(e)[b][j][l] * cur[b][j][l]; const a = Math.acos(Math.max(-1, Math.min(1, (tr - 1) / 2))); if (a > worst) { worst = a; who = (e.type === 'hound' ? 'dog' : 'brute') + ' ' + e.st + ', bone ' + b; } }
+          prev.set(e, cur); } }
+      for (const e of pack) e.dead = true; GS.enemies = GS.enemies.filter(e => !pack.includes(e));
+      out.beasts = { worst: +worst.toFixed(2), who };
+    }
+    keys.clear();
     // one of the dead hit: it reels (its spring kicked), and the bend takes its head away from the shot, whichever
     // side the shot comes from
     {
@@ -210,6 +224,10 @@ export async function run(b) {
     `the legs of the dead after him should not snap as they set off and turn: a thigh or shin turned ${o.pack.worst} rad in one frame (a ${o.pack.who})`
   );
   check(
+    o.beasts.worst < 0.9,
+    `dogs and brutes after him should not snap: a bone turned ${o.beasts.worst} rad in one frame (a ${o.beasts.who})`
+  );
+  check(
     o.hit.peak > 0.5 && o.hit.away.every(a => a > 2),
     `one of the dead hit should reel away from the shot: its bend reached ${o.hit.peak}, its head went ${o.hit.away.join(', ')} away from shots from the east, south, west, north`
   );
@@ -227,5 +245,5 @@ export async function run(b) {
   );
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   const R = o.run;
-  return `hit, reels ${o.hit.peak}, head ${Math.min(...o.hit.away)}+ away; legs turn ≤ ${o.turns.worst} a frame (his), ${o.pack.worst} (the dead's); run: jumps ≤ ${Math.max(...Object.values(R).map(v => v.jump))}, sway ≤ ${Math.max(...Object.values(R).map(v => v.sway))}; strides ${o.survivor.stride} (yours) ${o.zombie.stride} (the dead); down, legs move ${o.lying.legMove}`;
+  return `hit, reels ${o.hit.peak}, head ${Math.min(...o.hit.away)}+ away; legs turn ≤ ${o.turns.worst} a frame (his), ${o.pack.worst} (the dead's), ${o.beasts.worst} (dogs' and brutes'); run: jumps ≤ ${Math.max(...Object.values(R).map(v => v.jump))}, sway ≤ ${Math.max(...Object.values(R).map(v => v.sway))}; strides ${o.survivor.stride} (yours) ${o.zombie.stride} (the dead); down, legs move ${o.lying.legMove}`;
 }

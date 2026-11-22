@@ -120,7 +120,7 @@ export function inert(e, D, o, MM, hero) {
     S.spare = loc;
     return;
   }
-  const lim = Math.cos(hero ? Math.max(0.6, 24 * dt) : Math.max(1.0, 40 * dt));
+  const lim = Math.cos(hero ? Math.max(0.6, 24 * dt) : Math.max(0.6, 30 * dt));
   let jump = false;
   for (let b = 0; b < nb && !jump; b++) {
     if (hero && !(b >= 6 && b <= 13)) continue;

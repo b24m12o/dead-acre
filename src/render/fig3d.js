@@ -980,11 +980,11 @@ function poseZombie(e, D, o) {
     // the spitter hunched to spit; the screamer drawing breath and screaming, head back and arms out; the riot cop
     // shoving with its shield; the climber on all fours
     live = !dead && !ground,
-    rear = live && brute && e.st === 'rear' ? Math.min(1, (0.7 - (e.stT || 0)) / 0.3) : 0,
-    chg = live && brute && e.st === 'charge' ? 1 : 0,
-    stun = live && brute && e.st === 'stun' ? 1 : 0,
+    rear = eased(e, 'rear', live && brute && e.st === 'rear' ? Math.min(1, (0.7 - (e.stT || 0)) / 0.3) : 0),
+    chg = eased(e, 'chg', live && brute && e.st === 'charge' ? 1 : 0),
+    stun = eased(e, 'stun', live && brute && e.st === 'stun' ? 1 : 0),
     swl = live && hop && e.st === 'swell' ? clamp(e.swell || 0, 0, 1) : 0,
-    spt = live && spit && e.charging > 0 ? 1 : 0,
+    spt = eased(e, 'spt', live && spit && e.charging > 0 ? 1 : 0),
     scrm = live
       ? name === 'screamer'
         ? e.open || 0
@@ -992,7 +992,7 @@ function poseZombie(e, D, o) {
           ? clamp(1 - e.scrIn / 0.95, 0, 1)
           : 0
       : 0,
-    bash = live && riot && e.st === 'bash' ? 1 : live && riot && e.st === 'bashW' ? -0.5 : 0,
+    bash = eased(e, 'bash', live && riot && e.st === 'bash' ? 1 : live && riot && e.st === 'bashW' ? -0.5 : 0, 16),
     climb = live && e.kind === 'climb',
     hu = run ? 0 : brute ? 0.55 + stun * 0.4 : (e.hunch || 0) + spt * 0.6 + (name === 'drag' ? 0.5 : 0),
     sway =
@@ -1188,15 +1188,10 @@ function poseZombie(e, D, o) {
   if (lk) hd2 = hd2.map(h => [h[0] + 15 * lk, h[1] * (1 - 0.45 * lk)]);
   let raise = 0; // hands up above the shoulders, by this much
   if (brute)
-    hd2 = chg
-      ? [
-          [-4, -20],
-          [-4, 20],
-        ] // charging: head down, arms back
-      : [
-          [12 + sw * 9 * mvv, -21],
-          [12 - sw * 9 * mvv, 21],
-        ]; // knuckles low and forward, swinging
+    hd2 = [
+      [lerp(12 + sw * 9 * mvv, -4, chg), -lerp(21, 20, chg)],
+      [lerp(12 - sw * 9 * mvv, -4, chg), lerp(21, 20, chg)],
+    ]; // knuckles low and forward, swinging; charging (as much as it is), head down, arms back
   if (fat)
     hd2 = [
       [6 + sw * 3 * mvv, -30 - swl * 6],
@@ -1233,7 +1228,12 @@ function poseZombie(e, D, o) {
     if (climb) hand[2] = 1.4 * k[0] + Math.max(0, Math.sin(ph + (sd > 0 ? Math.PI : 0))) * 3; // on the ground
     // running, the arms pump, bent at the elbow, at its sides; walking, a brute's knuckles hang by its thighs
     if (run && !ground) hand = W(h2[0] * 0.65 * ka, h2[1] * 0.55 * kw, Jc[2] - 9 * ka + Math.max(0, h2[0]) * 0.3 * ka);
-    if (brute && !chg && !rear && !ground) hand = W(h2[0] * 0.5 * ka, h2[1] * 0.68 * kw, Jp[2] - 6 * k[1]);
+    if (brute && !ground) {
+      // (by its thighs as it walks, eased toward the reach of a rear or a charge as it goes into one)
+      const hw = W(h2[0] * 0.5 * ka, h2[1] * 0.68 * kw, Jp[2] - 6 * k[1]),
+        f = 1 - Math.max(chg, rear);
+      hand = [0, 1, 2].map(i => lerp(hand[i], hw[i], f));
+    }
     if (em < 1) hand = W(8 * k[0], sd * 8 * k[0], Math.max(2, Jp[2] + 24 * k[1] * (0.6 + 0.4 * Math.sin(t * 6 + sd)))); // clawing up out of the ground
     if (hands) {
       const g0 = hands[sd > 0 ? 0 : 1];
@@ -1344,7 +1344,34 @@ function poseZombie(e, D, o) {
   D.set([EYE[0], EYE[1], EYE[2], hsh(id, 45)], q + 28);
   e._kits = LK.kits;
 }
+// a move's weight (0..1) eased in and out over a moment, by the game's clock, not switched in a frame: the brute's
+// rear and charge, the spitter's hunch, the riot cop's bash (dead, or another call the same frame, it holds)
+function eased(e, key, v, rate = 12) {
+  const S = e._sw || (e._sw = {}),
+    t = GS.time,
+    w = S[key];
+  if (!w || t - w.t > 0.25 || t < w.t) {
+    S[key] = { v, t };
+    return v;
+  }
+  w.v += (v - w.v) * Math.min(1, (t - w.t) * rate);
+  if (Math.abs(w.v - v) < 0.005) w.v = v; // (there, exactly: some read it as on or off)
+  w.t = t;
+  return w.v;
+}
 // ---------- the dog: a gallop, a crouch, a leap; dead, on its side ----------
+// a two-bone leg's length (b1's joint to b2's, b2's to the end point), its build k
+const segL = (b1, b2, end, k) => len(sc3(sub(REST[b2], REST[b1]), k)) + len(sc3(sub(end, REST[b2]), k));
+// a reach eased as it nears the leg's full length: never quite straight, so the knee doesn't snap from straight to
+// bent as the target comes back within reach (it keeps nine tenths of the length freely, the last tenth softly)
+function softReach(top, tg, L) {
+  const d = sub(tg, top),
+    n = len(d),
+    a = 0.9 * L;
+  if (n <= a || n < 1e-6) return tg;
+  const m = a + (L - a) * (1 - Math.exp(-(n - a) / (L - a)));
+  return add(top, mul(d, m / n));
+}
 const FURS = [
   [0.3, 0.24, 0.18],
   [0.22, 0.19, 0.17],
@@ -1356,6 +1383,7 @@ function poseDog(e, D, o) {
   poolReset();
   e._kits = null;
   const MM = FIG.models.dog;
+  e.__MM = MM; // (a jump left over is eased out, as anyone's: inertia.js)
   REST = MM.rest;
   MODEL_END = MM.ends;
   const r = REST,
@@ -1365,9 +1393,18 @@ function poseDog(e, D, o) {
     k = [(e.sc || 1) * MM.scale * DOGK, (e.sc || 1) * MM.scale * DOGK],
     D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]),
     yaw = e.a || 0,
-    mvv = dead ? 0 : Math.min(1, Math.hypot(e.vx || 0, e.vy || 0) / 180),
-    ph = ((e.stride ?? t * 2.6) % 1) * Math.PI * 2,
-    crouch = !dead && e.st === 'crouch' ? 1 : 0,
+    // (its pace, a crouch and a leap each eased in and out over a moment, not switched in a frame; in a leap its legs
+    // hold their reach, not galloping in the air)
+    dt = clamp(t - (e._dT ?? t), 0, 0.1),
+    sp = dead ? 0 : Math.hypot(e.vx || 0, e.vy || 0),
+    ease = (v, to, r) => v + (to - v) * Math.min(1, dt * r),
+    inLeap = (e._dl = ease(e._dl ?? 0, !dead && e.st === 'leap' ? 1 : 0, 12)),
+    mvv = (e._dm = ease(e._dm ?? 0, Math.min(1, sp / 180), 8)) * (1 - inLeap),
+    // its own gallop: up to three and a half strides a second (the game's stride count runs twice that at its
+    // speed, its paws skating), each stride as long as its pace makes it, so the paws keep to the ground
+    gf = 1.2 + 2.2 * mvv,
+    ph = ((e._dph = ((e._dph ?? hsh(id, 69)) + dt * gf) % 1) % 1) * Math.PI * 2,
+    crouch = (e._dc = ease(e._dc ?? 0, !dead && e.st === 'crouch' ? 1 : 0, 10)),
     leap = !dead && e.st === 'leap' ? Math.sin(clamp(1 - (e.stT || 0) / 0.3, 0, 1) * Math.PI) : 0,
     fall = dead ? Math.min(1, e.dying / 0.4) : 0,
     fl = fall * fall * (3 - 2 * fall);
@@ -1377,6 +1414,7 @@ function poseDog(e, D, o) {
     pitch = Math.sin(ph * 2) * 0.09 * mvv + crouch * 0.12 - leap * 0.1,
     Rp = mm(Rroll, mm(Rz(yaw), Ryb(pitch))),
     lift = (Math.abs(Math.sin(ph)) * 1.6 * mvv - crouch * 5 + leap * 9) * k[1],
+    _t = (e._dT = t),
     Jp = [
       e.x - Math.cos(yaw) * 7 * k[0], // its hips behind it: the middle of its body over its spot
       e.y - Math.sin(yaw) * 7 * k[0],
@@ -1411,7 +1449,7 @@ function poseDog(e, D, o) {
   const fwd = [Math.cos(yaw), Math.sin(yaw), 0],
     rt = [-Math.sin(yaw), Math.cos(yaw), 0],
     W = (lx, ly, lz) => [e.x + fwd[0] * lx + rt[0] * ly, e.y + fwd[1] * lx + rt[1] * ly, lz],
-    stride = 9 * mvv * k[0];
+    stride = Math.min(sp / (2 * Math.PI * gf), 11 * k[0]) * (1 - inLeap) * Math.min(1, mvv * 4);
   for (const [b1, front, sd, off] of [
     [4, true, 1, 0],
     [6, true, -1, 0.12],
@@ -1433,12 +1471,33 @@ function poseDog(e, D, o) {
       );
     }
     const pole = front ? mv(Rp, [-1, 0, -0.2]) : mv(Rp, [1, 0, 0.1]);
-    if (front) limb(D, o, b1, b1 + 1, b1 < 8 ? Rc : Rp, top, paw, pole, k);
+    if (front)
+      limb(
+        D,
+        o,
+        b1,
+        b1 + 1,
+        b1 < 8 ? Rc : Rp,
+        top,
+        softReach(top, paw, segL(b1, b1 + 1, MODEL_END[b1 + 1], k)),
+        pole,
+        k
+      );
     else {
       // the hind leg: thigh and shin to the hock, then the long foot down to the paw
       const footL = len(sc3(sub(MODEL_END[b1 + 2], r[b1 + 2]), k)),
         hock = add(paw, mv(Rz(yaw), [-2 * k[0], 0, footL * 0.93])),
-        [Rsh, H] = limb(D, o, b1, b1 + 1, Rp, top, dead ? add(paw, mv(Rp, sc3([-2, 0, 4], k))) : hock, pole, k),
+        [Rsh, H] = limb(
+          D,
+          o,
+          b1,
+          b1 + 1,
+          Rp,
+          top,
+          softReach(top, dead ? add(paw, mv(Rp, sc3([-2, 0, 4], k))) : hock, segL(b1, b1 + 1, r[b1 + 2], k)),
+          pole,
+          k
+        ),
         Rf = mm(rotTo(mv(Rsh, sub(MODEL_END[b1 + 2], r[b1 + 2])), sub(paw, H)), Rsh);
       D3(b1 + 2, Rf, H);
     }
