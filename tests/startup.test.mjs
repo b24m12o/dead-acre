@@ -20,7 +20,7 @@ export async function run(b) {
   try {
     const pg = await b.newPage({ viewport: { width: 1280, height: 760 } }),
       errs = [];
-    pg.on('pageerror', e => errs.push(String(e).slice(0, 300)));
+    pg.on('pageerror', e => errs.push(String(e.stack || e).slice(0, 600))); // (where it happened, not just what)
     await pg.goto('http://127.0.0.1:8782/embed.html');
     await pg.waitForSelector('#menu:not([hidden])', { timeout: 300000 });
     await pg.click('#survBtn');
@@ -75,7 +75,7 @@ async function byCommit(b, pack) {
     asked = [];
   const pg = await b.newPage({ viewport: { width: 1280, height: 760 } }),
     errs = [];
-  pg.on('pageerror', e => errs.push(String(e).slice(0, 300)));
+  pg.on('pageerror', e => errs.push(String(e.stack || e).slice(0, 600))); // (where it happened, not just what)
   await pg.route('https://cdn.jsdelivr.net/**', async r => {
     const m = /\/gh\/b24m12o\/dead-acre@([0-9a-f]{40})\/(.*)$/.exec(new URL(r.request().url()).pathname);
     const cors = { 'Access-Control-Allow-Origin': '*' };

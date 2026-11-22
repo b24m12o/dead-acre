@@ -19,9 +19,11 @@ export async function run(b) {
     const tap = n => { hold(n); fr(1); hold(n, false); fr(1); };
     initAudio(); GS.meta.tutDone = true; GS.meta.hero = 'ranger'; begin(); GS.RUN.tut = null; GS.RUN.jobN = []; GS.state = 'play';
     GS.queue = []; for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.nightLive = false; GS.interT = 999;
-    const P = GS.P;
-    // open ground
+    let P = GS.P;
+    // open ground (a town with none big enough: another town)
     let spot = null;
+    for (let m = 0; m < 4 && !spot; m++) {
+    if (m) { begin(); GS.RUN.tut = null; GS.RUN.jobN = []; GS.state = 'play'; GS.queue = []; for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0; GS.nightLive = false; GS.interT = 999; P = GS.P; }
     for (let t = 0; t < 20000 && !spot; t++) {
       const x = 500 + Math.random() * (WW - 1000), y = 500 + Math.random() * (WH - 1000);
       let ok = true;
@@ -30,6 +32,8 @@ export async function run(b) {
       for (const [ang, far] of [[0.1, 300], [0.5, 300], [0, 200]]) if (ok && (!los(x, y, x + Math.cos(ang) * far, y + Math.sin(ang) * far) || !los(x + 160, y, x + 160 + Math.cos(ang) * far, y + Math.sin(ang) * far))) ok = false;
       if (ok) spot = [x, y];
     }
+    }
+    out.spot = !!spot;
     if (spot) { P.x = spot[0]; P.y = spot[1]; }
     fr(5);
     out.offAtFirst = GS.pad.on;
@@ -44,6 +48,7 @@ export async function run(b) {
     const e = makeEnemy('skitter', P.x + Math.cos(0.1) * 300, P.y + Math.sin(0.1) * 300); e.emerge = 1; e.hp = e.maxHp = 9999; e.aw = 0; e.sp = 0; GS.enemies.push(e);
     fr(3); padTick(1 / 60); // read against the camera as it stands now (a shake can move it after the stick has aimed)
     out.lean = Math.hypot(cam.x + mouse.x / ZOOM - e.x, cam.y + mouse.y / ZOOM - e.y);
+    out.leanWhy = { los: los(P.x, P.y, e.x, e.y), aimA: +P.aimA.toFixed(2), d: Math.round(Math.hypot(e.x - P.x, e.y - P.y)), ride: !!P.ride, wheel: !!(typeof WHEEL !== 'undefined' && WHEEL.open) }; // (for the message, if it fails)
     e.x = P.x + Math.cos(0.5) * 300; e.y = P.y + Math.sin(0.5) * 300; fr(3); padTick(1 / 60);
     out.noLean = Math.hypot(cam.x + mouse.x / ZOOM - e.x, cam.y + mouse.y / ZOOM - e.y);
     e.dead = true; GS.enemies.length = 0;
@@ -87,7 +92,7 @@ export async function run(b) {
   );
   check(
     o.lean < 6 && o.noLean > 80,
-    `the crosshair should lean onto one near the line and not one far off it: ${o.lean.toFixed(0)} px / ${o.noLean.toFixed(0)} px`
+    `the crosshair should lean onto one near the line and not one far off it: ${o.lean.toFixed(0)} px / ${o.noLean.toFixed(0)} px (open ground found: ${o.spot}; ${JSON.stringify(o.leanWhy)})`
   );
   check(o.fired > 0 && !o.heldFire, `the trigger should fire, and stop when let go: ${o.fired} rounds`);
   check(o.reload && o.roll && o.shove, `X reloads, A rolls, B shoves: ${o.reload} ${o.roll} ${o.shove}`);

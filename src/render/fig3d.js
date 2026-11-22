@@ -1413,6 +1413,7 @@ function crawlOf(e, Jp, hd, kh, kw, gz) {
   const u0 = (((C.d / cyc) % 1) + 1) % 1,
     reaching = u0 >= 0.1 && u0 < 0.5 ? 1 : u0 >= 0.6 ? 0 : -1;
   if (Math.abs(along) < dt * 3 && reaching >= 0) C.d += Math.min(dt * cyc * 1.6, cyc * 0.02);
+  if (e.claw > 0 && Math.abs(along) < dt * 3) C.d += Math.min(dt, 0.05) * cyc * e.claw * 0.55; // pinned, clawing at the street where it lies (actors/idle.js)
   C.t = t;
   const u = (((C.d / cyc) % 1) + 1) % 1;
   // the hips: hauled on a little ahead, then lagging, about where the game has them

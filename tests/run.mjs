@@ -48,6 +48,7 @@ const ALL = [
   'feed',
   'crows',
   'tracks',
+  'idle',
   'summary',
   'campaign',
   'variants',

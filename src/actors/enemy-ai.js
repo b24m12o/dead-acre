@@ -44,6 +44,7 @@ import { budTarget, objTarget } from '../game/objective-update.js';
 import { lastFew, specialTick } from './specials.js';
 import { dirPace, dirRelax } from '../game/director.js';
 import { feedSight, feedTick, stopFeed } from './feeding.js';
+import { idleFace, idleTick, pinTick } from './idle.js';
 // a giant that has stopped getting anywhere while it walks, pressed into a building or caught inside one, is walked out
 // to the nearest open street it can move on from (a tile clear of buildings that its own path map can reach)
 function giantWedge(e, dt) {
@@ -144,7 +145,7 @@ export function updateEnemy(e, dt, p) {
     e.aw = Math.max(e.aw || 0, 4);
   }
   e.aw = (e.aw || 0) - dt;
-  if (!(e.aw > 0) && !e.lure && e.kind !== 'blind' && !e.feed) {
+  if (!(e.aw > 0) && !e.lure && e.kind !== 'blind' && !e.feed && !e.idle) {
     e.idleT = (e.idleT || 0) + dt;
     if (e.idleT > 22) {
       e.idleT = 0;
@@ -185,6 +186,10 @@ export function updateEnemy(e, dt, p) {
   let fd = null;
   if (e.feed && (aware || lure || ot || e.down > 0 || e.crawl || e.kind)) stopFeed(e);
   else if (!aware && !lure && !ot && !(e.down > 0)) fd = feedTick(e, dt);
+  // or, away from you, something of its own for a while: swaying where it stands, beating on a window, going round
+  // in circles (idle.js)
+  if (e.idle && (aware || lure || ot || e.down > 0 || e.feed)) e.idle = null;
+  else if (!fd && !aware && !lure && !ot && !(e.down > 0)) fd = idleTick(e, dt, p);
   if (ot) {
     e.loT = (e.loT || 0) - dt;
     if (e.loT <= 0) {
@@ -198,7 +203,7 @@ export function updateEnemy(e, dt, p) {
         : steer(e, ot.x, ot.y, ot.flow || flow)
       : lure
         ? steer(e, lure.x, lure.y, lure.flow)
-        : fd && fd !== 'eat'
+        : Array.isArray(fd)
           ? steer(e, fd[0], fd[1], null, true)
           : steer(e, p.x, p.y),
     em = e.emerge >= 1;
@@ -269,6 +274,51 @@ export function updateEnemy(e, dt, p) {
     switch (e.type) {
       case 'skitter': {
         e.stT -= dt;
+        if (e.pin && pinTick(e, dt, p)) {
+          // pinned under a car (idle.js): it claws where it lies; you right by it, it has your ankle, and holds on
+          tvx = tvy = 0;
+          rate = 10;
+          if (e.lurk === 'pin') {
+            e.regrab = Math.max(0, (e.regrab || 0) - dt);
+            if (
+              Math.sqrt(pd2) < e.r + (p.r || 14 * GK) + 10 &&
+              !(e.regrab > 0) &&
+              !(p.dashT > 0) &&
+              !p.held &&
+              GS.state === 'play' &&
+              em
+            ) {
+              // (its arms out ahead of it: it reaches further than one lying in the road, past where you'd bump it)
+              e.lurk = 'grab';
+              e.grip = 1;
+              e.gT = 0;
+              e.tickT = 0.5;
+              p.held = e;
+              heroSay('grab', 0.2);
+              hurtPlayer(5 + GS.wave * 0.5, e.x, e.y, 'a lurker');
+              sfx.growl(e.x, e.y);
+              shake(0.12);
+              showStreak('Grabbed', 'Dodge to break free', true);
+            }
+          } else if (e.lurk === 'grab') {
+            if (p.held !== e || GS.state !== 'play') {
+              e.lurk = 'pin';
+              e.regrab = 1.5; // (you rolled free: a moment to get clear)
+              if (p.held === e) p.held = null;
+            } else {
+              e.gT += dt;
+              e.tickT -= dt;
+              if (e.tickT <= 0) {
+                e.tickT = 0.5;
+                hurtPlayer(4 + GS.wave * 0.35, e.x, e.y, 'a lurker');
+              }
+              p.vx += (e.x - p.x) * 3 * dt;
+              p.vy += (e.y - p.y) * 3 * dt;
+              if (e.gT > 3) releaseGrab(0.5);
+            }
+          }
+          break;
+        }
         if (e.lurk) {
           // playing dead: it breathes (a puff of breath in the cold is the only tell), then takes your ankle as you pass
           tvx = tvy = 0;
@@ -653,11 +703,12 @@ export function updateEnemy(e, dt, p) {
     tvx = nx * 0.7;
     tvy = ny * 0.7;
   } // shambling, not hunting
-  if (fd === 'eat' || e.riseT > 0) {
+  if (fd === 'eat' || idleFace(fd) !== undefined || e.riseT > 0) {
     if (e.riseT > 0) e.riseT -= dt;
     tvx = tvy = 0;
     if (fd === 'eat') face = e.feedA;
-  } // on its knees at a body, feeding; or getting up off them
+    else if (idleFace(fd) !== undefined) face = idleFace(fd);
+  } // on its knees at a body, feeding; or getting up off them; or standing where it is, at a window or swaying
   if (e.slowT > 0) {
     e.slowT -= dt;
     tvx *= 0.45;

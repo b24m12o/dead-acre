@@ -77,6 +77,7 @@ import { SPECIAL, makeSpecial } from '../actors/specials.js';
 import { tickJourney } from '../game/journey.js';
 import { leaveStop } from '../game/night-flow.js';
 import { hatchFor, openHatch, tickHatches } from '../world/sewers.js';
+import { makePinned } from '../actors/idle.js';
 // Bodies shove each other apart, the lighter giving way. A fine grid of its own (cells as wide as two walkers) in flat
 // arrays: a horde of 400 packed round you is ~30 neighbours each to check, not ~120 through a callback
 const SEP = 40 * GK,
@@ -719,6 +720,9 @@ export function update(dt) {
           ? makeSpecial(t, sx, sy)
           : t === 'lurker'
             ? (() => {
+                // a third of them pinned under a car instead, where there's a car for it (actors/idle.js)
+                const pe = Math.random() < 0.35 && makePinned(GS.P);
+                if (pe) return pe;
                 const [lx, ly] = spawnPoint(300, false);
                 return makeLurker(lx, ly);
               })()

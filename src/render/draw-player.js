@@ -182,7 +182,7 @@ function drawRanger0(p) {
   const fl = p.hurt > 0 ? 1 : 0,
     blink = p.inv > 0 && p.dashT <= 0 && Math.sin(GS.time * 40) < -0.3 ? 0.55 : 1;
   const pv = !p.npc && HPV.on && GS.state === 'menu',
-    look = p.look ?? (HLOOK[(pv && HPV.hero) || GS.RUN.hero] || 0),
+    look = p.look ?? (HLOOK[(pv && HPV.hero) || GS.RUN?.hero] || 0), // (GS.RUN: none yet at the menu)
     st = HSTYLE[look],
     ot = p.npc ? p.tint || [1, 1, 1] : GS.state === 'menu' ? [1, 1, 1] : YOU_TINT;
   const dn = p.down > 0,

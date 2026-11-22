@@ -121,6 +121,14 @@ export const sfx = {
       t += rand(0.9, 1.8);
     }
   },
+  // fists on a shop's window: the dull thump of the flat of them on plate glass, and the pane shivering in its frame
+  glassBang(x, y) {
+    if (!thr('glassBang', 200)) return;
+    const b = spat(x, y);
+    noise(0.1, 0.09, 260, 90, 'lowpass', 0, b);
+    noise(0.22, 0.018, rand(2400, 3400), 1800, 'bandpass', 0.01, b);
+    tone(rand(1700, 2300), 0.18, 'sine', 0.006, 0.98, 0.01, 0, b);
+  },
   // one of the dead at a body: a wet tear, and a smack or two of chewing, low and close
   feed(x, y) {
     if (!thr('feed', 900)) return;
