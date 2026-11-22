@@ -90,7 +90,7 @@ function expR(v) {
 
 // figure e's rows in D (at o) eased out of a jump. MM: its model (rest joints, bones' parents); hero: watch only the
 // arms (and keep his gun in his hand)
-export function inert(e, D, o, MM, hero) {
+export function inert(e, D, o, MM, hero, lost = 0) {
   const r = MM.rest,
     nb = r.length,
     par = MM.bones.map(b => b[1]),
@@ -124,6 +124,7 @@ export function inert(e, D, o, MM, hero) {
   let jump = false;
   for (let b = 0; b < nb && !jump; b++) {
     if (hero && !(b >= 6 && b <= 13)) continue;
+    if ((lost >> b) & 1) continue; // (a part it has lost isn't posed: whatever its row does is no jump of the body's)
     // (the turn between last frame's and this one's, by its trace: cos of its angle)
     const A = S.last[b],
       B = loc[b];
@@ -137,7 +138,7 @@ export function inert(e, D, o, MM, hero) {
     S.off = [];
     for (let b = 0; b < nb; b++) {
       const shown = S.cur ? S.cur[b] : S.last[b];
-      S.off[b] = b ? logR(mm(shown, mTm(loc[b], [1, 0, 0, 0, 1, 0, 0, 0, 1]))) : [0, 0, 0];
+      S.off[b] = b && !((lost >> b) & 1) ? logR(mm(shown, mTm(loc[b], [1, 0, 0, 0, 1, 0, 0, 0, 1]))) : [0, 0, 0];
     }
     S.t0 = t;
   }

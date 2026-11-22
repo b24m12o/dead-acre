@@ -422,8 +422,17 @@ function rowOf(e) {
   POSE(e, DATA, e._r3 * TW * 4);
   // (a jump in its pose since last frame eased out: inertia.js)
   const MM = e.__MM;
-  if (MM && e.dying === undefined && !(e.down > 0) && !e.gone && !e.ride && !(e.hp <= 0 && e === GS.P))
-    inert(e, DATA, e._r3 * TW * 4, MM, e === GS.P || !!e.npc);
+  if (
+    MM &&
+    e.dying === undefined &&
+    !(e.down > 0) &&
+    !e.gone &&
+    !e.crawl &&
+    !e.half &&
+    !e.ride &&
+    !(e.hp <= 0 && e === GS.P)
+  )
+    inert(e, DATA, e._r3 * TW * 4, MM, e === GS.P || !!e.npc, DATA[e._r3 * TW * 4 + NB * 12 + 24] | 0);
   return e._r3;
 }
 
@@ -855,7 +864,7 @@ function poseZombie(e, D, o) {
         : dead
           ? Math.abs(angDiff(e.a || 0, e.fallA ?? (e.a || 0) + Math.PI)) > Math.PI / 2
           : !!e.sup && supOK(e),
-      A = crawl ? e.a : (e.fallA ?? e.a + Math.PI), // where its head points as it lies
+      A = crawl ? crawlHd(e) : (e.fallA ?? e.a + Math.PI), // where its head points as it lies
       el = dead || crawl ? 0 : downEl(e),
       s1 = dead || crawl ? 0 : st.pl, // hands planted
       s2 = dead || crawl ? 0 : lyS(0.82, 1.13, el), // knees under it (or sitting up)
@@ -926,17 +935,14 @@ function poseZombie(e, D, o) {
         });
       }
       if (crawl) {
-        // hand over hand: one reaches out ahead while the other drags the body up to it
-        const cph = t * 5.2 + id;
-        hands = [1, -1].map(sd => {
-          const rc = Math.sin(cph + (sd > 0 ? Math.PI : 0));
-          return G(
-            Jp,
-            (27 + 7 * rc) * kh,
-            sd * (10 - 2 * rc) * kw,
-            gz + Math.max(0, Math.cos(cph + (sd > 0 ? Math.PI : 0))) * 4
-          );
-        });
+        // hand over hand: a hand reaches out ahead and is put down on the street; there it stays while the body is
+        // hauled up to it, then it's lifted and reaches out again, the hands by turns. The crawl goes by the ground
+        // it covers, not the clock (a planted hand doesn't slide; stopped, it finishes a reach and rests on both)
+        const C = crawlOf(e, Jp, hd, kh, kw, gz);
+        hands = C.hands;
+        Jp = C.Jp;
+        chestSide = C.roll;
+        headUp = -0.5 + C.bob;
       } else if (!dead && e.lurk === 'grab' && GS.P) {
         hands = [1, -1].map(sd => (sd > 0 ? [GS.P.x, GS.P.y, gz] : G(Jp, 16 * kh, -9 * kw, gz))); // it has your ankle
       } else {
@@ -1358,6 +1364,95 @@ function eased(e, key, v, rate = 12) {
   if (Math.abs(w.v - v) < 0.005) w.v = v; // (there, exactly: some read it as on or off)
   w.t = t;
   return w.v;
+}
+// a crawler's hands and haul, the hands by turns: each hand's cycle (by the ground covered, a cycle a reach's length,
+// RCH less PULL) is six parts in ten planted, the body hauled past it, and four lifted, reaching out to where it's put
+// down next; one is always down. Its hips (Jp) surge as a hand hauls and lag as the other reaches, its shoulders roll
+// to the reaching arm. Stopped, a hand in the air finishes its reach. (Turned on the spot, a hand left too far round
+// is lifted and put down again)
+// a crawler's heading, drawn: the game steers it in steps (a tenth of a turn at a time, every other frame), which
+// would swing its body and throw its planted hands out of line; this eases after it
+function crawlHd(e) {
+  const t = GS.time,
+    H = e._chd;
+  if (!H || t - H.t > 0.5 || t < H.t) return (e._chd = { a: e.a || 0, t }).a;
+  H.a += angDiff(H.a, e.a || 0) * Math.min(1, (t - H.t) * 6);
+  H.t = t;
+  return H.a;
+}
+const RCH = 31,
+  PULL = 14; // (a hand is lifted while still a little ahead of its shoulder: hauled past it, the arm folds)
+function crawlOf(e, Jp, hd, kh, kw, gz) {
+  const t = GS.time,
+    C = e._cr && t - e._cr.t < 0.5 && t >= e._cr.t ? e._cr : (e._cr = { t, d: 0, x: e.x, y: e.y, h: [null, null] }),
+    dt = t - C.t,
+    fw = [Math.cos(hd), Math.sin(hd)],
+    rt = [-fw[1], fw[0]],
+    cyc = (PULL / 0.6) * kh;
+  // the ground covered since last frame, along where it heads (a jump, as when it's moved, isn't crawled)
+  const mx = e.x - C.x,
+    my = e.y - C.y,
+    along = mx * fw[0] + my * fw[1];
+  if (Math.hypot(mx, my) < 40) C.d += Math.max(0, along);
+  C.x = e.x;
+  C.y = e.y;
+  // stopped with a hand in the air: it finishes its reach (the cycle on by time, to where both are down)
+  const u0 = (((C.d / cyc) % 1) + 1) % 1,
+    reaching = u0 >= 0.1 && u0 < 0.5 ? 1 : u0 >= 0.6 ? 0 : -1;
+  if (Math.abs(along) < dt * 3 && reaching >= 0) C.d += Math.min(dt * cyc * 1.6, cyc * 0.02);
+  C.t = t;
+  const u = (((C.d / cyc) % 1) + 1) % 1;
+  // the hips: hauled on a little ahead, then lagging, about where the game has them
+  const surge = Math.sin(u * Math.PI * 4) * 0.09 * cyc,
+    J = [Jp[0] + fw[0] * surge, Jp[1] + fw[1] * surge, Jp[2] + Math.max(0, Math.sin(u * Math.PI * 4 - 0.6)) * 0.8 * kh],
+    hands = [0, 1].map(i => {
+      const sd = i ? -1 : 1,
+        v = (u + i * 0.5) % 1,
+        side = sd * 10 * kw,
+        at = (f, s) => [J[0] + fw[0] * f + rt[0] * s, J[1] + fw[1] * f + rt[1] * s, gz],
+        cur = C.h[i];
+      if (v < 0.6) {
+        // planted where it was put down (the first time, where it would be by now)
+        if (!cur || (!cur.on && !cur.hop)) C.h[i] = { on: true, p: at(RCH * kh - v * cyc, side) };
+        const H = C.h[i],
+          want = at(RCH * kh - v * cyc, side);
+        // (turned on the spot, or left behind: picked up and put down again where it should be, quickly, not in a
+        // frame)
+        if (H.hop) {
+          H.hop.u = Math.min(1, H.hop.u + dt / 0.25);
+          const w = H.hop.u * H.hop.u * (3 - 2 * H.hop.u);
+          if (H.hop.u >= 1) C.h[i] = { on: true, p: want };
+          else
+            return [
+              lerp(H.hop.from[0], want[0], w),
+              lerp(H.hop.from[1], want[1], w),
+              gz + Math.sin(H.hop.u * Math.PI) * 4 * kh,
+            ];
+          return C.h[i].p;
+        }
+        const p = H.p,
+          rel = (p[0] - J[0]) * fw[0] + (p[1] - J[1]) * fw[1],
+          lat = (p[0] - J[0]) * rt[0] + (p[1] - J[1]) * rt[1];
+        // (or out of its arm's reach from its shoulder: an arm can't hold a hand down further off than it is long)
+        const shF = 14 * kh,
+          shS = sd * 7 * kw,
+          far = Math.hypot(rel - shF, lat - shS, (p[2] - J[2]) * 0.5) > 17.5 * kh;
+        if (rel < 0 || rel > RCH * kh * 1.35 || Math.abs(lat - side) > 9 * kw || far)
+          C.h[i] = { on: false, hop: { u: 0, from: p }, p };
+        return p;
+      }
+      // lifted: from where it came up to where it goes down next, over and up
+      if (!cur || cur.on || cur.hop) C.h[i] = { on: false, p: cur ? cur.p : at(RCH * kh - 0.6 * cyc, side) };
+      const w = (v - 0.6) / 0.4,
+        e2 = w * w * (3 - 2 * w),
+        to = at(RCH * kh, side),
+        from = C.h[i].p;
+      return [lerp(from[0], to[0], e2), lerp(from[1], to[1], e2), gz + Math.sin(w * Math.PI) * 5 * kh];
+    });
+  // the shoulders roll to the arm reaching (its side up), the head bobs as it hauls
+  const reachSd = u >= 0.6 ? 1 : u >= 0.1 && u < 0.5 ? -1 : 0,
+    rw = reachSd ? Math.sin((reachSd > 0 ? (u - 0.6) / 0.4 : (u - 0.1) / 0.4) * Math.PI) : 0;
+  return { hands, Jp: J, roll: reachSd * rw * 0.16, bob: Math.sin(u * Math.PI * 4) * 0.12 };
 }
 // ---------- the dog: a gallop, a crouch, a leap; dead, on its side ----------
 // a two-bone leg's length (b1's joint to b2's, b2's to the end point), its build k

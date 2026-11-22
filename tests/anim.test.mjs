@@ -156,6 +156,22 @@ export async function run(b) {
       out.beasts = { worst: +worst.toFixed(2), who };
     }
     keys.clear();
+    // a crawler hauls itself along hand over hand: a hand put down holds where it is, and each hand goes from out ahead
+    // to back by its shoulder and out again
+    {
+      P.x = open[0] + 150; P.y = open[1];
+      const e = makeEnemy('skitter', open[0] - 100, open[1]); e.emerge = 1; e.aw = 9; e.dmg = 0; e.hp = e.maxHp = 1e6; e.crawl = true; e.cfall = 0; e.lyG = 1; e.fallA = e.a; e.run = false;
+      const MZ = () => FIG.models[modelOf(e)], hand = b => { const q = e._r3 * TWn * 4 + b * 12, v = MZ().ends[b], D = DATA; return [D[q] * v[0] + D[q + 1] * v[1] + D[q + 2] * v[2] + D[q + 3], D[q + 4] * v[0] + D[q + 5] * v[1] + D[q + 6] * v[2] + D[q + 7]]; };
+      let slip = 0, prev = null; const ahead = [[1e9, -1e9], [1e9, -1e9]];
+      for (let f = 0; f < 180; f++) { keys.clear(); P.vx = P.vy = 0; cam.x = P.x - viewW / 2; cam.y = P.y - viewH / 2; frame([P, e]);
+        const hs = [hand(9), hand(13)], q = e._r3 * TWn * 4, hp = [DATA[q + 3], DATA[q + 7]], a = e._chd ? e._chd.a : e.a;
+        if (f > 20) for (let i = 0; i < 2; i++) { const fa = (hs[i][0] - hp[0]) * Math.cos(a) + (hs[i][1] - hp[1]) * Math.sin(a); ahead[i][0] = Math.min(ahead[i][0], fa); ahead[i][1] = Math.max(ahead[i][1], fa);
+          if (prev && e._cr && e._cr.h[i] && e._cr.h[i].on && prev[2][i]) slip = Math.max(slip, Math.hypot(hs[i][0] - prev[i][0], hs[i][1] - prev[i][1])); }
+        prev = [hs[0], hs[1], e._cr ? e._cr.h.map(h => !!(h && h.on)) : [0, 0]]; }
+      e.dead = true; GS.enemies = GS.enemies.filter(x => x !== e);
+      out.crawl = { slip: +slip.toFixed(2), reach: ahead.map(r => +(r[1] - r[0]).toFixed(0)) };
+    }
+    keys.clear();
     // one of the dead hit: it reels (its spring kicked), and the bend takes its head away from the shot, whichever
     // side the shot comes from
     {
@@ -224,6 +240,10 @@ export async function run(b) {
     `the legs of the dead after him should not snap as they set off and turn: a thigh or shin turned ${o.pack.worst} rad in one frame (a ${o.pack.who})`
   );
   check(
+    o.crawl.slip < 0.6 && o.crawl.reach.every(r => r > 10),
+    `a crawler should haul itself hand over hand: a hand put down slid ${o.crawl.slip} in a frame, its hands went ${o.crawl.reach.join(' and ')} along its body`
+  );
+  check(
     o.beasts.worst < 0.9,
     `dogs and brutes after him should not snap: a bone turned ${o.beasts.worst} rad in one frame (a ${o.beasts.who})`
   );
@@ -245,5 +265,5 @@ export async function run(b) {
   );
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   const R = o.run;
-  return `hit, reels ${o.hit.peak}, head ${Math.min(...o.hit.away)}+ away; legs turn ≤ ${o.turns.worst} a frame (his), ${o.pack.worst} (the dead's), ${o.beasts.worst} (dogs' and brutes'); run: jumps ≤ ${Math.max(...Object.values(R).map(v => v.jump))}, sway ≤ ${Math.max(...Object.values(R).map(v => v.sway))}; strides ${o.survivor.stride} (yours) ${o.zombie.stride} (the dead); down, legs move ${o.lying.legMove}`;
+  return `crawls, hands go ${o.crawl.reach.join('/')}, a planted one slides ≤ ${o.crawl.slip}; hit, reels ${o.hit.peak}, head ${Math.min(...o.hit.away)}+ away; legs turn ≤ ${o.turns.worst} a frame (his), ${o.pack.worst} (the dead's), ${o.beasts.worst} (dogs' and brutes'); run: jumps ≤ ${Math.max(...Object.values(R).map(v => v.jump))}, sway ≤ ${Math.max(...Object.values(R).map(v => v.sway))}; strides ${o.survivor.stride} (yours) ${o.zombie.stride} (the dead); down, legs move ${o.lying.legMove}`;
 }
