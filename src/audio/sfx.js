@@ -53,6 +53,55 @@ export const RSTEP = {
   ],
 };
 export const sfx = {
+  // a crow's caw, once or twice or three times: a harsh, nasal "kraa", falling at its end (life.js)
+  caw(x, y, n = 1 + randi(0, 2)) {
+    if (!thr('caw', 700)) return;
+    const b = spat(x, y),
+      f = rand(560, 720);
+    for (let i = 0; i < n; i++) {
+      const d = i * rand(0.3, 0.42),
+        ff = f * rand(0.96, 1.04);
+      tone(ff, 0.24, 'sawtooth', 0.05, 0.8, d, 2100, b);
+      tone(ff * 2.02, 0.2, 'square', 0.014, 0.78, d, 3200, b);
+      noise(0.2, 0.035, 1500, 950, 'bandpass', d, b); // its rasp
+    }
+  },
+  // a flock going up all at once: a flurry of wingbeats, hard at first and thinning as they climb away, and a caw
+  flush(x, y, n = 4) {
+    if (!thr('flush', 400)) return;
+    const b = spat(x, y);
+    for (let i = 0; i < n * 7; i++) {
+      const d = (i / (n * 7)) * 1.1 + rand(0, 0.06);
+      noise(0.055, 0.07 * (1 - d / 1.3), rand(700, 1100), 380, 'bandpass', d, b);
+    }
+    if (Math.random() < 0.7) {
+      const f = rand(560, 700);
+      tone(f, 0.22, 'sawtooth', 0.045, 0.8, 0.12, 2100, b);
+      noise(0.18, 0.03, 1500, 950, 'bandpass', 0.12, b);
+    }
+  },
+  // a rat, bolting: a couple of thin squeaks and its claws on the street
+  squeak(x, y) {
+    if (!thr('squeak', 500)) return;
+    const b = spat(x, y);
+    for (let i = 0; i < 1 + randi(0, 2); i++)
+      tone(rand(3400, 4300), 0.07, 'sine', 0.018, 1.18, i * rand(0.09, 0.14), 0, b);
+    for (let i = 0; i < 5; i++) noise(0.02, 0.025, rand(3000, 4500), 2400, 'highpass', 0.05 + i * 0.045, b);
+  },
+  // a broken lamp shorting as it flickers: a dry electric crackle up at its head
+  crackle(x, y) {
+    if (!thr('crackle', 250)) return;
+    const b = spat(x, y);
+    for (let i = 0; i < 3 + randi(0, 3); i++)
+      noise(0.03, 0.05, rand(5000, 8000), 3000, 'highpass', i * rand(0.02, 0.05), b);
+    tone(118, 0.18, 'sawtooth', 0.012, 1, 0, 700, b);
+  },
+  // a few wingbeats as a bird comes down and brakes
+  flaps(x, y) {
+    if (!thr('flaps', 300)) return;
+    const b = spat(x, y);
+    for (let i = 0; i < 4; i++) noise(0.05, 0.035, rand(700, 1000), 380, 'bandpass', i * 0.09 + rand(0, 0.02), b);
+  },
   chitter(x, y, dur = 0.5) {
     if (!thr('chitter', 200)) return;
     const b = spat(x, y);

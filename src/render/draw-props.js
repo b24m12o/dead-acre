@@ -8,7 +8,7 @@ import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
 import { drawRanger, lampHot } from './draw-player.js';
 import { drawEnemy } from './draw-enemies.js';
-import { crows, drawCrow, drawFlies, lying } from '../world/life.js';
+import { crows, drawCrow, drawFlies, drawRat, drawSheet, lying, rats, sheets } from '../world/life.js';
 import { drawCar3D, drawHero3D, figFlush } from './fig3d.js';
 import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
@@ -384,6 +384,8 @@ export function drawCasters() {
   for (const e of GS.corpses) if (vis(e.x, e.y)) push(e.y - 18, drawEnemy, e);
   if (!GS.SHMODE) for (const e of GS.corpses) if (!e.burnt && vis(e.x, e.y, 20)) push(e.y - 17, drawFlies, e); // (life.js)
   if (!GS.SHMODE) for (const e of lying) if (vis(e.x, e.y, 20)) push(e.y - 17, drawFlies, e);
+  for (const r of rats) if (vis(r.x, r.y, 20)) push(r.y, drawRat, r);
+  for (const s of sheets) if (vis(s.x, s.y, 30)) push(s.y - 6, drawSheet, s); // (lying flat: under whoever walks over it)
   for (const c of crows) if (vis(c.x, c.y - c.z * 0.5, 60)) push(c.y + (c.z > 30 ? 60 + c.z : 0), drawCrow, c);
   {
     let L = GS.enemies.filter(e => !e.fly && vis(e.x, e.y));
