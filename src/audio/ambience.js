@@ -6,7 +6,8 @@
 // you are standing in.
 import { GS } from '../core/gs.js';
 import { TAU, pick, rand, randi } from '../core/util.js';
-import { AC, noiseBuf, playS, sfxBus } from './audio.js';
+import { AC, noiseBuf, playS, sfxBus, spat } from './audio.js';
+import { alarmNote } from '../game/noise.js';
 import { sfx } from './sfx.js';
 import { placeId } from '../world/places.js';
 
@@ -44,11 +45,15 @@ const FAR = {
     ['shots', 3],
     ['siren', 1.2],
     ['scream', 1],
+    ['dog', 1.2],
+    ['alarm', 0.8],
   ],
   highway: [
     ['shots', 2.5],
     ['creak', 1.5],
     ['scream', 1],
+    ['dog', 0.8],
+    ['alarm', 1],
   ],
   cemetery: [
     ['bell', 2],
@@ -157,6 +162,23 @@ export const FAR_OFF = {
   creak() {
     const [x, y] = farPoint();
     sfx.creak(x, y);
+  },
+  // a dog left behind somewhere, barking at something
+  dog() {
+    const [x, y] = farPoint();
+    sfx.farDog(x, y);
+  },
+  // somebody else's car alarm, streets away: a few cycles of it, then it cuts out
+  alarm() {
+    const [x, y] = farPoint(),
+      b = spat(x, y);
+    if (!b) return;
+    const v = rand(0.012, 0.02);
+    let t = 0;
+    for (let i = 0; i < randi(8, 14); i++) {
+      alarmNote(640, 1180, 0.42, 'square', v, b, t);
+      t += 0.46;
+    }
   },
 };
 export function tickAmbience(dt) {

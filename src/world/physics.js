@@ -20,6 +20,7 @@ import { WHOLES } from './wear.js';
 import { radarBg } from '../ui/radar.js';
 import { WHT, windows } from '../render/blocks.js';
 import { carAt, flame, ignite, smoke } from './fire.js';
+import { inPuddle } from './weather.js';
 import { radarTile } from '../ui/radar.js';
 export let WINDX = 14,
   hazeSrc = [],
@@ -620,46 +621,96 @@ function grassTick(dt) {
   GS.grassFire = GS.grassFire.filter(g => g.burn > 0);
 }
 /* ---- footprints, wind, heat haze ---- */
+// Tracks. Whoever walks through blood carries it on their soles for a dozen steps, each print fainter; out of standing
+// water, a few dark wet ones that dry off quickly. You, your people, and the dead near you (the dead's only while
+// there's room among the marks: yours matter more). One of the dead dragging itself along leaves a smear behind it
+const steppedIn = o => {
+  for (const d of GS.decals)
+    if (
+      d.blood &&
+      d.life > 6 &&
+      Math.abs(d.x - o.x) < 40 * GK &&
+      Math.abs(d.y - o.y) < 40 * GK &&
+      d2(d.x, d.y, o.x, o.y) < (d.s * 26) ** 2
+    )
+      return true;
+  return false;
+};
+function footprint(o, a, side, cap) {
+  if (GS.decals.length > cap) {
+    if (cap < 410) return;
+    GS.decals.shift();
+  }
+  const blood = o.bloodSteps > 0,
+    x = o.x - Math.sin(a) * 6 * side * PEOPLE,
+    y = o.y + Math.cos(a) * 6 * side * PEOPLE;
+  GS.decals.push({
+    reg: R.fprint,
+    x,
+    y,
+    rot: a + Math.PI / 2,
+    s: PEOPLE, // the size of the boot that left it (core/scale.js)
+    tint: blood
+      ? [0.42, 0.04, 0.03, 0.75 * Math.min(1, o.bloodSteps / 6)]
+      : [0.04, 0.05, 0.07, 0.4 * Math.min(1, o.wetSteps / 3)],
+    emit: [0, 0, 0],
+    life: blood ? 40 : 9,
+    max: blood ? 40 : 9,
+  });
+  if (blood) o.bloodSteps--;
+  else o.wetSteps--;
+}
+const inView = o => Math.abs(o.x - cam.x - viewW / 2) < viewW * 0.6 && Math.abs(o.y - cam.y - viewH / 2) < viewH * 0.6;
 function footTick(dt) {
   if (!GS.P || GS.state !== 'play') return;
+  const P = GS.P;
   stepT -= dt;
-  if (stepT <= 0) {
-    stepT = 0.12;
-    for (const d of GS.decals)
-      if (
-        d.blood &&
-        d.life > 6 &&
-        Math.abs(d.x - GS.P.x) < 40 * GK &&
-        Math.abs(d.y - GS.P.y) < 40 * GK &&
-        d2(d.x, d.y, GS.P.x, GS.P.y) < (d.s * 26) ** 2
-      ) {
-        GS.P.bloodSteps = 12;
-        break;
-      }
-  }
-  if (GS.P.bloodSteps > 0) {
-    const st = Math.floor(GS.P.stride * 2);
-    if (GS.P.lastStep === undefined) GS.P.lastStep = st;
-    if (st !== GS.P.lastStep && Math.hypot(GS.P.vx, GS.P.vy) > 40 * GK) {
-      GS.P.lastStep = st;
-      const side = st & 1 ? 1 : -1,
-        a = GS.P.moveA,
-        x = GS.P.x - Math.sin(a) * 6 * side * PEOPLE,
-        y = GS.P.y + Math.cos(a) * 6 * side * PEOPLE;
-      if (GS.decals.length > 410) GS.decals.shift();
-      GS.decals.push({
-        reg: R.fprint,
-        x,
-        y,
-        rot: a + Math.PI / 2,
-        s: PEOPLE, // the size of the boot that left it (core/scale.js)
-        tint: [0.42, 0.04, 0.03, 0.75 * Math.min(1, GS.P.bloodSteps / 6)],
-        emit: [0, 0, 0],
-        life: 40,
-        max: 40,
-      });
-      GS.P.bloodSteps--;
+  const look = stepT <= 0;
+  if (look) stepT = 0.12;
+  // a print every step's length covered, left foot and right
+  const walk = (o, cap, n) => {
+    if (look) {
+      if (steppedIn(o)) o.bloodSteps = n;
+      else if (inPuddle(o.x, o.y)) o.wetSteps = 5;
     }
+    if (!(o.bloodSteps > 0 || o.wetSteps > 0)) return;
+    const sp = Math.hypot(o.vx || 0, o.vy || 0);
+    if (sp < 20) return;
+    o._fd = (o._fd || 0) + sp * dt;
+    if (o._fd < 15 * PEOPLE) return;
+    o._fd = 0;
+    o._fs = -(o._fs || 1);
+    footprint(o, Math.atan2(o.vy, o.vx), o._fs, cap);
+  };
+  if (!P.ride) walk(P, 410, 12);
+  for (const b of GS.buddies) if (!b.gone && !b.down && inView(b)) walk(b, 410, 12);
+  for (const e of GS.enemies) {
+    if (e.dead || e.fly || !HUMAN[e.type] || e.type === 'beetle' || !(e.emerge >= 1) || e.z > 2 || !inView(e)) continue;
+    if (e.crawl) {
+      const sp = Math.hypot(e.vx || 0, e.vy || 0);
+      if (sp < 8) continue;
+      e._fd = (e._fd || 0) + sp * dt;
+      if (e._fd < 13 * PEOPLE) continue;
+      e._fd = 0;
+      if (GS.decals.length > 395) continue;
+      const a = Math.atan2(e.vy, e.vx),
+        c = bloodOf(e);
+      GS.decals.push({
+        reg: R.smear,
+        x: e.x - Math.cos(a) * 6 * PEOPLE,
+        y: e.y - Math.sin(a) * 6 * PEOPLE,
+        rot: a + rand(-0.12, 0.12),
+        s: PEOPLE * rand(1.4, 1.7),
+        tint: [c[0] * 0.7, c[1] * 0.7, c[2] * 0.7, rand(0.5, 0.7)],
+        emit: [0, 0, 0],
+        life: 45,
+        max: 45,
+        blood: true,
+      }); // (blood: what it leaves can be stepped in, too)
+      continue;
+    }
+    if (e.down > 0) continue;
+    walk(e, 380, 8);
   }
 }
 export function hazeCollect() {

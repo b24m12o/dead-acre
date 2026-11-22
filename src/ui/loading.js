@@ -11,6 +11,7 @@ import { keysIn } from '../core/binds.js';
 const TIPS = [
   'Gunfire carries. Every shot tells the dead where you are.',
   'A car alarm draws them too. Set one off and let it do the shouting.',
+  'Crows going up give you away. The dead come to see what scared them.',
   'Riot shields stop rounds from the front. Get round it, blow it up, or flash it.',
   'Every fifth night something bigger comes for the relay.',
   'The convoy airdrops heavier guns as the nights go on.',

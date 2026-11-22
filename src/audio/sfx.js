@@ -98,6 +98,29 @@ export const sfx = {
     noise(0.3, 0.03, 3200, 2200, 'bandpass', 0.02, b); // a sizzle under the ticks
     tone(118, 0.22, 'sawtooth', 0.025, 1, 0, 900, b);
   },
+  // a foot coming down in standing water: the slap and the spray (k: how hard, walking to running)
+  splash(x, y, k = 0.6) {
+    if (!thr('splash' + Math.round(x / 40), 140)) return;
+    const b = spat(x, y);
+    noise(0.06, 0.03 + 0.03 * k, 900, 400, 'bandpass', 0, b);
+    noise(0.16, 0.02 + 0.025 * k, rand(2200, 3200), 1500, 'bandpass', 0.02, b);
+  },
+  // a dog somewhere a long way off, barking at something: two or three rough barks, then a pause and maybe another
+  // run; the distance takes the top off it and blurs it
+  farDog(x, y) {
+    const b = spat(x, y),
+      runs = 1 + randi(0, 2);
+    let t = 0;
+    const f0 = rand(330, 460);
+    for (let r = 0; r < runs; r++) {
+      for (let i = 0, n = 2 + randi(0, 2); i < n; i++) {
+        tone(f0 * rand(0.95, 1.05), 0.13, 'sawtooth', 0.016, 0.72, t, 900, b);
+        noise(0.12, 0.012, 700, 350, 'bandpass', t, b);
+        t += rand(0.28, 0.42);
+      }
+      t += rand(0.9, 1.8);
+    }
+  },
   // one of the dead at a body: a wet tear, and a smack or two of chewing, low and close
   feed(x, y) {
     if (!thr('feed', 900)) return;

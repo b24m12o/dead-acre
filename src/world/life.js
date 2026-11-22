@@ -10,15 +10,16 @@ import { TILT } from '../core/scale.js';
 import { TAU, angDiff, rand } from '../core/util.js';
 import { R } from '../render/atlas.js';
 import { quad, setH, viewH, viewW } from '../render/sprites.js';
-import { blockPt } from './nav.js';
+import { blockPt, dijk } from './nav.js';
 import { part, sparks } from '../render/effects.js';
 import { WINDX } from './physics.js';
-import { lamps } from './map.js';
+import { MH, MW, TILE, grid, lamps } from './map.js';
 import { lampK } from '../render/draw-player.js';
 import { LAMPV } from '../render/decor.js';
 import { HATCHES } from './sewers.js';
 import { sfx } from '../audio/sfx.js';
 import { victims } from '../actors/feeding.js';
+import { lastFew } from '../actors/specials.js';
 
 // (a number from 0 to 1 for a pair of whole numbers: the same each time)
 const hsh = (a, b) => ((((a * 73856093) ^ (b * 19349663)) >>> 0) % 1000) / 1000;
@@ -40,6 +41,7 @@ export function resetLife() {
   lying.length = 0;
   rats.length = 0;
   sheets.length = 0;
+  GS.crowLures = [];
   nextRat = rand(3, 8);
   nextFlock = rand(3, 8);
 }
@@ -117,6 +119,39 @@ function alarmed(c, P) {
       return [e.x, e.y];
   return null;
 }
+// a flock going up, clattering and calling, gives you away: the dead that haven't noticed you, near enough to hear it
+// (CROW_HEARD), go to where it went up, the way they go to an alarm (a lure with its own way there), for a few seconds;
+// one feeding gets up for it. On the radar it's a ring, as your noise is
+export const CROW_HEARD = 420,
+  CROW_PULL = 7;
+let lastLure = -9;
+function crowLure(x, y) {
+  if (GS.time - lastLure < 1 || lastFew()) return; // (one flock, one call to them; the last few hunt you and nothing else)
+  lastLure = GS.time;
+  const R2 = CROW_HEARD ** 2;
+  let L = null;
+  for (const e of GS.enemies) {
+    if (e.dead || e.aw > 0 || e.lure || e.big || e.fly || e.kind || e.horde || !(e.emerge >= 1)) continue;
+    if ((e.x - x) ** 2 + (e.y - y) ** 2 > R2) continue;
+    if (!L) {
+      L = { x, y, alarm: CROW_PULL, crow: true, flow: new Uint16Array(MW * MH) };
+      const tx = Math.floor(x / TILE),
+        ty = Math.floor(y / TILE),
+        seeds = [];
+      for (let j = -1; j <= 1; j++)
+        for (let k = -1; k <= 1; k++) {
+          const u = tx + k,
+            v = ty + j;
+          if (u >= 0 && v >= 0 && u < MW && v < MH && !grid[v * MW + u]) seeds.push(v * MW + u);
+        }
+      dijk(L.flow, seeds, false);
+      GS.crowLures.push(L);
+    }
+    e.lure = L;
+  }
+  GS.noiseRings.push({ x, y, r: CROW_HEARD, t0: GS.time });
+  if (GS.noiseRings.length > 6) GS.noiseRings.shift();
+}
 function takeOff(c, from, delay) {
   c.st = 'up';
   c.t = -delay;
@@ -128,6 +163,8 @@ function takeOff(c, from, delay) {
 export function tickLife(dt) {
   const P = GS.P;
   if (!P || GS.state === 'menu') return;
+  for (const L of GS.crowLures) L.alarm -= dt;
+  GS.crowLures = GS.crowLures.filter(L => L.alarm > 0);
   // a new flock now and then, while it's been quiet a while and there aren't many about
   nextFlock -= dt;
   if (nextFlock <= 0) {
@@ -184,6 +221,8 @@ export function tickLife(dt) {
       if (Math.random() < dt * 0.05) sfx.caw(c.x, c.y); // (now and then, one of them calls)
       const al = alarmed(c, P);
       if (al) {
+        // you walked them up (a shot is heard on its own): the dead near enough to hear them go come to see what
+        if (al[0] === P.x && al[1] === P.y && !(GS.time - (P.lastShotT ?? -9) < 0.12)) crowLure(c.x, c.y);
         sfx.flush(c.x, c.y, crows.filter(o => o.id === c.id && o.st === 'ground').length);
         for (const o of crows) if (o.id === c.id && o.st === 'ground') takeOff(o, al, o === c ? 0 : rand(0.04, 0.3));
       }

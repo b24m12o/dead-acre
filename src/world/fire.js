@@ -11,7 +11,7 @@ import { query } from './nav.js';
 import { AC, noise, noiseBuf, sfxBus, spat } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, cam } from '../game/state.js';
-import { chips, decal, flashLight, floatText, part, shake } from '../render/effects.js';
+import { chips, decal, flashLight, floatText, part, shake, sparks } from '../render/effects.js';
 import { explode, hurtEnemy, hurtPlayer } from '../game/combat.js';
 import { WINDX } from './physics.js';
 import { startAlarm } from '../game/noise.js';
@@ -160,6 +160,7 @@ export function buildCarMap() {
     c.dead = false;
     c.fire = 0;
     c.hasAlarm = !c.burnt && !c.police && Math.random() < 0.6;
+    c.smoulder = !!c.burnt && Math.abs(Math.sin(c.x * 12.9898 + c.y * 78.233) * 43758.5453) % 1 < 0.4; // (some burnt out not long ago)
     c.alarm = 0;
     c.alarmUsed = false;
     c.rig = false;
@@ -227,6 +228,36 @@ export function damageCar(c, dmg) {
     }
   }
   if (c.hp <= 0) blowCar(c);
+}
+// a wreck that burnt out not long ago, still smouldering: a thin grey wisp off it, leaning with the wind; a dull red
+// glow deep in it, breathing; now and then an ember lifting off. A car is the street's size (core/scale.js)
+function smoulder(c, dt) {
+  const ca = Math.cos(c.a),
+    sa = Math.sin(c.a);
+  c._sm = (c._sm ?? Math.abs(Math.sin(c.x * 3.1 + c.y * 1.7) * 43758.5) % 1) + dt; // (each its own breath)
+  const u = Math.sin(c._sm * 0.37) * 14 - 6, // the hottest of it wanders a little, bonnet to back seat
+    x = c.x + ca * u,
+    y = c.y + sa * u;
+  if (Math.random() < dt * 4)
+    part({
+      k: 2,
+      x: x + rand(-6, 6),
+      y: y + rand(-4, 4) - 14,
+      vx: rand(-3, 3),
+      vy: rand(-18, -10),
+      life: rand(3.2, 5),
+      max: 5,
+      size: rand(0.9, 1.3),
+      grow: rand(2.2, 3),
+      rot: rand(0, TAU),
+      vr: rand(-0.3, 0.3),
+      drag: 0.6,
+      c: [0.36, 0.35, 0.34],
+      wind: 1.3,
+    });
+  const br = 0.7 + 0.2 * Math.sin(c._sm * 1.3) + 0.1 * Math.sin(c._sm * 5.1);
+  flashLight(x, y, 120 * br, [1.1 * br, 0.36 * br, 0.08 * br], dt * 1.5);
+  if (Math.random() < dt * 0.7) sparks(x + rand(-8, 8), y - 12, [1, 0.5, 0.18], 1, 45, -Math.PI / 2, 0.7);
 }
 // how far a car's blast reaches: a truck further than a car, a rigged one half again, the fuel tanker twice
 // a car is the street's size, not the people's: so is its blast (explode() takes the old size of things, hence / GK)
@@ -364,6 +395,7 @@ export function updateFire(dt) {
   for (const c of cars) {
     if (c.dead) continue;
     const near = Math.abs(c.x - cam.x - viewW / 2) < viewW && Math.abs(c.y - cam.y - viewH / 2) < viewH;
+    if (c.smoulder && near) smoulder(c, dt);
     if (c.hp < c.max * 0.6 && near && Math.random() < dt * (c.fire ? 15 : 3))
       smoke(c.x + Math.cos(c.a) * 22 + rand(-8, 8), c.y + Math.sin(c.a) * 22, 1, c.fire ? 85 : 50, !!c.fire); // a burning car pours out thick black smoke
     if (c.fire) {

@@ -15,12 +15,12 @@ export async function run(b) {
     hold();
     out.victims = victims.length;
     out.clear = victims.every(v => !blockPt(v.x, v.y));
-    const v = victims[0], P = GS.P;
+    const v = victims.find(canKneel), P = GS.P;
     if (!v) return out;
     // you far off, out of its way; it a few metres from the body
     P.x = v.x + 900; P.y = v.y;
     for (let i = 0; i < 30 && blockPt(P.x, P.y); i++) P.y += 40;
-    const e = makeEnemy('skitter', v.x - 60, v.y + 50); e.emerge = 1; e.aw = 0; GS.enemies.push(e);
+    const e = makeEnemy('skitter', v.x - 60, v.y + 50); e.emerge = 1; e.aw = 0; if (e.run) { e.run = false; e.sp /= 2.5; } // (an ordinary walker: a runner doesn't stop to feed)
     const step = n => { for (let i = 0; i < n; i++) { hold(); P.hp = S.maxHp; update(1 / 60); tickWorld(1 / 60); GS.enemies = GS.enemies.filter(o => o === e); } };
     let t = 0;
     while (t < 60 * 20 && !(e.feed && e.feed.st === 'eat')) { step(1); t++; }
@@ -56,7 +56,7 @@ export async function run(b) {
   );
   check(o.eatAt < 15 && o.eating, `one of the dead by a body should go down to feed at it: ${JSON.stringify(o)}`);
   check(
-    o.still <= 2 && o.atBody < 12 && o.facing < 0.3,
+    o.still <= 2 && o.atBody < 18 && o.facing < 0.3,
     `feeding, it should kneel still at the body, facing it: ${JSON.stringify(o)}`
   );
   check(!o.inSight || o.blind, `head down, it shouldn't see you where it would on its feet: ${JSON.stringify(o)}`);

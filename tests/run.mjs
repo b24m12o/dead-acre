@@ -46,6 +46,8 @@ const ALL = [
   'marks',
   'roof',
   'feed',
+  'crows',
+  'tracks',
   'summary',
   'campaign',
   'variants',

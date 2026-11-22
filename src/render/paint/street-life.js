@@ -2,7 +2,8 @@
 // The atlas: the street's small life (world/life.js), from above, at twice life size (the street's 20 units to the
 // metre). A crow (0.45 m nose to tail): its body with the wings folded, facing +x (crow), and one wing spread, its root
 // at the left, its tip at the right and its leading edge up (cwing: the other is this one mirrored); black, with the
-// blue-violet sheen crows have. A rat, facing +x, its tail behind (rat). A sheet of newspaper (sheet).
+// blue-violet sheen crows have. A rat, facing +x, its tail behind (rat). A sheet of newspaper (sheet). A drag smear
+// (smear), white, to be tinted.
 import { ell, region } from '../atlas.js';
 
 export function paintStreetLife() {
@@ -138,6 +139,28 @@ export function paintStreetLife() {
         for (let l = 0; l < 9; l++) if (!(c === 2 && l < 4)) a.fillRect(-4.1 + c * 2.1, -1.8 + l * 0.55, 1.8, 0.22);
       a.fillStyle = '#7a7670';
       a.fillRect(0.1, -1.8, 1.8, 2.0);
+    },
+    0.2,
+    1,
+    0
+  ); // a smear on the ground (white: tinted when it's laid), along +x: what a body dragging itself along leaves, heavy at
+  // its leading end, thinning and broken behind, streaked lengthwise by fingers and clothes
+  region(
+    'smear',
+    24,
+    8,
+    a => {
+      for (let i = 0; i < 26; i++) {
+        const f = i / 25,
+          x = 10.5 - f * 21,
+          w = 3.6 * (1 - f * 0.45) + Math.sin(i * 1.7) * 0.3;
+        a.fillStyle = `rgba(255,255,255,${(0.75 - 0.5 * f) * (0.8 + 0.2 * Math.sin(i * 2.3))})`;
+        a.beginPath();
+        a.ellipse(x, Math.sin(i * 0.6) * 0.3, 0.9, w, 0, 0, Math.PI * 2);
+        a.fill();
+      }
+      a.fillStyle = 'rgba(255,255,255,0.35)';
+      for (const y of [-2.6, -1.4, -0.3, 0.9, 2.2]) a.fillRect(-10.5 + Math.abs(y) * 1.5, y, 19 - Math.abs(y) * 2.5, 0.35);
     },
     0.2,
     1,

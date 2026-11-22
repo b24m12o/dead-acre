@@ -78,8 +78,15 @@ export function placeVictims(seed = 1) {
       eaten: 0,
       pooled: false,
     });
+    const v = victims[victims.length - 1];
+    if (blockPt(...spotAt(v, 0)) && blockPt(...spotAt(v, 1))) {
+      victims.pop(); // (nowhere beside it to kneel: wedged by the car)
+      i--;
+    }
   }
 }
+// a body one of the dead can still come and kneel at
+export const canKneel = b => !(b.eaten > FEED.left) && freeSlot(b) >= 0;
 // the bodies there are to feed on
 const bodies = () => (GS.fallen?.length ? victims.concat(GS.fallen) : victims);
 // a body's two places to kneel: the one free (a feeder gone, killed or up and away, frees its place), or -1
@@ -108,11 +115,11 @@ export const canFeed = e =>
 export function feedTick(e, dt) {
   let f = e.feed;
   if (!f) {
-    if (!canFeed(e) || Math.random() > dt * 0.6) return null;
+    if (!canFeed(e) || Math.random() > dt * 2) return null; // (passing one, it soon notices)
     let best = null,
       bd = FEED.near ** 2;
     for (const b of bodies()) {
-      if (b.eaten > FEED.left || freeSlot(b) < 0) continue;
+      if (!canKneel(b)) continue;
       const d = (b.x - e.x) ** 2 + (b.y - e.y) ** 2;
       if (d < bd && los(e.x, e.y, b.x, b.y)) {
         bd = d;

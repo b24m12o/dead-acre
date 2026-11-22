@@ -6,7 +6,10 @@ import { ui } from '../render/gl.js';
 import { VH, VW, quad, setH, viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { AC, noise } from '../audio/audio.js';
-import { ring } from '../render/effects.js';
+import { ring, sparks } from '../render/effects.js';
+import { cars } from './map.js';
+import { TILT } from '../core/scale.js';
+import { sfx } from '../audio/sfx.js';
 import { placeLook } from './places.js';
 import { NIGHT } from '../render/draw-player.js';
 let DAWNV = 0;
@@ -47,7 +50,9 @@ export function updateWeather(dt) {
         y = GS.camY + rand(0, viewH);
       ring(x, y, 1, 8, 0.25, [0.5, 0.55, 0.65], 0.35);
     }
+    if (GS.state === 'play') rainOnCars(dt);
   }
+  if (GS.state === 'play' && GS.pud > 0.25) splashing(dt);
   GS.lightning = Math.max(0, GS.lightning - dt * 5);
   const base = { sun: [0.29, 0.345, 0.52], sky: [0.225, 0.252, 0.37] }; // moonlight: cold and low, enough to read the ground by
   const look = placeLook(); // each stop on the road tints the night its own way (places.js)
@@ -92,6 +97,56 @@ export function updateWeather(dt) {
       : 0;
   NIGHT.sun = sun.map((v, i) => v + fl * [1.2, 1.25, 1.4][i]);
   NIGHT.sky = sky.map((v, i) => v + fl * [0.6, 0.65, 0.8][i]);
+}
+// rain on the cars: drops bursting on the roofs and bonnets, a little spray off each (a car is the street's size:
+// its roof about one and a half metres up, its bonnet and boot nearer one)
+function rainOnCars(dt) {
+  for (const c of cars) {
+    if (c.dead || c.truck || c.tanker) continue;
+    if (c.x < GS.camX - 60 || c.x > GS.camX + viewW + 60 || c.y < GS.camY - 60 || c.y > GS.camY + viewH + 60) continue;
+    if (Math.random() > dt * 22) continue;
+    const u = rand(-27, 27),
+      v = rand(-12, 12),
+      roof = Math.abs(u + 4) < 11 && Math.abs(v) < 9.5,
+      z = (roof ? 29 : 19) * (c.burnt ? 0.85 : 1),
+      ca = Math.cos(c.a),
+      sa = Math.sin(c.a),
+      x = c.x + ca * u - sa * v,
+      y = c.y + sa * u + ca * v - z * TILT;
+    ring(x, y, 1, 8, 0.22, [0.62, 0.66, 0.74], 0.6);
+    sparks(x, y, [0.7, 0.75, 0.85], 3, 34, -Math.PI / 2, 1.2);
+  }
+}
+// wading through standing water: a splash at each step, rings opening round the feet, and the sound of it (yours and
+// your people's always, the dead's when they're near you)
+export const inPuddle = (x, y) => {
+  if (!(GS.pud > 0.25)) return false;
+  for (const q of GS.puddles || []) {
+    const s = q.s * (0.55 + 0.45 * GS.pud),
+      dx = (x - q.x) / (20 * s + 6),
+      dy = (y - q.y) / (11 * s + 4);
+    if (dx * dx + dy * dy < 1) return true;
+  }
+  return false;
+};
+function splashing(dt) {
+  const P = GS.P,
+    seen = o => Math.abs(o.x - GS.camX - viewW / 2) < viewW * 0.6 && Math.abs(o.y - GS.camY - viewH / 2) < viewH * 0.6;
+  const wade = (o, loud) => {
+    const sp = Math.hypot(o.vx || 0, o.vy || 0);
+    if (sp < 25 || !seen(o)) return;
+    o._wd = (o._wd || 0) + sp * dt;
+    if (o._wd < 20) return; // (a step, about)
+    o._wd = 0;
+    if (!inPuddle(o.x, o.y)) return;
+    ring(o.x, o.y, 2, 12, 0.4, [0.55, 0.6, 0.7], 0.7);
+    sparks(o.x, o.y - 2, [0.6, 0.65, 0.75], 4 + (sp > 120 ? 3 : 0), 40 + sp * 0.25, -Math.PI / 2, 1.1);
+    if (loud) sfx.splash(o.x, o.y, Math.min(1, sp / 160));
+  };
+  if (P && !P.ride) wade(P, true);
+  for (const b of GS.buddies) if (!b.gone) wade(b, true);
+  for (const e of GS.enemies)
+    if (!e.dead && !e.fly && !(e.z > 2)) wade(e, P && Math.abs(e.x - P.x) < 260 && Math.abs(e.y - P.y) < 200);
 }
 export function drawRainUI() {
   if (GS.ev !== 'storm' || GS.state === 'menu') return;
