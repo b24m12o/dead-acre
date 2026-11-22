@@ -139,6 +139,18 @@ vec4 T(int x, int r){ return texelFetch(uBones,ivec2(x,r),0); }
 const vec3 HAT[16]=vec3[16](vec3(0.55,0.1,0.08),vec3(0.8,0.78,0.72),vec3(0.1,0.12,0.2),vec3(0.06,0.06,0.07),vec3(0.86,0.7,0.1),vec3(0.86,0.38,0.07),vec3(0.82,0.82,0.78),vec3(0.2,0.32,0.2),
   vec3(0.4,0.4,0.42),vec3(0.36,0.1,0.12),vec3(0.6,0.48,0.18),vec3(0.16,0.26,0.48),vec3(0.75,0.6,0.15),vec3(0.5,0.46,0.34),vec3(0.3,0.22,0.16),vec3(0.62,0.12,0.1));
 vec3 oct(vec2 e){ vec3 v=vec3(e,1.0-abs(e.x)-abs(e.y)); if(v.z<0.0) v.xy=(1.0-abs(v.yx))*vec2(v.x>=0.0?1.0:-1.0,v.y>=0.0?1.0:-1.0); return normalize(v); }
+float h3(vec3 q){ return fract(sin(dot(q,vec3(127.1,311.7,74.7)))*43758.5453); }
+float vn3(vec3 q){ vec3 i=floor(q), f=fract(q); f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z); }
+// a burnt-out car's metal: its paint burnt off to rust and grey-white ash in broad patches, blackened with soot low
+// down and over its wheels and where the fire came out of the windows, the roof bleached paler
+vec3 burnt(vec3 p, vec3 n){
+  float a=vn3(p*0.09)*0.65+vn3(p*0.27+7.0)*0.35;
+  vec3 c=mix(vec3(0.34,0.16,0.07),vec3(0.46,0.43,0.39),smoothstep(0.42,0.62,a)); // rust, ash
+  c=mix(c,c*vec3(1.15,0.9,0.75),smoothstep(0.62,0.8,vn3(p*0.5+3.0))*0.6); // flakes of scorched primer
+  float soot=smoothstep(11.0,4.0,p.z)*0.75+smoothstep(0.5,0.0,n.z)*smoothstep(15.0,23.0,p.z)*0.5;
+  c=mix(c,vec3(0.06,0.055,0.05),clamp(soot,0.0,0.85)*(0.7+0.3*vn3(p*0.4)));
+  return c*mix(1.0,1.25,smoothstep(0.75,0.95,n.z)*smoothstep(20.0,26.0,p.z)); }
 void main(){
   int r=int(aRow+0.5);
   vec3 p=uKp+(aP/256.0-uKp)*uKt.w+uKt.xyz, n=oct(aN);
@@ -206,7 +218,7 @@ void main(){
   else if(reg==37) c=vec3(0.075,0.075,0.075);
   else if(reg==38) c=vec3(0.58,0.6,0.62);
   else if(reg==39) c=vec3(0.52,0.08,0.06);
-  else if(reg==40) c=vec3(0.1,0.085,0.075);
+  else if(reg==40) c=burnt(p,n);
   else if(reg==41) c=vec3(0.6,0.6,0.58);
   else if(reg==44) c=vec3(0.06,0.12,0.55);
   else if(reg==45) c=vec3(0.3,0.17,0.09); // a gun's walnut
@@ -2474,21 +2486,23 @@ function poseHeroFK(p, D, o) {
     for (let b = 1; b <= 5; b++) fkMix(FKQ, FK2, b, hurtK);
   }
   // the dodge roll: the recording's roll, through in half a second, the way it was thrown; then back on its feet.
-  // Thrown back the way he faces (backing off), he doesn't turn round to roll and turn back: he steps back hard,
-  // two quick long steps (CMU's), still facing his aim, the gun still up
-  if (p.dashT > 0 && !(t - (p._rollT0 ?? -9) < 0.55)) {
+  // Thrown back the way he faces (backing off), he doesn't turn round to roll and turn back: he rolls over backward
+  // (CMU's backward somersault: sits back, over his shoulder, up on his feet), still facing his aim, in three quarters
+  // of a second
+  if (p.dashT > 0 && !(t - (p._rollT0 ?? -9) < (p._rollD || 0.5) + 0.05)) {
     const da = p.dashA ?? yaw;
     p._rollT0 = t;
-    p._rollB = Math.abs(angDiff(da, aim)) > 1.9;
+    p._rollB = Math.abs(angDiff(da, aim)) > 1.9 && !!X.broll;
     p._rollA = p._rollB ? da + Math.PI : da;
+    p._rollD = p._rollB ? 0.75 : 0.5;
   }
-  const rollU = (t - (p._rollT0 ?? -9)) / 0.5,
+  const rollU = (t - (p._rollT0 ?? -9)) / (p._rollD || 0.5),
     rollK = rollU >= 0 && rollU < 1 ? Math.min(1, rollU / 0.08, (1 - rollU) / 0.15) : 0;
-  const stepB = rollK > 0 && p._rollB ? rollK : 0; // (the backstep: legs and trunk as recorded, the arms his own)
-  if (stepB > 0) {
-    fkSnap(FK2, FKR2, X.bstep, Math.min(rollU, 0.999) * X.bstep.dur, false);
-    for (let b = 0; b < 22; b++) if (b < 6 || b > 13) fkMix(FKQ, FK2, b, stepB);
-    for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * stepB;
+  const stepB = 0; // (backing off was two quick steps back; it's a roll now, as forward)
+  if (rollK > 0 && p._rollB) {
+    fkSnap(FK2, FKR2, X.broll, Math.min(rollU, 0.999) * X.broll.dur, false);
+    for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, rollK);
+    for (let j = 0; j < 3; j++) FKR[j] += (FKR2[j] - FKR[j]) * rollK;
   } else if (rollK > 0) {
     fkSnap(FK2, FKR2, C.roll, 0.45 + rollU * 1.05, false); // (the tuck and roll, not the dive before it)
     for (let b = 0; b < 22; b++) fkMix(FKQ, FK2, b, rollK);

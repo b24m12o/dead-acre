@@ -28,12 +28,14 @@ import { updateEvac } from '../game/evac.js';
 import { bossNight } from '../game/waves.js';
 import { updateWeather } from './weather.js';
 import { GK } from '../core/scale.js';
+import { tickLife } from './life.js';
 export function tickWorld(dt) {
   sightTick(dt);
   tickCrowd(dt); // the moan of the many (crowd.js)
   tickAmbience(dt); // each place's own sound, and things happening far off (ambience.js)
   updateJets(dt);
   updateAsh(dt);
+  tickLife(dt); // crows, steam (life.js)
   updateFire(dt);
   updateWeather(dt);
   if (GS.evac && GS.state !== 'play') updateEvac(dt);

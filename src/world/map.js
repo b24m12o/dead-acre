@@ -7,6 +7,7 @@ import { gl } from '../render/gl.js';
 import { MAXTEX, boxBlur, circ, ell, grad, heightToNormals, rgrad, rr } from '../render/atlas.js';
 import { texFromCanvas } from './nav.js';
 import { resetWear, setupAtmos } from './wear.js';
+import { resetLife } from './life.js';
 import { bakeRadar } from '../ui/radar.js';
 import { hsh, prepBlocks } from '../render/blocks.js';
 import { carHits } from '../render/cars.js';
@@ -809,6 +810,7 @@ export function generateMap() {
   buildCarMap();
   prepBlocks();
   resetWear();
+  resetLife();
   setupAtmos();
   bakeMap();
 }
@@ -2049,81 +2051,36 @@ function bakeMap() {
         h.fill();
       }
     }
-  // wrecked cars (top view)
+  // under each car, what's on the street there (the car itself is its mesh, drawn standing on it: nothing of it painted
+  // into the street, no wheels or body or raised patch for the light to catch): the dark it keeps off the street
+  // under it, soft at its edges, old oil and fluid soaked in, and glass round it
   for (const c of cars) {
     const L = c.truck ? 118 : 78,
       W = c.truck ? 44 : 38;
-    for (const [cv, pass] of [
-      [a, 0],
-      [h, 1],
+    a.save();
+    a.translate(c.x, c.y);
+    a.rotate(c.a);
+    for (const [g, al] of [
+      [4, 0.1],
+      [0, 0.14],
+      [-5, 0.2],
+      [-10, 0.24],
     ]) {
-      cv.save();
-      cv.translate(c.x, c.y);
-      cv.rotate(c.a);
-      if (pass) {
-        cv.fillStyle = 'rgb(150,40,0)';
-        rr(cv, -L / 2, -W / 2, L, W, 9);
-        cv.fill();
-        cv.fillStyle = 'rgb(255,40,0)';
-        rr(cv, -14, -W / 2 + 5, 30, W - 10, 5);
-        cv.fill();
-        cv.restore();
-        continue;
-      }
-      cv.fillStyle = 'rgba(0,0,0,0.6)';
-      for (const [wx, wy] of [
-        [-24, -21],
-        [-24, 21],
-        [24, -21],
-        [24, 21],
-      ]) {
-        rr(cv, wx - 8, wy - 4, 16, 8, 3);
-        cv.fill();
-      }
-      const body = c.burnt ? '#3a3430' : c.col;
-      cv.fillStyle = body;
-      rr(cv, -L / 2, -W / 2, L, W, 9);
-      cv.fill();
-      cv.strokeStyle = '#141210';
-      cv.lineWidth = 2.4;
-      cv.stroke();
-      cv.fillStyle = 'rgba(255,255,255,0.12)';
-      rr(cv, -L / 2 + 4, -W / 2 + 3, L - 8, 5, 3);
-      cv.fill();
-      cv.fillStyle = 'rgba(0,0,0,0.25)';
-      rr(cv, -L / 2 + 4, W / 2 - 8, L - 8, 5, 3);
-      cv.fill();
-      cv.fillStyle = c.burnt ? '#1e1a18' : '#24303a';
-      rr(cv, 6, -W / 2 + 5, 14, W - 10, 4);
-      cv.fill();
-      rr(cv, -26, -W / 2 + 6, 10, W - 12, 3);
-      cv.fill();
-      cv.fillStyle = c.burnt ? '#2a2420' : 'rgba(0,0,0,0.18)';
-      rr(cv, -16, -W / 2 + 5, 22, W - 10, 4);
-      cv.fill();
-      cv.fillStyle = 'rgba(200,220,230,0.5)';
-      for (let k = 0; k < 14; k++) {
-        circ(cv, rand(-L / 2 - 8, L / 2 + 8), rand(-W / 2 - 8, W / 2 + 8), rand(0.5, 1.4));
-        cv.fill();
-      }
-      cv.fillStyle = 'rgba(120,60,30,0.5)';
-      for (let k = 0; k < 6; k++) {
-        circ(cv, rand(-L / 2 + 4, L / 2 - 4), rand(-W / 2 + 3, W / 2 - 3), rand(2, 5));
-        cv.fill();
-      }
-      cv.fillStyle = '#f0e6c0';
-      cv.fillRect(L / 2 - 3, -W / 2 + 4, 3, 6);
-      cv.fillRect(L / 2 - 3, W / 2 - 10, 3, 6);
-      cv.fillStyle = '#a02020';
-      cv.fillRect(-L / 2, -W / 2 + 4, 3, 6);
-      cv.fillRect(-L / 2, W / 2 - 10, 3, 6);
-      if (Math.random() < 0.4) {
-        cv.fillStyle = 'rgba(90,10,8,0.7)';
-        ell(cv, rand(-10, 10), rand(-6, 6), rand(4, 9), rand(3, 6), rand(0, 3));
-        cv.fill();
-      }
-      cv.restore();
+      a.fillStyle = `rgba(8,8,10,${al})`;
+      rr(a, -L / 2 - g, -W / 2 - g * 0.6, L + g * 2, W + g * 1.2, 10);
+      a.fill();
     }
+    a.fillStyle = c.burnt ? 'rgba(14,12,10,0.55)' : 'rgba(22,20,16,0.4)';
+    ell(a, rand(-L * 0.25, L * 0.25), rand(-4, 4), rand(8, 16), rand(5, 9), rand(0, 3));
+    a.fill();
+    a.fillStyle = 'rgba(200,220,230,0.5)';
+    for (let k = 0; k < 14; k++) {
+      const u = rand(-L / 2 - 10, L / 2 + 10),
+        v = (Math.random() < 0.5 ? -1 : 1) * rand(W / 2 + 1, W / 2 + 10);
+      circ(a, u, v, rand(0.5, 1.4));
+      a.fill();
+    }
+    a.restore();
   }
   // tire marks: skids and swerves left by the panic
   for (let i = 0; i < (D === 'cemetery' ? 4 : 26); i++) {

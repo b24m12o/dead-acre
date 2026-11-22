@@ -11,6 +11,7 @@ import { paintPeople } from './paint/people.js';
 import { paintBeasts } from './paint/beasts.js';
 import { paintGore } from './paint/gore.js';
 import { paintProps } from './paint/props.js';
+import { paintBirds } from './paint/birds.js';
 import { region } from './atlas.js';
 import { rand } from '../core/util.js';
 import { RF_SIZES, WB_SIZES } from './bake.js';
@@ -70,4 +71,5 @@ export function paintAtlas() {
       0,
       0
     );
+  paintBirds(); // (last: nothing before it moves)
 }

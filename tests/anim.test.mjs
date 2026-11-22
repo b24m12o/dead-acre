@@ -30,7 +30,7 @@ const step = (A, B) => {
   return m;
 };
 // the looped ones (walks, runs, stances): one-offs (a roll, a death, a get-up) need not meet their start
-const ONCE = new Set(['roll', 'hit', 'death', 'push', 'scratch', 'knock', 'getup', 'throw']);
+const ONCE = new Set(['broll', 'roll', 'hit', 'hithead', 'death', 'push', 'scratch', 'knock', 'getup', 'throw']);
 
 function recordings() {
   const bad = [];

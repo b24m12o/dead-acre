@@ -8,7 +8,8 @@ import { R } from './atlas.js';
 import { MH, MW, TILE, cars, crystals, fires, lamps, roofs, trees, ttype } from '../world/map.js';
 import { drawRanger, lampHot } from './draw-player.js';
 import { drawEnemy } from './draw-enemies.js';
-import { drawHero3D, figFlush } from './fig3d.js';
+import { crows, drawCrow, drawFlies, lying } from '../world/life.js';
+import { drawCar3D, drawHero3D, figFlush } from './fig3d.js';
 import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
 import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk, propShadow } from './decor.js';
@@ -381,6 +382,9 @@ export function drawCasters() {
   } // the wrecks across the convoy's road: there from the moment you arrive at a place you'll leave by truck
   if (!GS.SHMODE) for (const h of HATCHES) if (vis(h.x, h.y)) push(h.y - 60, drawHatch, h); // flat in the road, under whoever crosses it
   for (const e of GS.corpses) if (vis(e.x, e.y)) push(e.y - 18, drawEnemy, e);
+  if (!GS.SHMODE) for (const e of GS.corpses) if (!e.burnt && vis(e.x, e.y, 20)) push(e.y - 17, drawFlies, e); // (life.js)
+  if (!GS.SHMODE) for (const e of lying) if (vis(e.x, e.y, 20)) push(e.y - 17, drawFlies, e);
+  for (const c of crows) if (vis(c.x, c.y - c.z * 0.5, 60)) push(c.y + (c.z > 30 ? 60 + c.z : 0), drawCrow, c);
   {
     let L = GS.enemies.filter(e => !e.fly && vis(e.x, e.y));
     if (GS.SHMODE === 2) {
@@ -857,22 +861,16 @@ function drawHatch0(h) {
 }
 function drawRoadblock([c, B]) {
   const d = B.push * c.k,
-    f = B.fwd || 0;
+    f = B.fwd || 0,
+    x = c.x + c.px * d + (B.dx || 0) * f,
+    y = c.y + c.py * d + (B.dy || 0) * f,
+    a = c.a + d * 0.012;
+  // a burnt-out car, in 3D as the street's others are (fig3d.js), shoved along as the truck rams it
+  const v = c._v || (c._v = { burnt: true, hp: 1, max: 1 });
+  v.x = x;
+  v.y = y;
+  v.a = a;
+  if (drawCar3D(v)) return;
   setH(14);
-  quad(
-    R.carburn,
-    c.x + c.px * d + (B.dx || 0) * f,
-    c.y + c.py * d + (B.dy || 0) * f,
-    c.a + d * 0.012,
-    1,
-    1,
-    0.8,
-    0.78,
-    0.74,
-    1,
-    0,
-    0,
-    0,
-    0
-  );
+  quad(R.carburn, x, y, a, 1, 1, 0.8, 0.78, 0.74, 1, 0, 0, 0, 0);
 }

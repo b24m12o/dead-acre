@@ -68,6 +68,7 @@ import { shakeOff } from './camera.js';
 import { CHEM, NIGHT, lampHot, lampK } from './draw-player.js';
 import { BILE, GIANT } from './draw-enemies.js';
 import { bakeRemains, bodyAO } from './remains.js';
+import { drawMoths } from '../world/life.js';
 import { atmosLights, drawAsh, drawAshGlow, shaftGlow } from '../world/wear.js';
 import { lampShadowPass } from './lampshadows.js';
 import { primeBoss3D } from './boss3d.js';
@@ -677,6 +678,13 @@ export function render() {
         0.18 * k,
         0
       );
+    if (
+      k > 0.3 &&
+      !L.lantern &&
+      Math.abs(L.hx - GS.camX - viewW / 2) < viewW &&
+      Math.abs(L.hy - GS.camY - viewH / 2) < viewH
+    )
+      drawMoths(L, LAMPV(L), k); // (life.js)
   }
   if (GS.ev === 'storm')
     for (const L of lamps) {

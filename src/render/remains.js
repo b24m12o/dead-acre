@@ -17,6 +17,7 @@ import { figCam, figFlush } from './fig3d.js';
 import { LYB, lyState } from './draw-bodies.js';
 import { pileKeep } from '../world/piles.js';
 
+import { lain } from '../world/life.js';
 export const REMAINS = {
   hold: 1.6, // seconds before its time is up that a body is handed over: it never starts to fade
   every: 300, // ms between paintings, so a horde's worth goes in over a few seconds, not in one frame
@@ -237,6 +238,7 @@ export function bakeRemains() {
       gone.add(e);
       pileKeep(e);
       flatten(e);
+      lain(e); // (flies stay with it: life.js)
     }
     for (const d of M) gone.add(d);
     GS.baked.bodies += B.length;

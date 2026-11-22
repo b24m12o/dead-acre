@@ -36,7 +36,9 @@ const MAP = [
   ['footL', 'LeftFoot', 'LeftToeBase'],
   ['toeL', 'LeftToeBase', null],
 ];
-// the clips: [ours, file, from, to (seconds: a steady stretch of it), mirrored (its left for its right)]
+// the clips: [ours, file, from, to (seconds: a steady stretch of it), mirrored (its left for its right), once (a move
+// played through once, not a loop: kept whole, facing as it faced at its start, its travel kept as a speed and a
+// direction and the hips about the straight line from where they began to where they ended)]
 const CLIPS = [
   ['zwalk', '104/104_41.bvh', 3.0, 11.4], // ZombieWalk
   ['zwalk2', '120/120_22.bvh', 5.4, 9.8], // Zombie
@@ -52,6 +54,7 @@ const CLIPS = [
   ['shufM', '006/06_08.bvh', 0.5, 2.7, 1],
   ['bstep', '076/76_11.bvh', 0.6, 2.9], // quick large steps backwards (the dodge, backing off)
   ['run', '016/16_45.bvh', 0.05, 1.12], // run/jog: a natural run at about the hero's pace
+  ['broll', '090/90_01.bvh', 2.3, 5.25, 0, 1], // a backward somersault (the dodge, backing off): sit back, over, up
 ];
 // a bone's other-side twin (mirrored clips take it)
 const TWIN = [0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 6, 7, 8, 9, 18, 19, 20, 21, 14, 15, 16, 17];
@@ -97,7 +100,7 @@ function quat(m) {
 }
 const ang = a => Math.atan2(Math.sin(a), Math.cos(a));
 const OUT = {};
-for (const [key, file, a0, a1, mir] of CLIPS) {
+for (const [key, file, a0, a1, mir, once] of CLIPS) {
   const B = readBVH(DATA + '/' + file),
     J = n => B.joints.findIndex(j => j.name === n),
     idx = MAP.map(([, m, e]) => [J(m), e ? J(e) : -1]),
@@ -145,6 +148,69 @@ for (const [key, file, a0, a1, mir] of CLIPS) {
     S.push({ p, hip, face, low: low(p) });
   }
   const ground = Math.min(...S.map(q => q.low));
+  if (once) {
+    // facing as it faced standing at the start (a tenth of a second of it): upside down, the hips' own heading is no guide
+    const k0 = Math.max(1, Math.round(0.1 / B.dt));
+    let sx = 0,
+      sy = 0;
+    for (let i = 0; i < k0; i++) {
+      sx += Math.cos(S[i].face);
+      sy += Math.sin(S[i].face);
+    }
+    const h0 = Math.atan2(sy, sx),
+      i1 = S.length - 1,
+      T = i1 * B.dt,
+      dx = S[i1].hip[0] - S[0].hip[0],
+      dy = S[i1].hip[1] - S[0].hip[1],
+      N = Math.max(2, Math.round(T * 30)),
+      frames = [],
+      root = [],
+      Ru = Rz(-h0),
+      c = Math.cos(-h0),
+      sn = Math.sin(-h0);
+    // (the feet held as they were against their shins at the start: through a roll the ankles barely move, and
+    // upside down the take's feet flick round)
+    const tr = m => [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]],
+      Ms = i => Array.from({ length: 22 }, (_, b) => mm(mm(Ru, mm(mm(C, S[i].p.R[idx[b][0]]), CT)), REB[b])),
+      M0 = Ms(0),
+      FOOT = { 16: 15, 17: 15, 20: 19, 21: 19 };
+    for (let k = 0; k <= N; k++) {
+      const i = Math.round((i1 * k) / N),
+        q = S[i],
+        u = i / i1,
+        d = [q.hip[0] - (S[0].hip[0] + dx * u), q.hip[1] - (S[0].hip[1] + dy * u)],
+        M = Ms(i),
+        Q = [];
+      for (const b in FOOT) M[b] = mm(M[FOOT[b]], mm(tr(M0[FOOT[b]]), M0[b]));
+      for (let b = 0; b < 22; b++) Q.push(...quat(M[b]));
+      frames.push(Q.map(q3));
+      root.push([(c * d[0] - sn * d[1]) / H, (sn * d[0] + c * d[1]) / H, (q.hip[2] - ground - H0) / H].map(q3));
+    }
+    OUT[key] = {
+      src: 'cmu',
+      once: 1,
+      dur: q3(T),
+      fps: N / T,
+      frames,
+      root,
+      ph0: 0,
+      ns: 0,
+      st: 0,
+      v: q3(Math.hypot(dx, dy) / T / H),
+      go: q3(ang(Math.atan2(dy, dx) - h0)),
+    };
+    console.log(
+      key,
+      'once over',
+      T.toFixed(2),
+      's; travel',
+      (Math.hypot(dx, dy) / H).toFixed(2),
+      'legs, going',
+      ((OUT[key].go * 180) / Math.PI).toFixed(0),
+      '°'
+    );
+    continue;
+  }
   // its heading, smoothed over a stride or so; its path likewise
   const W = Math.round(0.6 / B.dt),
     sm = (i, g) => {
