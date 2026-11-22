@@ -160,7 +160,8 @@ export function paintStreetLife() {
         a.fill();
       }
       a.fillStyle = 'rgba(255,255,255,0.35)';
-      for (const y of [-2.6, -1.4, -0.3, 0.9, 2.2]) a.fillRect(-10.5 + Math.abs(y) * 1.5, y, 19 - Math.abs(y) * 2.5, 0.35);
+      for (const y of [-2.6, -1.4, -0.3, 0.9, 2.2])
+        a.fillRect(-10.5 + Math.abs(y) * 1.5, y, 19 - Math.abs(y) * 2.5, 0.35);
     },
     0.2,
     1,
