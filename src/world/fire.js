@@ -296,7 +296,7 @@ function fireAudio(dt) {
   for (const fp of GS.firePools) near(fp.x, fp.y, 0.7 * Math.min(1, fp.life / 1.5) * Math.min(1.6, fp.r / 50));
   for (let i = 0; i < GS.grassFire.length; i += 4) near(GS.grassFire[i].x, GS.grassFire[i].y, 0.3);
   for (const c of cars) if (c.fire && !c.dead) near(c.x, c.y, 1);
-  I = Math.min(1.4, I);
+  I = Number.isFinite(I) ? Math.min(1.4, I) : 0; // (a fire whose numbers went bad, once in a long while: heard as none, not a broken sound)
   if (!fireG) {
     const sr = AC.createBufferSource();
     sr.buffer = noiseBuf;

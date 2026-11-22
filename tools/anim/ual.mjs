@@ -314,6 +314,7 @@ clipsOf([
   ['hithead', 'Hit_Head', 0],
   ['death', 'Death01', 0],
   ['push', 'Push_Loop', 0],
+  ['kneel', 'Fixing_Kneeling', 0], // (down on its knees at something on the ground: the dead feeding)
 ]);
 // Library 2 (its Standard pack, also CC0), if given: the dead's own walk and stance, a zombie's scratch, a hit that
 // knocks one back, getting up off the ground, and an overhand throw

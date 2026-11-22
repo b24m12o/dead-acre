@@ -18,6 +18,7 @@ import { lampK } from '../render/draw-player.js';
 import { LAMPV } from '../render/decor.js';
 import { HATCHES } from './sewers.js';
 import { sfx } from '../audio/sfx.js';
+import { victims } from '../actors/feeding.js';
 
 // (a number from 0 to 1 for a pair of whole numbers: the same each time)
 const hsh = (a, b) => ((((a * 73856093) ^ (b * 19349663)) >>> 0) % 1000) / 1000;
@@ -45,7 +46,7 @@ export function resetLife() {
 // somewhere open for a flock to come down: by one of the dead lying out of reach of the fight if there is one, else on
 // the street, out from you
 function landingSpot(P) {
-  const near = GS.corpses.filter(e => {
+  const near = GS.corpses.concat(victims.filter(v => !(v.eaten > 0))).filter(e => {
     const d = Math.hypot(e.x - P.x, e.y - P.y);
     return d > 260 && d < 800 && !blockPt(e.x, e.y);
   });
@@ -244,6 +245,7 @@ function ratSpot(P) {
   for (const d of GS.decor) if ((d.kind === 'trash' || d.kind === 'dumpster') && !d.down) c.push(d);
   for (const e of GS.corpses) c.push(e);
   for (const e of lying) c.push(e);
+  for (const e of victims) if (!e.eaten) c.push(e); // (not where one of the dead is feeding)
   const ok = c.filter(q => {
     const d = Math.hypot(q.x - P.x, q.y - P.y);
     return d > 220 && d < 650;

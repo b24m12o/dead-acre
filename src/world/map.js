@@ -8,6 +8,7 @@ import { MAXTEX, boxBlur, circ, ell, grad, heightToNormals, rgrad, rr } from '..
 import { texFromCanvas } from './nav.js';
 import { resetWear, setupAtmos } from './wear.js';
 import { resetLife } from './life.js';
+import { placeVictims } from '../actors/feeding.js';
 import { bakeRadar } from '../ui/radar.js';
 import { hsh, prepBlocks } from '../render/blocks.js';
 import { carHits } from '../render/cars.js';
@@ -811,6 +812,7 @@ export function generateMap() {
   prepBlocks();
   resetWear();
   resetLife();
+  placeVictims(cars.length * 13.7 + (cars[0] ? cars[0].x * 0.013 + cars[0].y * 0.007 : 1)); // (from the place itself: the same place, the same dead)
   setupAtmos();
   bakeMap();
 }

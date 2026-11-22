@@ -27,6 +27,8 @@ function vehicle(C, X = {}) {
   const GLSL = `
 int gPart; int gReg; float gU;
 ${consts.replace(/const float AX=[^;]*;/, '')}
+const float SINK=${C.BURNT ? '1.9' : '0.0'}; // burnt out: the tyres gone, the shell down on its rims (its own frame lifted by this)
+float roofZ(vec3 p){ return ROOF-0.011*p.y*p.y-0.0025*pow(p.x-(XF1+XR1)*0.5,2.0)${C.BURNT ? '-1.2*smoothstep(13.0,0.0,abs(p.x-(XF1+XR1)*0.5))*smoothstep(W-GW1,0.0,abs(p.y))' : ''}; }
 float sbx(vec3 p, vec3 c, vec3 b, float r){ return sdBox(p,c,b-r,r); }
 float rr2(vec2 p, vec2 b, float r){ vec2 q=abs(p)-b+r; return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r; }
 // the top line of the lower body along its length: the bonnet falling away to the nose, the waist, the boot deck
@@ -51,31 +53,37 @@ float green(vec3 p){
   float ff=((p.x-XF0)*H+z*(XF0-XF1))/sqrt(H*H+(XF0-XF1)*(XF0-XF1));
   float fr=((XR0-p.x)*H+z*(XR1-XR0))/sqrt(H*H+(XR1-XR0)*(XR1-XR0));
   float fs=((abs(p.y)-wb)*H+z*(wb-wr))/sqrt(H*H+(wb-wr)*(wb-wr));
-  float roof=ROOF-0.011*p.y*p.y-0.0025*pow(p.x-(XF1+XR1)*0.5,2.0)${C.BURNT ? '-1.4*smoothstep(12.0,0.0,abs(p.x-(XF1+XR1)*0.5))' : ''};
+  float roof=roofZ(p); // (burnt out, sagging in the middle where the heat softened it)
   float g=smax(smax(max(ff,fr),fs,1.8),p.z-roof,2.2);
   return smax(g,BELT-1.8-p.z,0.4); }
 // a tyre on its rim, the rim's dish set into its outer face
 float tyre(vec3 p, float cx){ float cy=W-TY-1.0, r=length(vec2(p.x-cx,p.z-WR));
   vec2 q=vec2(r-(WR-1.0),abs(abs(p.y)-cy)-(TY-1.0)); float t=min(max(q.x,q.y),0.0)+length(max(q,0.0))-1.0;
   return smax(t,-max(r-(WR-2.0),(cy+TY-0.4)-abs(p.y)),0.3); }
-float tyres(vec3 p){ float t=1e3; ${axles} return t; }
+// burnt out, the rubber's gone: a bare steel rim, its dish in its outer face, where the tyre was
+float rim(vec3 p, float cx){ float cy=W-TY-1.0, r=length(vec2(p.x-cx,p.z-WR));
+  vec2 q=vec2(r-(WR-2.3),abs(abs(p.y)-cy)-(TY-1.7)); float t=min(max(q.x,q.y),0.0)+length(max(q,0.0))-0.3;
+  return smax(t,-max(r-(WR-3.4),(cy+TY-2.2)-abs(p.y)),0.3); }
+float tyres(vec3 p){ float t=1e3; ${C.BURNT ? axles.replaceAll('tyre(', 'rim(') : axles} return t; }
 ${X.glsl || 'float extra(vec3 p){ return 1e3; } int extraReg(vec3 p, vec3 n){ return -1; }'}
 float shell(vec3 p){
   float d=smin(body(p),green(p),1.3);
   ${C.BED ? 'd=smax(d,-sbx(p,vec3((XO-L+1.8+XR0-1.4)*0.5,0.0,BELT+3.0),vec3((XR0-1.4-(XO-L+1.8))*0.5,W-3.1,BELT+3.0-CLR-5.2),0.8),0.4); // the open bed, its walls left standing' : ''}
-  ${C.BURNT ? 'd-=(fbm(p.xy*0.35+3.0)-0.5)*1.1; // fire-warped panels' : ''}
+  ${C.BURNT ? 'd-=(vn(p.xy*0.11+3.0)-0.5)*0.7+(vn(p.xy*0.23+9.0)-0.5)*0.25; // the panels gently bowed and dished by the heat' : ''}
   return d; }
 float model(vec3 p){
+  p.z+=SINK;
   float d=shell(p);
   ${C.BURNT ? '' : 'for(int s=-1;s<=1;s+=2) d=min(d,sbx(p,vec3(XF0-2.4,float(s)*(W-0.2),BELT+1.7),vec3(1.5,1.6,1.05),0.6)); // the mirrors'}
   ${C.POL ? 'd=min(d,sbx(p,vec3((XF1+XR1)*0.5+1.0,0.0,ROOF+0.7),vec3(2.0,9.6,0.95),0.6)); // the light bar' : ''}
   d=min(d,tyres(p)); d=min(d,extra(p));
-  return max(d,-p.z); }
+  return max(d,SINK-p.z); }
 void attrs(vec3 p){ gPart=0; gU=0.5; vec2 e=vec2(0.05,0.0);
   vec3 n=normalize(vec3(model(p+e.xyy)-model(p-e.xyy),model(p+e.yxy)-model(p-e.yxy),model(p+e.yyx)-model(p-e.yyx)));
+  p.z+=SINK;
   float ay=abs(p.y); int r=${C.PAINT || 30};
   bool gh=green(p)<body(p)-0.1&&p.z>BELT-1.0;
-  if(gh){ float roof=ROOF-0.011*p.y*p.y-0.0025*pow(p.x-(XF1+XR1)*0.5,2.0);
+  if(gh){ float roof=roofZ(p);
     if(p.z>BELT+0.5&&p.z<roof-1.4) r=abs(p.x-XB)<1.0&&n.z<0.6?32:31; // the glass, the pillar between the doors black
     ${C.POL ? 'else if(p.z>=roof-1.4) r=36;' : ''} }
   else {

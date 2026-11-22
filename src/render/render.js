@@ -84,6 +84,7 @@ import { drawPuddles } from '../world/weather.js';
 import { WXV, drawFog } from '../world/weather.js';
 import { drawObjectiveGlow, objectiveLights } from '../ui/markers.js';
 import { journeyLights } from '../game/journey.js';
+import { victims } from '../actors/feeding.js';
 // the flashlight is a light in a hand, not a fixed cone: it bobs with your stride, jolts with every shot and,
 // now and then, flickers as if the contacts were bad (not with Reduce flashes on)
 function beamA() {
@@ -263,6 +264,7 @@ export function render() {
     }
     for (const b of GS.buddies) ao(b.x - 0.5, b.y + 1, 18 * PEOPLE * 1.2, 0.4, b.bodyA, 1.15);
     for (const b of GS.fallen || []) ao(b.x - 0.5, b.y + 1, 22 * PEOPLE * 1.2, 0.3, b.bodyA, 1.6);
+    for (const b of victims) ao(b.x - 0.5, b.y + 1, 22 * PEOPLE * 1.2, 0.3, b.bodyA, 1.6);
     for (const e of GS.enemies)
       if (!e.dead && !e.fly && (e.z || 0) < 10)
         ao(

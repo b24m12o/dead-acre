@@ -5,7 +5,7 @@
 // told its normal, its bones (with weights blending across each joint), what it is (skin, shirt, trousers...), how far
 // along its limb it sits and how deep in a crease. Writes assets/mesh.<hash>.bin and its entry in assets/pack.json,
 // and preview pictures of each model to build/mesh/.
-//   node tools/mesh/build.mjs [--res 0.7] [--preview-only]
+//   node tools/mesh/build.mjs [--res 0.8] [--only a,b] [--preview-only]
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -21,7 +21,7 @@ const arg = (k, d) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : d;
 };
-const LODS = [+arg('--res', 1.0), +arg('--res-lo', 1.7)]; // each model twice: close up, and for a crowd
+const LODS = [+arg('--res', 0.8), +arg('--res-lo', 1.4)]; // each model twice: close up, and for a crowd (what ships)
 const ONLY = arg('--only', null); // just these models (comma-separated), for a quick look
 // each model, and what its kind may wear over it (zombie+cap, riot+shield: see humanoid.mjs's KIT)
 const MODELS = Object.fromEntries(

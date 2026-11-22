@@ -92,9 +92,19 @@ export const sfx = {
   crackle(x, y) {
     if (!thr('crackle', 250)) return;
     const b = spat(x, y);
+    noise(0.04, 0.13, 2400, 1500, 'highpass', 0, b); // the snap as it shorts
     for (let i = 0; i < 3 + randi(0, 3); i++)
-      noise(0.03, 0.05, rand(5000, 8000), 3000, 'highpass', i * rand(0.02, 0.05), b);
-    tone(118, 0.18, 'sawtooth', 0.012, 1, 0, 700, b);
+      noise(0.03, 0.08, rand(3500, 7000), 2500, 'highpass', 0.03 + i * rand(0.02, 0.05), b);
+    noise(0.3, 0.03, 3200, 2200, 'bandpass', 0.02, b); // a sizzle under the ticks
+    tone(118, 0.22, 'sawtooth', 0.025, 1, 0, 900, b);
+  },
+  // one of the dead at a body: a wet tear, and a smack or two of chewing, low and close
+  feed(x, y) {
+    if (!thr('feed', 900)) return;
+    const b = spat(x, y);
+    noise(0.22, 0.04, 1800, 500, 'bandpass', 0, b); // the tear
+    for (let i = 0; i < 2 + randi(0, 2); i++)
+      noise(0.07, 0.035, rand(380, 650), 240, 'bandpass', 0.25 + i * rand(0.16, 0.24), b);
   },
   // a few wingbeats as a bird comes down and brakes
   flaps(x, y) {

@@ -45,6 +45,7 @@ const ALL = [
   'threads',
   'marks',
   'roof',
+  'feed',
   'summary',
   'campaign',
   'variants',

@@ -43,6 +43,7 @@ import { finishObjective } from '../game/objective-flow.js';
 import { budTarget, objTarget } from '../game/objective-update.js';
 import { lastFew, specialTick } from './specials.js';
 import { dirPace, dirRelax } from '../game/director.js';
+import { feedSight, feedTick, stopFeed } from './feeding.js';
 // a giant that has stopped getting anywhere while it walks, pressed into a building or caught inside one, is walked out
 // to the nearest open street it can move on from (a tile clear of buildings that its own path map can reach)
 function giantWedge(e, dt) {
@@ -138,12 +139,12 @@ export function updateEnemy(e, dt, p) {
     (pd2 < SIGHT.behind * SIGHT.behind ||
       e.aw > 0 ||
       Math.abs(angDiff(e.a, Math.atan2(p.y - e.y, p.x - e.x))) < SIGHT.half);
-  if (sees && pd2 < sr * sr) {
+  if (sees && pd2 < (sr * feedSight(e)) ** 2) {
     if (!(e.aw > 0)) e.wokeT = GS.time;
     e.aw = Math.max(e.aw || 0, 4);
   }
   e.aw = (e.aw || 0) - dt;
-  if (!(e.aw > 0) && !e.lure && e.kind !== 'blind') {
+  if (!(e.aw > 0) && !e.lure && e.kind !== 'blind' && !e.feed) {
     e.idleT = (e.idleT || 0) + dt;
     if (e.idleT > 22) {
       e.idleT = 0;
@@ -180,6 +181,10 @@ export function updateEnemy(e, dt, p) {
   const aware = allAw || e.aw > 0;
   e.unaw = !aware; // for a quiet kill (combat.js): it has not noticed you
   const ot = objTarget(e) || budTarget(e, pd2);
+  // unaware, with nothing else to go for: a body to feed on (feeding.js); aware, it gets up off it
+  let fd = null;
+  if (e.feed && (aware || lure || ot || e.down > 0 || e.crawl || e.kind)) stopFeed(e);
+  else if (!aware && !lure && !ot && !(e.down > 0)) fd = feedTick(e, dt);
   if (ot) {
     e.loT = (e.loT || 0) - dt;
     if (e.loT <= 0) {
@@ -193,7 +198,9 @@ export function updateEnemy(e, dt, p) {
         : steer(e, ot.x, ot.y, ot.flow || flow)
       : lure
         ? steer(e, lure.x, lure.y, lure.flow)
-        : steer(e, p.x, p.y),
+        : fd && fd !== 'eat'
+          ? steer(e, fd[0], fd[1], null, true)
+          : steer(e, p.x, p.y),
     em = e.emerge >= 1;
   let tvx = 0,
     tvy = 0,
@@ -646,6 +653,11 @@ export function updateEnemy(e, dt, p) {
     tvx = nx * 0.7;
     tvy = ny * 0.7;
   } // shambling, not hunting
+  if (fd === 'eat' || e.riseT > 0) {
+    if (e.riseT > 0) e.riseT -= dt;
+    tvx = tvy = 0;
+    if (fd === 'eat') face = e.feedA;
+  } // on its knees at a body, feeding; or getting up off them
   if (e.slowT > 0) {
     e.slowT -= dt;
     tvx *= 0.45;

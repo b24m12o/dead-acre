@@ -17,6 +17,7 @@ import { FKC } from './motion-cmu.js';
 import { flinch } from './flinch.js';
 import { inert } from './inertia.js';
 import { ragKnock, ragPose } from './ragdoll.js';
+import { FEED, feeding } from '../actors/feeding.js';
 // a 3D figure's heights against a pictured one's (whose shadows the lamps and the torch were tuned on): about 0.3
 const SH3 = 0.3;
 
@@ -146,7 +147,7 @@ float vn3(vec3 q){ vec3 i=floor(q), f=fract(q); f=f*f*(3.0-2.0*f);
 // down and over its wheels and where the fire came out of the windows, the roof bleached paler
 vec3 burnt(vec3 p, vec3 n){
   float a=vn3(p*0.09)*0.65+vn3(p*0.27+7.0)*0.35;
-  vec3 c=mix(vec3(0.34,0.16,0.07),vec3(0.46,0.43,0.39),smoothstep(0.42,0.62,a)); // rust, ash
+  vec3 c=mix(vec3(0.29,0.165,0.1),vec3(0.44,0.42,0.39),smoothstep(0.42,0.62,a)); // rust, ash
   c=mix(c,c*vec3(1.15,0.9,0.75),smoothstep(0.62,0.8,vn3(p*0.5+3.0))*0.6); // flakes of scorched primer
   float soot=smoothstep(11.0,4.0,p.z)*0.75+smoothstep(0.5,0.0,n.z)*smoothstep(15.0,23.0,p.z)*0.5;
   c=mix(c,vec3(0.06,0.055,0.05),clamp(soot,0.0,0.85)*(0.7+0.3*vn3(p*0.4)));
@@ -2883,6 +2884,9 @@ function poseZombie22(e, D, o) {
   // knocked down: likewise, and up again
   else if (e.down > 0 && !e.giant && !(m14 & LEGS14)) knockPose(e, D, o, MM);
   if (e.dying === undefined && !(e.down > 0)) e._rk = undefined;
+  // on its knees at a body, feeding; or getting up off them (actors/feeding.js)
+  if ((e.feed || e._fkS) && e.dying === undefined && !(e.down > 0) && !(m14 & LEGS14)) kneelPose(e, D, o, MM);
+  else e._fkS = undefined;
   // on its feet: each hit knocks it back as the recorded hits do (flinch.js)
   if (e.dying === undefined && !(e.down > 0) && !e.crawl && !e.half && !(e.emerge < 1) && !(e.z > 2))
     flinch(e, D, o, MM);
@@ -2942,6 +2946,66 @@ function getupRows(e, D, o, MM, GU, ct) {
     }
     bone(KC, 0, b, mul3(R[b], k), J[b], r[b]);
   }
+}
+// one of the dead feeding, as Quaternius' recorded kneeling-at-work goes: down on its knees (its first second), at
+// the body (its middle stretch, played back and forth so it never jumps), and up again (its last); facing the body,
+// its hips where the game has it, all of it eased in from and out to its own pose (in D)
+const KN_DOWN = 1.0,
+  KN_A = 1.1,
+  KN_B = 5.2,
+  KN_UP = 5.35;
+function kneelPose(e, D, o, MM) {
+  const t = GS.time,
+    KN = FK.clips.kneel,
+    eat = feeding(e);
+  if (eat && e._fkS !== 'eat') {
+    e._fkS = 'eat';
+    e._fkT = t;
+  } else if (!eat && e._fkS === 'eat') {
+    if (!(e.riseT > 0)) return void (e._fkS = undefined); // (killed off its knees, or anything else: its own pose)
+    e._fkS = 'up';
+    e._fkT = t;
+  } else if (!eat && !e._fkS) return;
+  const u = t - e._fkT;
+  let ct, w;
+  if (e._fkS === 'eat') {
+    const span = KN_B - KN_A,
+      v = Math.max(0, u - KN_DOWN) % (2 * span);
+    ct = u < KN_DOWN ? u : KN_A + (v < span ? v : 2 * span - v);
+    w = lyS2(0, 0.25, u);
+  } else {
+    const ru = FEED.rise,
+      up = (KN.dur - KN_UP) / ru; // (its get-up brought to the game's time for it)
+    if (u >= ru) return void (e._fkS = undefined);
+    ct = KN_UP + u * up;
+    w = 1 - lyS2(ru - 0.2, ru, u);
+  }
+  REST = MM.rest;
+  MODEL_END = MM.ends;
+  const r = REST,
+    A = fkAlign(MM),
+    par = MM.bones.map(b => b[1]),
+    k = [Math.hypot(D[o], D[o + 4], D[o + 8]), Math.hypot(D[o + 2], D[o + 6], D[o + 10])],
+    Hl = r[14][2] * k[1],
+    Ry = Rz(e.feedA ?? e.a),
+    r0 = KN.root[0];
+  fkSnap(FK2, FKR2, KN, Math.min(ct, KN.dur - 0.001), false);
+  const sw = mv(Ry, [(FKR2[0] - r0[0]) * Hl, (FKR2[1] - r0[1]) * Hl, 0]),
+    J = [],
+    R = [];
+  for (let b = 0; b < 22; b++) {
+    R[b] = mm(mm(Ry, q9([FK2[b * 4], FK2[b * 4 + 1], FK2[b * 4 + 2], FK2[b * 4 + 3]])), A[b]);
+    if (b === 0) J[0] = [e.x + sw[0], e.y + sw[1], r[0][2] * k[1] + FKR2[2] * Hl];
+    else {
+      const d = mv(R[par[b]], sc3(sub(r[b], r[par[b]]), k));
+      J[b] = [J[par[b]][0] + d[0], J[par[b]][1] + d[1], J[par[b]][2] + d[2]];
+    }
+    bone(KC, 0, b, mul3(R[b], k), J[b], r[b]);
+  }
+  const n = 22 * 12;
+  for (let i = 0; i < n; i++) D[o + i] += (KC[i] - D[o + i]) * w;
+  // its feet stay where they knelt: the walking legs' holds let go
+  if (e._flk) for (const L of e._flk) L.on = false;
 }
 // the dead's own carriage, recorded: CMU's zombie shambles, a drunk's stagger, a man walking on a hurt leg, and
 // Quaternius' zombie walk (its dragged leg and all); each of the walking dead given one (a limper its limp, legs and
@@ -3198,7 +3262,7 @@ export function drawHero3D(p) {
   p._pT = p.throwT;
   if (!drawFig3D(p)) return false;
   const gm = gunModel(heldGun(p));
-  if (FIG.models[gm] && p._grip) {
+  if (FIG.models[gm] && p._grip && !p.unarmed) {
     const g = p._gunE || (p._gunE = { id: p.id + 1, holder: p });
     g.gm = gm;
     g.x = p.x;
