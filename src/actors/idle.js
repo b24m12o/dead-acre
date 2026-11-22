@@ -37,7 +37,7 @@ function windowNear(e) {
     bd = IDLE.glass ** 2;
   for (const w of windows) {
     const x = w.x,
-      y = w.y - 4,
+      y = w.y - 13, // (up against it: its hands on the glass, half a metre off the wall)
       d = (x - e.x) ** 2 + (y - e.y) ** 2;
     if (d < bd && !blockPt(x, y) && los(e.x, e.y, x, y)) {
       bd = d;
@@ -59,7 +59,7 @@ export function idleTick(e, dt, P) {
     I = e.idle = { k, t: 0, dur: rand(IDLE.dur[0], IDLE.dur[1]), a: e.a || 0, beatT: rand(0.3, 1) };
     if (w) [I.x, I.y] = w;
     if (k === 'circle') {
-      I.r = rand(22, 40);
+      I.r = rand(16, 24);
       I.ph = (e.a || 0) - Math.PI / 2;
       I.cx = e.x - Math.cos(I.ph) * I.r;
       I.cy = e.y - Math.sin(I.ph) * I.r;
@@ -70,25 +70,27 @@ export function idleTick(e, dt, P) {
   if (I.t > I.dur) return (e.idle = null);
   if (I.k === 'sway')
     // standing, swaying (its stance as recorded), its head and shoulders turning slowly one way and back
-    return { face: I.a + Math.sin(I.t * 0.37) * 0.7 + Math.sin(I.t * 0.13) * 0.4 };
+    return { face: I.a + Math.sin(I.t * 0.31) * 0.35 + Math.sin(I.t * 0.11) * 0.25 }; // (the sway itself is its pose's: fig3d.js)
   if (I.k === 'circle') {
-    I.ph += I.dir * dt * 0.4;
+    I.ph += I.dir * dt * 0.65; // (round in ten seconds or so)
     const x = I.cx + Math.cos(I.ph) * I.r,
       y = I.cy + Math.sin(I.ph) * I.r;
     if (blockPt(x, y)) return (e.idle = null);
     return [x, y];
   }
   // at a window: there, it beats on the glass with both fists, now and then
-  if (Math.hypot(I.x - e.x, I.y - e.y) > 18) {
-    // (near enough to reach the glass: half a metre or so short of where it was going is fine)
-    if (I.t > 10) return (e.idle = null); // (can't get to it)
+  if (Math.hypot(I.x - e.x, I.y - e.y) > (I.at ? 18 : 8)) {
+    // (got there, a nudge doesn't take it away: only being pushed well off)
+    I.at = false;
+    if (I.t > 12) return (e.idle = null); // (can't get to it)
     return [I.x, I.y];
   }
+  I.at = true;
   I.beatT -= dt;
   if (I.beatT <= 0) {
-    I.beatT = Math.random() < 0.3 ? rand(0.25, 0.4) : rand(0.8, 1.8); // (sometimes twice quickly)
-    e.lunge = 0.42;
-    sfx.glassBang(I.x, I.y - 16);
+    I.beatT = Math.random() < 0.3 ? rand(0.3, 0.45) : rand(1.1, 2.2); // (sometimes twice quickly)
+    sfx.glassBang(I.x, I.y - 12);
+    I.n = (I.n || 0) + 1;
   }
   return { face: -Math.PI / 2 };
 }
@@ -97,8 +99,8 @@ export const idleFace = fd => (fd && !Array.isArray(fd) && fd.face !== undefined
 // ---- pinned under a car ----
 // how far from the car's middle its side is (a car is the street's size, 20 to the metre), and how far out from it
 // the pinned one's middle lies (its legs back under the car)
-const SIDE = 19,
-  OUT = 2;
+const SIDE = 14,
+  OUT = 6; // (its hips under the sill, so the car's side hides them; its chest and arms out in the street)
 // in place of a lurker (the night's queue sends one): one pinned under a car out of your sight, if there's a car for it
 export function makePinned(P) {
   const C = cars.filter(c => {
@@ -116,8 +118,8 @@ export function makePinned(P) {
       x = c.x + ca * along - sa * out * side,
       y = c.y + sa * along + ca * out * side,
       a = c.a + (side * Math.PI) / 2;
-    // (room for its head and its reach, out from the car)
-    if (blockPt(x, y) || blockPt(x + Math.cos(a) * 26, y + Math.sin(a) * 26)) continue;
+    // (room for its chest, its head and its reach, out from the car: where it lies itself is half under it)
+    if ([12, 26, 40].some(r => blockPt(x + Math.cos(a) * r, y + Math.sin(a) * r))) continue;
     const e = makeEnemy('skitter', x, y);
     e.emerge = 1;
     e.run = false;

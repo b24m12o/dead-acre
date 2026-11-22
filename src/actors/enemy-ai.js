@@ -280,8 +280,15 @@ export function updateEnemy(e, dt, p) {
           rate = 10;
           if (e.lurk === 'pin') {
             e.regrab = Math.max(0, (e.regrab || 0) - dt);
+            // (you in reach of its hands: out in front of it, where they claw, not behind it under the car)
+            const fx = Math.cos(e.a),
+              fy = Math.sin(e.a),
+              fwd = (p.x - e.x) * fx + (p.y - e.y) * fy,
+              lat = Math.abs((p.x - e.x) * -fy + (p.y - e.y) * fx);
             if (
-              Math.sqrt(pd2) < e.r + (p.r || 14 * GK) + 10 &&
+              fwd > 8 &&
+              fwd < 46 &&
+              lat < 20 &&
               !(e.regrab > 0) &&
               !(p.dashT > 0) &&
               !p.held &&

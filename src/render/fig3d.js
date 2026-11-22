@@ -953,6 +953,7 @@ function poseZombie(e, D, o) {
         // it covers, not the clock (a planted hand doesn't slide; stopped, it finishes a reach and rests on both)
         const C = crawlOf(e, Jp, hd, kh, kw, gz);
         hands = C.hands;
+        if (e.pin && e.lurk === 'grab' && GS.P && !dead) hands[0] = [GS.P.x, GS.P.y, gz + 2]; // pinned, it has your ankle
         Jp = C.Jp;
         chestSide = C.roll;
         headUp = -0.5 + C.bob;
@@ -1461,7 +1462,7 @@ function crawlOf(e, Jp, hd, kh, kw, gz) {
         e2 = w * w * (3 - 2 * w),
         to = at(RCH * kh, side),
         from = C.h[i].p;
-      return [lerp(from[0], to[0], e2), lerp(from[1], to[1], e2), gz + Math.sin(w * Math.PI) * 5 * kh];
+      return [lerp(from[0], to[0], e2), lerp(from[1], to[1], e2), gz + Math.sin(w * Math.PI) * (e.pin ? 1.2 : 5) * kh]; // (pinned, it drags its hands along the street: nothing to haul itself on to)
     });
   // the shoulders roll to the arm reaching (its side up), the head bobs as it hauls
   const reachSd = u >= 0.6 ? 1 : u >= 0.1 && u < 0.5 ? -1 : 0,
@@ -3094,6 +3095,13 @@ function fkLegs(e, D, o, MM) {
       for (let j = 0; j < 3; j++) FKR2[j] += (FKR3[j] - FKR2[j]) * w;
     };
     mixIn(C.zidle, t + (e.id || 0), 1 - wMove, true);
+    // doing nothing much (actors/idle.js): swaying where it stands, its upper body rolling and lurching as the recorded
+    // drunk's does over its planted feet; or up against a window, both hands on the glass, pushing at it
+    const I = e.idle,
+      swW = eased(e, 'sway', I && I.k === 'sway' ? 1 : 0, 3),
+      glW = eased(e, 'glass', I && I.k === 'glass' && I.at ? 1 : 0, 4);
+    if (swW > 0.01) mixIn(FKC.drunk, t * 0.85 + (e.id || 0), swW * 0.6 * (1 - wMove), true); // (most of it: its arms still hang, not out for balance)
+    if (glW > 0.01) mixIn(C.push, t * 1.2 + (e.id || 0), glW * (1 - wMove), true);
     if (e.lunge > 0) {
       const u = clamp(1 - e.lunge / 0.42, 0, 1);
       mixIn(C.scratch, 0.4 + u * 0.85, clamp(Math.min(u / 0.12, (1 - u) / 0.25), 0, 1), false);

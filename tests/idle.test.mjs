@@ -30,7 +30,7 @@ export async function run(b) {
     if (!e) return out;
     other = makeEnemy('skitter', e.x + 3000, e.y); other.emerge = 1; other.aw = 0; // (not the last of the night)
     const keep = q => q === e || q === other;
-    const a = e.pin.a, px = e.x + Math.cos(a) * 200, py = e.y + Math.sin(a) * 200;
+    const a = e.pin.a, px = e.x + Math.cos(a) * 200, py = e.y + Math.sin(a) * 200; // (out in front of it)
     P.x = px; P.y = py;
     step(120, keep); other.x = e.x + 3000;
     out.stays = Math.round(Math.hypot(e.x - e.pin.x, e.y - e.pin.y)); // (the bodies' push nudges it, and it's put back)
@@ -68,17 +68,18 @@ export async function run(b) {
     out.ended = !z.idle;
     // one sent to a window beats on it
     const road = (x, y) => ROAD[Math.floor(y / TILE) * MW + Math.floor(x / TILE)];
-    const W = windows.filter(w => !w.cool && road(w.x, w.y + 80) && !blockPt(w.x, w.y - 4) && !blockPt(w.x, w.y + 40) && los(w.x, w.y + 40, w.x, w.y - 4));
+    const W = windows.filter(w => !w.cool && road(w.x, w.y + 80) && !blockPt(w.x, w.y - 13) && !blockPt(w.x, w.y + 40) && los(w.x, w.y + 40, w.x, w.y - 13));
     out.windows = W.length;
     // (up to three windows: the street can take one away from its window, as it should: a body to trip on, a job nearby)
     out.beats = 0;
     for (const w of W.slice(0, 3)) {
-      z.aw = 0; z.down = 0; z.lure = null; z.x = w.x; z.y = w.y + 40; z.idle = { k: 'glass', t: 0, dur: 99, a: 0, beatT: 0.5, x: w.x, y: w.y - 4 };
+      z.aw = 0; z.down = 0; z.lure = null; z.x = w.x; z.y = w.y + 40; z.idle = { k: 'glass', t: 0, dur: 99, a: 0, beatT: 0.5, x: w.x, y: w.y - 13 };
       P.x = w.x + 900; P.y = w.y + 200;
       let beats = 0, was = 0;
-      for (let i = 0; i < 60 * 9; i++) { step(1, kz); if ((z.lunge || 0) > was + 0.1) beats++; was = z.lunge || 0; } // (each time its swing starts over)
+      for (let i = 0; i < 60 * 9; i++) step(1, kz);
+      beats = (z.idle && z.idle.n) || 0; was = 0;
       out.beats = beats;
-      out.atWindow = Math.round(Math.hypot(z.x - w.x, z.y - (w.y - 4)));
+      out.atWindow = Math.round(Math.hypot(z.x - w.x, z.y - (w.y - 13)));
       if (beats >= 2 && out.atWindow < 22) break;
     }
     return out;
