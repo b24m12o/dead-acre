@@ -3095,6 +3095,13 @@ function fkLegs(e, D, o, MM) {
       for (let j = 0; j < 3; j++) FKR2[j] += (FKR3[j] - FKR2[j]) * w;
     };
     mixIn(C.zidle, t + (e.id || 0), 1 - wMove, true);
+    // the shamble and the hurt walk fling their arms out wide as recorded: walking, their arms are brought most of the
+    // way in to how the dead stand, hanging and heavy (the walk's swing still in them, smaller)
+    const flail = Z === C.shamble ? 0.6 : Z === FKC.hurt ? 0.45 : 0;
+    if (flail > 0 && wMove > 0.001) {
+      fkSnap(FK3, FKR3, C.zidle, t + (e.id || 0), true);
+      for (let b = 6; b < 14; b++) fkMix(FK2, FK3, b, flail * wMove);
+    }
     // doing nothing much (actors/idle.js): swaying where it stands, its upper body rolling and lurching as the recorded
     // drunk's does over its planted feet; or up against a window, both hands on the glass, pushing at it
     const I = e.idle,

@@ -25,7 +25,7 @@ import { radarTile } from '../ui/radar.js';
 export let WINDX = 14,
   hazeSrc = [],
   physT = 0,
-  stepT = 0;
+  stepN = 0;
 GS.TDMG = new Float32Array(1);
 GS.grassFire = [];
 const PUSH = {
@@ -664,12 +664,12 @@ const inView = o => Math.abs(o.x - cam.x - viewW / 2) < viewW * 0.6 && Math.abs(
 function footTick(dt) {
   if (!GS.P || GS.state !== 'play') return;
   const P = GS.P;
-  stepT -= dt;
-  const look = stepT <= 0;
-  if (look) stepT = 0.12;
+  // each looks down at what it's stepping in every seventh frame or so (an eighth of a second), each on its own frame,
+  // so a crowd's looking is spread out instead of all at once
+  stepN = (stepN + 1) % 7;
   // a print every step's length covered, left foot and right
   const walk = (o, cap, n) => {
-    if (look) {
+    if ((stepN + (o.id || 0)) % 7 === 0) {
       if (steppedIn(o)) o.bloodSteps = n;
       else if (inPuddle(o.x, o.y)) o.wetSteps = 5;
     }
