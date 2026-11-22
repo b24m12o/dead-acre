@@ -20,9 +20,32 @@ import { makeEnemy } from './enemies.js';
 // so the rounds, drawn at the gun's height, pass through it; and the crosshair on one of the dead's chests aims at
 // that one, not at the street behind it
 export const aimH = p => (p && p._mz && GS.time - (p._mzT ?? -9) < 0.25 ? p._mz[2] : 32);
-// where on the street the crosshair (at gx, gy, read on the ground) aims: something low drawn under it (a hydrant, a
-// bin, a barrel, an electrical box) aimed at where it stands, as it's drawn there; anything else at the gun's height
+// the creature drawn under the crosshair (gx, gy, read on the ground), if any: anywhere on its picture, from its feet
+// to the top of it as the camera's tilt stands it up (bodyTop), a little either side; of two, the one whose middle
+// is nearest. A crawler, one knocked down, a dog: what you point at is what you aim at, not the gun's height above it
+export function aimedAt(gx, gy) {
+  let best = null,
+    bd = 1e9;
+  for (const e of GS.enemies) {
+    if (e.dead || e.dying !== undefined || e.emerge < 0.4) continue;
+    const fy = e.y - (e.z || 0) * 0.6,
+      top = bodyTop(e),
+      hw = e.r + 4;
+    if (Math.abs(gx - e.x) > hw || gy < fy - top - 4 || gy > fy + 6) continue;
+    const d = Math.abs(gx - e.x) + Math.abs(gy - (fy - top / 2)) * 0.7;
+    if (d < bd) {
+      bd = d;
+      best = e;
+    }
+  }
+  return best;
+}
+// where on the street the crosshair (at gx, gy, read on the ground) aims: a creature drawn under it, at itself; something
+// low drawn under it (a hydrant, a bin, a barrel, an electrical box) aimed at where it stands, as it's drawn there;
+// anything else at the gun's height
 export function aimPoint(p, gx, gy) {
+  const e = aimedAt(gx, gy);
+  if (e) return [e.x, e.y - (e.z || 0) * 0.6];
   let best = null,
     bd = 1e9;
   // (its picture: r either side of it, from its foot up to top)

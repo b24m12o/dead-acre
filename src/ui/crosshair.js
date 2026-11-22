@@ -1,13 +1,13 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
-import { TAU, clamp, d2 } from '../core/util.js';
+import { TAU, clamp } from '../core/util.js';
 import { TS } from '../core/settings.js';
 import { ui } from '../render/gl.js';
 import { ZOOM } from '../render/sprites.js';
 import { S, magSize } from '../game/state.js';
 import { mouse } from '../core/input.js';
 import { gunPose } from '../game/evac-ride.js';
-import { aimH } from '../actors/player-weapons.js';
+import { aimedAt } from '../actors/player-weapons.js';
 import { TILT } from '../core/scale.js';
 export const CH_COLS = {
   white: '#f2efe6',
@@ -51,15 +51,8 @@ export function drawCrosshair() {
       ui.restore();
     }
   }
-  // is a creature under the cursor?
-  const wx = GS.camX + mx / ZOOM,
-    wy = GS.camY + my / ZOOM + aimH(GS.P) * TILT; // (aimed at the gun's height)
-  let hot = false;
-  for (const e of GS.enemies)
-    if (!e.dead && d2(wx, wy, e.x, e.y - e.z) < (e.r + 10) ** 2) {
-      hot = true;
-      break;
-    }
+  // is a creature under the cursor? (as the shots will take it: player-weapons.js)
+  const hot = !!aimedAt(GS.camX + mx / ZOOM, GS.camY + my / ZOOM);
   chHot += ((hot ? 1 : 0) - chHot) * 0.35;
   const c2 = hot ? '#ffffff' : col,
     sp =

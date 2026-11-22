@@ -1642,6 +1642,8 @@ function poseEgg(e, D, o) {
 }
 // ---------- you (and the survivors with you): legs on their own heading, the body turned to the aim, the gun in both hands ----------
 // which of the guns' models a gun is drawn with
+// the gun in his hands: on the truck, its machine gun (as the picture had it), not his own
+export const heldGun = p => (p && p.ride === 'truck' ? 'lmg' : p ? p.gun : '');
 export const gunModel = g =>
   ({
     pistol: 'pistol',
@@ -1899,7 +1901,7 @@ function poseHero(p, D, o) {
     k = [bs, bs],
     D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]),
     aim = p.npc ? (p.aim ?? p.bodyA) : p.bodyA,
-    gm = gunModel(p.gun),
+    gm = gunModel(heldGun(p)),
     H = HOLD[gm] || HOLD.rifle,
     kick = clamp((p.recoil || 0) / 8, 0, 1), // the gun's kick, back into the shoulder
     rl = clamp(p.rk || 0, 0, 1), // reloading: the gun comes down and in, the free hand to the magazine
@@ -2006,7 +2008,7 @@ const PER_SHELL = { shotgun: 1, lever: 1 };
 // racked (0.84) and the hand back. A shell at a time: to the pouch on the belt, back, and thumbed into the gate
 function reloadHand(p, H, G, W, hand, Jc, Rc, k) {
   const u = clamp(1 - p.reload / (p.reloadMax || 1), 0, 1),
-    gm = gunModel(p.gun),
+    gm = gunModel(heldGun(p)),
     well = hand(H.mag),
     below = hand(add(H.mag, [-0.5, 0.5, -6])), // (a magazine's length below the well)
     pouch = add(Jc, mv(Rc, sc3([3.2, -2.2, -7.5], k))), // (on the vest's front, the free hand's side, low)
@@ -2309,7 +2311,7 @@ function poseHeroFK(p, D, o) {
     k = [bs, bs],
     D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]),
     aim = p.npc ? (p.aim ?? p.bodyA) : p.bodyA,
-    gm = gunModel(p.gun),
+    gm = gunModel(heldGun(p)),
     H = HOLD[gm] || HOLD.rifle,
     kick = clamp((p.recoil || 0) / 8, 0, 1),
     rl = clamp(p.rk || 0, 0, 1),
@@ -2614,7 +2616,7 @@ function poseHeroFK(p, D, o) {
     ]) {
       const L = lk[i],
         fp = (ph + i * 0.5) % 1,
-        down = allK > 0 || stepB > 0 ? false : still || wMove < 0.05 ? true : fp < stK,
+        down = allK > 0 || stepB > 0 || p.ride ? false : still || wMove < 0.05 ? true : fp < stK,
         ank = J[ti + 2],
         // a hold let go, or eased in or out, takes the foot from where it was to where the recording has it over a
         // few frames, not in one (settle)
@@ -2795,6 +2797,20 @@ export function drawCar3D(c) {
   CLR = true;
   return true;
 }
+// riding in the truck's bed: all of him, and his gun's grip and muzzle, up on its floor (its height there, from its mesh)
+function onBed(p, D, o) {
+  const T = GS.truck;
+  if (p.ride !== 'truck' || !T) return;
+  const dx = p.x - T.x,
+    dy = p.y - T.y,
+    ca = Math.cos(T.a || 0),
+    sa = Math.sin(T.a || 0),
+    dz = carTop(T, dx * ca + dy * sa, -dx * sa + dy * ca) || 30;
+  const nb = (p.__MM || FIG.models.hero).rest.length;
+  for (let b = 0; b < nb; b++) D[o + b * 12 + 11] += dz;
+  if (p._grip) p._grip[2] += dz;
+  if (p._mz) p._mz[2] += dz;
+}
 const poseFig = (e, D, o) => {
   const m = modelOf(e);
   if (e.veh3d) return poseCar(e, D, o);
@@ -2803,9 +2819,7 @@ const poseFig = (e, D, o) => {
     : m === 'egg'
       ? poseEgg(e, D, o)
       : m === 'hero'
-        ? FIG.models.hero.rest.length > 14
-          ? poseHeroFK(e, D, o)
-          : poseHero(e, D, o)
+        ? (FIG.models.hero.rest.length > 14 ? poseHeroFK(e, D, o) : poseHero(e, D, o), onBed(e, D, o))
         : e.holder
           ? poseGun(e, D, o)
           : (FIG.models[m || 'zombie'] || FIG.models.zombie).rest14
@@ -3161,14 +3175,15 @@ export function modelOf(e) {
 export function drawHero3D(p) {
   // (he falls as recorded; so does one of your people, downed)
   const fell = (GS.state === 'over' ? p === GS.P : !!p.npc) && FIG.models.hero && FIG.models.hero.rest.length > 14;
-  if (!fig3dOn() || !FIG.models.hero || ((p.down > 0 || p.hp <= 0) && !fell) || p.ride) return false;
+  if (!fig3dOn() || !FIG.models.hero || ((p.down > 0 || p.hp <= 0) && !fell) || (p.ride && p.ride !== 'truck'))
+    return false;
   if (p.dashT > 0 && !(FIG.models.hero.rest.length > 14)) return false; // (the roll, recorded, on the fuller skeleton)
   if (p.id === undefined) p.id = 9000 + Math.floor(Math.random() * 999);
   p.hero3d = true;
   if (p._f3 === frame && p._pT !== p.throwT) p._f3 = -1; // thrown since it was posed this frame: posed afresh
   p._pT = p.throwT;
   if (!drawFig3D(p)) return false;
-  const gm = gunModel(p.gun);
+  const gm = gunModel(heldGun(p));
   if (FIG.models[gm] && p._grip) {
     const g = p._gunE || (p._gunE = { id: p.id + 1, holder: p });
     g.gm = gm;
