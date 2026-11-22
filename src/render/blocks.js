@@ -14,7 +14,8 @@ export const WSTN = ['brick', 'conc', 'barr', 'stone', 'bord', 'fence', 'int'];
 export let WST, WHT, WVAR;
 export let hsh;
 export let isBlock;
-export let windows;
+export let windows,
+  WINAT = new Map(); // a window by its wall tile
 function hexTint(h) {
   const n = parseInt(h.slice(1), 16);
   return [((n >> 16) & 255) / 208, ((n >> 8) & 255) / 208, (n & 255) / 208];
@@ -68,6 +69,7 @@ export function prepBlocks() {
       if (st === 'int' && faceShown) WVAR[i] = r < 0.1 ? 1 : r < 0.17 ? 2 : r < 0.23 ? 3 : r < 0.3 ? 4 : 0;
     }
   if (GARAGE) for (const i of GARAGE.door) WVAR[i] = 0; // no window in a roller door
+  WINAT = new Map(windows.map(w => [w.i, w]));
   for (const o of houses)
     (o.roof = !o.open && (o.style === 'crypt' || o.style === 'store' || (o.style !== 'chapel' && hsh(o.x, o.y) < 0.5))),
       (o.fade = 1);
@@ -150,6 +152,26 @@ export function drawBlock(i) {
     for (const h of hl)
       if (h.f ? faceShown : true) quad(R.bhole, x + h.dx, y + h.dy, h.r, h.s, h.s, 1, 1, 1, 1, 0, 0, 0, 0);
   if (WBURN[i] > 0.05) quad(R.scorch, x, y + 20 - H * 0.5, 0, 0.36, H / 110, 1, 1, 1, WBURN[i] * 0.7, 0, 0, 0, 0);
+  // a window the dead have been beating on: its glass crazed, more with each stage (world/wear.js), white where it
+  // catches the light
+  const wn = faceShown && WINAT.get(i);
+  if (wn && wn.crack > 0 && !wn.broke)
+    quad(
+      R.wcrack,
+      x + (wn.hx || 0),
+      y + 20 - H * 0.55,
+      wn.hr || 0,
+      0.5 + wn.crack * 0.12,
+      0.5 + wn.crack * 0.12,
+      1,
+      1,
+      1,
+      0.55 + wn.crack * 0.15,
+      0.6,
+      0.6,
+      0.65,
+      0
+    );
   GS.gA = 1;
 }
 

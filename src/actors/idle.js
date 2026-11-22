@@ -14,6 +14,7 @@ import { cars } from '../world/map.js';
 import { windows } from '../render/blocks.js';
 import { sfx } from '../audio/sfx.js';
 import { makeEnemy } from './enemies.js';
+import { knockWindow } from '../world/wear.js';
 
 export const IDLE = {
   far: 380, // only this far from you (nearer, it's coming)
@@ -36,12 +37,13 @@ function windowNear(e) {
   let best = null,
     bd = IDLE.glass ** 2;
   for (const w of windows) {
+    if (w.broke) continue;
     const x = w.x,
       y = w.y - 13, // (up against it: its hands on the glass, half a metre off the wall)
       d = (x - e.x) ** 2 + (y - e.y) ** 2;
     if (d < bd && !blockPt(x, y) && los(e.x, e.y, x, y)) {
       bd = d;
-      best = [x + rand(-8, 8), y];
+      best = [x + rand(-8, 8), y, w];
     }
   }
   return best;
@@ -57,7 +59,7 @@ export function idleTick(e, dt, P) {
       w = r < 0.4 ? windowNear(e) : null,
       k = w ? 'glass' : r < 0.7 ? 'sway' : 'circle';
     I = e.idle = { k, t: 0, dur: rand(IDLE.dur[0], IDLE.dur[1]), a: e.a || 0, beatT: rand(0.3, 1) };
-    if (w) [I.x, I.y] = w;
+    if (w) [I.x, I.y, I.w] = w;
     if (k === 'circle') {
       I.r = rand(16, 24);
       I.ph = (e.a || 0) - Math.PI / 2;
@@ -79,6 +81,7 @@ export function idleTick(e, dt, P) {
     return [x, y];
   }
   // at a window: there, it beats on the glass with both fists, now and then
+  if (I.w && I.w.broke) return (e.idle = null); // (someone else's broke it, or yours)
   if (Math.hypot(I.x - e.x, I.y - e.y) > (I.at ? 18 : 8)) {
     // (got there, a nudge doesn't take it away: only being pushed well off)
     I.at = false;
@@ -91,6 +94,7 @@ export function idleTick(e, dt, P) {
     I.beatT = Math.random() < 0.3 ? rand(0.3, 0.45) : rand(1.1, 2.2); // (sometimes twice quickly)
     sfx.glassBang(I.x, I.y - 12);
     I.n = (I.n || 0) + 1;
+    if (knockWindow(I.w, e.x)) return (e.idle = null); // (it went: it stands there a moment, at a loss)
   }
   return { face: -Math.PI / 2 };
 }

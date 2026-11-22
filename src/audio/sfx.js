@@ -114,28 +114,45 @@ export const sfx = {
     const f0 = rand(330, 460);
     for (let r = 0; r < runs; r++) {
       for (let i = 0, n = 2 + randi(0, 2); i < n; i++) {
-        tone(f0 * rand(0.95, 1.05), 0.13, 'sawtooth', 0.016, 0.72, t, 900, b);
-        noise(0.12, 0.012, 700, 350, 'bandpass', t, b);
+        tone(f0 * rand(0.95, 1.05), 0.13, 'sawtooth', 0.04, 0.72, t, 900, b);
+        noise(0.12, 0.03, 700, 350, 'bandpass', t, b);
         t += rand(0.28, 0.42);
       }
       t += rand(0.9, 1.8);
+    }
+  },
+  // a pane giving under the blows: a sharp tick and a thin splintering
+  glassCrack(x, y) {
+    if (!thr('glassCrack', 150)) return;
+    const b = spat(x, y);
+    noise(0.03, 0.1, 5200, 3000, 'highpass', 0, b);
+    noise(0.18, 0.03, rand(3800, 5200), 2600, 'bandpass', 0.02, b);
+  },
+  // a shop's alarm bell: the hammer on the gong, twenty strokes a second, two notes of it ringing (dur: this stretch of
+  // it; the bell's ringing is kept up by whoever rings it, a stretch at a time)
+  bellRing(x, y, dur) {
+    const b = spat(x, y);
+    if (!b) return;
+    for (let t = 0; t < dur; t += 0.05) {
+      tone(2150, 0.045, 'triangle', 0.03, 0.995, t, 0, b);
+      tone(3020, 0.035, 'sine', 0.012, 0.995, t, 0, b);
     }
   },
   // fists on a shop's window: the dull thump of the flat of them on plate glass, and the pane shivering in its frame
   glassBang(x, y) {
     if (!thr('glassBang', 200)) return;
     const b = spat(x, y);
-    noise(0.1, 0.09, 260, 90, 'lowpass', 0, b);
-    noise(0.22, 0.018, rand(2400, 3400), 1800, 'bandpass', 0.01, b);
-    tone(rand(1700, 2300), 0.18, 'sine', 0.006, 0.98, 0.01, 0, b);
+    noise(0.1, 0.22, 260, 90, 'lowpass', 0, b);
+    noise(0.22, 0.04, rand(2400, 3400), 1800, 'bandpass', 0.01, b);
+    tone(rand(1700, 2300), 0.18, 'sine', 0.012, 0.98, 0.01, 0, b);
   },
   // one of the dead at a body: a wet tear, and a smack or two of chewing, low and close
   feed(x, y) {
     if (!thr('feed', 900)) return;
     const b = spat(x, y);
-    noise(0.22, 0.04, 1800, 500, 'bandpass', 0, b); // the tear
+    noise(0.22, 0.06, 1800, 500, 'bandpass', 0, b); // the tear
     for (let i = 0; i < 2 + randi(0, 2); i++)
-      noise(0.07, 0.035, rand(380, 650), 240, 'bandpass', 0.25 + i * rand(0.16, 0.24), b);
+      noise(0.07, 0.05, rand(380, 650), 240, 'bandpass', 0.25 + i * rand(0.16, 0.24), b);
   },
   // a few wingbeats as a bird comes down and brakes
   flaps(x, y) {

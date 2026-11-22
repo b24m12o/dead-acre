@@ -545,7 +545,8 @@ export function drawCasters() {
       scaled(m.x, m.y, GEAR, quad, R.glow, m.x, m.y - 2, 0, 0.07, 0.07, 0, 0, 0, 1, 2.8, 0.25, 0.15, 0);
   } // a land mine, dug in flat, its light blinking once armed
   for (const f of GS.flares)
-    if (f.noise) {
+    if (f.noise && !f.bell) {
+      // (the noise maker's little clock on the ground: a shop's bell rings high up on its wall, not drawn)
       setH(5);
       const sh = Math.sin(GS.time * 60) * 0.6;
       scaled(f.x, f.y, GEAR, quad, R.pixel, f.x + sh, f.y, 0, 2.6, 2.6, 0.75, 0.72, 0.62, 1, 0, 0, 0, 0);

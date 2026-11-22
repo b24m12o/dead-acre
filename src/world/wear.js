@@ -9,7 +9,9 @@ import { noise, playS } from '../audio/audio.js';
 import { cam } from '../game/state.js';
 import { part, sparks } from '../render/effects.js';
 import { lampK } from '../render/draw-player.js';
-import { WHT, WST, WSTN, WVAR, WVN, isBlock, windows } from '../render/blocks.js';
+import { WHT, WINAT, WST, WSTN, WVAR, WVN, isBlock } from '../render/blocks.js';
+import { startFlare } from '../game/gadgets.js';
+import { sfx } from '../audio/sfx.js';
 import { LAMPV } from '../render/decor.js';
 import { flame, hotSpots } from './fire.js';
 export let WHOLES = new Map(),
@@ -40,32 +42,68 @@ export function wallHit(i, x, y) {
   if (L.length > 10) L.shift();
   if (front) {
     const v = WVN[st] ? WVN[st][WVAR[i]] : '';
-    if (v === 'win' && Math.abs(x - cx) < 14) {
-      WVAR[i] = WVN[st].indexOf('brk');
-      const w = windows.find(o => o.i === i);
-      if (w) w.broke = true;
-      for (let k = 0; k < 9; k++)
-        part({
-          k: 3,
-          x: cx + rand(-9, 9),
-          y: cy + 20 - H * 0.55,
-          z: 6,
-          vz: rand(40, 140),
-          vx: rand(-60, 60),
-          vy: rand(30, 140),
-          life: rand(1, 1.8),
-          max: 1.8,
-          size: rand(0.3, 0.55),
-          rot: rand(0, TAU),
-          vr: rand(-12, 12),
-          drag: 2,
-          c: [0.5, 0.62, 0.7],
-        });
-      playS('shell', 0.4, 0.7, 0, 0);
-      playS('shell', 0.3, 1.3, 0.04, 0);
-      noise(0.25, 0.1, 6000, 3000, 'highpass');
-    }
+    if (v === 'win' && Math.abs(x - cx) < 14) breakWindow(i);
   }
+}
+// a window's glass gone: shards out over the pavement, the crash of it; and a shop's alarm bell, sometimes, ringing out
+// and drawing the dead to it (game/gadgets.js: a noise maker's lure, a bell's sound)
+export function breakWindow(i) {
+  const tx = i % MW,
+    ty = (i / MW) | 0,
+    cx = (tx + 0.5) * TILE,
+    cy = (ty + 0.5) * TILE,
+    H = WHT[i] || 0,
+    st = WSTN[WST[i]];
+  if (!WVN[st] || WVN[st][WVAR[i]] !== 'win') return;
+  WVAR[i] = WVN[st].indexOf('brk');
+  const w = WINAT.get(i);
+  if (w) w.broke = true;
+  for (let k = 0; k < 9; k++)
+    part({
+      k: 3,
+      x: cx + rand(-9, 9),
+      y: cy + 20 - H * 0.55,
+      z: 6,
+      vz: rand(40, 140),
+      vx: rand(-60, 60),
+      vy: rand(30, 140),
+      life: rand(1, 1.8),
+      max: 1.8,
+      size: rand(0.3, 0.55),
+      rot: rand(0, TAU),
+      vr: rand(-12, 12),
+      drag: 2,
+      c: [0.5, 0.62, 0.7],
+    });
+  playS('shell', 0.4, 0.7, 0, 0);
+  playS('shell', 0.3, 1.3, 0.04, 0);
+  noise(0.25, 0.1, 6000, 3000, 'highpass');
+  if (w && GS.state === 'play' && Math.random() < GLASS.bell) startFlare(w.x, w.y, true, true);
+}
+export const GLASS = {
+  bell: 0.4, // how often a broken window sets its shop's alarm bell ringing
+  blows: [2, 5, 9, 14], // the blows to crack it, craze it, craze it all over, and break it
+};
+// fists on a window (actors/idle.js): each blow tells on the glass; a few and it cracks, more and it crazes all over,
+// and in the end it gives way. True when it went
+export function knockWindow(w, x) {
+  if (!w || w.broke) return false;
+  w.hits = (w.hits || 0) + 1;
+  const B = GLASS.blows,
+    stage = w.hits >= B[3] ? 4 : w.hits >= B[2] ? 3 : w.hits >= B[1] ? 2 : w.hits >= B[0] ? 1 : 0;
+  if (stage >= 4) {
+    breakWindow(w.i);
+    return true;
+  }
+  if (stage > (w.crack || 0)) {
+    if (!w.crack) {
+      w.hx = clamp(x - w.x, -8, 8); // (where the first blow landed: the cracks run out from there)
+      w.hr = rand(0, TAU);
+    }
+    w.crack = stage;
+    sfx.glassCrack(w.x, w.y - 12);
+  }
+  return false;
 }
 export function scorchWalls(x, y, R0) {
   const r = R0 * 1.1;

@@ -173,7 +173,7 @@ export const FAR_OFF = {
     const [x, y] = farPoint(),
       b = spat(x, y);
     if (!b) return;
-    const v = rand(0.012, 0.02);
+    const v = rand(0.02, 0.03);
     let t = 0;
     for (let i = 0; i < randi(8, 14); i++) {
       alarmNote(640, 1180, 0.42, 'square', v, b, t);

@@ -27,8 +27,20 @@ export function dynamiteBlast(x, y) {
 }
 // a flare lands: it burns, and every zombie that can get to it goes to it, the way they go to a car alarm
 // noise: the trap noise maker, a ringing alarm clock that only pulls, for 10 s, from further off and the whole time
-export function startFlare(x, y, noise = false) {
-  const f = { x, y, alarm: noise ? 10 : 8 + 4 * S.abLv, flare: true, noise, t: 0, t0: GS.time, ignT: 0, beepT: 0 },
+// bell: a shop's alarm bell (world/wear.js, a window broken): it pulls as the noise maker does, for longer, ringing
+export function startFlare(x, y, noise = false, bell = false) {
+  const f = {
+      x,
+      y,
+      alarm: bell ? 20 : noise ? 10 : 8 + 4 * S.abLv,
+      flare: true,
+      noise,
+      bell,
+      t: 0,
+      t0: GS.time,
+      ignT: 0,
+      beepT: 0,
+    },
     seeds = [],
     cx = Math.floor(x / TILE),
     cy = Math.floor(y / TILE);
@@ -42,7 +54,8 @@ export function startFlare(x, y, noise = false) {
   dijk(f.flow, seeds, false);
   GS.flares.push(f);
   if (GS.flares.length > 3) GS.flares.shift().alarm = 0; // the oldest goes quiet, and lets go of the ones it held
-  sfx.ting();
+  if (!bell) sfx.ting();
+  if (bell) GS.noiseRings.push({ x, y, r: 950 * GK, t0: GS.time, alarm: true }); // (on the radar, as a car alarm is)
   if (noise) {
     const n = pullTo(f);
     f.pullT = 0.5;
@@ -112,10 +125,13 @@ export function tickGadgets(dt) {
     if (f.noise) {
       f.beepT -= dt;
       if (f.beepT <= 0 && GS.P) {
-        f.beepT = 0.32;
-        const v = Math.max(0, 1 - Math.hypot(f.x - GS.P.x, f.y - GS.P.y) / (1100 * GK));
-        if (v > 0) tone(2300, 0.09, 'square', 0.05 * v, 1, 0, 3200);
-      } // brrring: a cheap alarm clock, loud enough to carry
+        f.beepT = f.bell ? 0.3 : 0.32;
+        if (f.bell) sfx.bellRing(f.x, f.y - 30, 0.3);
+        else {
+          const v = Math.max(0, 1 - Math.hypot(f.x - GS.P.x, f.y - GS.P.y) / (1100 * GK));
+          if (v > 0) tone(2300, 0.09, 'square', 0.05 * v, 1, 0, 3200);
+        }
+      } // brrring: a cheap alarm clock, loud enough to carry (or a shop's bell, hammering away)
       f.pullT -= dt;
       if (f.pullT <= 0) {
         f.pullT = 0.5;

@@ -3,7 +3,7 @@
 // metre). A crow (0.45 m nose to tail): its body with the wings folded, facing +x (crow), and one wing spread, its root
 // at the left, its tip at the right and its leading edge up (cwing: the other is this one mirrored); black, with the
 // blue-violet sheen crows have. A rat, facing +x, its tail behind (rat). A sheet of newspaper (sheet). A drag smear
-// (smear), white, to be tinted.
+// (smear), white, to be tinted. A crazed pane (wcrack), white, laid over a window.
 import { ell, region } from '../atlas.js';
 
 export function paintStreetLife() {
@@ -162,6 +162,52 @@ export function paintStreetLife() {
       a.fillStyle = 'rgba(255,255,255,0.35)';
       for (const y of [-2.6, -1.4, -0.3, 0.9, 2.2])
         a.fillRect(-10.5 + Math.abs(y) * 1.5, y, 19 - Math.abs(y) * 2.5, 0.35);
+    },
+    0.2,
+    1,
+    0
+  );
+  // a pane crazed by blows (white: drawn over a window, catching the light): long cracks running out from where the
+  // blows landed, rings of short ones round it, a little star of shatter at its heart
+  region(
+    'wcrack',
+    28,
+    22,
+    a => {
+      a.strokeStyle = 'rgba(255,255,255,0.9)';
+      a.lineCap = 'round';
+      let s = 7;
+      const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+      for (let k = 0; k < 11; k++) {
+        let x = 0,
+          y = 0,
+          g = (k / 11) * Math.PI * 2 + rnd() * 0.4;
+        a.lineWidth = 0.35;
+        a.beginPath();
+        a.moveTo(0, 0);
+        for (let j = 0; j < 5; j++) {
+          x += Math.cos(g) * (1.6 + rnd() * 1.6);
+          y += Math.sin(g) * (1.3 + rnd() * 1.2);
+          g += (rnd() - 0.5) * 0.7;
+          a.lineTo(x, y);
+        }
+        a.stroke();
+      }
+      for (const r of [2.2, 4.4]) {
+        a.lineWidth = 0.25;
+        a.beginPath();
+        for (let k = 0; k <= 16; k++) {
+          const t = (k / 16) * Math.PI * 2,
+            rr = r * (0.8 + rnd() * 0.4);
+          if (rnd() < 0.3) a.moveTo(Math.cos(t) * rr * 1.2, Math.sin(t) * rr);
+          else a.lineTo(Math.cos(t) * rr * 1.2, Math.sin(t) * rr);
+        }
+        a.stroke();
+      }
+      a.fillStyle = 'rgba(255,255,255,0.55)';
+      a.beginPath();
+      a.arc(0, 0, 0.9, 0, Math.PI * 2);
+      a.fill();
     },
     0.2,
     1,
