@@ -33,6 +33,7 @@ import { STOPS, stopAt } from './route.js';
 import { STAY, VIA, jerrycan, laterLine, viaGain } from './routes.js';
 import { wayBud } from './threads.js';
 import { RISK, drawRoad, driveVan, glyphSvg, hotWay } from '../ui/roadmap.js';
+import { muzzleOf } from '../actors/player-weapons.js';
 
 export const journeyOn = () => !!(GS.RUN && GS.RUN.journey && !GS.RUN.hm && !GS.RUN.practice);
 export const stopNow = () => (GS.RUN && Number.isInteger(GS.RUN.stop) ? GS.RUN.stop : stopAt(GS.wave + 1));
@@ -1087,10 +1088,17 @@ function mountedGun(r, P, dt) {
   const c = Math.cos(P.aimA),
     s = Math.sin(P.aimA),
     sp = 0.03 + r.heat * 0.09,
-    a = P.aimA + rand(-sp, sp);
+    a = P.aimA + rand(-sp, sp),
+    M = muzzleOf(P, { muzzle: 36 }, c, s); // (up on the bed, at the gun's muzzle as posed: its tracer drawn from there)
   GS.pbullets.push({
     x: P.x + c * 12,
     y: P.y + s * 12,
+    sx: P.x + c * 12,
+    sy: P.y + s * 12,
+    mz: Math.max(0, M.f - 12),
+    h: M.h,
+    lx: M.lx,
+    ly: M.ly,
     vx: Math.cos(a) * 1500,
     vy: Math.sin(a) * 1500,
     life: 0.6,
@@ -1099,7 +1107,17 @@ function mountedGun(r, P, dt) {
     bounce: 0,
     hits: [],
   });
-  GS.flashes.push({ x: P.x + c * 36, y: P.y + s * 36, rot: P.aimA, life: 0.05, max: 0.05, reg: R.mf_rifle, fs: 1 });
+  // the flash at the gun's muzzle, up on the truck's bed where you stand, not down on the road
+  GS.flashes.push({
+    x: M.x,
+    y: M.y,
+    h: M.h,
+    rot: P.aimA,
+    life: 0.05,
+    max: 0.05,
+    reg: R.mf_rifle,
+    fs: 1,
+  });
   P.recoil = 4;
   if (!playS('lmg', 0.36, 0.92, 0, 0.4)) noise(0.06, 0.12, 2200, 500, 'bandpass');
   if (r.heat >= 1) {

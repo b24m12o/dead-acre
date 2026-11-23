@@ -2358,8 +2358,11 @@ function poseHeroFK(p, D, o) {
       p._mvy = (p._mvy ?? 0) + (my - (p._mvy ?? 0)) * g;
     }
   }
-  const vx = p.npc ? (p._mvx ?? 0) : p.vx || 0,
-    vy = p.npc ? (p._mvy ?? 0) : p.vy || 0,
+  // (riding the truck, its speed is yours but your feet are planted on its bed; in a boss's entrance everything holds
+  // still: either way you stand, not walk on the spot)
+  const held = !p.npc && (p.ride === 'truck' || GS.state === 'cine'),
+    vx = held ? 0 : p.npc ? (p._mvx ?? 0) : p.vx || 0,
+    vy = held ? 0 : p.npc ? (p._mvy ?? 0) : p.vy || 0,
     spd = Math.hypot(vx, vy),
     sL = spd / Hl, // leg lengths a second
     mA = spd > 4 ? Math.atan2(vy, vx) : aim,
