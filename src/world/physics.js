@@ -303,6 +303,7 @@ export function propShot(b) {
   for (const d of GS.decor) {
     const D = PUSH[d.kind];
     if (!D || D.fixed || b.pp === d || d2(b.x, b.y, d.x, d.y - 4) > (D.r + 3) ** 2) continue;
+    if (!(b.ax !== undefined && d2(b.ax, b.ay, d.x, d.y - 8) < (D.r + 14) ** 2)) continue; // (over it, unless at it)
     b.pp = d;
     const sp = Math.hypot(b.vx, b.vy) || 1,
       ux = b.vx / sp,

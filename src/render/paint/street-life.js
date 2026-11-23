@@ -263,4 +263,34 @@ export function paintStreetLife() {
       1,
       0
     );
+  // you, among the others: a thin ring on the ground round your feet, and a short tick on it where you aim (it is
+  // turned to your aim when it's drawn: render.js). White, to be tinted; its glow the same, faint, so it reads at night
+  region(
+    'you_ring',
+    64,
+    64,
+    (a, e) => {
+      for (const [c, w, al] of [
+        [a, 1.5, 0.95],
+        [e, 2.6, 0.55],
+      ]) {
+        c.strokeStyle = `rgba(255,255,255,${al})`;
+        c.lineWidth = w;
+        c.beginPath();
+        c.arc(0, 0, 26, 0.16, Math.PI * 2 - 0.16); // (a gap where the tick is)
+        c.stroke();
+        c.fillStyle = `rgba(255,255,255,${al})`;
+        c.beginPath();
+        c.moveTo(31.5, 0);
+        c.lineTo(25, -4.2);
+        c.lineTo(26.6, 0);
+        c.lineTo(25, 4.2);
+        c.closePath();
+        c.fill();
+      }
+    },
+    0,
+    1,
+    0
+  );
 }

@@ -83,7 +83,7 @@ import { fireBeds } from '../world/fire.js';
 import { drawPuddles } from '../world/weather.js';
 import { WXV, drawFog } from '../world/weather.js';
 import { drawObjectiveGlow, objectiveLights } from '../ui/markers.js';
-import { journeyLights } from '../game/journey.js';
+import { journeyLights, riding } from '../game/journey.js';
 import { victims } from '../actors/feeding.js';
 // the flashlight is a light in a hand, not a fixed cone: it bobs with your stride, jolts with every shot and,
 // now and then, flickers as if the contacts were bad (not with Reduce flashes on)
@@ -115,6 +115,17 @@ function beamK() {
   return Math.sin(GS.flkT * 70) > 0.2 ? 1 : 0.45 + Math.random() * 0.2;
 }
 export const YOU_AO = { a: 0.34 };
+// which one is you, in a crowd of the living: a thin green ring on the street round your feet, its tick where you aim.
+// Faint, with a little glow of its own for the night; not while you ride the truck, are down, or a boss comes on
+// (about a metre and a half across: wide enough that you stand in it, the camera's tilt standing you up out of its middle)
+export const YOU_RING = { r: 36 * PEOPLE, up: 8, c: [0.3, 1, 0.36], a: 0.6, glow: 0.42 };
+function youRing(p) {
+  if (p.dead || p.hp <= 0 || GS.state === 'cine' || riding()) return;
+  const Y = YOU_RING,
+    s = Y.r / 26,
+    k = Y.glow;
+  quad(R.you_ring, p.x, p.y - Y.up, p.aimA, s, s, Y.c[0], Y.c[1], Y.c[2], Y.a, Y.c[0] * k, Y.c[1] * k, Y.c[2] * k, 0);
+}
 export function render() {
   fig3dFrame(); // a fresh row of the bone texture for each 3D figure this frame
   const [sx, sy] = shakeOff();
@@ -261,6 +272,7 @@ export function render() {
     if (GS.P && GS.state !== 'menu') {
       ao(GS.P.x - 0.5, GS.P.y + 1, 19 * PEOPLE * 1.2, 0.42, GS.P.bodyA, 1.15); // (the size of you: core/scale.js)
       ao(GS.P.x - 0.25, GS.P.y + 0.5, 12 * PEOPLE * 1.2, YOU_AO.a, GS.P.bodyA, 1.1); // a darker core right under you: you stand out on a lit road
+      youRing(GS.P);
     }
     for (const b of GS.buddies) ao(b.x - 0.5, b.y + 1, 18 * PEOPLE * 1.2, 0.4, b.bodyA, 1.15);
     for (const b of GS.fallen || []) ao(b.x - 0.5, b.y + 1, 22 * PEOPLE * 1.2, 0.3, b.bodyA, 1.6);

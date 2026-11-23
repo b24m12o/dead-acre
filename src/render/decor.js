@@ -450,12 +450,15 @@ export function propShadow(name, x, y, a = 0) {
   quad(r, x, y, a, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
   return true;
 }
+// a hydrant or a bin is below the line a round flies along (chest high, at one of them or at the street beyond): it
+// takes the round only when it was what you aimed at
+export const aimedLow = (b, d) => b.ax !== undefined && d2(b.ax, b.ay, d.x, d.y - 8) < 24 * 24;
 export function decorShot(b) {
   if (propShot(b)) return true;
   for (const d of GS.decor) {
     const D = DECOR[d.kind];
     if (!D || !D.shoot || d.down) continue;
-    if (d2(b.x, b.y, d.x, d.y - 6) > 13 * 13) continue;
+    if (d2(b.x, b.y, d.x, d.y - 6) > 13 * 13 || !aimedLow(b, d)) continue;
     if (d.kind === 'hydrant') {
       if (!(d.jet > 0)) {
         // (spent, shot again: it bursts again)
@@ -477,6 +480,8 @@ export function decorShot(b) {
   }
   return false;
 }
+// a hydrant's height (its model, at its street size: core/scale.js), the top of its bonnet: where the water comes out
+const HYD_TOP = 15;
 export function updateJets(dt) {
   for (const d of GS.jets) {
     d.jet -= dt;
@@ -489,8 +494,9 @@ export function updateJets(dt) {
       part({
         k: 11,
         x: d.x + rand(-2, 2),
-        y: d.y - 10,
-        z: 10,
+        y: d.y,
+        z: HYD_TOP * TILT + 0.5, // out of the top of the bonnet, where the nut's been sheared off
+
         vz: rand(280, 380) * Math.min(1, d.jet / 2),
         vx: Math.cos(a) * s * 0.4 + rand(-30, 30),
         vy: rand(-30, 30),

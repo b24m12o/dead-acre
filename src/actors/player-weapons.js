@@ -14,7 +14,7 @@ import { lampShot } from '../world/lights.js';
 import { los, query, solidPt } from '../world/nav.js';
 import { noise, playS, spat, SBV } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
-import { S, gd, heroGun, startReload } from '../game/state.js';
+import { S, cam, gd, heroGun, startReload } from '../game/state.js';
 import { makeEnemy } from './enemies.js';
 // the height you aim at: the gun's (its muzzle's, as posed). The crosshair marks the point at that height under it,
 // so the rounds, drawn at the gun's height, pass through it; and the crosshair on one of the dead's chests aims at
@@ -28,10 +28,12 @@ export function aimedAt(gx, gy) {
     bd = 1e9;
   for (const e of GS.enemies) {
     if (e.dead || e.dying !== undefined || e.emerge < 0.4) continue;
+    // (its arms: the dead reach out wide of their bodies, a hand's breadth past their shoulders; its head a little
+    // above where a standing figure's picture reaches)
     const fy = e.y - (e.z || 0) * 0.6,
       top = bodyTop(e),
-      hw = e.r + 4;
-    if (Math.abs(gx - e.x) > hw || gy < fy - top - 4 || gy > fy + 6) continue;
+      hw = e.r + (e.crawl || e.down > 0 ? 8 : 11);
+    if (Math.abs(gx - e.x) > hw || gy < fy - top - 8 || gy > fy + 6) continue;
     const d = Math.abs(gx - e.x) + Math.abs(gy - (fy - top / 2)) * 0.7;
     if (d < bd) {
       bd = d;
@@ -43,9 +45,36 @@ export function aimedAt(gx, gy) {
 // where on the street the crosshair (at gx, gy, read on the ground) aims: a creature drawn under it, at itself; something
 // low drawn under it (a hydrant, a bin, a barrel, an electrical box) aimed at where it stands, as it's drawn there;
 // anything else at the gun's height
+// The crosshair on one of the dead aims where it will be when the round gets there: the rounds here are slow enough
+// to see (a tenth to a fifth of a second across the street), and one walking across your line would be a body's
+// width on by the time it arrived
+// (by how it is actually getting along, watched frame to frame: what it means to do, its vx, is often twice that
+// while it shoulders through the others)
+export const AIM = { lead: true, maxT: 0.45 };
+// a round goes on at least as far as you can see (the screen holds about 30 m of street, its far corner some 350
+// away: sprites.js): one fired at a body by the edge used to stop just short of it. Buckshot keeps its short reach
+const REACH = 360;
+const TRK = { e: null, x: 0, y: 0, t: 0, vx: 0, vy: 0 };
 export function aimPoint(p, gx, gy) {
   const e = aimedAt(gx, gy);
-  if (e) return [e.x, e.y - (e.z || 0) * 0.6];
+  if (e) {
+    if (TRK.e !== e) Object.assign(TRK, { e, x: e.x, y: e.y, t: GS.time, vx: 0, vy: 0 });
+    else if (GS.time > TRK.t) {
+      const h = GS.time - TRK.t,
+        k = Math.min(1, h * 8);
+      TRK.vx += ((e.x - TRK.x) / h - TRK.vx) * k;
+      TRK.vy += ((e.y - TRK.y) / h - TRK.vy) * k;
+      TRK.x = e.x;
+      TRK.y = e.y;
+      TRK.t = GS.time;
+    }
+    const G = GUNS[p && p.gun],
+      t = AIM.lead && G && G.speed && !G.lob ? Math.min(AIM.maxT, Math.hypot(e.x - p.x, e.y - p.y) / G.speed) : 0;
+    // at the middle of it, not at its feet: a round is on it anywhere on its picture, feet to head (updatePBullet), and
+    // aimed at the feet half the spread went under them
+    return [e.x + TRK.vx * t, e.y + TRK.vy * t - (e.z || 0) * 0.6 - bodyTop(e) * 0.45];
+  }
+  TRK.e = null;
   let best = null,
     bd = 1e9;
   // (its picture: r either side of it, from its foot up to top)
@@ -105,11 +134,18 @@ const boxHit = (c, x, y) => {
 };
 export function firePlayer(cwx, cwy, p, target) {
   const nB = GS.pbullets.length;
+  // a flick and a click: the round goes where you clicked, not where the arm has got to on its way round (it turns
+  // over a few frames; the shot snaps it there)
+  if (Number.isFinite(target) && !GUNS[p.gun].lob && d2(cwx, cwy, p.x, p.y) > (40 * GK) ** 2) p.aimA = target;
   firePlayer0(cwx, cwy, p, target);
+  const ax = cam.x + mouse.x / ZOOM,
+    ay = cam.y + mouse.y / ZOOM;
   // what's drawn of each round comes in from beside the aim line (out of the muzzle) to meet the crosshair point
   for (let i = nB; i < GS.pbullets.length; i++) {
     const b = GS.pbullets[i];
     if (!b.shell && b.lx !== undefined) b.cv = Math.hypot(cwx - b.sx, cwy - b.sy);
+    b.ax = ax;
+    b.ay = ay; // (what you aimed at: the low props let a round by unless they were it: render/decor.js)
   }
 }
 function firePlayer0(cwx, cwy, p, target) {
@@ -307,7 +343,7 @@ function firePlayer0(cwx, cwy, p, target) {
           ly: QM.ly,
           vx: Math.cos(a) * G.speed,
           vy: Math.sin(a) * G.speed,
-          life: G.life + G.muzzle / G.speed,
+          life: Math.max(G.life, REACH / G.speed) + G.muzzle / G.speed,
           dmg: dm * k,
           pierce: S.pierce + hb.pierce + km.pierce + (G.pierce || 0) + (br && g === 'rifle' ? 1 : 0) + dp,
           crit: km.crit + (g === 'rifle' && S.evo.marks ? 0.15 : 0),
@@ -562,10 +598,25 @@ export function updatePBullet(b, dt) {
   if (used) return;
   query(b.x, b.y, 140 * GK, e => {
     if (e.dead || e.emerge < 0.6 || b.hits.includes(e.id)) return;
-    let hx = b.x,
-      hy = b.y + e.z,
+    // where the round actually struck: anywhere on its picture, feet to head (the camera's tilt shows it standing up),
+    // anywhere along the way it came this frame (a rifle round goes further in one than a body is wide)
+    const fy = e.y - e.z * 0.6,
+      ft = fy - bodyTop(e),
       rr2 = e.r + 5,
-      hitIt = d2(b.x, b.y, e.x, clamp(b.y, e.y - e.z * 0.6 - bodyTop(e), e.y - e.z * 0.6)) < rr2 * rr2; // where the round actually struck: anywhere on its picture, feet to head (the camera's tilt shows it standing up)
+      mv = Math.hypot(b.vx, b.vy) * dt,
+      n = Math.max(1, Math.ceil(mv / 6));
+    let hx = 0,
+      hy = 0,
+      hitIt = false;
+    for (let k = n; k >= 0 && !hitIt; k--) {
+      const x = b.x - (b.vx * dt * k) / n,
+        y = b.y - (b.vy * dt * k) / n;
+      if (d2(x, y, e.x, clamp(y, ft, fy)) < rr2 * rr2) {
+        hitIt = true;
+        hx = x;
+        hy = y + e.z;
+      }
+    }
     if (!hitIt) return;
     const crit =
         Math.random() < S.crit + (b.crit || 0) ||
