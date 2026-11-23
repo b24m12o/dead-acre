@@ -14,6 +14,8 @@ export const WSTN = ['brick', 'conc', 'barr', 'stone', 'bord', 'fence', 'int'];
 export let WST, WHT, WVAR;
 export let hsh;
 export let isBlock;
+// where a window's pane sits on a wall's face, down from the middle of the face (the broken pane is laid there)
+const WINDY = { brick: 0, conc: 0 };
 export let windows,
   WINAT = new Map(); // a window by its wall tile
 function hexTint(h) {
@@ -119,9 +121,28 @@ export function drawBlock(i) {
   const wb = wallBlock(st, i, H, tx, ty);
   if (wb) {
     const z = WB_SIZES[wb][2],
-      lit = /win$/.test(wb) ? 1.4 : 0;
+      broke = WVN[st] && WVN[st][WVAR[i]] === 'brk',
+      lit = /win$/.test(wb) && !broke ? 1.4 : 0;
     setH(z);
     quad(R[wb], x, y - z / 2, 0, 1, 1, bu, bu, bu, 1, lit, lit, lit, 0);
+    // broken (world/wear.js): its glass gone, the dark behind and the teeth of it left in the frame, over the pane
+    if (broke)
+      quad(
+        st === 'conc' ? R.wbroke_c : R.wbroke_b,
+        x,
+        y + 20 - H * 0.55 + WINDY[st],
+        0,
+        1,
+        1,
+        bu,
+        bu,
+        bu,
+        1,
+        0,
+        0,
+        0,
+        0
+      );
   } // the 3D block: its top and the face toward you in one picture (the row in front covers a face that isn't shown)
   else if (faceShown) {
     const v = WVN[st] ? WVN[st][WVAR[i]] : '',
@@ -217,7 +238,7 @@ function wallBlock(st, i, H, tx, ty) {
                 ? 'wb_h34c'
                 : 'wb_h34a'
             : st === 'conc'
-              ? v === 1
+              ? v === 1 || v === 2
                 ? 'wb_c30win'
                 : 'wb_c30'
               : H < 17.5
@@ -228,7 +249,7 @@ function wallBlock(st, i, H, tx, ty) {
                   ? r < 0.5
                     ? 'wb_b21a'
                     : 'wb_b21b'
-                  : v === 1
+                  : v === 1 || v === 5
                     ? 'wb_b28win'
                     : v === 2
                       ? r < 0.5

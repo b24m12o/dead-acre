@@ -4,6 +4,7 @@
 // at the left, its tip at the right and its leading edge up (cwing: the other is this one mirrored); black, with the
 // blue-violet sheen crows have. A rat, facing +x, its tail behind (rat). A sheet of newspaper (sheet). A drag smear
 // (smear), white, to be tinted. A crazed pane (wcrack), white, laid over a window.
+// A pane broken out (wbroke_b, wbroke_c), laid over a 3D wall block's window.
 import { ell, region } from '../atlas.js';
 
 export function paintStreetLife() {
@@ -213,4 +214,53 @@ export function paintStreetLife() {
     1,
     0
   );
+  // a pane broken out of its window, to lay over the glass of a wall's 3D block (its own broken face is painted with
+  // the walls): the dark of the room behind, teeth of glass left in the corners of the frame, a glint on their edges.
+  // Brick's window pane, and a shop's wider one
+  for (const [n, w, h] of [
+    ['wbroke_b', 15, 12],
+    ['wbroke_c', 25, 11],
+  ])
+    region(
+      n,
+      w + 2,
+      h + 2,
+      a => {
+        let s = w * 31 + h;
+        const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647,
+          x0 = -w / 2,
+          y0 = -h / 2;
+        a.fillStyle = '#0a0807';
+        a.fillRect(x0, y0, w, h);
+        a.fillStyle = 'rgba(40,30,26,0.8)'; // (a little of the room: something dark against the back)
+        a.fillRect(x0 + w * 0.15, y0 + h * 0.45, w * 0.35, h * 0.5);
+        for (const [cx, cy, sx, sy] of [
+          [x0, y0, 1, 1],
+          [x0 + w, y0, -1, 1],
+          [x0, y0 + h, 1, -1],
+          [x0 + w, y0 + h, -1, -1],
+        ]) {
+          const tx = cx + sx * (1.5 + rnd() * w * 0.22),
+            ty = cy + sy * (1.5 + rnd() * h * 0.3);
+          if (rnd() < 0.25) continue; // (a corner clean out)
+          a.fillStyle = 'rgba(95,115,125,0.7)';
+          a.beginPath();
+          a.moveTo(cx, cy);
+          a.lineTo(tx, cy);
+          a.lineTo(cx + sx * (1 + rnd() * 2.5), cy + sy * (1 + rnd() * 2.5));
+          a.lineTo(cx, ty);
+          a.closePath();
+          a.fill();
+          a.strokeStyle = 'rgba(210,225,232,0.75)';
+          a.lineWidth = 0.25;
+          a.beginPath();
+          a.moveTo(tx, cy);
+          a.lineTo(cx + sx * (1 + rnd() * 2.5), cy + sy * (1 + rnd() * 2.5));
+          a.stroke();
+        }
+      },
+      0.1,
+      1,
+      0
+    );
 }
