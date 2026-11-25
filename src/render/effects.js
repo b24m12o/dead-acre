@@ -68,6 +68,32 @@ export function sparks(x, y, col, n, sp, dir = null, spread = Math.PI) {
     });
   }
 }
+// a round going into one: a puff of fine dark spray at the wound (x, y on the screen's picture, not the street), out
+// the far side the way the round went, gone in a fifth of a second
+export const MIST = { n: 3, life: 0.2, size: 0.34, dark: 0.55 };
+export function mist(x, y, dx, dy, col, k = 1) {
+  if (!opt.gore) return;
+  const dl = Math.hypot(dx, dy) || 1,
+    c = [col[0] * MIST.dark, col[1] * MIST.dark, col[2] * MIST.dark];
+  for (let i = 0; i < MIST.n; i++) {
+    const s = rand(20, 70) * k;
+    part({
+      k: 2,
+      x: x + rand(-1.5, 1.5),
+      y: y + rand(-1.5, 1.5),
+      vx: (dx / dl) * s + rand(-15, 15),
+      vy: (dy / dl) * s + rand(-15, 15),
+      life: rand(0.7, 1) * MIST.life,
+      max: MIST.life,
+      size: rand(0.8, 1.2) * MIST.size * k,
+      grow: rand(1, 1.6),
+      rot: rand(0, TAU),
+      vr: 0,
+      drag: 5,
+      c,
+    });
+  }
+}
 export function dust(x, y, n, sp = 40, size = 1, life = 1, c = null) {
   for (let i = 0; i < n; i++) {
     const a = rand(0, TAU),

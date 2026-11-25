@@ -7,7 +7,7 @@ import { ZOOM } from '../render/sprites.js';
 import { S, magSize } from '../game/state.js';
 import { mouse } from '../core/input.js';
 import { gunPose } from '../game/evac-ride.js';
-import { aimedAt } from '../actors/player-weapons.js';
+import { HITMK, aimedAt } from '../actors/player-weapons.js';
 import { TILT } from '../core/scale.js';
 export const CH_COLS = {
   white: '#f2efe6',
@@ -61,6 +61,35 @@ export function drawCrosshair() {
         (GS.P.gun === 'rifle' && Math.hypot(GS.P.vx, GS.P.vy) < 40 ? 0.6 : 1) -
       chHot * 3 * k; /* a braced rifle: the gap closes */
   paintCH(ui, mx, my, k, c2, sp, chHot, true);
+  // a round of yours landed: four short ticks on the diagonals, out past the ring, there and gone (a kill: further
+  // out, longer, red)
+  const age = GS.time - HITMK.t,
+    life = HITMK.kill ? 0.22 : 0.12;
+  if (age >= 0 && age < life) {
+    const f = 1 - age / life,
+      r0 = (HITMK.kill ? 21 : 18) * k + (1 - f) * 3 * k, // (outside the ring: over one of them its own ticks are on the diagonals too)
+      r1 = r0 + (HITMK.kill ? 9 : 7) * k;
+    ui.save();
+    ui.lineCap = 'round';
+    for (const [w, c, a] of [
+      [3.6 * k, 'rgba(20,24,29,0.6)', 1],
+      [1.7 * k, HITMK.kill ? '#ff4a3a' : '#ffffff', 1],
+    ]) {
+      ui.strokeStyle = c;
+      ui.lineWidth = w;
+      ui.globalAlpha = Math.min(1, f * 1.6) * a;
+      ui.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const q = Math.PI / 4 + (i * Math.PI) / 2,
+          cx = Math.cos(q),
+          cy = Math.sin(q);
+        ui.moveTo(mx + cx * r0, my + cy * r0);
+        ui.lineTo(mx + cx * r1, my + cy * r1);
+      }
+      ui.stroke();
+    }
+    ui.restore();
+  }
 }
 export function paintCH(ui, mx, my, k, c2, sp, chHot, game) {
   const R0 = 15 * k;

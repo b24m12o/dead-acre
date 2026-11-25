@@ -85,6 +85,7 @@ import { WXV, drawFog } from '../world/weather.js';
 import { drawObjectiveGlow, objectiveLights } from '../ui/markers.js';
 import { journeyLights, riding } from '../game/journey.js';
 import { victims } from '../actors/feeding.js';
+import { roundLift } from '../actors/player-weapons.js';
 // the flashlight is a light in a hand, not a fixed cone: it bobs with your stride, jolts with every shot and,
 // now and then, flickers as if the contacts were bad (not with Reduce flashes on)
 function beamA() {
@@ -823,8 +824,7 @@ export function render() {
     }
   }
   if (GS.arcs.length && GS.arcs.every(z => GS.time - z.t0 > 0.45)) GS.arcs.length = 0;
-  const BOLT_W = 0.42,
-    BUL_UP = 32 * TILT; // the rounds fly at the gun's height, drawn that far up the screen (the camera's tilt) // a round's streak across: a hair, not a pipe (it was as thick as the gun)
+  const BOLT_W = 0.42; // a round's streak across: a hair, not a pipe (it was as thick as the gun)
   for (const b of GS.pbullets) {
     if (b.shell) {
       if (b.t >= 0) quad(R.glow, b.x, b.y - b.z, 0, 0.3 * GK, 0.3 * GK, 0, 0, 0, 1, 1.2, 0.6, 0.2, 0);
@@ -837,9 +837,9 @@ export function render() {
     if (b.tr === undefined) b.tr = S.evo.gold || Math.random() < (b.pellet ? 0.12 : b.small ? 0.2 : 0.3);
     const tk = b.tr ? 1 : 0.32;
     // beside the aim line, out of the muzzle, closing on it to meet the crosshair point
-    const cv = b.cv > 1 ? clamp(1 - Math.hypot(b.x - b.sx, b.y - b.sy) / b.cv, 0, 1) : 1,
-      bx = b.x + (b.lx || 0) * cv,
-      by = b.y + (b.ly || 0) * cv - (b.h === undefined ? BUL_UP : b.h * TILT);
+    const [ox, oy] = roundLift(b, b.x, b.y), // (actors/player-weapons.js: the same picture it strikes by)
+      bx = b.x + ox,
+      by = b.y + oy;
     if (b.tr) quad(R.glow, bx, by, 0, 0.16 * sc, 0.16 * sc, 0, 0, 0, 1, gc[0] * 0.18, gc[1] * 0.18, gc[2] * 0.18, 0);
     quad(
       R.bolt,

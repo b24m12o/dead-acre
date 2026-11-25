@@ -33,6 +33,7 @@ import {
   floatText,
   gib,
   glowBurst,
+  mist,
   part,
   pool,
   ring,
@@ -552,8 +553,15 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
     sparks(hx, hy - 10, [1, 0.8, 0.5], 3, 240, Math.atan2(-ky, -kx), 0.9);
     bleed(hx, hy, 16, -kx, -ky, 1, col, 120);
   } else {
-    bleed(hx, hy, 14 + e.z, kx, ky, crit ? 6 : 3, col, 300);
-    bleed(hx, hy, 14 + e.z, -kx, -ky, 1, col, 110);
+    // from where the round was seen to strike it, when it was one of yours (actors/player-weapons.js): a head shot
+    // sprays from the head, one in the legs low; and a brief dark mist there that reads at a glance
+    const P = e.hitP,
+      bx = P ? P[0] : hx,
+      by = P ? P[1] : hy,
+      bz = P ? P[2] : 14 + e.z;
+    bleed(bx, by, bz, kx, ky, crit ? 6 : 3, col, 300);
+    bleed(bx, by, bz, -kx, -ky, 1, col, 110);
+    if (P) mist(bx, by - bz * GK, kx, ky, col, crit || dmg > 30 ? 1.4 : 1);
     sfx.squelch();
     if (dmg > 12 && Math.random() < 0.3) gib(hx, hy, R['g_meat' + randi(0, 1)], [1, 1, 1], col, 180, kx / kl, ky / kl);
     if (
@@ -1149,10 +1157,14 @@ export function passSolid(b, dt) {
     t = ttype[ti],
     key = t === 6 ? 'c' + carAt[ti] : ti;
   if (b.passK === key) return true;
-  if (t === 9 && Math.random() < (b.pellet ? 0.7 : 0.92)) {
-    b.passK = key;
-    if (Math.random() < 0.3) sparks(b.x, b.y, [1, 0.85, 0.5], 2, 160);
-    return true;
+  // a railing is waist high: a round goes over it at the height it flies, clean, unless it was what you aimed at
+  // (it used to stop one round in twelve at random, and throw sparks off one in three it let by)
+  if (t === 9) {
+    const at = b.ax !== undefined && Math.floor(b.ax / TILE) === tx && Math.abs(b.ay / TILE - (ty + 0.5)) < 1.2;
+    if (!at || Math.random() < 0.5) {
+      b.passK = key;
+      return true;
+    }
   }
   if (t === 6 && !b.pellet && (b.heavy || (b.ap > 0 && Math.random() < 0.45))) {
     b.passK = key;

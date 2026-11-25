@@ -85,8 +85,10 @@ export function flinch(e, D, o, MM) {
     // (a hit from a new quarter turns the bend there quickly, but not in a frame, if it's still bent)
     S.psi = Math.abs(S.x) > 0.15 ? S.psi + angD(S.psi, from) * 0.5 : from;
     // (three in ten to the head; by its own count of hits, not the game's dice: drawing must not change what happens)
+    // (where the round was seen to strike, when it was one of yours: actors/player-weapons.js)
     S.n = (S.n || 0) + 1;
-    S.head = ((e.id || 0) * 7 + S.n * 3) % 10 < 3 ? 1 : 0;
+    S.head = e.hitHd !== undefined ? e.hitHd : ((e.id || 0) * 7 + S.n * 3) % 10 < 3 ? 1 : 0;
+    e.hitHd = undefined;
     S.v += 30 * kick; // (a quarter of its health: about twice the recording's bend, to read from above)
     e.hitAcc = 0;
   }

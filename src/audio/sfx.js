@@ -499,6 +499,12 @@ export const sfx = {
     noise(0.05, 0.08, rand(700, 1400), 400, 'bandpass');
     tone(rand(80, 100), 0.06, 'sine', 0.05, 0.6);
   }, // wet, not clicky; the centre moves so no two hits match
+  // one of your rounds went in: a short dry tick, under the gunfire, not over it (lower and fuller when it went down)
+  confirm(kill) {
+    if (!thr('confirm', 40)) return;
+    noise(0.025, kill ? 0.05 : 0.035, kill ? 2600 : 3800, 1800, 'bandpass');
+    tone(kill ? 900 : 1400, 0.03, 'sine', kill ? 0.03 : 0.018, 0.7);
+  },
   tink(x, y) {
     if (!thr('tink', 70)) return;
     if (playR('ftink', 0.23, x, y, rand(0.95, 1.2))) return;
