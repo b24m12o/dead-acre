@@ -132,7 +132,7 @@ export function init() {
     return Math.max(1, Math.min(TS(), cap));
   };
   META_DEF = () => ({
-    ch: { col: 'white', size: 1.15, line: true },
+    ch: { col: 'white', size: 1.15 },
     hud: { size: 'compact', op: 1, gfx: 'ultra', fps: false },
     seeds: 0,
     unlocked: { ranger: true },

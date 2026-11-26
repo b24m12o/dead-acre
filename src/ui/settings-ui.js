@@ -151,7 +151,6 @@ export function syncOpts() {
     ['tiltBtn', opt.tilt],
     ['grainBtn', opt.grain],
     ['losBtn', opt.los],
-    ['chLine', GS.meta.ch.line],
   ])
     mark($(id), on);
   mark($('musicBtn'), opt.music);
@@ -241,26 +240,6 @@ function chPreview() {
     col = CH_COLS[ch.col] || CH_COLS.lime,
     k = ch.size * 0.72,
     kick = Math.max(0, 1 - (t % 1.4) / 0.18);
-  if (ch.line) {
-    const px = 10,
-      py = H - 8,
-      L = Math.hypot(mx - px, my - py);
-    c.save();
-    c.setLineDash([3, 9]);
-    c.lineDashOffset = -t * 40;
-    c.lineCap = 'round';
-    c.strokeStyle = 'rgba(20,24,29,0.45)';
-    c.lineWidth = 4;
-    c.beginPath();
-    c.moveTo(px, py);
-    c.lineTo(mx - ((mx - px) / L) * 22 * k, my - ((my - py) / L) * 22 * k);
-    c.stroke();
-    c.strokeStyle = col;
-    c.globalAlpha = 0.55;
-    c.lineWidth = 1.6;
-    c.stroke();
-    c.restore();
-  }
   paintCH(
     c,
     mx,
@@ -419,11 +398,6 @@ export function init() {
         saveMeta();
         syncOpts();
       });
-  $('chLine').addEventListener('click', () => {
-    GS.meta.ch.line = !GS.meta.ch.line;
-    saveMeta();
-    syncOpts();
-  });
   for (const b of $('hudSize').children)
     b.addEventListener('click', () => {
       GS.meta.hud.size = b.dataset.h;

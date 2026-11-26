@@ -4,11 +4,9 @@ import { TAU, clamp } from '../core/util.js';
 import { TS } from '../core/settings.js';
 import { ui } from '../render/gl.js';
 import { ZOOM } from '../render/sprites.js';
-import { S, magSize } from '../game/state.js';
+import { magSize } from '../game/state.js';
 import { mouse } from '../core/input.js';
-import { gunPose } from '../game/evac-ride.js';
 import { HITMK, aimedAt } from '../actors/player-weapons.js';
-import { TILT } from '../core/scale.js';
 export const CH_COLS = {
   white: '#f2efe6',
   amber: '#ffc04a',
@@ -25,32 +23,6 @@ export function drawCrosshair() {
     k = ch.size * 0.72,
     mx = mouse.x,
     my = mouse.y;
-  // aim line from the muzzle to the cursor
-  if (ch.line) {
-    const G = GS.evac && GS.evac.ride ? gunPose(GS.evac) : null, // on the chopper: from its door gun
-      P = GS.P,
-      mz = !G && P._mz && GS.time - (P._mzT ?? -9) < 0.25 ? P._mz : null, // (the gun's own muzzle, as drawn)
-      px = ((G ? G.fx : mz ? mz[0] : P.x + Math.cos(P.aimA) * S.muzzle) - GS.camX) * ZOOM,
-      py = ((G ? G.fy : mz ? mz[1] - mz[2] * TILT : P.y + Math.sin(P.aimA) * S.muzzle) - GS.camY) * ZOOM,
-      L = Math.hypot(mx - px, my - py);
-    if (L > 40) {
-      ui.save();
-      ui.setLineDash([3, 9]);
-      ui.lineDashOffset = -GS.time * 40;
-      ui.lineCap = 'round';
-      ui.strokeStyle = 'rgba(20,24,29,0.45)';
-      ui.lineWidth = 4;
-      ui.beginPath();
-      ui.moveTo(px, py);
-      ui.lineTo(mx - ((mx - px) / L) * 22 * k, my - ((my - py) / L) * 22 * k);
-      ui.stroke();
-      ui.strokeStyle = col;
-      ui.globalAlpha = 0.55;
-      ui.lineWidth = 1.6;
-      ui.stroke();
-      ui.restore();
-    }
-  }
   // is a creature under the cursor? (as the shots will take it: player-weapons.js)
   const hot = !!aimedAt(GS.camX + mx / ZOOM, GS.camY + my / ZOOM);
   chHot += ((hot ? 1 : 0) - chHot) * 0.35;

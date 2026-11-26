@@ -78,7 +78,7 @@ export function normalizeMeta() {
   }
   if (!['white', 'amber', 'red', 'green'].includes(GS.meta.ch.col)) GS.meta.ch.col = 'white';
   GS.meta.ch.size = clamp(Number.isFinite(Number(GS.meta.ch.size)) ? Number(GS.meta.ch.size) : 1.15, 0.65, 1.8);
-  GS.meta.ch.line = GS.meta.ch.line !== false;
+  delete GS.meta.ch.line; // (there's no aim line any more)
   if (!['compact', 'full'].includes(GS.meta.hud.size)) GS.meta.hud.size = 'compact';
   GS.meta.hud.op = clamp(Number.isFinite(Number(GS.meta.hud.op)) ? Number(GS.meta.hud.op) : 1, 0.45, 1);
   if (GS.meta.hud.gfx !== 'balanced') GS.meta.hud.gfx = 'ultra';
