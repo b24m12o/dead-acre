@@ -60,23 +60,25 @@ function hitMark(kill) {
   HITMK.t = GS.time;
   if (!again || kill) sfx.confirm(kill);
 }
-// Where a round is on the screen, from where it is on the street (x, y on its way): yours come out of the muzzle, up at
-// the gun's height and beside your line, and close on it to meet the crosshair point, then go on along the same
-// straight line beyond. That picture is the round: it strikes what it is seen to cross (updatePBullet), so a streak
-// past a head missed it and one across a chest didn't. (The others' rounds are drawn up at the gun's height all the way)
+// A round of yours flies out of the barrel at the gun's height: level, at bare street (the crosshair marks the point
+// at that height, so the barrel points through it and the round goes along the barrel), or dipping or lifting to the
+// height on one of the dead you aimed at (its legs, its head), and on the same way past it, into the street if it
+// was going down. How high it is (d along the street from where it started) and where that puts it on the screen
+// (the camera's tilt stands height up the screen; it comes in from beside your line, out of the muzzle, to meet the
+// crosshair). It strikes what it meets at that height: updatePBullet. (The others' rounds: at the gun's height)
+export const roundH = (b, d) => b.h0 + (b.h1 - b.h0) * Math.min(d / b.D, 4);
 export function roundLift(b, x, y) {
-  const h = (b.h === undefined ? 32 : b.h) * TILT;
-  if (!(b.cv > 1)) return [b.lx || 0, (b.ly || 0) - h];
-  const cv = clamp(1 - Math.hypot(x - b.sx, y - b.sy) / Math.max(b.cv, 24), -1, 1);
-  return [(b.lx || 0) * cv, ((b.ly || 0) - h) * cv];
+  if (!b.pl) return [b.lx || 0, (b.ly || 0) - (b.h === undefined ? 32 : b.h) * TILT];
+  const d = Math.hypot(x - b.sx, y - b.sy),
+    cv = b.cv > 0 ? clamp(1 - d / b.cv, 0, 1) : 1;
+  return [(b.lx || 0) * cv, (b.ly || 0) * cv - roundH(b, d) * TILT];
 }
 // a round goes on at least as far as you can see (the screen holds about 30 m of street, its far corner some 350
 // away: sprites.js): one fired at a body by the edge used to stop just short of it. Buckshot keeps its short reach
 const REACH = 360;
 const TRK = { e: null, x: 0, y: 0, t: 0, vx: 0, vy: 0 };
-// which one the crosshair is on, and how far up its body (the round's streak runs up its picture from the feet when
-// you fire from below, so where it strikes the one it was fired at is where you aimed on it: updatePBullet)
-const AIMON = { e: null, up: 0 };
+// which one the crosshair is on, and the height on it (above the street) the crosshair marks
+const AIMON = { e: null, h: 0 };
 export function aimPoint(p, gx, gy) {
   const e = aimedAt(gx, gy);
   if (e) {
@@ -94,12 +96,14 @@ export function aimPoint(p, gx, gy) {
       t = AIM.lead && G && G.speed && !G.lob ? Math.min(AIM.maxT, Math.hypot(e.x - p.x, e.y - p.y) / G.speed) : 0;
     // at the crosshair itself (a round is drawn from the muzzle straight through it, and strikes what it's seen to
     // cross: roundLift), only kept a little in on the body: on the edge of one, half the spread went past it
+    // at it where it stands, and at the height on it the crosshair is on (head, chest, legs: kept a little in on the
+    // body, half the spread went past one aimed at the edge): the gun dips or lifts to it (roundH)
     const fy = e.y - (e.z || 0) * 0.6,
       top = bodyTop(e),
       ay = clamp(gy, fy - top + 4, fy - 4);
     AIMON.e = e;
-    AIMON.up = fy - ay;
-    return [clamp(gx, e.x - e.r * 0.5, e.x + e.r * 0.5) + TRK.vx * t, ay + TRK.vy * t];
+    AIMON.h = (e.y - ay) / TILT;
+    return [clamp(gx, e.x - e.r * 0.5, e.x + e.r * 0.5) + TRK.vx * t, e.y + TRK.vy * t];
   }
   TRK.e = null;
   AIMON.e = null;
@@ -117,7 +121,7 @@ export function aimPoint(p, gx, gy) {
   for (const d of GS.decor) if (DECOR[d.kind] && DECOR[d.kind].shoot && !d.down) look(d.x, d.y - 6, 13, 24);
   for (const br of GS.barrels) if (!br.dead) look(br.x, br.y, br.r + 4, 30);
   for (const cr of crystals) if (cr.alive) look(cr.x, cr.y, 28 * BOX, 44 * BOX);
-  return best || [gx, gy]; // (bare street: the streak goes through the crosshair itself: roundLift)
+  return best || [gx, gy + aimH(p) * TILT]; // (bare street: the point at the gun's height under the crosshair)
 }
 // where the shots are seen to leave: the 3D gun's muzzle (fig3d.js poses it each frame), or, drawn flat, out along the
 // aim at the gun's height. The round itself flies down the aim line through you, so nothing at point blank is missed:
@@ -168,14 +172,20 @@ export function firePlayer(cwx, cwy, p, target) {
   firePlayer0(cwx, cwy, p, target);
   const ax = cam.x + mouse.x / ZOOM,
     ay = cam.y + mouse.y / ZOOM;
-  // what's drawn of each round comes in from beside the aim line (out of the muzzle) to meet the crosshair point
+  // each round: out of the barrel at its height, to the height you aimed at where you aimed (roundH); what's drawn of
+  // it comes in from beside the aim line to meet the crosshair, when that is well out past the muzzle (closer, it
+  // just goes on straight out of the barrel)
   for (let i = nB; i < GS.pbullets.length; i++) {
     const b = GS.pbullets[i];
-    if (!b.shell && b.lx !== undefined) b.cv = Math.hypot(cwx - b.sx, cwy - b.sy);
     b.ax = ax;
-    b.ay = ay;
-    b.tgt = AIMON.e ? AIMON.e.id : -1;
-    b.up = AIMON.up; // (what you aimed at: the low props let a round by unless they were it: render/decor.js)
+    b.ay = ay; // (what you aimed at: the low props let a round by unless they were it: render/decor.js)
+    if (b.shell || b.lx === undefined) continue;
+    const D = Math.hypot(cwx - b.sx, cwy - b.sy);
+    b.pl = true;
+    b.h0 = b.h;
+    b.h1 = AIMON.e ? AIMON.h : b.h;
+    b.D = Math.max(D, 1);
+    b.cv = D > (b.mz || 0) + 40 * GK ? D : 0;
   }
 }
 function firePlayer0(cwx, cwy, p, target) {
@@ -577,6 +587,19 @@ export function updatePBullet(b, dt) {
   b.y += b.vy * dt;
   b.life -= dt;
   if (b.life <= 0) return;
+  // one of yours fired down at legs (or a crawler) and past them goes into the street, where it came down to it: a
+  // kick of grit there, and that's its end (checked from where it started this frame: what it met on the way down,
+  // it struck, below)
+  if (b.pl && b.h1 < b.h0 && roundH(b, Math.hypot(b.x - b.vx * dt - b.sx, b.y - b.vy * dt - b.sy)) <= 0) {
+    const d0 = (b.D * b.h0) / (b.h0 - b.h1),
+      sp = Math.hypot(b.vx, b.vy) || 1,
+      gx = b.sx + (b.vx / sp) * d0,
+      gy = b.sy + (b.vy / sp) * d0;
+    dust(gx, gy, 3, 50, 0.5, 0.5, [0.42, 0.4, 0.37]);
+    chips(gx, gy, 2, [0.3, 0.29, 0.27], 2, 140);
+    b.life = 0;
+    return;
+  }
   if (!b.small && lampShot(b.x - b.vx * dt, b.y - b.vy * dt, b.x, b.y)) {
     b.life = 0;
     return;
@@ -626,9 +649,8 @@ export function updatePBullet(b, dt) {
       break;
     }
   if (used) return;
-  const pic = b.cv > 1,
-    [ox, oy] = pic ? roundLift(b, b.x, b.y) : [0, 0];
-  query(b.x + ox, b.y + oy, 140 * GK, e => {
+  const pic = !!b.pl;
+  query(b.x, b.y, 140 * GK, e => {
     if (e.dead || e.emerge < 0.6 || b.hits.includes(e.id)) return;
     // where the round actually struck: anywhere on its picture, feet to head (the camera's tilt shows it standing up),
     // anywhere along the way it came this frame (a rifle round goes further in one than a body is wide)
@@ -642,22 +664,34 @@ export function updatePBullet(b, dt) {
       px = 0,
       py = 0,
       hitIt = false;
+    // (yours: where it is on the street, at the height it is at then, against the body standing there, its feet up)
+    const ez = ((e.z || 0) * 0.6) / TILT,
+      eh = bodyTop(e) / TILT;
     for (let k = n; k >= 0 && !hitIt; k--) {
       const gx = b.x - (b.vx * dt * k) / n,
         gy = b.y - (b.vy * dt * k) / n;
-      let x = gx,
-        y = gy;
       if (pic) {
-        const [lx, ly] = roundLift(b, x, y);
-        x += lx;
-        y += ly;
-      }
-      if (d2(x, y, e.x, clamp(y, ft, fy)) < rr2 * rr2) {
+        if (d2(gx, gy, e.x, e.y) >= rr2 * rr2) continue;
+        // (taken where it passes nearest the middle of it, not where it first came within reach: going down the
+        // screen at a head, that edge is a chest's height short of the crosshair)
+        const sp = Math.hypot(b.vx, b.vy) || 1,
+          dc = Math.max(0, (e.x - b.sx) * (b.vx / sp) + (e.y - b.sy) * (b.vy / sp)),
+          cx = b.sx + (b.vx / sp) * dc,
+          cy = b.sy + (b.vy / sp) * dc,
+          [lx, ly] = roundLift(b, cx, cy),
+          h = roundH(b, dc);
+        if (h < ez - 2 || h > ez + eh + 2) continue;
         hitIt = true;
-        hx = gx; // (the game's own sums take it where it was on the street, as they always did)
+        hx = cx;
+        hy = cy + e.z;
+        px = cx + lx; // (where it was seen to strike: the blood comes from there, a head shot rocks the head)
+        py = clamp(cy + ly, ft, fy);
+      } else if (d2(gx, gy, e.x, clamp(gy, ft, fy)) < rr2 * rr2) {
+        hitIt = true;
+        hx = gx;
         hy = gy + e.z;
-        px = x; // (and where it was seen to strike: the blood comes from there, and a head shot rocks the head)
-        py = clamp(y, ft, fy);
+        px = gx;
+        py = clamp(gy, ft, fy);
       }
     }
     if (!hitIt) return;
@@ -671,7 +705,7 @@ export function updatePBullet(b, dt) {
       kbk = b.pellet ? clamp(1.5 - tr / (260 * GK), 0.35, 1.3) : 1; // buckshot hits hard up close and spreads thin
     GS.HITB = b.small ? null : b;
     // where on it: across its picture, and how far up it from its feet (blood, the flinch: game/combat.js, flinch.js)
-    const up = e.id === b.tgt ? b.up : fy - py;
+    const up = fy - py;
     e.hitP = [clamp(px, e.x - e.r, e.x + e.r), e.y, (up + e.z * 0.6) / GK];
     e.hitHd = up > bodyTop(e) * 0.8 ? 1 : 0;
     try {
