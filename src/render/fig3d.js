@@ -2498,16 +2498,16 @@ function poseHeroFK(p, D, o) {
     fkSnap(FK2, FKR2, C.hit, 0.14, false);
     for (let b = 1; b <= 5; b++) fkMix(FKQ, FK2, b, hurtK);
   }
-  // the dodge roll: the recording's roll, through in half a second, the way it was thrown; then back on its feet.
-  // Thrown back the way he faces (backing off), he doesn't turn round to roll and turn back: he rolls over backward
-  // (CMU's backward somersault: sits back, over his shoulder, up on his feet), still facing his aim, in three quarters
-  // of a second
+  // the dodge roll: the recording's roll, through in half a second, the way it was thrown; then back on its feet and
+  // round to the aim. The same roll whichever way: thrown back the way he faces, he turns with it and rolls forward
+  // too (a backward somersault started by sitting back, so the throw's burst of speed went by before the roll began:
+  // a slide, then a roll; the forward roll is the throw)
   if (p.dashT > 0 && !(t - (p._rollT0 ?? -9) < (p._rollD || 0.5) + 0.05)) {
     const da = p.dashA ?? yaw;
     p._rollT0 = t;
-    p._rollB = Math.abs(angDiff(da, aim)) > 1.9 && !!X.broll;
-    p._rollA = p._rollB ? da + Math.PI : da;
-    p._rollD = p._rollB ? 0.75 : 0.5;
+    p._rollB = false;
+    p._rollA = da;
+    p._rollD = 0.5;
   }
   const rollU = (t - (p._rollT0 ?? -9)) / (p._rollD || 0.5),
     rollK = rollU >= 0 && rollU < 1 ? Math.min(1, rollU / 0.08, (1 - rollU) / 0.15) : 0;

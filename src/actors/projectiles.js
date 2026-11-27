@@ -3,7 +3,7 @@ import { GS } from '../core/gs.js';
 import { GK, figK } from '../core/scale.js';
 import { TAU, clamp, d2, lerp, rand, randi } from '../core/util.js';
 import { R } from '../render/atlas.js';
-import { cars, crystals, lamps } from '../world/map.js';
+import { cars, crystals } from '../world/map.js';
 import { damageCar } from '../world/fire.js';
 import { blastWorld } from '../world/physics.js';
 import { query, solidPt } from '../world/nav.js';
@@ -347,13 +347,6 @@ export function bossProj(b, dt, p) {
 // harm false: a fall, not a slam (cut short in mid-air: bosses.js interruptBoss)
 export function bossSlam(e, harm = true) {
   const R0 = 150 * GK;
-  for (const L of lamps)
-    if (!L.down && !L.lantern && d2(L.bx, L.by, e.x, e.y) < (230 * GK) ** 2) {
-      L.down = true;
-      L.fa = Math.atan2(L.by - e.y, L.bx - e.x) + rand(-0.3, 0.3);
-      sparks(L.hx, L.hy, [1, 0.9, 0.6], 14, 300);
-      flashLight(L.hx, L.hy, 200, [1.4, 1.2, 0.8], 0.15);
-    } // it lands on the light: the street goes darker
   sfx.boom(e.x, e.y, 1.4);
   sfx.gib(e.x, e.y);
   shake(0.7);

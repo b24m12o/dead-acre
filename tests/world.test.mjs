@@ -6,7 +6,7 @@
 // there finds it burnt out. Standing at the pumps when it goes is as bad as it should be; well clear, it isn't.
 import { openGame, check } from './lib/harness.mjs';
 
-export const name = 'world: lamps you can shoot out, dark that hides you, the gas station going up';
+export const name = 'world: lamps that stand through anything, dark that hides you, the gas station going up';
 export async function run(b) {
   const { pg, errs, ev } = await openGame(b, { noFrames: true });
   const o = await ev(`(() => {
@@ -14,10 +14,8 @@ export async function run(b) {
     initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null; GS.RUN.jobN = []; GS.state = 'play';
     GS.queue = []; for (const e of GS.enemies) e.dead = true; GS.enemies.length = 0;
     const fr = s => { for (let i = 0; i < s * 60; i++) { update(1 / 60); tickWorld(1 / 60); if (GS.state === 'levelup') { GS.state = 'play'; $('levelup').hidden = true; } } };
-    // the bulb: a round through it pops it; one 25 px off doesn't
+    // the bulb: a round through it no longer pops it (the lamps can't be damaged)
     const L = lamps.find(l => !l.down && !l.lantern), [bx, by] = bulbAt(L);
-    out.miss = lampShot(bx - 60, by - 25, bx + 60, by - 25); out.missK = lampK(L) > 0 || L.broken;
-    out.hit = lampShot(bx - 60, by + 3, bx + 60, by - 3); out.hitK = lampK(L); out.shot = !!L.shot;
     // a real round, fired by the gun at the bulb of another lamp
     // (one with clear street across to it: a wall in the way stops the round short, and the map is random)
     const clear = l => { const [x, y] = bulbAt(l); for (let d = 0; d <= 160; d += 8) if (blockPt(x - 160 + d, y)) return false; return true; };
@@ -88,10 +86,8 @@ export async function run(b) {
     return out;
   })()`);
   await pg.close();
-  check(o.miss === false && o.missK, 'a round 25 px off the bulb should leave it lit');
-  check(o.hit && o.shot && o.hitK === 0, `a round through the bulb should pop it for good: ${o.hit} ${o.hitK}`);
-  check(o.real, 'a real round flying through a bulb should pop it');
-  check(!o.buddyPops, "the backup's rounds should not pop lamps");
+  // the lamps can't be damaged: a round through a bulb passes it by, and the lamp stays lit
+  check(!o.real && !o.buddyPops, `a round flying through a bulb should leave it lit: ${o.real} ${o.buddyPops}`);
   check(
     o.seenLit > o.seenDark * 1.5 && o.seenDark < o.sight,
     `the dead should see you further in lamplight: lit ${Math.round(o.seenLit)}, dark ${Math.round(o.seenDark)}, base ${o.sight}`
@@ -107,7 +103,7 @@ export async function run(b) {
   );
   check(g.done && g.gone && g.pumpsLeft === 0 && !g.roofLeft, `then the whole station should go: ${JSON.stringify(g)}`);
   check(/^(\d+)\/\1$/.test(g.dead), `the dead on the forecourt should all go with it: ${g.dead}`);
-  check(/^(\d+)\/\1$/.test(g.lampsDown), `the lamps round it should be flattened: ${g.lampsDown}`);
+  check(/^0\//.test(g.lampsDown), `the lamps round it should still stand (they can't be damaged): ${g.lampsDown}`);
   check(g.clearHurt === 0, `well clear, you should be untouched: lost ${g.clearHurt}`);
   check(
     g.ruinPumps === 0 && !g.ruinRoof && !g.ruinStation,
@@ -115,5 +111,5 @@ export async function run(b) {
   );
   check(g.atPumps >= g.maxHp, `standing at the pumps when it goes should kill you: ${g.atPumps} of ${g.maxHp}`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));
-  return `lamps pop, seen ${Math.round(o.seenLit)} px lit / ${Math.round(o.seenDark)} dark, box ${o.boxOut}; station: ${g.dead} dead, lamps ${g.lampsDown}, ${g.atPumps} damage at the pumps`;
+  return `lamps hold, seen ${Math.round(o.seenLit)} px lit / ${Math.round(o.seenDark)} dark, box ${o.boxOut}; station: ${g.dead} dead, lamps ${g.lampsDown}, ${g.atPumps} damage at the pumps`;
 }

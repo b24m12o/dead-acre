@@ -6,7 +6,6 @@ import { TAU, angDiff, d2, rand, randi } from '../core/util.js';
 import { gl } from '../render/gl.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
-import { LAMP_FALL } from '../render/decor.js';
 import { MH, MW, NM, TILE, WW, cars, fires, grassCells, grid, lamps, mapA, texMapA, texMapN, ttype } from './map.js';
 import { collide, query, solidPt } from './nav.js';
 import { playS, thr } from '../audio/audio.js';
@@ -487,23 +486,7 @@ export function blastWorld(x, y, R0, dmg) {
       sfx.crunch(d.x, d.y);
     }
   }
-  for (const L of lamps)
-    if (!L.down && !L.lantern && d2(L.bx, L.by, x, y) < (R0 * 0.9) ** 2) {
-      L.down = true;
-      L.fallT = GS.time; // it tips over and falls (decor.js), the thud when its head hits the street
-      L.fa = Math.atan2(L.by - y, L.bx - x) + rand(-0.3, 0.3);
-      sparks(L.hx, L.hy, [1, 0.9, 0.6], 14, 300);
-      flashLight(L.hx, L.hy, 200, [1.4, 1.2, 0.8], 0.15);
-      sfx.crunch(L.hx, L.hy);
-      GS.later.push({
-        t: LAMP_FALL,
-        fn: () => {
-          playS('dry', 0.4, 0.4, 0, 0.3);
-          shake(0.1);
-          dust(L.bx + Math.cos(L.fa) * 66, L.by + Math.sin(L.fa) * 66, 6, 60, 1, 1); // where the head hits the street (decor.js: POLE_H)
-        },
-      });
-    }
+  // (the street lamps stand through any blast: a pole you can't bring down)
   for (const c of cars)
     if (!c.dead) {
       const dx = c.x - x,

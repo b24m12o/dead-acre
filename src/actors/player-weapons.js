@@ -11,7 +11,6 @@ import { ZOOM } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
 import { MW, TILE, crystals, isWall } from '../world/map.js';
 import { WHT } from '../render/blocks.js';
-import { lampShot } from '../world/lights.js';
 import { firstSolid, los, query, solidPt } from '../world/nav.js';
 import { noise, playS, spat, SBV } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
@@ -602,10 +601,7 @@ export function updatePBullet(b, dt) {
     b.life = 0;
     return;
   }
-  if (!b.small && lampShot(b.x - b.vx * dt, b.y - b.vy * dt, b.x, b.y)) {
-    b.life = 0;
-    return;
-  } // a bulb in its path pops, and that's where the round ends: up there it can't also hit one on the ground
+  // (the street lamps can't be shot out: a round passes a bulb by. lights.js)
   let used = false;
   if (GS.boss && GS.boss.signAt && !b.small && d2(b.x, b.y, GS.boss.signAt.x, GS.boss.signAt.y) < (26 * GK) ** 2) {
     hitSign(GS.boss, b.dmg, b.x, b.y);

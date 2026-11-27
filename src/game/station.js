@@ -5,8 +5,8 @@
 // a run: a Continue at the gas station later finds it a burnt-out shell.
 import { GK } from '../core/scale.js';
 import { GS } from '../core/gs.js';
-import { TAU, d2, rand } from '../core/util.js';
-import { MW, TILE, crystals, grid, lamps, roofs, ttype } from '../world/map.js';
+import { TAU, rand } from '../core/util.js';
+import { MW, TILE, crystals, grid, roofs, ttype } from '../world/map.js';
 import { explode } from './combat.js';
 import { firePool, smoke } from '../world/fire.js';
 import { decal, distort, flashLight, ring, shake, sparks } from '../render/effects.js';
@@ -83,11 +83,6 @@ function blow(S) {
   GS.later.push({ t: 0.6, fn: () => smoke(S.x, S.y, 16, STATION.r, true) });
   const rf = roofOf();
   if (rf) roofs.splice(roofs.indexOf(rf), 1); // the canopy is gone
-  for (const L of lamps)
-    if (!L.down && !L.lantern && d2(L.bx, L.by, S.x, S.y) < STATION.flatten ** 2) {
-      L.down = true;
-      L.fa = Math.atan2(L.by - S.y, L.bx - S.x) + rand(-0.3, 0.3);
-    } // the blast flattens every lamp round it
   if (GS.RUN && GS.RUN.metrics) GS.RUN.metrics.station = 1;
   GS.later.push({ t: 1.2, fn: () => showStreak('The station went up', 'Nothing on the forecourt lived through that') });
 }

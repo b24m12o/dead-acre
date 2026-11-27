@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// The street lights as something to fight over. A round through a lamp's bulb pops it: glass, a spit of sparks,
-// and that pool of light is gone for as long as you stay at this place. Light works both ways: in a lamp's pool
+// The street lights as something to fight over. (A round through a bulb used to pop it; no longer: the lamps can't be
+// damaged, so lampShot is no longer called. popLamp still serves whatever cuts a lamp out.) Light works both ways: in a lamp's pool
 // you see what's coming, and the dead see you from further off; out of it they have to get closer first. Shoot
 // an electrical box and the lamps on its block go out together until dawn brings the power back.
 import { GS } from '../core/gs.js';

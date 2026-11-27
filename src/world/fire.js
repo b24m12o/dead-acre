@@ -263,14 +263,16 @@ function smoulder(c, dt) {
 // a car is the street's size, not the people's: so is its blast (explode() takes the old size of things, hence / GK)
 // how big a burning car's flames are, against the old size of things (a car's fire is the car's size)
 const CAR_FLAME = 0.75;
-export const carBlastR = c => (c.truck ? 150 : 125) * (c.tanker ? 2 : c.rig ? 1.45 : 1);
+// how far a car's blast reaches: close enough round it that you see what it does to the dead it takes (it reached half
+// the screen across, and they went down out of sight)
+export const carBlastR = c => (c.truck ? 120 : 100) * (c.tanker ? 1.6 : c.rig ? 1.3 : 1);
 function blowCar(c) {
   c.dead = true;
   c.fire = 0;
   if (c.warn) c.warn.life = 0; // the warning goes with the car: never left hanging over the wreck
   c.warn = null;
   bump('cars');
-  const k = c.tanker ? 2 : c.rig ? 1.45 : 1; // a rigged car goes up half again as wide; the fuel tanker twice
+  const k = c.tanker ? 1.6 : c.rig ? 1.3 : 1; // a rigged car goes up wider; the fuel tanker wider still (carBlastR)
   if (c.rig) bump('rigs');
   GS.trapBlast = !!c.rig;
   explode(c.x, c.y, carBlastR(c) / GK, (90 + GS.wave * 12) * (c.tanker ? 2.2 : c.rig ? 1.6 : 1), true, c.rig ? 0 : 0.5); // a car you rigged is your trap: the full blast
