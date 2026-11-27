@@ -13,6 +13,7 @@ import { kn } from './binds.js';
 import { tickStation } from '../game/station.js';
 import { saveMeta } from './settings.js';
 import { GS } from './gs.js';
+import { thrown, throwing } from '../render/draw-player.js';
 import { $ } from './errors.js';
 import { TAU, angDiff, clamp, d2, damp, keepIf, lerp, pick, rand, randi } from './util.js';
 import { GUNS } from '../game/arsenal.js';
@@ -286,7 +287,7 @@ export function update(dt) {
   // your aim through, gets shot)
   if ((AIMON.e && d2(cwx, cwy, p.x, p.y) > 1) || d2(cwx, cwy, p.x, p.y) > (40 * GK) ** 2)
     target = Math.atan2(cwy - p.y, cwx - p.x);
-  firing = mouse.down;
+  firing = mouse.down && !throwing(p); // (a full throw has the body: the gun waits for it, a third of a second)
   if (WHEEL.open) {
     target = p.aimA;
     firing = false;
@@ -360,6 +361,7 @@ export function update(dt) {
             tx = e.x + e.vx * 0.4 + rand(-20, 20) * GK,
             ty = e.y + e.vy * 0.4 + rand(-20, 20) * GK,
             d = Math.hypot(tx - p.x, ty - p.y);
+          if (!i) thrown(p, Math.atan2(ty - p.y, tx - p.x), true); // (off hand, a flick: the gun keeps firing)
           GS.darts.push({
             x0: p.x,
             y0: p.y,
@@ -401,6 +403,7 @@ export function update(dt) {
         const tx = best.x + best.vx * 0.3,
           ty = best.y + best.vy * 0.3,
           d = Math.hypot(tx - p.x, ty - p.y);
+        thrown(p, Math.atan2(ty - p.y, tx - p.x), true);
         GS.bangs.push({
           x0: p.x,
           y0: p.y,

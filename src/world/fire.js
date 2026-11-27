@@ -508,7 +508,7 @@ export function throwMolotov(p) {
   });
   if (!best || roofStop(p.x, p.y, best.x, best.y)) return false; // a roof between you and them: not this time (roofs.js)
   const d = Math.hypot(best.x - p.x, best.y - p.y);
-  thrown(p, Math.atan2(best.y - p.y, best.x - p.x));
+  thrown(p, Math.atan2(best.y - p.y, best.x - p.x), true); // (gear: off hand)
   GS.molos.push({
     x0: p.x,
     y0: p.y,

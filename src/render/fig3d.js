@@ -2508,9 +2508,12 @@ function poseHeroFK(p, D, o) {
     p._rollB = false;
     p._rollA = da;
     p._rollD = 0.5;
+    // thrown back the way he faces (backing off), not a roll: a quick dash back on his feet, still on his aim (the legs
+    // step it: stepFeet); the roll is for going forward or to the side
+    p._rollX = Math.abs(angDiff(da, aim)) > 2.0;
   }
   const rollU = (t - (p._rollT0 ?? -9)) / (p._rollD || 0.5),
-    rollK = rollU >= 0 && rollU < 1 ? Math.min(1, rollU / 0.08, (1 - rollU) / 0.15) : 0;
+    rollK = rollU >= 0 && rollU < 1 && !p._rollX ? Math.min(1, rollU / 0.08, (1 - rollU) / 0.15) : 0;
   const stepB = 0; // (backing off was two quick steps back; it's a roll now, as forward)
   if (rollK > 0 && p._rollB) {
     fkSnap(FK2, FKR2, X.broll, Math.min(rollU, 0.999) * X.broll.dur, false);
@@ -2550,7 +2553,7 @@ function poseHeroFK(p, D, o) {
       tk = tt >= 0 && tt < 0.36 && !(p.reload > 0) && allK === 0 ? tt / 0.36 : -1;
     if (tk >= 0) {
       fkSnap(FK2, FKR2, C.throw, 0.3 + tk * 0.5, false);
-      const w = Math.sin(Math.PI * tk) * 0.7;
+      const w = Math.sin(Math.PI * tk) * (p.throwLite ? 0.2 : 0.7); // (gear lobbed while you fire: the trunk barely turns)
       for (const b of [1, 2, 3, 4, 5]) fkMix(FKQ, FK2, b, w);
     }
   }

@@ -42,10 +42,16 @@ export function blow(p, sx, sy, cap = 22) {
   p.stains = p.stains || [];
   if (p.stains.length < cap) p.stains.push({ u: rand(-9, 9), v: rand(-11, 11), r: rand(0, TAU), s: rand(0.9, 1.6) });
 } // and the blood stays on you (and on your people) through the night
-export function thrown(p, a) {
+// a throw: the free hand off the gun, back past the shoulder and through (fig3d.js). lite: the gear you carry lobbing
+// its own while you fire (pipe bombs, stun grenades, a Molotov): the off hand flicks it out and the trunk barely turns,
+// so the gun stays on its mark. A full throw (your E: a flashbang, dynamite, a road flare) turns the body into it, and
+// the gun holds its fire while it does (update.js)
+export function thrown(p, a, lite = false) {
   p.throwT = GS.time;
   p.throwA = a;
+  p.throwLite = lite;
 }
+export const throwing = p => !p.throwLite && GS.time - (p.throwT ?? -9) < 0.3;
 export const HLOOK = { ranger: 0, breacher: 1, grenadier: 2 };
 const HSTYLE = [
   { sleeve: [0.31, 0.31, 0.28], pants: [0.25, 0.25, 0.23], hand: 'h_glove', pack: 'h_pack' }, // a worn field jacket: greys and browns, so lamplight doesn't turn it lime
