@@ -116,8 +116,9 @@ function beamK() {
   return Math.sin(GS.flkT * 70) > 0.2 ? 1 : 0.45 + Math.random() * 0.2;
 }
 export const FLASH = { k: 1.35 };
-// pickups, drawn this much over life size
-export const PICK_K = 1.4;
+// pickups, drawn this much over life size, and the colour of each kind's glint (the rim round it, the light under it)
+export const PICK_K = 1.25;
+const PICK_GLINT = { ammo: [1, 0.72, 0.28], hp: [0.42, 1, 0.5], pouch: [0.85, 0.74, 0.5], boon: [1, 0.86, 0.35] };
 export const YOU_AO = { a: 0.34 };
 // which one is you, in a crowd of the living: a thin green ring on the street round your feet, its tick where you aim.
 // Faint, with a little glow of its own for the night; not while you ride the truck, are down, or a boss comes on
@@ -395,58 +396,26 @@ export function render() {
             0
           );
       }
-  for (const k of GS.pickups) {
-    // things to pick up, well over life size (PICK_K): at life size a box of rounds was a crumb beside you
+  // things to pick up, a little over life size (PICK_K): lying on the street with a shadow under them, not hovering,
+  // and round each a thin rim in its own colour that breathes slowly, so you can find it and tell what it is at a
+  // glance: brass for rounds, green for a medkit, khaki for a dead one's pouch, gold for what the ones in uniform drop
+  const pick = (reg, k, sc, glint, al = 1) => {
+    if (!reg) return;
+    const hot = lampHot(k.x, k.y),
+      dm = 1 / (1 + 3.2 * hot), // right under a lamp the light pool is several times brighter than the street: dim the paint there so the kit keeps its colour
+      pu = 0.55 + 0.45 * Math.sin(k.t * 2.6 + k.x * 0.05) ** 2,
+      y = k.y - 3;
     scaleAbout(k.x, k.y, GK * PICK_K);
-    const bob = Math.sin(k.t * 5 + k.x) * 2.5,
-      hot = lampHot(k.x, k.y),
-      dm = 1 / (1 + 3.2 * hot); // right under a lamp the light pool is several times brighter than the street: dim the paint there so the kit keeps its colour
-    if (k.k === 'pouch')
-      quad(R.pouch || R.medkit, k.x, k.y - 8 + bob, 0, 1.2, 1.2, dm, dm, dm, 1, 0.5, 0.45, 0.4, 0); // a dead one's pouch (pockets.js)
-    else if (k.k === 'ammo')
-      quad(
-        R['ammo_' + k.at] || R.ammo,
-        k.x,
-        k.y - 8 + bob,
-        Math.sin(k.t * 2) * 0.2,
-        k.at ? 1.25 : 1,
-        k.at ? 1.25 : 1,
-        dm,
-        dm,
-        dm,
-        1,
-        0.82, // (a brass glint: the box was a dark olive lump, as easy to miss as the litter)
-        0.66,
-        0.34,
-        0
-      );
-    else
-      quad(
-        R.medkit,
-        k.x,
-        k.y - 8 + bob,
-        0,
-        1.2,
-        1.2,
-        dm * 0.88,
-        dm * 0.88,
-        dm * 0.88,
-        1,
-        0.36, // (quieter: it outshone everything else on the street)
-        0.32,
-        0.32,
-        0
-      ); /* a modest self-glow: under a streetlamp they no longer burn out to a white square */
+    quad(R.blob, k.x + 1.5, k.y + 2, 0, (sc * 22) / 15, (sc * 13) / 15, 0, 0, 0, 0.5 * al, 0, 0, 0, 0); // its shadow
+    quad(reg, k.x, y, 0, sc * 1.12, sc * 1.12, 0.06, 0.06, 0.06, 0.7 * al, 0, 0, 0, 0); // a dark edge: it reads as a solid thing on the street
+    quad(reg, k.x, y, 0, sc, sc, dm, dm, dm, al, glint[0] * 0.2 * pu, glint[1] * 0.2 * pu, glint[2] * 0.2 * pu, 0);
     scaleAbout(0, 0, 1);
-  }
-  for (const k of GS.boonDrops || []) {
-    scaleAbout(k.x, k.y, GK * PICK_K);
-    const bob = Math.sin(k.t * 5 + k.x) * 2.5,
-      dm = 1 / (1 + 3.2 * lampHot(k.x, k.y)),
-      al = boonBlink(k); // what one of the dead in uniform dropped (game/boons.js): it flickers in its last seconds
-    quad(R['bn_' + k.id] || R.medkit, k.x, k.y - 8 + bob, 0, 1.3, 1.3, dm, dm, dm, al, 0.55, 0.5, 0.42, 0);
-    scaleAbout(0, 0, 1);
-  }
+  };
+  for (const k of GS.pickups)
+    if (k.k === 'pouch') pick(R.pouch || R.medkit, k, 1.2, PICK_GLINT.pouch);
+    else if (k.k === 'ammo') pick(R['ammo_' + k.at] || R.ammo, k, k.at ? 1.25 : 1, PICK_GLINT.ammo);
+    else pick(R.medkit, k, 1.2, PICK_GLINT.hp);
+  for (const k of GS.boonDrops || []) pick(R['bn_' + k.id] || R.medkit, k, 1.3, PICK_GLINT.boon, boonBlink(k)); // (game/boons.js: it flickers in its last seconds)
   for (const q of GS.parts)
     if (q.k >= 3 && q.k !== 10 && q.k !== 11 && q.k !== 13) {
       const f = Math.min(1, q.life * 2),
@@ -1249,6 +1218,18 @@ export function render() {
       }
   }
   for (const c of cars) if (c.fire && !c.dead) addLight(c.x, c.y - 20, 280, 1.05, 0.46, 0.12);
+  // a pickup's glint: a small faint light in its own colour on the ground under it, slowly breathing (the colour a
+  // sprite can't give itself: render.js pick), so you find it in the dark and know what it is: brass for rounds,
+  // green for a medkit, khaki for a pouch, gold for what the ones in uniform drop. Only the ones near you
+  {
+    const glint = (k, c, al = 1) => {
+      if (d2(k.x, k.y, GS.P.x, GS.P.y) > (720 * GK) ** 2) return;
+      const pu = (0.55 + 0.45 * Math.sin(k.t * 2.6 + k.x * 0.05) ** 2) * al;
+      addLight(k.x, k.y, 64 * GK * PICK_K, c[0] * pu, c[1] * pu, c[2] * pu);
+    };
+    for (const k of GS.pickups) glint(k, PICK_GLINT[k.k] || PICK_GLINT.pouch);
+    for (const k of GS.boonDrops || []) glint(k, PICK_GLINT.boon, boonBlink(k));
+  }
   for (const c of GS.crates)
     if (c.flare > 0) {
       const fk =
