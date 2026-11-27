@@ -1,10 +1,10 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// Small things about the flow of a night: the weapon wheel opens even with only a pistol; a round that pops a
-// streetlamp's bulb ends there (it was up in the air: it can't go on and hit one on the ground); a breather between
+// Small things about the flow of a night: the weapon wheel opens even with only a pistol; a round through a
+// streetlamp's bulb passes it by (the lamps can't be damaged), the lamp still lit; a breather between
 // surges doesn't wait on a few unaware ones wandering far off; and a dawn with nothing in it doesn't make you wait.
 import { openGame, check } from './lib/harness.mjs';
 
-export const name = 'flow: the wheel with a pistol, a bulb stops the round, no waiting for nothing';
+export const name = 'flow: the wheel with a pistol, a bulb lets the round by, no waiting for nothing';
 export async function run(b) {
   const { pg, errs, ev } = await openGame(b, { noFrames: true });
   const o = await ev(`(() => {
@@ -56,11 +56,11 @@ export async function run(b) {
   })()`);
   await pg.close();
   check(o.wheel, 'the weapon wheel would not open with only a pistol');
-  check(o.lamp && o.lamp.shot && o.lamp.zHp === 500, 'a round through a bulb: ' + JSON.stringify(o.lamp));
+  check(o.lamp && !o.lamp.shot, 'a round through a bulb should pass it by, the lamp still lit: ' + JSON.stringify(o.lamp));
   check(o.lull !== undefined && o.lull < 8, `a breather with four far-off unaware ones lasted ${o.lull} s (of 18)`);
   check(o.idle <= 6, `an empty dawn still counts down from ${o.idle}`);
   check(o.busy > 10, `a dawn with an unopened drop came down to ${o.busy}`);
   check(o.stopAny > 0 && o.stopElite >= 0.07, `the stop on a kill: ${o.stopAny} s, on an elite ${o.stopElite} s`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));
-  return `wheel with a pistol; the bulb stops the round (zombie untouched); a breather ends in ${o.lull} s with only far-off ones; an empty dawn ${o.idle} s, one with a drop ${o.busy} s`;
+  return `wheel with a pistol; the bulb lets the round by (the lamp stays lit); a breather ends in ${o.lull} s with only far-off ones; an empty dawn ${o.idle} s, one with a drop ${o.busy} s`;
 }

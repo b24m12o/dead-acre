@@ -192,6 +192,9 @@ function renderTwists() {
     });
   const on = TWISTS.filter(t => GS.meta.twists[t.id]),
     k = on.reduce((a, t) => a + t.scrap, 0);
+  // what the rules come to, on their button on the setup screen
+  $('rulesSum').textContent =
+    `${{ relaxed: 'Relaxed', normal: 'Normal', hard: 'Hard' }[GS.meta.diff] || 'Normal'} · infection ${Math.min(GS.meta.inf || 0, GS.meta.infMax || 0)} · ${on.length ? on.map(t => t.name).join(', ') : 'no twists'} · scrap ×${runScrapK().toFixed(2)}`;
   $('twDesc').innerHTML =
     (on.length ? `Twists on: ${on.map(t => t.name).join(', ')} (+${Math.round(k * 100)}% scrap).<br>` : '') +
     `This run: <b>${{ relaxed: 'Relaxed', normal: 'Normal', hard: 'Hard' }[GS.meta.diff] || 'Normal'}</b> difficulty · Infection <b>${Math.min(GS.meta.inf || 0, GS.meta.infMax || 0)}</b>${on.length ? ` · <b>${on.length}</b> twist${on.length > 1 ? 's' : ''}` : ''} · scrap <b>×${runScrapK().toFixed(2)}</b>`;

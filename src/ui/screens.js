@@ -215,11 +215,43 @@ export function init() {
     offAir(); // (the title's Channel 9 stays on the title)
     renderDistricts();
     syncOpts();
+    for (const d of ['kitDrawer', 'rulesDrawer']) $(d).hidden = true;
     $('survSetup').hidden = false;
-    renderKit(); // (once it's showing: the kit's description lines measure their tallest to hold their height)
-    $('kitCol').scrollTop = 0;
+    renderKit(); // (the summary on its button; the kit itself is drawn again when it's opened, to measure its lines)
     $('startBtn').focus({ preventScroll: true });
   }
+  // the setup screen's two tucked-away panels: your kit, and the run's rules, each over the screen at full size
+  const drawer = (id, btn, then) => {
+    $(btn).addEventListener('click', () => {
+      initAudio();
+      const d = $(id);
+      d.hidden = false;
+      d.scrollTop = 0;
+      then && then();
+      const f = d.querySelector('.chip.on, .seg .on, button:not([data-close])');
+      if (f) f.focus({ preventScroll: true });
+    });
+    $(id)
+      .querySelector('[data-close]')
+      .addEventListener('click', () => {
+        $(id).hidden = true;
+        $(btn).focus({ preventScroll: true });
+      });
+  };
+  drawer('kitDrawer', 'kitBtn', renderKit);
+  drawer('rulesDrawer', 'rulesBtn');
+  addEventListener(
+    'keydown',
+    e => {
+      if (e.key !== 'Escape' || $('survSetup').hidden) return;
+      const d = ['kitDrawer', 'rulesDrawer'].find(id => !$(id).hidden);
+      if (!d) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      $(d).querySelector('[data-close]').click();
+    },
+    true
+  ); // Escape shuts the panel first, then (again) leaves the setup
   $('survBack').addEventListener('click', () => {
     $('survSetup').hidden = true;
     $('menu').hidden = false;

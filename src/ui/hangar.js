@@ -53,12 +53,22 @@ export function cleanRun() {
 export function seedsLine() {
   return `Scrap <b>${GS.meta.seeds.toLocaleString()}</b>`;
 }
+// what your kit comes to, on its button on the setup screen: the loadout, the ability, how many perks are on
+export function kitSum() {
+  const el = $('kitSum');
+  if (!el) return;
+  const lo = LOADOUTS[GS.meta.loadout && loadoutOpen(GS.meta.loadout) ? GS.meta.loadout : 'std'],
+    ab = abPickB('ranger') ? AB_B.ranger : AB_DEF.ranger,
+    on = PERKS.filter(pk => (GS.meta.perks[pk.id] || 0) > 0 && !(GS.meta.perkOff || {})[pk.id]).length;
+  el.textContent = `${lo ? lo.name : 'Standard Issue'} · ${ab.name} · ${on ? on + ' perk' + (on > 1 ? 's' : '') + ' on' : 'no perks'}`;
+}
 // your kit, on the setup screen (there was an Armory for it): the loadout you take, the E ability, the perks your
 // scrap buys, and the scrap
 export function renderKit() {
   checkChal(true);
   renderChallenges();
   $('hangarSeeds').innerHTML = seedsLine();
+  kitSum();
   {
     // the E ability: Mortar strike, or the second one once it's bought (300 scrap, from the fifth night on)
     const night5 = ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 5,
