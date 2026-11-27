@@ -11,7 +11,7 @@ import { R } from '../render/atlas.js';
 import { los, query } from '../world/nav.js';
 import { noise, playS, spat, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
-import { LV, S, cam, magSize } from './state.js';
+import { S, cam, magSize } from './state.js';
 import { dust, floatText, shake } from '../render/effects.js';
 import { explode, quietKill, quietTarget, releaseGrab, shoveEnemy } from './combat.js';
 import { showStreak } from '../ui/callouts.js';
@@ -263,8 +263,7 @@ function rollLoad(P) {
   const g = P.gun,
     G = GUNS[g],
     n = magSize(g);
-  if (LV.rollhot) P.rollHot = 1.5; // Out of the Roll
-  if (!G || (G.fam !== HEROES.grenadier.spec && !LV.sleight) || P.mag[g] >= n) return; // Sleight of Hand: any gun
+  if (!G || G.fam !== HEROES.grenadier.spec || P.mag[g] >= n) return;
   const take = G.ammo ? Math.min(n - P.mag[g], P.ammo[G.ammo] || 0) : n - P.mag[g];
   if (take <= 0) return;
   P.mag[g] += take;
@@ -281,7 +280,7 @@ export function tryShove() {
   P.shoveT = SHOVE.hold;
   const a = P.aimA,
     hit = [],
-    rk = 1 + 0.2 * (LV.riotline || 0); // Riot Line
+    rk = 1;
   let n = 0,
     fin = null,
     fd = 1e9;
@@ -318,7 +317,6 @@ export function tryShove() {
       }
     } else if (shoveEnemy(e, dx, dy)) n++;
   }
-  if (n && LV.grit) P.hp = Math.min(S.maxHp, P.hp + 2 * LV.grit * n); // Grit
   sfx.thump(P.x, P.y);
   sfx.grunt(P.x, P.y);
   shake(n ? 0.14 : 0.06);

@@ -371,46 +371,48 @@ export const UP = [
     max: 1,
     apply() {},
   },
+  // Ruiz and Boone's own: offered only while that one is at your side (actors/backups.js)
   {
     id: 'riotline',
-    hero: 'breacher',
-    short: 'The shove reaches 20% further and wider',
+    buddy: 'deputy',
+    short: "Ruiz's riot shove comes back sooner and reaches further",
     cat: 'Deputy',
     name: 'Riot Line',
-    desc: 'Your shove reaches 20% further and sweeps 20% wider.',
-    have: () => `The shove reaches +${20 * (LV.riotline || 0)}% further and wider.`,
+    desc: 'Ruiz shoves again 30% sooner, reaches 25% further, and throws back one of them on him alone.',
+    have: () =>
+      `Ruiz's shove: every ${(3.5 * 0.7 ** (LV.riotline || 0)).toFixed(1)} s, +${25 * (LV.riotline || 0)}% reach.`,
     max: 2,
     apply() {},
   },
   {
     id: 'grit',
-    hero: 'breacher',
-    short: 'Each zombie your shove hits gives back 2 health',
+    buddy: 'deputy',
+    short: 'Each zombie Ruiz shoves gives you both back health',
     cat: 'Deputy',
     name: 'Grit',
-    desc: 'Every zombie your shove hits gives you back 2 health.',
-    have: () => `Each zombie shoved gives back ${2 * (LV.grit || 0)} health.`,
+    desc: 'Every zombie Ruiz shoves gives him back 6 health and you 2.',
+    have: () => `Each zombie Ruiz shoves: +${6 * (LV.grit || 0)} for him, +${2 * (LV.grit || 0)} for you.`,
     max: 2,
     apply() {},
   },
   {
     id: 'rollhot',
-    hero: 'grenadier',
-    short: 'Revolver and SMG hit 25% harder just after a roll',
+    buddy: 'slinger',
+    short: 'Boone fans the hammer 20% faster',
     cat: 'Gunslinger',
-    name: 'Out of the Roll',
-    desc: 'For a second and a half after a roll, the revolver and the SMG hit 25% harder.',
-    have: () => `Revolver and SMG hit +${25 * (LV.rollhot || 0)}% for 1.5 s after a roll.`,
+    name: 'Fan the Hammer',
+    desc: 'Boone fires his revolver 20% faster, and reloads it 30% quicker.',
+    have: () => `Boone fires +${20 * (LV.rollhot || 0)}% faster.`,
     max: 2,
     apply() {},
   },
   {
     id: 'sleight',
-    hero: 'grenadier',
-    short: 'A roll reloads any gun in your hands',
+    buddy: 'slinger',
+    short: "Boone's rounds go through one more and hit 20% harder",
     cat: 'Gunslinger',
-    name: 'Sleight of Hand',
-    desc: 'A roll reloads whatever gun is in your hands, not only the revolver and the SMG.',
+    name: 'Through and Through',
+    desc: "Boone's rounds go through one more of them, and hit 20% harder.",
     max: 1,
     apply() {},
   },
@@ -573,7 +575,8 @@ export function upgradePool() {
       u =>
         (!u.lock || chalDone(u.lock)) &&
         (LV[u.id] || 0) < u.max &&
-        !(u.hero && !(GS.RUN && GS.RUN.hero === u.hero)) && // the three's own picks (below): nobody else is offered them
+        !(u.hero && !(GS.RUN && GS.RUN.hero === u.hero)) && // the hero's own picks (below): nobody else is offered them
+        !(u.buddy && !GS.buddies.some(b => b.tr === u.buddy && b.hp > 0)) && // Ruiz's and Boone's, while they're with you
         !(u.not && u.not.includes(w)) &&
         !(u.only && !((GS.P && GS.P.owned) || [w]).some(g => u.only.includes(g)))
     );

@@ -78,6 +78,26 @@ export async function run(b) {
     };
     out.g = shoot(g); out.p = shoot(p);
     out.gLook = g.look; out.gHv = g.hv;
+    // their own picks, while they're with you
+    GS.buddies.length = 0;
+    const pool = () => upgradePool().filter(u => u.buddy).map(u => u.id).sort().join();
+    out.pool0 = pool();
+    const d2_ = add({ nm: 'Ruiz', tr: 'deputy' });
+    out.poolD = pool();
+    const g2 = add({ nm: 'Boone', tr: 'slinger' });
+    out.poolDG = pool();
+    // Riot Line: one alone on him is enough, and it comes back sooner; Grit: him and you patched up
+    LV.riotline = 1; LV.grit = 1;
+    d2_.hp = 50; GS.P.hp = 40;
+    const lone = makeEnemy('skitter', d2_.x + 10, d2_.y); lone.emerge = 1;
+    d2_.riotT = 0; budPerk(d2_, 1 / 60, 999);
+    out.rlT = d2_.riotT; out.gritB = d2_.hp; out.gritP = GS.P.hp;
+    lone.dead = true; GS.enemies.length = 0;
+    // Fan the Hammer, Through and Through
+    LV.rollhot = 1; LV.sleight = 1; GS.buddies.length = 0; GS.buddies.push(g2); // (his rounds alone)
+    out.g2 = shoot(g2);
+    LV.riotline = LV.grit = LV.rollhot = LV.sleight = 0;
+    GS.buddies.length = 0; GS.buddies.push(d, g);
     // their own voices
     const lines = [];
     for (const [s, kinds] of [[d, ['reload', 'hurt', 'clear', 'kill']], [g, ['reload', 'hurt', 'horde', 'idle']]]) {
@@ -126,6 +146,16 @@ export async function run(b) {
     `the Gunslinger hits harder and goes through one: ${JSON.stringify(o.g)} vs ${JSON.stringify(o.p)}`
   );
   check(o.g.cd < o.p.cd * 0.7, `and fires faster: ${o.g.cd} vs ${o.p.cd}`);
+  check(
+    o.pool0 === '' && o.poolD === 'grit,riotline' && o.poolDG === 'grit,riotline,rollhot,sleight',
+    `their picks only while they're with you: '${o.pool0}' / ${o.poolD} / ${o.poolDG}`
+  );
+  check(Math.abs(o.rlT - 3.5 * 0.7) < 0.01, `Riot Line: one alone shoved, and back in 2.45 s: ${o.rlT}`);
+  check(o.gritB === 56 && o.gritP === 42, `Grit: +6 for him, +2 for you: ${o.gritB}, ${o.gritP}`);
+  check(
+    o.g2.pierce === 2 && Math.abs(o.g2.dmg / o.g.dmg - 1.2) < 0.01 && Math.abs(o.g2.cd / o.g.cd - 1 / 1.2) < 0.01,
+    `Fan the Hammer and Through and Through: ${JSON.stringify(o.g2)} vs ${JSON.stringify(o.g)}`
+  );
   check(o.said >= 4 && o.heroLine, `they should speak their own lines: ${JSON.stringify(o.lines)}`);
   check(o.code, 'an ordinary survivor keeps an ordinary voice');
   check(!errs.length, errs.join('\n'));

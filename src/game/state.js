@@ -156,7 +156,6 @@ export function heroGun(g) {
     b.pierce += HERO_TRAIT.brace.pierce;
     b.spread = HERO_TRAIT.brace.spread;
   } // the Soldier, standing still: any gun
-  if (sp === f && sp === 'pistol' && LV.rollhot && GS.P && GS.P.rollHot > 0) b.dmg *= 1 + 0.25 * LV.rollhot; // Out of the Roll
   return b;
 }
 // the Soldier's brace: full once he has stood still for a moment, gone the moment he moves

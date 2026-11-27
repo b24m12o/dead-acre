@@ -134,16 +134,24 @@ export function budPerk(s, dt, pd) {
   if (s.shoveT > 0) s.shoveT -= dt;
   if (s.tr === 'deputy' && (s.riotT = (s.riotT || 0) - dt) <= 0) {
     // the Deputy's riot shove: two or more of them on him, and he throws them all back off him, every few seconds
-    const near = GS.enemies.filter(
-      e => !e.dead && !(e.emerge < 1) && !e.big && d2(e.x, e.y, s.x, s.y) < (34 * GK + (e.r || 6)) ** 2
-    );
-    if (near.length >= 2) {
-      s.riotT = 3.5;
+    // (Riot Line: sooner, further, and one alone is enough; Grit: each one shoved patches him and you up)
+    const rl = LV.riotline || 0,
+      reach = 34 * GK * (1 + 0.25 * rl),
+      near = GS.enemies.filter(
+        e => !e.dead && !(e.emerge < 1) && !e.big && d2(e.x, e.y, s.x, s.y) < (reach + (e.r || 6)) ** 2
+      );
+    if (near.length >= (rl ? 1 : 2)) {
+      s.riotT = 3.5 * 0.7 ** rl;
       s.shoveT = 0.25;
+      let n = 0;
       for (const e of near) {
         const dx = e.x - s.x || 0.01,
           dy = e.y - s.y;
-        shoveEnemy(e, dx, dy);
+        if (shoveEnemy(e, dx, dy)) n++;
+      }
+      if (n && LV.grit) {
+        s.hp = Math.min(s.max, s.hp + 6 * LV.grit * n);
+        if (GS.P && GS.P.hp > 0) GS.P.hp = Math.min(S.maxHp, GS.P.hp + 2 * LV.grit * n);
       }
       sfx.thump(s.x, s.y);
       dust(s.x, s.y, 3, 30, 0.6, 0.5);
@@ -212,7 +220,8 @@ function budReload(s, rt, loud) {
 }
 export function buddyShoot(s, dt, slow) {
   s.cd -= dt / (slow || 1);
-  const [mag, rt] = BMAG[s.gun] || BMAG.pistol;
+  const [mag, rt0] = BMAG[s.gun] || BMAG.pistol,
+    rt = rt0 * (s.tr === 'slinger' && LV.rollhot ? 0.7 : 1); // (Fan the Hammer)
   if (s.mag === undefined) s.mag = mag;
   // (reloading: drawn as yours is, the hands through it, fig3d.js)
   s.reload = Math.max(0, s.rl || 0);
@@ -331,7 +340,7 @@ export function buddyShoot(s, dt, slow) {
     s.aim += angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x)) * damp(14, dt);
     // (on target first, as the marksman and the cop are: on a new one it fired down the line of the last)
     if (ready && s.cd <= 0 && !mm && !cop && Math.abs(angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x))) < 0.15) {
-      s.cd = S.buddyCd * 0.87 * (sl ? 0.6 : 1); // (the Gunslinger: fanning the hammer)
+      s.cd = S.buddyCd * 0.87 * (sl ? 0.6 / (1 + 0.2 * (LV.rollhot || 0)) : 1); // (the Gunslinger: fanning the hammer)
       const c = Math.cos(s.aim),
         sn = Math.sin(s.aim),
         M = muzzleOf(s, BMZ, c, sn);
@@ -341,8 +350,8 @@ export function buddyShoot(s, dt, slow) {
         vx: Math.cos(s.aim) * 1000 * GK,
         vy: Math.sin(s.aim) * 1000 * GK,
         life: 0.6,
-        dmg: gd() * 0.6 * (sl ? 1.25 : 1),
-        pierce: sl ? 1 : 0,
+        dmg: gd() * 0.6 * (sl ? 1.25 * (LV.sleight ? 1.2 : 1) : 1),
+        pierce: sl ? 1 + (LV.sleight || 0) : 0, // (Through and Through)
         bounce: 0,
         hits: [],
         small: true,
