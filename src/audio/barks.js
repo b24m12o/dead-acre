@@ -71,21 +71,27 @@ function clip(code, text) {
 // reachable), so a caller can fall back to the old recorded call-out
 // the Deputy and the Gunslinger at your side speak in their own voices, with their own lines from when they were the
 // one you played (hero-lines.js): a moment of a buddy's, said as they'd say it
+// (their 'quiet' lines are what they say over one they've just put down; 'heal', being patched or picked up; 'grab',
+// with hands on them; 'clear', the end of it)
 const HV_KIND = {
   reload: 'reload',
-  kill: 'streak',
+  kill: ['streak', 'quiet'],
   hurt: 'hurt',
   down: 'low',
   clear: 'clear',
   horde: 'horde',
   boss: 'boss',
   big: 'boss',
-  idle: 'quiet',
+  up: 'heal',
+  join: 'heal',
+  panic: 'grab',
+  chopper: 'clear',
 };
 export function bark(s, kind, delay = 0) {
   const R = RULE[kind],
     hv = s && s.hv,
-    L = hv ? HERO_LINES[hv] && HERO_LINES[hv][HV_KIND[kind]] : BARK_LINES[kind];
+    hk = hv && HV_KIND[kind],
+    L = hv ? HERO_LINES[hv] && HERO_LINES[hv][Array.isArray(hk) ? pick(hk) : hk] : BARK_LINES[kind];
   if (!s || !R || !L || !s.nm || GS.state !== 'play') return true;
   if (s.down > 0 && kind !== 'down') return true;
   const code = hv ? 'P' + hv : voiceOf(s);

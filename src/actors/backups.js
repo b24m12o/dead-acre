@@ -17,6 +17,7 @@ import { renderMods } from '../game/upgrades.js';
 import { showStreak } from '../ui/callouts.js';
 import { bleed, dust, floatText, pool } from '../render/effects.js';
 import { shoveEnemy } from '../game/combat.js';
+import { STOPS } from '../game/route.js';
 import { HLOOK, blow } from '../render/draw-player.js';
 import { BLOOD } from '../render/draw-enemies.js';
 import { makeNoise } from '../game/noise.js';
@@ -82,26 +83,28 @@ export const TRAITS = {
 };
 export const COMPANIONS = ['deputy', 'slinger'];
 // a rescue, from the third night on, can be one of them, if they haven't been met this run: the Deputy anywhere but out
-// on the highway, the Gunslinger out there, or anywhere from the sixth night
-function companionRoll() {
-  if (!GS.RUN || GS.RUN.practice || GS.wave < 3 || Math.random() > 0.4) return null;
-  const met = (GS.RUN.met = GS.RUN.met || {}), // (met: joined you this run, budSetup; offered: up for a job tonight)
+// on the highway, the Gunslinger out there, or anywhere from the sixth night. n: the night it's for (a job offered at
+// dawn is for the night ahead, and where that night is: the next stop may be down the road)
+const districtOn = n => {
+  if (n <= GS.wave || GS.RUN.endless || GS.HM) return GS.RUN.district || ''; // tonight: where you are
+  const s = STOPS.find(q => n <= q.to);
+  return (s && s.map) || GS.RUN.district || '';
+};
+function companionRoll(n = GS.wave) {
+  if (!GS.RUN || GS.RUN.practice || n < 3 || Math.random() > 0.4) return null;
+  const met = (GS.RUN.met = GS.RUN.met || {}), // (met: joined you this run, budSetup; offered: up for a job that night)
     off = (GS.RUN.offered = GS.RUN.offered || {}),
-    road = /highway|route/.test(GS.RUN.district || ''),
+    road = /highway|route/.test(districtOn(n)),
     ok = COMPANIONS.filter(
-      t =>
-        !met[t] &&
-        off[t] !== GS.wave &&
-        !GS.buddies.some(b => b.tr === t) &&
-        (t === 'deputy' ? !road : road || GS.wave >= 6)
+      t => !met[t] && off[t] !== n && !GS.buddies.some(b => b.tr === t) && (t === 'deputy' ? !road : road || n >= 6)
     );
   if (!ok.length) return null;
   const t = pick(ok);
-  off[t] = GS.wave;
+  off[t] = n;
   return { nm: TRAITS[t].nm, tr: t };
 }
-export function rollBud() {
-  const C = companionRoll();
+export function rollBud(n) {
+  const C = companionRoll(n);
   if (C) return C;
   const free = Object.keys(TRAITS).filter(t => !TRAITS[t].hero && !GS.buddies.some(b => b.tr === t)),
     used = ['Dr. Hale'].concat(

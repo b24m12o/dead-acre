@@ -94,8 +94,22 @@ export function renderSummary(id, won) {
   {
     const pn = el.closest('.panel');
     if (pn) {
+      // (a practice ends on one page: practice.js; a run's has both)
+      pn.querySelector('.sumtabs').hidden = false;
+      el.hidden = false;
+      for (const r of pn.querySelectorAll('.runreport')) r.hidden = false;
       sumPage(pn, 1);
-      for (const b of pn.querySelectorAll('.sumtabs [data-pg]')) b.onclick = () => sumPage(pn, +b.dataset.pg);
+      for (const b of pn.querySelectorAll('.sumtabs [data-pg]')) {
+        b.onclick = () => sumPage(pn, +b.dataset.pg);
+        b.onkeydown = e => {
+          // the arrows go from one page to the other, as tabs do
+          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+          e.preventDefault();
+          const n = b.dataset.pg === '1' ? 2 : 1;
+          sumPage(pn, n);
+          pn.querySelector(`.sumtabs [data-pg="${n}"]`).focus();
+        };
+      }
     }
   }
   const D = summaryData(won);

@@ -18,7 +18,6 @@ import { texFromCanvas } from '../world/nav.js';
 import { setMuted } from '../audio/music.js';
 import { WHEEL, wheelTick } from '../game/state.js';
 import { syncOpts, updateHint } from '../ui/settings-ui.js';
-import { renderHeroes } from '../ui/hangar.js';
 import { setPause, showMenuRec } from '../ui/screens.js';
 import { runLater } from './later.js';
 import { update } from './update.js';
@@ -43,8 +42,11 @@ function frameGap() {
     cap = (GS.meta && GS.meta.hud && GS.meta.hud.cap) ?? 60,
     play = cap ? 1000 / cap : 0;
   if (st === 'play' || st === 'cine') return play;
+  if (st === 'over' && $('over').hidden) return play; // (the moment you go down, before the panel: the world still moves)
   if (st === 'menu') return Math.max(play, 1000 / 30);
-  return 1000 / 20; // (and 20 is the 0.05 s step the frame's time is held to: what runs on the end screens keeps time)
+  // (20 is the 0.05 s step the frame's time is held to: what runs on the end screens keeps time; with a gamepad in
+  // hand, 30, as its buttons are read once a frame and a quick tap could fall between two at 20)
+  return GS.pad && GS.pad.on ? Math.max(play, 1000 / 30) : 1000 / 20;
 }
 function frame(now) {
   if (fatalStopped || GS.glDead) return;
@@ -217,7 +219,6 @@ async function boot() {
   syncOpts();
   updateHint();
   showMenuRec();
-  renderHeroes();
   menuInit();
   loadStep('Ready', 1);
   await breathe(); // the bar reaches the end before the menu takes over
@@ -239,13 +240,16 @@ function fitOverlays() {
     pn.style.zoom = '';
     let h = pn.scrollHeight;
     if (pn.dataset.pg) {
-      // the end screen's two pages (ui/summary.js): one scale for both, the taller's, so turning the page doesn't jump
+      // the end screen's two pages (ui/summary.js): one scale for both, the taller's, and one height, so turning the
+      // page moves nothing on it (centred, a shorter page would pull the tabs out from under the pointer)
       const pg = pn.dataset.pg;
+      pn.style.minHeight = '';
       for (const k of ['1', '2']) {
         pn.dataset.pg = k;
         h = Math.max(h, pn.scrollHeight);
       }
       pn.dataset.pg = pg;
+      pn.style.minHeight = h + 'px';
     }
     const w = pn.offsetWidth;
     if (!h || !w) continue;

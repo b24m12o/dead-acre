@@ -5,6 +5,8 @@ import { TW } from '../game/districts.js';
 import { KITS, kitOffer } from '../game/kits.js';
 import { soundWait } from './loading.js';
 import { GS } from '../core/gs.js';
+import { offAir } from '../audio/radio.js';
+import { zoomK } from '../render/sprites.js';
 import { $ } from '../core/errors.js';
 import { pick } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
@@ -37,8 +39,6 @@ import { chipNote, menuInit, renderChallenges, renderDistricts } from './menu.js
 import { keysIn } from '../core/binds.js';
 import { JOBS_J, STOPS } from '../game/route.js';
 const AB_COST = 300; // a second ability, per character
-// (there was a hero card on the menu: one hero now, and the ability is picked in your kit on the setup screen)
-export function renderHeroes() {}
 export function PK() {
   const o = {},
     off = GS.meta.perkOff || {};
@@ -50,7 +50,6 @@ export function cleanRun() {
     off = GS.meta.perkOff || {};
   return own.length > 0 && own.every(k => off[k]);
 } // every perk you own switched off: +25% scrap
-export const HPV = { on: false, hero: null }; // (the Armory's preview of you: gone with the Armory)
 export function seedsLine() {
   return `Scrap <b>${GS.meta.seeds.toLocaleString()}</b>`;
 }
@@ -137,13 +136,14 @@ export function renderKit() {
       initAudio();
       sfx.level();
       renderKit();
-      renderHeroes();
       showMenuRec();
     });
 }
 
 /* ---------- Flow ---------- */
 export function begin() {
+  offAir(); // (Channel 9 from the title doesn't carry on into the run)
+  zoomK(1); // (nor the title's close camera: the run's camera is placed for its own view)
   if (soundWait()) return false; // the sounds are still coming in (see ui/loading.js)
   if (GS.PRACTICE && GS.state === 'over' && !begin.inPractice) {
     startPractice(GS.PRACTICE.bt);
@@ -261,6 +261,8 @@ function applyLoadout() {
 }
 // Continue: the run saved at its last dawn, picked up at that dawn
 export function continueRun() {
+  offAir();
+  zoomK(1);
   const d = savedRun();
   if (!d || soundWait()) return;
   $('survSetup').hidden = true;
@@ -322,7 +324,6 @@ export function init() {
     if (chalFrom === 'over') $('over').hidden = false;
     else {
       renderDistricts();
-      renderHeroes();
       showMenuRec();
       $('menu').hidden = false;
     }
@@ -333,7 +334,6 @@ export function init() {
     $('over').hidden = true;
     $('hud').hidden = true;
     showMenuRec();
-    renderHeroes();
     $('menu').hidden = false;
     menuInit();
   });

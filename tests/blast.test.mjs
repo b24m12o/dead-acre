@@ -14,6 +14,11 @@ export async function run(b) {
       GS.nightLive = false; GS.interT = 999; GS.wave = 9;
       const T = cars.find(c => c.tanker && !c.dead), R = carBlastR(T);
       GS.P.hp = S.maxHp; GS.P.inv = 0; GS.P.x = T.x; GS.P.y = T.y + R * f;
+      // you out in the open at that distance too (a car or wall between would rightly shelter you)
+      for (let k = 0; k < 24; k++) {
+        const a = Math.PI / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.26, x = T.x + Math.cos(a) * R * f, y = T.y + Math.sin(a) * R * f;
+        if (!solidPt(x, y) && cover(T.x, T.y, x, y) >= 1) { GS.P.x = x; GS.P.y = y; break; }
+      }
       // the walker out in the open at that distance: nothing between it and the tanker (behind a wall or a car it
       // would rightly be sheltered: combat.js cover)
       let zx = T.x, zy = T.y - R * f;

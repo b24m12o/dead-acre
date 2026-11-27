@@ -328,8 +328,10 @@ function radioChain(hawk, life, k = 1) {
   pk.connect(out);
   out.gain.value = RADIO_VOL * k;
   out.connect(radBus && radBus.context === AC ? radBus : sfxBus);
+  ON_AIR.add(out);
   setTimeout(
     () => {
+      ON_AIR.delete(out);
       try {
         out.disconnect();
       } catch (e) {}
@@ -337,6 +339,19 @@ function radioChain(hawk, life, k = 1) {
     (life + 1) * 1000
   );
   return inp;
+}
+// whatever is on the air, faded off it: the title's Channel 9 when you leave the title for the setup or a run, so Reyes
+// doesn't talk on over the next screen
+const ON_AIR = new Set();
+export function offAir(fade = 0.2) {
+  if (!AC) return;
+  const t = AC.currentTime;
+  for (const o of ON_AIR) {
+    o.gain.cancelScheduledValues(t);
+    o.gain.setValueAtTime(o.gain.value, t);
+    o.gain.linearRampToValueAtTime(0, t + fade);
+  }
+  ON_AIR.clear();
 }
 export async function radioVoice(line, who) {
   /* Channel 9 on air: the key-up click, the words (real voices for the story, Reyes and Hawk), the carrier hiss under them, then the release. Everyday chatter is just the click and a breath of static, the text carries it. A line that ends in static really does break up */
@@ -474,6 +489,7 @@ export function radio(line, who, pri = 1) {
   }
 } // a full queue drops its least important line, never the story // every line has a voice: Corporal Reyes on the convoy radio, or Hawk the pilot while she is off the air
 let TIPS;
+const KEYED_TIP = /\b(Press|Tap|Hold) [A-Z]\w*\b/;
 export function tip(id) {
   const T = TIPS[id];
   if (!T || GS.RUN.practice || !GS.meta || GS.state !== 'play') return; // never spent on the menu's background scene
@@ -482,8 +498,9 @@ export function tip(id) {
   GS.meta.tips['t_' + id] = true;
   saveMeta();
   if (T[1] && ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 4) return;
-  if (inFight())
-    ticker(keyText(T[0])); // in a fight, read at the bottom edge rather than said
+  // in a fight, read at the bottom edge rather than said; and with a gamepad in hand, any tip that names a key is read
+  // too, its key put as your pad's button (keyText): Reyes' recording says the keyboard's
+  if (inFight() || (GS.pad && GS.pad.on && KEYED_TIP.test(T[0]))) ticker(keyText(T[0]));
   else radio(T[0], null, 0);
 }
 export function radioTick(dt) {

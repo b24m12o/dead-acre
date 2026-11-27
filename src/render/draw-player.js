@@ -4,13 +4,12 @@ import { lampHid } from './lampocc.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp, rand } from '../core/util.js';
 import { S } from '../game/state.js';
-import { GUNS, HEROES } from '../game/arsenal.js';
+import { GUNS } from '../game/arsenal.js';
 import { RIM, figTilt, lineQ, quad, scaled, setH, setRim } from './sprites.js';
 import { PEOPLE } from '../core/scale.js';
 import { R } from './atlas.js';
 import { lamps } from '../world/map.js';
 import { ik2 } from '../actors/legs.js';
-import { HPV } from '../ui/hangar.js';
 export const E1 = 1.6,
   NIGHT = { sun: [0.33, 0.39, 0.58], sky: [0.25, 0.28, 0.4] };
 export function lampHot(x, y) {
@@ -167,7 +166,7 @@ export const CHEM = { r: 60, c: [0.3, 0.66, 1.0], k: 1.1 }; // your chemlight: h
 export const YOU_RIM = 0.8,
   THEM_RIM = 0.42;
 export function drawRanger(p) {
-  if ((GS.state !== 'menu' || !HPV.on) && drawHero3D(p)) return; // in 3D, when it can be (fig3d.js); otherwise the picture (the Armory's preview)
+  if (drawHero3D(p)) return; // in 3D, when it can be (fig3d.js); otherwise the picture (the Armory's preview)
   const r0 = RIM;
   setRim(GS.SHMODE || GS.state === 'menu' ? r0 : p.npc ? THEM_RIM : YOU_RIM);
   figTilt(!GS.SHMODE);
@@ -181,8 +180,7 @@ export function drawRanger(p) {
 function drawRanger0(p) {
   const fl = p.hurt > 0 ? 1 : 0,
     blink = p.inv > 0 && p.dashT <= 0 && Math.sin(GS.time * 40) < -0.3 ? 0.55 : 1;
-  const pv = !p.npc && HPV.on && GS.state === 'menu',
-    look = p.look ?? (HLOOK[(pv && HPV.hero) || GS.RUN?.hero] || 0), // (GS.RUN: none yet at the menu)
+  const look = p.look ?? (HLOOK[GS.RUN?.hero] || 0), // (GS.RUN: none yet at the menu)
     st = HSTYLE[look],
     ot = p.npc ? p.tint || [1, 1, 1] : GS.state === 'menu' ? [1, 1, 1] : YOU_TINT;
   const dn = p.down > 0,
@@ -290,9 +288,8 @@ function drawRanger0(p) {
     );
   }
   // weapon pose: swap lowers the gun, reload tilts it
-  const gid = pv
-      ? (HEROES[HPV.hero || GS.meta.hero] || HEROES.ranger).spec
-      : p.ride === 'truck'
+  const gid =
+      p.ride === 'truck'
         ? 'lmg' // in the truck bed you're on its machine gun, not your own
         : p.gun || 'rifle',
     pose = GPOSE[gid],

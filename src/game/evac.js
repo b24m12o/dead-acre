@@ -407,7 +407,7 @@ function winRun() {
   $('wKills').textContent = GS.kills;
   $('wLevel').textContent = GS.level;
   $('wInf').textContent = inf ? inf : 'Clean';
-  $('wSeeds').innerHTML = `+${earned} scrap · <b>${GS.meta.seeds.toLocaleString()}</b> banked`;
+  $('wSeeds').innerHTML = `+${earned.toLocaleString()} scrap · <b>${GS.meta.seeds.toLocaleString()}</b> banked`;
   renderRunReport('wBreakdown');
   renderSummary('wSum', true);
   $('wUnlock').innerHTML =

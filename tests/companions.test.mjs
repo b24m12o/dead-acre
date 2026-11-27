@@ -19,7 +19,7 @@ export async function run(b) {
     out.seeds1 = m.seeds; out.hero = m.hero; out.refund = m.heroRefund;
     normalizeMeta();
     out.seeds2 = m.seeds;
-    menuInit(); renderHeroes();
+    menuInit();
     out.heroBtns = document.querySelectorAll('#menu [data-h], #menu .hero').length;
     // the roll
     initAudio(); m.tutDone = true;
@@ -99,7 +99,7 @@ export async function run(b) {
     GS.buddies.length = 0; GS.buddies.push(d, g);
     // their own voices
     const lines = [];
-    for (const [s, kinds] of [[d, ['reload', 'hurt', 'clear', 'kill']], [g, ['reload', 'hurt', 'horde', 'idle']]]) {
+    for (const [s, kinds] of [[d, ['reload', 'hurt', 'clear', 'kill']], [g, ['reload', 'hurt', 'horde', 'up']]]) {
       for (const k of kinds) {
         s.say = null;
         for (let i = 0; i < 30 && !s.say; i++) { GS.time += 60; s.bk = {}; bark(s, k); } // (past the cooldowns and the odds)

@@ -1,6 +1,8 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // Test helpers, run inside the game's scope (through window.__eval) once its menu is up. Only tests use these.
-window.__god = () => { GS.P.inv = 1e9; };
+window.__god = () => {
+  GS.P.inv = 1e9;
+};
 function autoTarget(range) {
   let best = null,
     bd = range * range;

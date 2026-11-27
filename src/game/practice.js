@@ -1,6 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { soundWait } from '../ui/loading.js';
 import { GS } from '../core/gs.js';
+import { sumPage } from '../ui/summary.js';
 import { $ } from '../core/errors.js';
 import { pick } from '../core/util.js';
 import { AMMO_MAX, GUN_ORDER, HEROES } from './arsenal.js';
@@ -124,6 +125,14 @@ export function practiceReport(won) {
           (tr.best ? ` · in a run <b>${fmtT(tr.best)}</b>` : '');
       }
       $('oChal').innerHTML = '';
+      {
+        // one page: no road, no run's numbers (the last run's would still be standing there)
+        const pn = $('over').querySelector('.panel');
+        sumPage(pn, 1);
+        pn.querySelector('.sumtabs').hidden = true;
+        $('oSum').hidden = true;
+        $('oBreakdown').hidden = true;
+      }
       $('againBtn').textContent = 'Fight again';
       $('bossBox').hidden = true;
       setTimeout(

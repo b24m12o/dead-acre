@@ -733,7 +733,9 @@ export function spendLevel() {
   statMax('maxLevel', GS.level);
 }
 export function offerUpgrades(source = 'level') {
-  const fits = u => (u.evo ? !LV[u.id] : (LV[u.id] || 0) < u.max); // a held card that's maxed out since (a Siege survivor, say) can't come back
+  const fits = u =>
+    (u.evo ? !LV[u.id] : (LV[u.id] || 0) < u.max) && // a held card that's maxed out since (a Siege survivor, say) can't come back
+    !(u.buddy && !GS.buddies.some(b => b.tr === u.buddy && b.hp > 0)); // nor Ruiz's or Boone's, once they're gone
   if (source === 'level' && GS.heldPicks && GS.heldPicks.length && GS.heldPicks.every(fits)) GS.picks = GS.heldPicks;
   else rollPicks(); // cards put off with Later come back the same: no free reroll
   if (source === 'level') GS.heldPicks = null; // a supply crate or the Go Bag leaves them where they are

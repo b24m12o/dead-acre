@@ -481,16 +481,14 @@ export function openJobs() {
     },
   });
   GS.picks = [];
+  {
+    const ft = FAVOURS[fi0];
+    if (ft) GS.picks.push(mk(ft, ft === 'hale' ? { nm: 'Dr. Hale', tr: 'medic' } : rws.pop() || 'scrap'));
+  } // her favour takes one of the two job slots (first, so a rescue rolled for the other isn't thrown away)
   while (GS.picks.length < 2 && pool.length) {
     const t = pool.splice((Math.random() * pool.length) | 0, 1)[0];
-    GS.picks.push(mk(t, t === 'rescue' ? rollBud() : t === 'meds' ? null : rws.pop()));
+    GS.picks.push(mk(t, t === 'rescue' ? rollBud(GS.wave + 1) : t === 'meds' ? null : rws.pop()));
   }
-  {
-    const fi = GS.RUN.endless ? -1 : (GS.RUN.jobN || []).indexOf(GS.wave + 1),
-      ft = FAVOURS[fi];
-    if (ft && GS.picks.length)
-      GS.picks[0] = mk(ft, ft === 'hale' ? { nm: 'Dr. Hale', tr: 'medic' } : rws.pop() || 'scrap');
-  } // her favour takes one of the two job slots
   GS.picks.push(mk('low', null));
   GS.pickSource = 'job';
   renderPicks();

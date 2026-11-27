@@ -6,14 +6,15 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { saveMeta, store } from '../core/settings.js';
 import { DIFF } from '../core/profile.js';
-import { initAudio, sleepAudio, wakeAudio } from '../audio/audio.js';
+import { AC, initAudio, sleepAudio, wakeAudio } from '../audio/audio.js';
+import { offAir } from '../audio/radio.js';
 import { hushBarks } from '../audio/barks.js';
 import { cutRun, setMuted } from '../audio/music.js';
 import { S, rec } from '../game/state.js';
 import { BLOOD } from '../render/draw-enemies.js';
 import { bleed, pool, shake } from '../render/effects.js';
 import { syncOpts } from './settings-ui.js';
-import { PK, begin, continueRun, renderHeroes, renderKit, renderPauseGuns } from './hangar.js';
+import { PK, begin, continueRun, renderKit, renderPauseGuns } from './hangar.js';
 import { setB, setT } from './hud.js';
 import { DISTRICTS, FINAL_NIGHT, twistK } from '../game/districts.js';
 import { chalRunSummary, checkChal, openChal, statMax } from '../game/challenges.js';
@@ -170,7 +171,7 @@ export function showMenuRec() {
     (rec.score ? `Best <b>${rec.score.toLocaleString()}</b> · furthest night <b>${rec.wave}</b> of 15` : '') +
     (GS.meta.seeds ? `${rec.score ? ' · ' : ''}scrap <b>${GS.meta.seeds.toLocaleString()}</b>` : '');
   $('menuNote').textContent = GS.meta.heroRefund
-    ? `${GS.meta.heroRefund} scrap back from the Deputy and the Gunslinger: they join you on the road now`
+    ? `${GS.meta.heroRefund.toLocaleString()} scrap back from the Deputy and the Gunslinger: they join you on the road now`
     : '';
   {
     const d = savedRun(),
@@ -211,10 +212,12 @@ export function init() {
       if (d) $('newRunWarn').textContent = `A new run replaces the one saved at dawn after night ${d.wave}.`;
     }
     $('menu').hidden = true;
+    offAir(); // (the title's Channel 9 stays on the title)
     renderDistricts();
-    renderKit();
     syncOpts();
     $('survSetup').hidden = false;
+    renderKit(); // (once it's showing: the kit's description lines measure their tallest to hold their height)
+    $('kitCol').scrollTop = 0;
     $('startBtn').focus({ preventScroll: true });
   }
   $('survBack').addEventListener('click', () => {
@@ -226,7 +229,6 @@ export function init() {
     $('won').hidden = true;
     $('hud').hidden = true;
     showMenuRec();
-    renderHeroes();
     $('menu').hidden = false;
     menuInit();
   };
@@ -254,6 +256,9 @@ export function init() {
     qb.textContent = 'Quit run';
     hushBarks();
     cutRun(); // what the run had playing when you paused must not play out on your next click in the menu
+    GS.state = 'menu'; // (before the wake: the sound doesn't wake while paused)
+    wakeAudio(); // and the title isn't left asking to be tuned in: the cut's silence, then its own sound fades up
+    if (AC && AC.state === 'suspended') AC.resume().then(cutRun); // (a frozen clock jumps on waking: the silence is laid again from where it really is)
     clearSave();
     $('pause').hidden = true;
     $('hint').classList.remove('show');

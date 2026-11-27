@@ -5,7 +5,7 @@ import { resetAmbience } from '../audio/ambience.js';
 import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, rand } from '../core/util.js';
-import { viewH, viewW } from '../render/sprites.js';
+import { viewH, viewW, zoomK } from '../render/sprites.js';
 import { WH, WW, barrelSpots, cars, generateMap, lamps } from '../world/map.js';
 import { MUS } from '../audio/audio.js';
 import { S, armGuns, cam, resetStats } from './state.js';
@@ -19,6 +19,7 @@ import { resetTraps } from './traps.js';
 import { resetSpecials } from '../actors/specials.js';
 let mapCache = { fresh: false, d: '' };
 export function newRun(forMenu = false) {
+  if (!forMenu) zoomK(1); // (any run, practice too: the title's close camera off before the run's camera is placed)
   if (!forMenu && GS.meta.heroRefund) delete GS.meta.heroRefund; // (the refund note has been seen)
   GS.fxTr = [];
   GS.noiseRings = [];

@@ -122,7 +122,7 @@ export const CARDS = () => (padOn() ? 'D-pad up' : 'Tab');
 export const keyText = s =>
   s
     .replace(/\bPress Enter\b/g, () => 'Press ' + ENTER())
-    .replace(/\b(Tap|Hold) Q\b/g, (m, w) => w + ' ' + kn('wheel'))
+    .replace(/\b(Tap|Hold|tap|hold) Q\b/g, (m, w) => w + ' ' + kn('wheel'))
     .replace(/\bPress E\b/g, () => 'Press ' + kn('ability'))
     .replace(/\bPress R\b/g, () => 'Press ' + kn('reload'));
 export const kn = id =>

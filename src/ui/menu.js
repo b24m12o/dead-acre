@@ -24,7 +24,6 @@ import { rope } from '../core/later.js';
 import { INFECTION, TWISTS } from '../game/districts.js';
 import { LOADOUTS, chalDone, loadoutOpen, lockLine, stopOpen } from '../game/challenges.js';
 import { STOPS } from '../game/route.js';
-import { drawRoad } from './roadmap.js';
 // the setup screen is for the campaign, or for Horde Mode, which is fought on any place the campaign has taken
 // you to: pick the ground
 export let SETUP = 'camp';
@@ -43,7 +42,12 @@ export function renderDistricts() {
   if (!STOPS.some((s, i) => s.id === GS.meta.hmPlace && stopOpen(i))) GS.meta.hmPlace = 'main';
   $('distWrap').hidden = !hm;
   $('roadMap').hidden = hm;
-  if (!hm) drawRoad($('roadMap').querySelector('.road'), 0, null); // the road out, every stop on it ahead of you
+  if (!hm)
+    // the road out, top to bottom: where you start, every stop on the way, and where the chopper lands
+    $('vroad').innerHTML = STOPS.map(
+      (s, i) =>
+        `<li class="${i === 0 ? 'start' : i === STOPS.length - 1 ? 'goal' : ''}"><b>${s.name}</b><i>${i === STOPS.length - 1 ? 'the chopper' : s.area}</i></li>`
+    ).join('');
   $('survEye').textContent = hm ? 'Horde Mode' : 'Fifteen nights till the chopper';
   $('survTitle').textContent = hm ? 'Pick your ground' : 'The road out';
   $('survLede').innerHTML = hm
@@ -335,6 +339,8 @@ export function menuInit() {
       b.title = open
         ? 'Wave after wave of hordes, bigger every time, with a trap kit and a weapon case between them'
         : 'Wipe out a horde in a run to open Horde Mode';
+      // (said under the buttons too: a tooltip on a button you can't focus reaches neither a keyboard nor a pad)
+      $('menuLock').textContent = open ? '' : 'Horde Mode opens once you wipe out a horde in a run';
     }
   }
   hideCallouts();
@@ -345,6 +351,9 @@ export function menuInit() {
     district: 'town',
     inf: 0,
     endless: false,
+    journey: true, // built as the road's first stop (Main Street), so Play takes this very map rather than baking another
+    layout: 'main',
+    stop: 0,
   };
   newRun(true);
   renderDistricts();

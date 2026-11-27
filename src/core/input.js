@@ -9,7 +9,6 @@ import { setMusic, setMuted } from '../audio/music.js';
 import { WHEEL, cycleGun, startReload, switchGun, wheelRelease } from '../game/state.js';
 import { choose, doReroll, openLevel, pickLater } from '../game/upgrades.js';
 import { tryDash, tryShove, useAbility } from '../game/abilities.js';
-import { begin } from '../ui/hangar.js';
 import { setPause } from '../ui/screens.js';
 import { tutEnd } from '../game/tutorial.js';
 import { cycleTrap, trapDown } from '../game/traps.js';
@@ -97,9 +96,14 @@ export function init() {
     const k = keyOf(e);
     if (e.isTrusted && GS.pad && GS.pad.on) GS.pad.kick = true; // a real key: the gamepad lets go (its own Esc and Enter are not real keys)
     initAudio();
+    const onBtn =
+      (GS.state === 'over' || GS.state === 'won') &&
+      document.activeElement &&
+      document.activeElement.tagName === 'BUTTON'; // (on the end screens a focused button takes Space and the arrows)
     if (
       (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) || e.code === 'Space') &&
-      GS.state !== 'menu'
+      GS.state !== 'menu' &&
+      !onBtn
     )
       e.preventDefault(); // Space is the shove now: it must not scroll the page either
     if (k === 'tab' && (GS.state === 'play' || GS.state === 'levelup')) e.preventDefault(); // Tab is the level-up key in a run
@@ -155,10 +159,7 @@ export function init() {
     } // the arrow keys walk the cards; Enter or Space takes the one in focus
     else if (k === 'escape' && (GS.state === 'over' || GS.state === 'won') && $('chal') && !$('chal').hidden)
       $('chalBack').click(); // the challenges, opened from the end of a run: back to it
-    else if (k === 'enter' && GS.state === 'over' && !$('over').hidden) {
-      e.preventDefault();
-      begin(false);
-    } else if (
+    else if (
       (GS.state === 'over' || GS.state === 'won') &&
       !e.repeat &&
       (k === 'enter' || k === 'escape') &&
