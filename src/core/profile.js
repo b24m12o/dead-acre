@@ -63,7 +63,19 @@ export function normalizeMeta() {
   for (const id of Object.keys(HEROES)) GS.meta.unlocked[id] = id === 'ranger' ? true : GS.meta.unlocked[id] === true;
   for (const id of Object.keys(GS.meta.unlocked))
     if (!Object.prototype.hasOwnProperty.call(HEROES, id)) delete GS.meta.unlocked[id];
-  if (!HEROES[GS.meta.hero] || !GS.meta.unlocked[GS.meta.hero]) GS.meta.hero = 'ranger';
+  // one hero now, the Soldier: the Deputy and the Gunslinger are met on the road as your people (actors/backups.js).
+  // Whoever bought them (or a second ability for them) has the scrap back, once
+  if (!GS.meta.oneHero) {
+    let back = 0;
+    for (const id of ['breacher', 'grenadier']) {
+      if (GS.meta.unlocked[id]) back += HEROES[id].cost;
+      if (GS.meta.abOwn && GS.meta.abOwn[id]) back += 300; // (hangar.js AB_COST)
+    }
+    GS.meta.seeds = (GS.meta.seeds || 0) + back;
+    GS.meta.oneHero = true;
+    if (back) GS.meta.heroRefund = back; // (said in the scrap line until a run is started: hangar.js)
+  }
+  GS.meta.hero = 'ranger';
   const cleanPerks = {};
   for (const pk of PERKS) {
     const v = Number(GS.meta.perks[pk.id] || 0);

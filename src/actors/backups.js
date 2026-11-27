@@ -15,7 +15,8 @@ import { sfx } from '../audio/sfx.js';
 import { LV, S, ammoFill, ammoTypes, cam, gd } from '../game/state.js';
 import { renderMods } from '../game/upgrades.js';
 import { showStreak } from '../ui/callouts.js';
-import { bleed, floatText, pool } from '../render/effects.js';
+import { bleed, dust, floatText, pool } from '../render/effects.js';
+import { shoveEnemy } from '../game/combat.js';
 import { HLOOK, blow } from '../render/draw-player.js';
 import { BLOOD } from '../render/draw-enemies.js';
 import { makeNoise } from '../game/noise.js';
@@ -60,9 +61,49 @@ export const TRAITS = {
   marksman: { name: 'Marksman', desc: 'A rifle: slow, heavy shots from long range', gun: 'rifle' },
   scav: { name: 'Scavenger', desc: 'Turns up spare rounds, and a medkit when you are hurt', gun: 'pistol' },
   cop: { name: 'Ex-cop', desc: 'A shotgun that knocks them flat, and a thicker skin', gun: 'shotgun' },
+  // two who were heroes of their own once, met on the road now, each once in a run (rollBud), in their own voices
+  // (barks.js: their lines from when they were the one you played)
+  deputy: {
+    name: 'Deputy',
+    desc: "Precinct 9's last deputy: a shotgun, the thickest skin of anyone, and a riot shove that throws back what crowds him",
+    gun: 'shotgun',
+    hero: 'breacher',
+    look: 1, // (draw-player.js HLOOK: dressed as he was when he was the one you played)
+    nm: 'Ruiz',
+  },
+  slinger: {
+    name: 'Gunslinger',
+    desc: 'A drifter off Route 9: a revolver, fanned fast and hard, through one and into the next',
+    gun: 'pistol',
+    hero: 'grenadier',
+    look: 2,
+    nm: 'Boone',
+  },
 };
+export const COMPANIONS = ['deputy', 'slinger'];
+// a rescue, from the third night on, can be one of them, if they haven't been met this run: the Deputy anywhere but out
+// on the highway, the Gunslinger out there, or anywhere from the sixth night
+function companionRoll() {
+  if (!GS.RUN || GS.RUN.practice || GS.wave < 3 || Math.random() > 0.4) return null;
+  const met = (GS.RUN.met = GS.RUN.met || {}), // (met: joined you this run, budSetup; offered: up for a job tonight)
+    off = (GS.RUN.offered = GS.RUN.offered || {}),
+    road = /highway|route/.test(GS.RUN.district || ''),
+    ok = COMPANIONS.filter(
+      t =>
+        !met[t] &&
+        off[t] !== GS.wave &&
+        !GS.buddies.some(b => b.tr === t) &&
+        (t === 'deputy' ? !road : road || GS.wave >= 6)
+    );
+  if (!ok.length) return null;
+  const t = pick(ok);
+  off[t] = GS.wave;
+  return { nm: TRAITS[t].nm, tr: t };
+}
 export function rollBud() {
-  const free = Object.keys(TRAITS).filter(t => !GS.buddies.some(b => b.tr === t)),
+  const C = companionRoll();
+  if (C) return C;
+  const free = Object.keys(TRAITS).filter(t => !TRAITS[t].hero && !GS.buddies.some(b => b.tr === t)),
     used = ['Dr. Hale'].concat(
       GS.buddies.map(b => b.nm),
       GS.RUN.lost || [],
@@ -70,19 +111,44 @@ export function rollBud() {
     );
   return {
     nm: pick(BUD_NAMES.filter(n => !used.includes(n))) || pick(BUD_NAMES),
-    tr: pick(free.length ? free : Object.keys(TRAITS)),
+    tr: pick(free.length ? free : Object.keys(TRAITS).filter(t => !TRAITS[t].hero)),
   };
 }
-export const budMax = b => (100 + 12 * Math.max(1, GS.wave)) * (b.tr === 'cop' ? 1.4 : 1);
+export const budMax = b =>
+  (100 + 12 * Math.max(1, GS.wave)) * (b.tr === 'cop' ? 1.4 : b.tr === 'deputy' ? 1.7 : b.tr === 'slinger' ? 0.95 : 1);
 export function budSetup(b, r) {
   b.nm = r.nm;
   b.tr = r.tr;
+  b.hv = TRAITS[r.tr].hero || null; // (their own voice)
+  if (b.hv) {
+    b.look = TRAITS[r.tr].look; // and their own clothes, untinted
+    b.tint = null;
+    if (GS.RUN) (GS.RUN.met = GS.RUN.met || {})[r.tr] = true;
+  }
   b.gun = TRAITS[r.tr].gun;
   b.max = Math.max(b.max, budMax(b));
   b.hp = b.max;
 }
 export function budPerk(s, dt, pd) {
   // what the trait does, every frame the survivor is on their feet
+  if (s.shoveT > 0) s.shoveT -= dt;
+  if (s.tr === 'deputy' && (s.riotT = (s.riotT || 0) - dt) <= 0) {
+    // the Deputy's riot shove: two or more of them on him, and he throws them all back off him, every few seconds
+    const near = GS.enemies.filter(
+      e => !e.dead && !(e.emerge < 1) && !e.big && d2(e.x, e.y, s.x, s.y) < (34 * GK + (e.r || 6)) ** 2
+    );
+    if (near.length >= 2) {
+      s.riotT = 3.5;
+      s.shoveT = 0.25;
+      for (const e of near) {
+        const dx = e.x - s.x || 0.01,
+          dy = e.y - s.y;
+        shoveEnemy(e, dx, dy);
+      }
+      sfx.thump(s.x, s.y);
+      dust(s.x, s.y, 3, 30, 0.6, 0.5);
+    } else s.riotT = 0.3;
+  }
   if (s.tr === 'medic') {
     if (pd < 180 * GK && GS.P.hp > 0 && GS.P.hp < S.maxHp) GS.P.hp = Math.min(S.maxHp, GS.P.hp + 2 * dt);
     for (const b of GS.buddies)
@@ -158,7 +224,8 @@ export function buddyShoot(s, dt, slow) {
   }
   const ready = !(s.rl > 0);
   const mm = s.tr === 'marksman',
-    cop = s.tr === 'cop',
+    cop = s.tr === 'cop' || s.tr === 'deputy',
+    sl = s.tr === 'slinger',
     rng = (mm ? 600 : cop ? 300 : 420) * GK;
   let tgt = null,
     bd = rng * rng * (mm ? 4 : 1);
@@ -264,7 +331,7 @@ export function buddyShoot(s, dt, slow) {
     s.aim += angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x)) * damp(14, dt);
     // (on target first, as the marksman and the cop are: on a new one it fired down the line of the last)
     if (ready && s.cd <= 0 && !mm && !cop && Math.abs(angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x))) < 0.15) {
-      s.cd = S.buddyCd * 0.87;
+      s.cd = S.buddyCd * 0.87 * (sl ? 0.6 : 1); // (the Gunslinger: fanning the hammer)
       const c = Math.cos(s.aim),
         sn = Math.sin(s.aim),
         M = muzzleOf(s, BMZ, c, sn);
@@ -274,8 +341,8 @@ export function buddyShoot(s, dt, slow) {
         vx: Math.cos(s.aim) * 1000 * GK,
         vy: Math.sin(s.aim) * 1000 * GK,
         life: 0.6,
-        dmg: gd() * 0.6,
-        pierce: 0,
+        dmg: gd() * 0.6 * (sl ? 1.25 : 1),
+        pierce: sl ? 1 : 0,
         bounce: 0,
         hits: [],
         small: true,

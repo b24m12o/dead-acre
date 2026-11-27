@@ -284,6 +284,7 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 .hero .lk{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ember)}
 .seeds{font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#ffd08a}
 .seeds b{color:#fff0c8;font-size:14px}
+.seeds .refund{color:#c9d3c2;font-size:12px}
 .btn.alt{background:var(--teal);box-shadow:0 4px 0 #1f7f79;color:#06201e}
 .btn.alt:hover{box-shadow:0 6px 0 #1f7f79}
 .perks{display:grid;gap:8px}

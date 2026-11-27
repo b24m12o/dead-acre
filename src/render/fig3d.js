@@ -2193,7 +2193,7 @@ function heroArms(p, D, o, C) {
 // the hero's (or a survivor's) looks, after its bones in its row
 function heroLooks(p, D, o, id) {
   const q = o + NB * 12,
-    L = HERO_LOOK[p.npc ? 1 + (id % (HERO_LOOK.length - 1)) : 0],
+    L = (p.hv && CO_LOOK[p.hv]) || HERO_LOOK[p.npc ? 1 + (id % (HERO_LOOK.length - 1)) : 0],
     fl = p.hitT > 0 ? 0.12 : 0;
   D.set([p.x, p.y + 40, GS.gA ?? 1, fl], q);
   D.set([...L.sk.map(x => x * 0.86), 0], q + 4);
@@ -2747,6 +2747,12 @@ const HERO_LOOK = [
   { sk: [0.86, 0.7, 0.58], sh: [0.2, 0.26, 0.36], pa: [0.3, 0.28, 0.24], ha: [0.5, 0.38, 0.2] },
   { sk: [0.42, 0.3, 0.22], sh: [0.4, 0.4, 0.38], pa: [0.2, 0.2, 0.2], ha: [0.05, 0.05, 0.05] },
 ];
+// and the two met on the road (actors/backups.js), in what they wore when they were the one you played: the Deputy's
+// khaki duty shirt and dark uniform trousers, the Gunslinger's weathered brown coat over faded denim
+const CO_LOOK = {
+  breacher: { sk: [0.6, 0.44, 0.33], sh: [0.5, 0.43, 0.3], pa: [0.15, 0.16, 0.19], ha: [0.08, 0.07, 0.06] },
+  grenadier: { sk: [0.84, 0.66, 0.52], sh: [0.34, 0.23, 0.14], pa: [0.27, 0.3, 0.38], ha: [0.42, 0.3, 0.16] },
+};
 // the gun itself: its own small mesh at the grip, along the aim
 function poseGun(g, D, o) {
   poolReset();

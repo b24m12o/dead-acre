@@ -138,7 +138,14 @@ export function nightSetup() {
       makeObj(J.t);
       if (GS.obj) {
         GS.obj.rw = J.rw;
-        if (GS.obj.s && J.rw && J.rw.nm) GS.obj.s.bud = J.rw;
+        if (GS.obj.s && J.rw && J.rw.nm) {
+          GS.obj.s.bud = J.rw;
+          const T = TRAITS[J.rw.tr];
+          if (T && T.hero) {
+            GS.obj.s.look = T.look; // the one you go out for is him, as he'll be at your side
+            GS.obj.s.tint = null;
+          }
+        }
       }
     }
   }

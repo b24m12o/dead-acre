@@ -42,6 +42,7 @@ import { JOBS_J, STOPS } from '../game/route.js';
 const AB_COST = 300; // a second ability, per character
 export function renderHeroes() {
   $('heroes').innerHTML = Object.entries(HEROES)
+    .filter(([id]) => id === 'ranger') // (the one you play: the other two are met on the road)
     .map(([id, h]) => {
       const own = GS.meta.unlocked[id];
       return `<button type="button" class="hero${GS.meta.hero === id ? ' on' : ''}${own ? '' : ' locked'}" data-h="${id}"><span class="nm"><i style="background:${h.dot}"></i>${h.name}</span><span class="wp">Best with ${h.weapon} · ${h.hp} health</span><span class="ds">${h.desc}</span><span class="wp ab">E · ${(abPickB(id) ? AB_B : AB_DEF)[id].name}</span>${own ? '' : `<span class="lk">Locked · ${h.cost} scrap in the Armory</span>`}</button>`;
@@ -121,14 +122,15 @@ export function copyPreview() {
   x.fillRect(0, 0, W, W); // a vignette so the eye goes to the character, not the street
 }
 export function seedsLine() {
-  return `Scrap <b>${GS.meta.seeds.toLocaleString()}</b>`;
+  const r = GS.meta.heroRefund; // (profile.js: what was spent on the Deputy and the Gunslinger, back once)
+  return `Scrap <b>${GS.meta.seeds.toLocaleString()}</b>${r ? ` <span class="refund">· ${r} back from the Deputy and the Gunslinger, who now join you on the road</span>` : ''}`;
 }
 function renderHangar() {
   checkChal(true);
   renderChallenges();
   $('hangarSeeds').innerHTML = seedsLine();
   $('hangarHeroes').innerHTML = Object.entries(HEROES)
-    .filter(([id]) => id !== 'ranger')
+    .filter(() => false) // (no more heroes to buy: the Deputy and the Gunslinger join you on the road)
     .map(([id, h]) => {
       const own = GS.meta.unlocked[id];
       return `<div class="perk"><span class="nm">${h.name} · best with ${h.weapon}</span><button type="button" class="buy" data-hero="${id}" ${own || GS.meta.seeds < h.cost ? 'disabled' : ''}>${own ? 'Unlocked' : h.cost + ' scrap'}</button><span class="ds">${h.desc}</span></div>`;
@@ -137,6 +139,7 @@ function renderHangar() {
   {
     const night5 = ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 5;
     $('hangarAbs').innerHTML = Object.entries(AB_B)
+      .filter(([id]) => id === 'ranger')
       .map(([id, d]) => {
         const own = abOwned(id),
           heroOk = GS.meta.unlocked[id],

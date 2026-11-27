@@ -69,12 +69,26 @@ function clip(code, text) {
 }
 // say a line of this kind, if it is the moment for it. Returns false when the voices aren't here (no asset pack
 // reachable), so a caller can fall back to the old recorded call-out
+// the Deputy and the Gunslinger at your side speak in their own voices, with their own lines from when they were the
+// one you played (hero-lines.js): a moment of a buddy's, said as they'd say it
+const HV_KIND = {
+  reload: 'reload',
+  kill: 'streak',
+  hurt: 'hurt',
+  down: 'low',
+  clear: 'clear',
+  horde: 'horde',
+  boss: 'boss',
+  big: 'boss',
+  idle: 'quiet',
+};
 export function bark(s, kind, delay = 0) {
   const R = RULE[kind],
-    L = BARK_LINES[kind];
+    hv = s && s.hv,
+    L = hv ? HERO_LINES[hv] && HERO_LINES[hv][HV_KIND[kind]] : BARK_LINES[kind];
   if (!s || !R || !L || !s.nm || GS.state !== 'play') return true;
   if (s.down > 0 && kind !== 'down') return true;
-  const code = voiceOf(s);
+  const code = hv ? 'P' + hv : voiceOf(s);
   if (!have[code]) {
     if (!GS.VOX.some(r => r[4] === code)) return false; // the voice bundle hasn't arrived (or can't)
     have[code] = true;

@@ -24,6 +24,7 @@ const ALL = [
   'quiet',
   'music',
   'heroes',
+  'companions',
   'gamepad',
   'voice',
   'doors',

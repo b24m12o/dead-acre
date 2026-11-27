@@ -159,8 +159,10 @@ export function finishObjective(ok, why) {
         const b = GS.buddies[GS.buddies.length - 1];
         b.x = GS.obj.s.x;
         b.y = GS.obj.s.y;
-        b.look = GS.obj.s.look;
-        b.tint = GS.obj.s.tint;
+        if (!b.hv) {
+          b.look = GS.obj.s.look;
+          b.tint = GS.obj.s.tint;
+        }
         b.bodyA = GS.obj.s.bodyA;
         GS.obj.joined = true;
         renderMods();
@@ -191,8 +193,10 @@ export function finishObjective(ok, why) {
         if (s) {
           b.x = s.x;
           b.y = s.y;
-          b.look = s.look;
-          b.tint = s.tint;
+          if (!b.hv) {
+            b.look = s.look;
+            b.tint = s.tint;
+          }
         }
         renderMods();
         dropStreak(/joins you$/);

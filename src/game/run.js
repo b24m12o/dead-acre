@@ -19,6 +19,7 @@ import { resetTraps } from './traps.js';
 import { resetSpecials } from '../actors/specials.js';
 let mapCache = { fresh: false, d: '' };
 export function newRun(forMenu = false) {
+  if (!forMenu && GS.meta.heroRefund) delete GS.meta.heroRefund; // (the refund note has been seen)
   GS.fxTr = [];
   GS.noiseRings = [];
   GS.loudSaid = false;
