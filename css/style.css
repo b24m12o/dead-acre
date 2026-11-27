@@ -463,10 +463,6 @@ body:not([data-st="play"]):not([data-st="wheel"]) #radio{opacity:0!important;vis
 /* the Settings button on the menu is just its gear, so the row of buttons stays on one line */
 .btn.icon{display:inline-grid;place-items:center;padding:0;width:54px;height:50px}
 .btn.icon svg{display:block}
-.road-list{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:7px}
-.road-list li{display:grid;grid-template-columns:7.5em 1fr;align-items:baseline;column-gap:12px;font-size:15px;color:#c9cfd1}
-.road-list span{font:500 13px var(--font-mono);color:var(--teal)}
-.road-list b{font-weight:600;color:var(--cream)}.road-list i{font-style:normal;color:#8c959a;grid-column:2;font-size:13px;margin-top:-3px}
 /* readable small text: the character cards' labels and the controls line */
 .hero .wp,.hero .lk{font-size:12px;letter-spacing:.06em}
 .rec.keysline{text-transform:none;letter-spacing:0;font-family:var(--font-body);font-size:14px;line-height:1.5;color:#a6aeb2}
@@ -641,3 +637,57 @@ body[data-st="cine"] .hud,body[data-st="cine"] #hint,body[data-st="cine"] #bossB
 .sumtabs button.on{color:var(--cream);border-bottom-color:var(--ember)}
 .sumtabs button:focus-visible{outline:2px solid var(--ember);outline-offset:-2px}
 .panel[data-pg="2"] .pg1,.panel:not([data-pg="2"]) .pg2{display:none!important}
+/* ---------- the title screen: no box, the title over a fade on the left and the street open on the right ---------- */
+#menu.overlay{place-items:center start;padding:24px clamp(28px,6vw,96px);background:
+  linear-gradient(90deg,rgba(7,9,11,.92) 0%,rgba(7,9,11,.78) 30%,rgba(7,9,11,.34) 52%,rgba(7,9,11,0) 70%),
+  radial-gradient(120% 90% at 70% 45%,rgba(0,0,0,0) 55%,rgba(0,0,0,.45) 100%)}
+#menu .panel{width:min(560px,100%);background:none;box-shadow:none;padding:0;gap:20px}
+#menu .eyebrow{color:#c9a46a}
+#menu h1{font-size:clamp(76px,9.4vw,138px);line-height:.86;text-shadow:0 6px 30px rgba(0,0,0,.6)}
+#menu h1 span{color:#d8382a;text-shadow:0 0 18px rgba(216,56,42,.45),0 6px 30px rgba(0,0,0,.6);animation:sign 9s linear infinite}
+/* the sign over the gas station that hasn't been looked at since the power went: lit, then a stutter */
+@keyframes sign{0%,61%,63.5%,66%,100%{opacity:1}62%,65%{opacity:.35;text-shadow:none}64%{opacity:.8}}
+#menu .lede{font-size:19px;max-width:34ch;color:#dfe3df}
+/* Channel 9, live: what the convoy is saying now, typed out as it comes in (ui/menu.js) */
+.ch9{display:flex;gap:12px;align-items:baseline;font-family:var(--font-mono);font-size:13px;line-height:1.5;color:#cfe3c9;min-height:3em;max-width:46ch;border-left:2px solid rgba(142,240,160,.5);padding:2px 0 2px 12px}
+.ch9 b{flex:none;color:#8ef0a0;font-size:10px;letter-spacing:.2em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.ch9 b i{width:7px;height:7px;border-radius:50%;background:#e04a3a;box-shadow:0 0 8px #e04a3a;animation:onair 1.6s ease-in-out infinite}
+@keyframes onair{50%{opacity:.25}}
+.ch9 span::after{content:'▌';margin-left:1px;color:#8ef0a0;animation:onair 1s steps(1) infinite}
+#menu .btns.main .btn{font-size:30px;padding:12px 40px 14px}
+#menu .btns.main .btn.ghost{font-size:20px;padding:10px 24px 12px}
+#menu .btns.sub{gap:8px;margin-top:-4px}
+#menu .btns.sub .btn{font-size:16px;padding:8px 16px 10px;background:rgba(44,52,60,.85)}
+#menu .btns.sub .btn.icon{padding:7px 10px 8px}
+#menu .btns.sub .btn.icon svg{width:20px;height:20px;display:block}
+.badge{font-family:var(--font-mono);font-style:normal;font-weight:600;font-size:12px;color:#ffd79a;margin-left:6px;opacity:.9}
+.menufoot{margin:6px 0 0;display:flex;flex-direction:column;gap:4px;font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;color:var(--mute)}
+.menufoot b{color:var(--cream);font-weight:600}
+.menufoot span:empty{display:none}
+/* coming in: the title first, then the rest, as a screen wakes up */
+#menu:not([hidden]) .panel>*{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
+#menu:not([hidden]) .panel>:nth-child(2){animation-delay:.08s}
+#menu:not([hidden]) .panel>:nth-child(3){animation-delay:.2s}
+#menu:not([hidden]) .panel>:nth-child(4){animation-delay:.32s}
+#menu:not([hidden]) .panel>:nth-child(5){animation-delay:.42s}
+#menu:not([hidden]) .panel>:nth-child(n+6){animation-delay:.52s}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+@media (prefers-reduced-motion:reduce){#menu h1 span,.ch9 b i,.ch9 span::after,#menu:not([hidden]) .panel>*{animation:none}}
+/* the setup screen's road: the whole way out, drawn, and the run in four numbers */
+.setroad{margin-top:8px;display:grid;gap:10px}
+.setroad .rmap{display:block;width:100%;height:auto;overflow:visible}
+.setroad .facts{margin:0;font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);display:flex;flex-wrap:wrap;gap:4px 14px}
+.setroad .facts b{font-family:var(--font-display);font-style:italic;font-size:22px;letter-spacing:0;color:var(--cream);margin-right:2px}
+.setroad .rleg{fill:none;stroke-width:2.2}
+/* the road ahead, its dashes running on toward the hospital */
+.setroad .rleg.ahead,.setroad .rleg.fork{stroke:rgba(255,208,138,.5);stroke-dasharray:5 5;animation:roadOn 1.4s linear infinite}
+@keyframes roadOn{to{stroke-dashoffset:-20}}
+.setroad .rstop circle{fill:#262c32;stroke:#6b767d;stroke-width:2}
+.setroad .rstop text{font:600 12px "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;fill:#9aa4aa}
+.setroad .rstop:first-of-type circle{fill:#ffd08a;stroke:#ffd08a}
+.setroad .rstop:nth-last-of-type(2) circle{fill:#d8382a;stroke:#ff8a76;animation:evac 1.8s ease-in-out infinite}
+.setroad .rstop:nth-last-of-type(2) text{fill:#ffb0a2}
+@keyframes evac{50%{stroke-width:6;stroke-opacity:.35}}
+.setroad .rvan rect{fill:#c9d49a;filter:drop-shadow(0 0 5px rgba(216,228,168,.6));animation:rvanIdle 1.6s ease-in-out infinite}
+.setroad .rpip{fill:#9fc0d4;stroke:#14181d;stroke-width:1.2}
+@media (prefers-reduced-motion:reduce){.setroad .rleg,.setroad .rstop circle,.setroad .rvan rect{animation:none}}

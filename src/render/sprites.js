@@ -35,6 +35,16 @@ function freeRT(rt) {
 }
 
 export let VW, VH, RW, RH, ZOOM, viewW, viewH;
+// the camera closer in than the game's own view, by k (the title screen's: ui/menu.js); 1 everywhere else
+let ZOOM0 = 1,
+  ZK = 1;
+export function zoomK(k) {
+  if (k === ZK) return;
+  ZK = k;
+  ZOOM = ZOOM0 * ZK;
+  viewW = VW / ZOOM;
+  viewH = VH / ZOOM;
+}
 export let rtScene, rtShadow, rtLight, rtComp, bloomRTs, rtFlash, rtLampSh;
 let GFX; // Ultra: the full shading; Balanced: no edge shading or sharpening, fewer pixels, for weaker laptops
 export let gfxPreset;
@@ -55,7 +65,8 @@ export function resize() {
   const ud = Math.min(window.devicePixelRatio || 1, 2);
   uic.width = Math.round(VW * ud);
   uic.height = Math.round(VH * ud);
-  ZOOM = window.__Z || clamp(Math.min(VW / 1.5, VH) / 337, 1, 4.5); // about 30 m of street across the screen, whatever its size: people life size, and big enough to read
+  ZOOM0 = window.__Z || clamp(Math.min(VW / 1.5, VH) / 337, 1, 4.5); // about 30 m of street across the screen, whatever its size: people life size, and big enough to read
+  ZOOM = ZOOM0 * ZK;
   viewW = VW / ZOOM;
   viewH = VH / ZOOM;
   const gk = RW + 'x' + RH + ':' + gp.lightDiv + ':' + gp.bloomLevels;

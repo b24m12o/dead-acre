@@ -334,7 +334,9 @@ export function tickWorld(dt) {
   MUS.sig = GS.RUN && GS.nightLive ? GS.RUN.sig : null; // and tonight's signature, how it is played
   MUS.want =
     GS.state === 'menu'
-      ? 'none'
+      ? GS.time - (GS.menuAt ?? -99) > 5
+        ? 'title' // the title screen's own theme, a few seconds in (none at once: what you quit stops first)
+        : 'none'
       : GS.state === 'over' || GS.state === 'won'
         ? 'menu'
         : GS.boss && !GS.boss.dead

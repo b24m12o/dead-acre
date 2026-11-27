@@ -26,6 +26,7 @@ const ALL = [
   'heroes',
   'companions',
   'pacing',
+  'title',
   'gamepad',
   'voice',
   'doors',

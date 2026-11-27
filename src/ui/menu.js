@@ -5,19 +5,25 @@ import { TAU, angDiff, d2, damp, rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
 import { GUNS, GUN_FROM, PERKS } from '../game/arsenal.js';
 import { DIFF } from '../core/profile.js';
-import { viewH, viewW } from '../render/sprites.js';
+import { viewH, viewW, zoomK } from '../render/sprites.js';
 import { collide, los, solidPt } from '../world/nav.js';
 import { makeLegs, updateLegs } from '../actors/legs.js';
 import { cam } from '../game/state.js';
 import { newRun } from '../game/run.js';
 import { hideCallouts } from './callouts.js';
 import { makeEnemy } from '../actors/enemies.js';
-import { HUMAN } from '../render/effects.js';
+import { HUMAN, flashLight } from '../render/effects.js';
+import { R } from '../render/atlas.js';
+import { GK } from '../core/scale.js';
+import { playR } from '../audio/audio.js';
+import { killEnemy } from '../game/combat.js';
+import { muzzleOf } from '../actors/player-weapons.js';
 import { PK, cleanRun, firstCase, pvLabel } from './hangar.js';
 import { rope } from '../core/later.js';
 import { INFECTION, TWISTS } from '../game/districts.js';
 import { LOADOUTS, chalDone, loadoutOpen, lockLine, stopOpen } from '../game/challenges.js';
 import { STOPS } from '../game/route.js';
+import { drawRoad } from './roadmap.js';
 // the setup screen is for the campaign, or for Horde Mode, which is fought on any place the campaign has taken
 // you to: pick the ground
 export let SETUP = 'camp';
@@ -35,17 +41,13 @@ export function renderDistricts() {
   const hm = SETUP === 'hm';
   if (!STOPS.some((s, i) => s.id === GS.meta.hmPlace && stopOpen(i))) GS.meta.hmPlace = 'main';
   $('distWrap').hidden = !hm;
-  $('roadList').hidden = hm;
-  $('roadList').innerHTML = STOPS.map((s, i) => {
-    const from = i ? STOPS[i - 1].to + 1 : 1,
-      nights = from === s.to ? `Night ${s.to}` : `Nights ${from}–${s.to}`;
-    return `<li><span>${nights}</span><b>${s.name}</b><i>${s.area}</i></li>`;
-  }).join(''); // the road, stop by stop
+  $('roadMap').hidden = hm;
+  if (!hm) drawRoad($('roadMap').querySelector('.road'), 0, null); // the road out, every stop on it ahead of you
   $('survEye').textContent = hm ? 'Horde Mode' : 'Fifteen nights till the chopper';
   $('survTitle').textContent = hm ? 'Pick your ground' : 'The road out';
   $('survLede').innerHTML = hm
     ? 'Wave after wave of hordes, each bigger than the last, with a trap kit and a weapon case between them. No evac: hold as long as you can.'
-    : 'Eight stops on the road from <b>Dead Acre</b> to the <b>County Hospital</b>, on foot or in the back of a convoy truck, and five bosses on the way. Heavier guns come down as the nights go on, and on the last one the Guard chopper lands for you.';
+    : 'From <b>Main Street</b> to the <b>County Hospital</b>, on foot or in the back of a convoy truck. The chopper lands on the last night.';
   $('startBtn').textContent = hm ? 'Bring them on' : 'Hold the line';
   $('districts').innerHTML = STOPS.map((s, i) => {
     const open = stopOpen(i),
@@ -214,6 +216,81 @@ export function renderChallenges() {
 
 /* ---------- Menu attract ---------- */
 let menuT = 0;
+// the stand: the next shot's wait, who's in the sights, when the next of the dead comes in
+const STAND = { cd: 2.5, tgt: null, spawn: 0 };
+const STAND_KINDS = ['skitter', 'skitter', 'skitter', 'skitter', 'mini', 'wasp', 'beetle', 'skitter'];
+function standSpawn(d0) {
+  const P = GS.P;
+  for (let k = 0; k < 20; k++) {
+    const a = rand(0, TAU),
+      d = d0 ?? rand(430, 520),
+      x = P.x + Math.cos(a) * d,
+      y = P.y + Math.sin(a) * d;
+    if (solidPt(x, y)) continue;
+    const e = makeEnemy(STAND_KINDS[Math.floor(Math.random() * STAND_KINDS.length)], x, y);
+    e.emerge = 1;
+    e.a = Math.atan2(P.y - y, P.x - x);
+    e.mT = rand(0, 2);
+    if (e.legs) makeLegs(e, e.legSpec);
+    return e;
+  }
+  return null;
+}
+// you, holding the crossroads: the nearest of them inside the light gets turned to and dropped, one round, a pause,
+// the next; the closer they get the quicker you are. Never a miss, never a bite: it's the picture on the box
+function standTick(dt) {
+  const P = GS.P;
+  for (let i = GS.enemies.length - 1; i >= 0; i--) if (GS.enemies[i].dead) GS.enemies.splice(i, 1); // (they lie in GS.corpses now)
+  const live = GS.enemies;
+  let tg = STAND.tgt && !STAND.tgt.dead ? STAND.tgt : null;
+  if (!tg) {
+    let bd = 250 ** 2; // (about the reach of the lamp)
+    for (const e of live) {
+      const dd = d2(e.x, e.y, P.x, P.y);
+      if (dd < bd) {
+        bd = dd;
+        tg = e;
+      }
+    }
+    STAND.tgt = tg;
+  }
+  STAND.cd -= dt;
+  if (tg) {
+    const want = Math.atan2(tg.y - P.y, tg.x - P.x),
+      close = Math.hypot(tg.x - P.x, tg.y - P.y) < 130;
+    P.aimA += angDiff(P.aimA, want) * damp(close ? 12 : 7, dt);
+    if (STAND.cd <= 0 && Math.abs(angDiff(P.aimA, want)) < 0.05) {
+      const c = Math.cos(P.aimA),
+        s = Math.sin(P.aimA),
+        G = GUNS[P.gun] || GUNS.pistol,
+        M = muzzleOf(P, G, c, s);
+      GS.flashes.push({
+        x: M.x + c * 2 * GK,
+        y: M.y + s * 2 * GK,
+        h: M.h,
+        rot: P.aimA,
+        life: 0.05,
+        max: 0.05,
+        reg: R.mf_rifle,
+        fs: rand(0.9, 1.1),
+      });
+      flashLight(M.x, M.y, 260, [1, 0.78, 0.5], 0.07);
+      P.recoil = 5;
+      P.lastShotT = GS.time;
+      playR('rifle', 0.12, P.x, P.y, rand(0.97, 1.03));
+      const np = GS.pickups.length;
+      killEnemy(tg, 60, 'bolt', c, s);
+      GS.pickups.length = np; // (nothing to pick up on the title screen)
+      GS.combo = GS.kills = GS.score = GS.xp = 0; // (none of it is yours)
+      STAND.tgt = null;
+      STAND.cd = close ? rand(0.5, 0.9) : rand(1.4, 3.2);
+    }
+  } else P.aimA = -Math.PI / 2 + Math.sin(menuT * 0.5) * 1.3; // nothing near: watching the dark
+  if (live.length < 10 && (STAND.spawn -= dt) <= 0) {
+    standSpawn();
+    STAND.spawn = rand(0.8, 2.2);
+  }
+}
 export function menuInit() {
   GS.PRACTICE = null;
   GS.HM = null;
@@ -240,21 +317,50 @@ export function menuInit() {
   };
   newRun(true);
   renderDistricts();
-  const kinds = ['skitter', 'skitter', 'hopper', 'beetle', 'wasp', 'flower', 'skitter', 'hound', 'mini', 'skitter'];
-  kinds.forEach((t, i) => {
-    const a = (i / kinds.length) * TAU + 0.3,
-      d = rand(170, 300);
-    const e = makeEnemy(t, GS.P.x + Math.cos(a) * d, GS.P.y + Math.sin(a) * d);
-    e.emerge = 1;
-    e.wander = rand(0, TAU);
-    if (e.legs) makeLegs(e, e.legSpec);
-  });
+  // the last stand behind the title: you at the crossroads with a rifle, and the dead coming in out of the dark
+  GS.RUN.attract = true;
+  GS.menuAt = GS.time; // (the title theme comes in a few seconds after: world/tick.js) // (what happens here counts for nothing: challenges.js bump, statMax)
+  {
+    const P = GS.P;
+    if (GUNS.rifle) {
+      P.owned = P.owned || [];
+      if (!P.owned.includes('rifle')) P.owned.push('rifle');
+      P.gun = 'rifle';
+    }
+  }
+  STAND.cd = 2.5;
+  STAND.tgt = null;
+  STAND.spawn = 0;
+  for (let i = 0; i < 9; i++) standSpawn(rand(170, 380));
   $('bossBox').hidden = true;
+}
+// Channel 9 on the title screen: what the convoy says between nights, typed out as it comes in, held, then the next
+const CH9 = [
+  'Any station, this is Channel 9. If you can hear me, you are not alone out there.',
+  'Nine, convoy. Quiet on our end. Keep your head down.',
+  'Stay off the main roads after dark. They come to light, and they come to noise.',
+  'The chopper is fuelled. Fifteen nights, Nine. Hold on that long.',
+  'Supply drop inbound. Watch for the smoke, and get to it before they do.',
+  'Reyes here. Keep your radio on. Same channel, every night, as long as we can.',
+];
+const ch9 = { i: Math.floor(Math.random() * CH9.length), n: 0, hold: 0 };
+function ch9Tick(dt) {
+  const el = $('ch9t');
+  if (!el) return;
+  const L = CH9[ch9.i];
+  if (ch9.n < L.length) ch9.n = Math.min(L.length, ch9.n + dt * 34);
+  else if ((ch9.hold += dt) > 5) {
+    ch9.i = (ch9.i + 1) % CH9.length;
+    ch9.n = ch9.hold = 0;
+  }
+  const t = L.slice(0, Math.floor(ch9.n));
+  if (el.textContent !== t) el.textContent = t;
 }
 export function menuUpdate(dt) {
   menuT += dt;
+  ch9Tick(dt);
   GS.time += dt;
-  GS.P.aimA = -Math.PI / 2 + Math.sin(menuT * 0.5) * 1.3;
+  standTick(dt);
   GS.P.bodyA += angDiff(GS.P.bodyA, GS.P.aimA) * damp(6, dt);
   rope(GS.P, dt, GS.P.x - Math.cos(GS.P.bodyA) * 9, GS.P.y - Math.sin(GS.P.bodyA) * 9);
   for (const e of GS.enemies) {
@@ -274,15 +380,17 @@ export function menuUpdate(dt) {
                 : 30;
     e.mT = (e.mT ?? rand(0, 3)) - dt;
     if (sp && (e.mT <= 0 || (e.goal && d2(e.x, e.y, e.goal[0], e.goal[1]) < 26 * 26))) {
-      if (e.goal && Math.random() < 0.55) {
+      if (e.goal && Math.random() < 0.3) {
         e.goal = null;
         e.mT = rand(1.5, 4.5);
       } // a rest: it stands and sways
       else {
         e.goal = null;
         for (let k = 0; k < 14; k++) {
-          const a = rand(0, TAU),
-            d = rand(130, 330),
+          // in toward the light, a stretch at a time, never straight at it
+          const a0 = Math.atan2(e.y - GS.P.y, e.x - GS.P.x),
+            a = a0 + rand(-0.6, 0.6),
+            d = Math.max(70, Math.hypot(e.x - GS.P.x, e.y - GS.P.y) - rand(50, 150)),
             x = GS.P.x + Math.cos(a) * d,
             y = GS.P.y + Math.sin(a) * d;
           if (!solidPt(x, y) && los(e.x, e.y, x, y) && Math.hypot(x - e.x, y - e.y) > 60) {
@@ -349,8 +457,11 @@ export function menuUpdate(dt) {
     }
     if (e.legs) updateLegs(e, dt);
   }
-  const tx = GS.P.x + Math.cos(menuT * 0.15) * 120 - viewW / 2,
-    ty = GS.P.y + Math.sin(menuT * 0.12) * 80 - viewH / 2;
+  // closer in than the game's own view, and you a little right of the middle, clear of the title: the camera
+  // breathing a little, as if held
+  zoomK(1.4);
+  const tx = GS.P.x + Math.cos(menuT * 0.15) * 22 - viewW * 0.63,
+    ty = GS.P.y + Math.sin(menuT * 0.12) * 16 - viewH * 0.5;
   cam.x += (tx - cam.x) * damp(1.5, dt);
   cam.y += (ty - cam.y) * damp(1.5, dt);
 }

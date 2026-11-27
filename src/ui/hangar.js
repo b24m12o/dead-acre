@@ -16,7 +16,7 @@ import { RW, VW, ZOOM } from '../render/sprites.js';
 import { initAudio } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { setMuted } from '../audio/music.js';
-import { AMMO_NAME, LV, S, armGuns, giveGun, resetStats } from '../game/state.js';
+import { AMMO_NAME, LV, giveGun } from '../game/state.js';
 import { newRun } from '../game/run.js';
 import { EVOS, UP, doReroll, offerUpgrades, pickLater, renderMods } from '../game/upgrades.js';
 import { giveTraps } from '../game/traps.js';
@@ -40,47 +40,8 @@ import { menuInit, renderChallenges, renderDistricts } from './menu.js';
 import { keysIn } from '../core/binds.js';
 import { JOBS_J, STOPS } from '../game/route.js';
 const AB_COST = 300; // a second ability, per character
-export function renderHeroes() {
-  $('heroes').innerHTML = Object.entries(HEROES)
-    .filter(([id]) => id === 'ranger') // (the one you play: the other two are met on the road)
-    .map(([id, h]) => {
-      const own = GS.meta.unlocked[id];
-      return `<button type="button" class="hero${GS.meta.hero === id ? ' on' : ''}${own ? '' : ' locked'}" data-h="${id}"><span class="nm"><i style="background:${h.dot}"></i>${h.name}</span><span class="wp">Best with ${h.weapon} · ${h.hp} health</span><span class="ds">${h.desc}</span><span class="wp ab">E · ${(abPickB(id) ? AB_B : AB_DEF)[id].name}</span>${own ? '' : `<span class="lk">Locked · ${h.cost} scrap in the Armory</span>`}</button>`;
-    })
-    .join('');
-  {
-    const h = GS.meta.hero,
-      el = $('abPick');
-    el.hidden = !abOwned(h);
-    if (abOwned(h))
-      el.innerHTML = `<span class="sec">Ability</span><span class="seg">${['a', 'b']
-        .map(k => {
-          const d = (k === 'b' ? AB_B : AB_DEF)[h],
-            on = (k === 'b') === abPickB(h);
-          return `<button type="button" data-ab="${k}" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${d.desc}">${d.name}</button>`;
-        })
-        .join('')}</span>`;
-    for (const b of el.querySelectorAll('button'))
-      b.addEventListener('click', () => {
-        GS.meta.abSel = { ...(GS.meta.abSel || {}), [h]: b.dataset.ab };
-        saveMeta();
-        renderHeroes();
-      });
-  }
-  for (const b of $('heroes').children)
-    b.addEventListener('click', () => {
-      const id = b.dataset.h;
-      if (!GS.meta.unlocked[id]) return;
-      if (GS.meta.hero === id) return;
-      GS.meta.hero = id;
-      saveMeta();
-      GS.RUN.hero = id;
-      renderHeroes();
-      resetStats();
-      armGuns(GS.P);
-      GS.P.hp = S.maxHp;
-    });
-}
+// (there was a hero card on the menu: one hero now, and the ability is picked in the Armory)
+export function renderHeroes() {}
 export function PK() {
   const o = {},
     off = GS.meta.perkOff || {};
@@ -145,7 +106,17 @@ function renderHangar() {
           heroOk = GS.meta.unlocked[id],
           cost = AB_COST;
         const why = !night5 ? 'Survive five nights to unlock.' : !heroOk ? `Unlock the ${HEROES[id].name} first.` : '';
-        return `<div class="perk"><span class="nm">${HEROES[id].name} · ${d.name}</span><button type="button" class="buy" data-abuy="${id}" ${own || why || GS.meta.seeds < cost ? 'disabled' : ''}>${own ? 'Owned' : why ? 'Locked' : cost + ' scrap'}</button><span class="ds">${d.desc}${own ? ' Pick it under Your character on the menu.' : why ? ' ' + why : ''}</span></div>`;
+        // the E ability: Mortar strike, or the second one once it's bought; the one in use is marked, the other picks it
+        const inB = abPickB(id),
+          a = AB_DEF[id];
+        return (
+          `<div class="perk"><span class="nm">${a.name}</span><button type="button" class="buy" data-absel="a" ${!inB ? 'disabled' : ''}>${!inB ? 'In use' : 'Use'}</button><span class="ds">${a.desc}</span></div>` +
+          `<div class="perk"><span class="nm">${d.name}</span>${
+            own
+              ? `<button type="button" class="buy" data-absel="b" ${inB ? 'disabled' : ''}>${inB ? 'In use' : 'Use'}</button>`
+              : `<button type="button" class="buy" data-abuy="${id}" ${why || GS.meta.seeds < cost ? 'disabled' : ''}>${why ? 'Locked' : cost + ' scrap'}</button>`
+          }<span class="ds">${d.desc}${why && !own ? ' ' + why : ''}</span></div>`
+        );
       })
       .join('');
   }
@@ -208,7 +179,10 @@ function renderHangar() {
   pvLabel();
   for (const b of document.querySelectorAll('#hangar .buy'))
     b.addEventListener('click', () => {
-      if (b.dataset.abuy) {
+      if (b.dataset.absel) {
+        GS.meta.abSel = { ...(GS.meta.abSel || {}), ranger: b.dataset.absel };
+        GS.RUN.abB = abPickB(GS.RUN.hero);
+      } else if (b.dataset.abuy) {
         const id = b.dataset.abuy;
         if (GS.meta.seeds >= AB_COST && !abOwned(id)) {
           GS.meta.seeds -= AB_COST;

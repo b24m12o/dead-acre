@@ -13,7 +13,7 @@ import { S, rec } from '../game/state.js';
 import { BLOOD } from '../render/draw-enemies.js';
 import { bleed, pool, shake } from '../render/effects.js';
 import { syncOpts } from './settings-ui.js';
-import { PK, begin, continueRun, openHangar, renderHeroes, renderPauseGuns, seedsLine } from './hangar.js';
+import { PK, begin, continueRun, openHangar, renderHeroes, renderPauseGuns } from './hangar.js';
 import { setB, setT } from './hud.js';
 import { DISTRICTS, FINAL_NIGHT, twistK } from '../game/districts.js';
 import { chalRunSummary, checkChal, openChal, statMax } from '../game/challenges.js';
@@ -167,9 +167,12 @@ export function renderRunReport(id) {
 }
 export function showMenuRec() {
   $('menuRec').innerHTML = rec.score
-    ? `Best <b>${rec.score.toLocaleString()}</b> · furthest night <b>${rec.wave}</b>`
-    : 'No runs logged yet';
-  $('menuSeeds').innerHTML = seedsLine();
+    ? `Best <b>${rec.score.toLocaleString()}</b> · furthest night <b>${rec.wave}</b> of 15`
+    : '';
+  $('menuSeeds').textContent = (GS.meta.seeds || 0).toLocaleString(); // (your scrap, on the way into the Armory)
+  $('menuNote').textContent = GS.meta.heroRefund
+    ? `${GS.meta.heroRefund} scrap back from the Deputy and the Gunslinger: they join you on the road now`
+    : '';
   {
     const d = savedRun(),
       cb = $('contBtn');

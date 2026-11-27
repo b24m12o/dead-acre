@@ -40,9 +40,9 @@ export async function run(b) {
   const q = await ev(
     `(() => ({ st: AC.state, t: AC.currentTime, menu: !$('menu').hidden, gs: GS.state, gate: musGate.gain.value }))()`
   );
-  // the click in the menu that wakes the sound: another hero's card
+  // the click in the menu that wakes the sound: anywhere on the title
   await ev(`(() => {
-    const h = [...$('heroes').children].find(c => c.dataset.h !== GS.meta.hero) || $('heroes').children[0];
+    const h = $('menu').querySelector('h1');
     $('menu').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     h.click();
     return 1;

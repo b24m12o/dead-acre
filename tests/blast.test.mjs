@@ -14,7 +14,14 @@ export async function run(b) {
       GS.nightLive = false; GS.interT = 999; GS.wave = 9;
       const T = cars.find(c => c.tanker && !c.dead), R = carBlastR(T);
       GS.P.hp = S.maxHp; GS.P.inv = 0; GS.P.x = T.x; GS.P.y = T.y + R * f;
-      const z = makeEnemy('skitter', T.x, T.y - R * f); GS.enemies.push(z); rebuildHash();
+      // the walker out in the open at that distance: nothing between it and the tanker (behind a wall or a car it
+      // would rightly be sheltered: combat.js cover)
+      let zx = T.x, zy = T.y - R * f;
+      for (let k = 0; k < 24; k++) {
+        const a = -Math.PI / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.26, x = T.x + Math.cos(a) * R * f, y = T.y + Math.sin(a) * R * f;
+        if (!solidPt(x, y) && cover(T.x, T.y, x, y) >= 1 && Math.hypot(x - GS.P.x, y - GS.P.y) > 60) { zx = x; zy = y; break; }
+      }
+      const z = makeEnemy('skitter', zx, zy); rebuildHash();
       damageCar(T, 1e6);
       out[f] = { lost: Math.round(S.maxHp - GS.P.hp), max: S.maxHp, zDead: z.hp <= 0 || z.dead, R };
     }

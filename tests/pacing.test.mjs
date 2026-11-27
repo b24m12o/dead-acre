@@ -20,11 +20,13 @@ export async function run(b) {
   };
   await ev(`(() => { GS.meta.hud.cap = 60; 1 })()`);
   const menu = await rate();
+  const vMenu = await ev('viewW');
   await ev(
     `(() => { initAudio(); GS.meta.tutDone = true; begin(); GS.RUN.tut = null; __god(); GS.interT = 999; 1 })()`
   );
   await pg.waitForTimeout(500);
   const play60 = await rate();
+  const vPlay = await ev('viewW');
   await ev(`(() => { GS.meta.hud.cap = 30; 1 })()`);
   const play30 = await rate();
   const rs30 = await ev('GS.rsCap === GS.RS_MAX');
@@ -37,6 +39,7 @@ export async function run(b) {
   check(play30 >= 25 && play30 <= 33, `play capped at 30 should draw about 30: ${play30}`);
   check(rs30, 'a 30 cap should not pull the resolution down');
   check(pause >= 15 && pause <= 23, `paused should draw about 20: ${pause}`);
+  check(vPlay > vMenu * 1.3, `the title's camera is closer in, and a run's back out: ${vMenu} then ${vPlay}`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));
   return `menu ${menu}, play ${play60} (cap 60) / ${play30} (cap 30), paused ${pause} frames a second`;
 }

@@ -20,7 +20,7 @@ import {
 } from './audio.js';
 import { syncOpts } from '../ui/settings-ui.js';
 export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
-const TEMPO = { none: 70, menu: 70, calm: 84, fight: 160, boss: 172 };
+const TEMPO = { none: 70, menu: 70, title: 60, calm: 84, fight: 160, boss: 172 };
 const BOSS_TEMPO = { abom: 1, roadkill: 1.1, grave: 0.74, chief: 0.94, pz: 0.88 }; // each boss gets its own take on the boss theme: Roadkill gallops, the Gravekeeper drags
 // each kind of ground has its own fight song (below) at its own pace, and a night with a signature plays it its own way
 const DIST_TEMPO = { highway: 1.05, cemetery: 0.88 };
@@ -532,12 +532,13 @@ function scheduleMusic() {
         const g = musGate.gain,
           t0 = Math.max(AC.currentTime, MUS.nextT);
         g.cancelScheduledValues(t0);
-        if (MUS.want === 'none')
-          g.setTargetAtTime(0, t0 + (end ? 3.2 : 0), 0.03); // an ending rings out before the stop
+        if (MUS.want === 'none') g.setTargetAtTime(0, t0 + (end ? 3.2 : 0), from === 'title' ? 0.5 : 0.03);
+        // an ending rings out before the stop; the title theme, out of the menu into a run, fades rather than cuts
         else {
           // (a fight's band plays loud by arrangement, 6 dB over the calm: it sits under your guns, not over them)
-          const lv = MUS.want === 'boss' ? 0.4 : MUS.want === 'fight' ? 0.45 : 1;
-          if (MUS.level === 'none') g.setTargetAtTime(lv, t0, 0.02);
+          const lv = MUS.want === 'boss' ? 0.4 : MUS.want === 'fight' ? 0.45 : MUS.want === 'title' ? 0.85 : 1;
+          if (MUS.level === 'none')
+            g.setTargetAtTime(lv, t0, MUS.want === 'title' ? 1.5 : 0.02); // (the title's swells in)
           else g.setTargetAtTime(lv, t0, 0.4);
         } // the boss song sits a little under the fight so your guns stay on top
       } // a stop is a real stop: pads and ringing chords are cut too
@@ -915,6 +916,26 @@ function playStep(st, t) {
     bar = st >> 4,
     spb = 60 / tempoOf(L) / 4;
   if (L === 'none') return;
+  if (L === 'title') {
+    // the title screen: the night before it starts. Strings held under it, a piano a long way off picking out a few
+    // notes, and now and then a low thud, far away, that could be a door or could be guns. Four chords, sixteen
+    // seconds each, round again: D minor, B flat, G minor, A
+    const c = MUS.loop % 4,
+      R = [38, 34, 43, 45][c],
+      third = c === 1 || c === 3 ? 4 : 3;
+    if (st === 0) mPad([R, R + 7, R + 12, R + 12 + third], t, spb * 64 * 0.98, 0.026);
+    if (st === 0 && MS && c % 2 === 0) mTrem(R + 24 + third, t, spb * 60, 0.05); // (the recorded strings, a quiet tremolo on the third)
+    const MEL = [
+      { 8: 74, 14: 72, 24: 69, 40: 65, 52: 69 },
+      { 8: 74, 20: 70, 32: 65, 44: 62 },
+      { 8: 70, 14: 67, 28: 62, 44: 67, 56: 70 },
+      { 8: 73, 24: 69, 36: 64, 48: 61 },
+    ][c];
+    if (MEL[st] && MUS.loop >= 1) mPluck(MEL[st] - (MUS.loop % 8 >= 4 ? 12 : 0), t, 0.028); // (in from the second time round; an octave down every other pass)
+    if ((st === 0 || st === 36) && MUS.loop % 2 === 1) mKick(t, 0.1); // far off
+    if (st === 60 && c === 3) mBell(81, t, 0.025);
+    return;
+  }
   if (L === 'menu') {
     if (st === 0)
       mPad(

@@ -376,12 +376,12 @@ export function stat(k) {
   return GS.meta.stats[k] || 0;
 }
 export function bump(k, v = 1) {
-  if (GS.RUN && GS.RUN.practice) return;
+  if (GS.RUN && (GS.RUN.practice || GS.RUN.attract)) return;
   GS.meta.stats = GS.meta.stats || {};
   GS.meta.stats[k] = (GS.meta.stats[k] || 0) + v;
 }
 export function statMax(k, v) {
-  if (GS.RUN && GS.RUN.practice) return;
+  if (GS.RUN && (GS.RUN.practice || GS.RUN.attract)) return;
   GS.meta.stats = GS.meta.stats || {};
   GS.meta.stats[k] = Math.max(GS.meta.stats[k] || 0, v);
 }
@@ -390,7 +390,7 @@ function chalValue(c) {
 }
 export let chalDone;
 export function checkChal(quiet) {
-  if (GS.RUN && GS.RUN.practice) return;
+  if (GS.RUN && (GS.RUN.practice || GS.RUN.attract)) return;
   GS.meta.chal = GS.meta.chal || {};
   let any = false;
   for (const c of CHAL)

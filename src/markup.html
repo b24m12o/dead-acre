@@ -94,20 +94,24 @@
 </div>
 <div id="banner"></div>
 
-<div class="overlay" id="menu" hidden>
+<div class="overlay title" id="menu" hidden>
   <div class="panel">
-    <div class="eyebrow">Dead Acre County · Day 3 of the outbreak · Radio Channel 9</div>
+    <div class="eyebrow">Dead Acre County · Day 3 of the outbreak</div>
     <h1>Dead <span>Acre</span></h1>
     <p class="lede">
-      Three days ago the county went dark. A National Guard convoy still talks on Channel 9, and it has promised a
-      chopper. Start with a pistol, grab the weapons the convoy airdrops as the nights go on, scavenge ammo off the
-      dead, and survive 15 nights until the Guard comes for you.
+      The county went dark three days ago. The Guard has promised a chopper on the fifteenth night. Stay alive till it
+      lands.
     </p>
-    <div class="btns">
+    <div class="ch9" aria-hidden="true">
+      <b><i></i>Ch 9</b><span id="ch9t"></span>
+    </div>
+    <div class="btns main">
       <button class="btn" id="contBtn" type="button" hidden>Continue</button>
       <button class="btn" id="survBtn" type="button">Play</button>
+    </div>
+    <div class="btns sub">
       <button class="btn ghost" id="hmBtn" type="button">Horde Mode</button>
-      <button class="btn ghost" id="hangarBtn" type="button">Armory</button>
+      <button class="btn ghost" id="hangarBtn" type="button">Armory <span class="badge" id="menuSeeds"></span></button>
       <button class="btn ghost" id="chalBtn" type="button">Challenges</button>
       <button class="btn ghost icon" id="settingsBtn" type="button" aria-label="Settings" title="Settings">
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
@@ -123,16 +127,7 @@
       </button>
     </div>
     <p class="loadsnd" id="loadSnd" hidden></p>
-    <div class="sec">Your character</div>
-    <div class="heroes" id="heroes"></div>
-    <div class="infrow abpick" id="abPick" hidden></div>
-    <p class="rec keysline" id="keysLine">
-      WASD move · Mouse aim · Hold click to fire · Shift or right-click roll · Space shove · E ability · 1–9 or mouse
-      wheel swap guns · Q last gun, hold Q for the gun wheel · R reload · Esc pause · M sound · N music
-    </p>
-    <div class="btns">
-      <span class="seeds" id="menuSeeds"></span><span class="rec" id="menuRec">No runs logged yet</span>
-    </div>
+    <p class="menufoot"><span id="menuRec"></span><span id="menuNote"></span></p>
   </div>
 </div>
 
@@ -147,7 +142,13 @@
         <div class="places" id="districts" role="radiogroup" aria-label="Ground"></div>
         <p class="note" id="placeDesc"></p>
       </div>
-      <ol class="road-list" id="roadList"></ol>
+      <div class="setroad" id="roadMap">
+        <div class="road" aria-hidden="true"></div>
+        <p class="facts">
+          <span><b>15</b> nights</span><span><b>8</b> stops</span><span><b>5</b> bosses</span
+          ><span><b>1</b> chopper</span>
+        </p>
+      </div>
     </div>
     <div class="scol">
       <div class="infrow">
@@ -335,7 +336,7 @@
       <div class="pvt"><span class="pvk">Preview</span><b id="pvName"></b><span id="pvSub"></span></div>
     </div>
     <div class="perks" id="hangarHeroes" hidden></div>
-    <div class="sec">Second abilities</div>
+    <div class="sec">Your ability · E</div>
     <div class="perks" id="hangarAbs"></div>
     <div class="sec">Field manual</div>
     <p class="secnote">Gear and combos that only turn up in level-up picks once a challenge has taught them to you.</p>

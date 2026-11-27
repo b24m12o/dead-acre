@@ -10,7 +10,7 @@ import { setTilt } from './scale.js';
 import { gl, glc } from '../render/gl.js';
 import { BAKE, bakePrep } from '../render/bake.js';
 import { assetsPrep } from './assets.js';
-import { resize } from '../render/sprites.js';
+import { resize, zoomK } from '../render/sprites.js';
 import { atlA, atlE, atlN, genNormals } from '../render/atlas.js';
 import { paintAtlas } from '../render/atlas-paint.js';
 import { texMapA } from '../world/map.js';
@@ -79,6 +79,7 @@ function frame(now) {
   if (GS.P && GS.P.ride && GS.state === 'play') GS.hitstop = GS.slowmo = 0; // the ride out never freezes or slows: the door gun's kills would stutter the flight
   const sdt = WHEEL.open ? dt * 0.1 : GS.slowmo > 0 ? dt * 0.3 : dt;
   if (GS.slowmo > 0 && !WHEEL.open) GS.slowmo -= dt;
+  if (GS.state !== 'menu') zoomK(1); // (only the title screen is closer in)
   if (GS.state === 'play') {
     if (GS.hitstop > 0) GS.hitstop -= dt;
     else {
@@ -100,7 +101,7 @@ function frame(now) {
     tickWorld(dt);
     updateCamera(dt);
   } else if (GS.state === 'menu') {
-    menuUpdate(dt);
+    menuUpdate(dt); // (the title screen's camera is closer in: zoomK, back to 1 for anything else)
     tickWorld(dt);
   } else if (GS.state === 'over') {
     GS.time += sdt;

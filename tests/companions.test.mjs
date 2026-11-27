@@ -20,8 +20,7 @@ export async function run(b) {
     normalizeMeta();
     out.seeds2 = m.seeds;
     menuInit(); renderHeroes();
-    out.heroBtns = document.querySelectorAll('#heroes [data-h]').length;
-    out.heroIds = [...document.querySelectorAll('#heroes [data-h]')].map(x => x.dataset.h).join();
+    out.heroBtns = document.querySelectorAll('#menu [data-h], #menu .hero').length;
     // the roll
     initAudio(); m.tutDone = true;
     begin(); GS.RUN.tut = null; GS.RUN.jobN = []; GS.state = 'play';
@@ -121,7 +120,7 @@ export async function run(b) {
   check(o.seeds2 === o.seeds1, `and only once: ${o.seeds2}`);
   check(o.refund === 950, `the refund should be noted for the scrap line: ${o.refund}`);
   check(o.hero === 'ranger', `the hero should be the Soldier: ${o.hero}`);
-  check(o.heroBtns === 1 && o.heroIds === 'ranger', `the setup should offer only the Soldier: ${o.heroIds}`);
+  check(o.heroBtns === 0, `the menu should offer no hero to pick: ${o.heroBtns}`);
   check(!o.w2.deputy && !o.w2.slinger, `neither before the third night: ${JSON.stringify(o.w2)}`);
   check(o.town.deputy && !o.town.slinger, `around town, the Deputy: ${JSON.stringify(o.town)}`);
   check(o.road.slinger && !o.road.deputy, `out on the highway, the Gunslinger: ${JSON.stringify(o.road)}`);

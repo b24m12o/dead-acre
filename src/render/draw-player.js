@@ -167,7 +167,7 @@ export const CHEM = { r: 60, c: [0.3, 0.66, 1.0], k: 1.1 }; // your chemlight: h
 export const YOU_RIM = 0.8,
   THEM_RIM = 0.42;
 export function drawRanger(p) {
-  if (GS.state !== 'menu' && drawHero3D(p)) return; // in 3D, when it can be (fig3d.js); otherwise the picture
+  if ((GS.state !== 'menu' || !HPV.on) && drawHero3D(p)) return; // in 3D, when it can be (fig3d.js); otherwise the picture (the Armory's preview)
   const r0 = RIM;
   setRim(GS.SHMODE || GS.state === 'menu' ? r0 : p.npc ? THEM_RIM : YOU_RIM);
   figTilt(!GS.SHMODE);
