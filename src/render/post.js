@@ -7,6 +7,9 @@ in vec2 vUv; out vec4 o;
 vec3 unpackN(vec4 q){ vec2 xy=q.a>0.004?(q.rg/q.a)*2.0-1.0:vec2(0.0); return vec3(xy,sqrt(max(0.0,1.0-dot(xy,xy)))); }
 void main(){
   vec3 a=texture(uAlb,vUv).rgb; vec3 e=texture(uEmi,vUv).rgb; vec3 l=texture(uLight,vUv).rgb;
+  // a soft knee on the lights where several pile up (a burning car, a fire on the ground and the flashlight): past what
+  // a street lamp gives, more comes on slowly, so the people in it keep their shape instead of washing out to beige
+  { float lm=max(l.r,max(l.g,l.b)); if(lm>1.1) l*=(1.1+(lm-1.1)*0.35)/lm; }
   vec4 nb=texture(uNrm,vUv); vec3 N=unpackN(nb); float sp=nb.a>0.004?clamp(nb.b/nb.a,0.0,1.0):0.0;
   float cavity=0.0;
   if(uCav>0.5){ vec2 px=1.0/vec2(textureSize(uNrm,0));

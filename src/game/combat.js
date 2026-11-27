@@ -523,7 +523,9 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
                 : 1;
   e.kx += (kx / kl) * 170 * GK * kb * mass;
   e.ky += (ky / kl) * 170 * GK * kb * mass;
-  if (opt.dmgNums && src !== 'fire' && (crit || dmg >= 60)) {
+  // (every hit, while you've asked for them: the hits on one add up in its one number. It showed only crits and 60+,
+  // so with the starting guns the option looked like it did nothing)
+  if (opt.dmgNums && src !== 'fire') {
     const tt = GS.texts.find(t => t.eid === e.id && t.life > 0.35);
     if (tt) {
       tt.dv += dmg;

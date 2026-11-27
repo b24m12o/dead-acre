@@ -144,7 +144,8 @@ export function init() {
     else if (GS.state === 'pause' && (k === 'escape' || k === 'p')) setPause(false);
     else if (GS.state === 'levelup' && !e.repeat && ['1', '2', '3'].includes(k)) choose(+k - 1);
     else if (GS.state === 'levelup' && !e.repeat && k === 'r') doReroll();
-    else if (GS.state === 'levelup' && !e.repeat && k === 'tab') pickLater();
+    else if (GS.state === 'levelup' && !e.repeat && (k === 'tab' || (k === 'escape' && !$('laterBtn').hidden)))
+      pickLater(); // (Escape backs out of the cards as it does everywhere else, when there's a later to back out to)
     else if (GS.state === 'levelup' && ['arrowleft', 'arrowright', 'a', 'd'].includes(k)) {
       const cs = [...document.querySelectorAll('#cards .card')],
         i = cs.indexOf(document.activeElement),
@@ -152,6 +153,8 @@ export function init() {
       if (cs[n]) cs[n].focus();
       e.preventDefault();
     } // the arrow keys walk the cards; Enter or Space takes the one in focus
+    else if (k === 'escape' && (GS.state === 'over' || GS.state === 'won') && $('chal') && !$('chal').hidden)
+      $('chalBack').click(); // the challenges, opened from the end of a run: back to it
     else if (k === 'enter' && GS.state === 'over' && !$('over').hidden) {
       e.preventDefault();
       begin(false);

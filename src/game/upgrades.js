@@ -765,7 +765,12 @@ export function offerUpgrades(source = 'level') {
   sfx.level();
   GS.luOpenT = performance.now() + 650;
   $('levelup').classList.add('arming');
-  setTimeout(() => $('levelup').classList.remove('arming'), 650); // a beat before anything counts, so a key or button held in the fight can't pick for you
+  setTimeout(() => {
+    $('levelup').classList.remove('arming');
+    // the first card in focus, so Enter or Space takes it without an arrow press first (nothing was)
+    const c = document.querySelector('#cards .card');
+    if (GS.state === 'levelup' && c && !document.activeElement?.closest?.('#levelup')) c.focus({ preventScroll: true });
+  }, 650); // a beat before anything counts, so a key or button held in the fight can't pick for you
 }
 GS.luOpenT = 0;
 export function offerGuns(gs) {

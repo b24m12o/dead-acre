@@ -85,10 +85,21 @@ export function ticker(t, sub) {
   if (!el) return;
   el.innerHTML = sub ? `<b>${t}</b> · ${sub}` : `<b>${t}</b>`;
   el.classList.remove('show');
+  // up over the radio when a voice is on and they'd overlap (narrower than about 1600 px, the radio's box and the
+  // line ran into each other)
+  el.style.bottom = '';
+  const R = $('radio');
+  if (R && R.classList.contains('show')) {
+    const a = el.getBoundingClientRect(),
+      b = R.getBoundingClientRect();
+    if (a.left < b.right + 8) el.style.bottom = Math.round(innerHeight - b.top + 8) + 'px';
+  }
   void el.offsetWidth;
   el.classList.add('show');
   clearTimeout(tickT);
-  tickT = setTimeout(() => el.classList.remove('show'), 2600);
+  // long enough to read: a long one (a tip) stays up for it, never under four seconds (it was 2.6, whatever it said)
+  const n = el.textContent.length;
+  tickT = setTimeout(() => el.classList.remove('show'), Math.max(4000, n * 60));
 }
 export function showStreak(t, sub, urgent = STREAK_URGENT[t], valid = null) {
   if (inFight() && !FIGHT_BIG.has(t)) {

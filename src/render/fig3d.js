@@ -2330,9 +2330,16 @@ function poseHeroFK(p, D, o) {
     H = HOLD[gm] || HOLD.rifle,
     kick = clamp((p.recoil || 0) / 8, 0, 1),
     rl = clamp(p.rk || 0, 0, 1),
-    sw = p.swap > 0 ? Math.sin(Math.min(1, p.swap / 0.3) * Math.PI) : 0,
-    shv = p.shoveT > 0 ? Math.sin(Math.PI * clamp(1 - p.shoveT / 0.25, 0, 1)) : 0,
     dt = clamp(t - (p._hipT ?? t), 0, 0.1),
+    // one of yours with nothing to shoot at carries the gun low and ready, not up at the sky (the swap's lowering, half
+    // way), and brings it up as soon as there's something
+    lr = (p._lr = lerp(
+      p._lr || 0,
+      p.npc && !p.tgt && GS.time - (p.lastShotT ?? -9) > 2 ? 0.55 : 0,
+      Math.min(1, dt * 6)
+    )),
+    sw = Math.max(p.swap > 0 ? Math.sin(Math.min(1, p.swap / 0.3) * Math.PI) : 0, lr),
+    shv = p.shoveT > 0 ? Math.sin(Math.PI * clamp(1 - p.shoveT / 0.25, 0, 1)) : 0,
     A = fkAlign(MM),
     par = MM.bones.map(b => b[1]),
     Hl = r[14][2] * k[1]; // a leg's length: the hips' height

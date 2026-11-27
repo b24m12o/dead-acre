@@ -43,6 +43,12 @@ export const BLOOD = [0.31, 0.022, 0.02],
   BILE = [0.42, 0.38, 0.14];
 let ZP = 'z_'; // which set of arm parts zArm draws with: painted (z_) or 3D-baked (zs_)
 const LONGSL = { 0: 1, 1: 1, 2: 1, 3: 1, 5: 1, 7: 1, 8: 1, 9: 1, 11: 1, 12: 1, 13: 1, 14: 1, 17: 1, 18: 1 }; // outfits whose sleeves reach the wrist
+// what they died in, worn and filthy: a third of the colour gone to grey and a little darker, so a blue shirt among
+// the dead doesn't read as one of your people's fresh blue or olive kit in the rain
+for (const c of ZSHIRT) {
+  const l = c[0] * 0.3 + c[1] * 0.55 + c[2] * 0.15;
+  for (let i = 0; i < 3; i++) c[i] = (c[i] + (l - c[i]) * 0.35) * 0.92;
+}
 setShirts(ZSHIRT);
 export function sleeveLen(e) {
   if (e.slv === undefined)

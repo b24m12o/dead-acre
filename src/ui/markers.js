@@ -575,7 +575,8 @@ export function drawMarkersUI(toS) {
     ui.lineWidth = 3;
     ui.strokeStyle = 'rgba(20,24,29,0.85)';
     if (bx > 0 && by > 0 && bx < VW && by < VH) {
-      const [lx2, ly2] = safeLabel(mk.label, bx, by - 34 * GK * ZOOM);
+      // (over the head, not on it: a figure stands about 23 units tall, the label sat at 14 and hid the face)
+      const [lx2, ly2] = safeLabel(mk.label, bx, by - 80 * GK * ZOOM);
       ui.strokeText(mk.label, lx2, ly2);
       ui.fillStyle = mk.col;
       ui.fillText(mk.label, lx2, ly2);
@@ -619,11 +620,13 @@ export function drawMarkersUI(toS) {
     const t = s.say.txt,
       hw = ui.measureText(t).width / 2 + 8,
       x = clamp(qx, hw, VW - hw); // never cut off at the screen's edge
-    let y = qy - 40 * GK * ZOOM;
+    let y = qy - 88 * GK * ZOOM; // (above the head: it sat across it, and across you when they stood by you)
     for (let k = 0; k < 6 && placed.some(q => Math.abs(q.x - x) < q.hw + hw && Math.abs(q.y - y) < lh); k++)
       y = Math.min(...placed.filter(q => Math.abs(q.x - x) < q.hw + hw && Math.abs(q.y - y) < lh).map(q => q.y)) - lh;
     placed.push({ x, y, hw });
     ui.globalAlpha = clamp((s.say.end - GS.time) / 0.4, 0, 1) * clamp((GS.time - s.say.t) / 0.12, 0, 1);
+    ui.fillStyle = 'rgba(20,24,29,0.55)'; // a dark backing, so it reads over whatever is behind it
+    ui.fillRect(x - hw + 2, y - lh * 0.8, hw * 2 - 4, lh * 1.05);
     ui.strokeText(t, x, y);
     ui.fillStyle = '#e8eef0';
     ui.fillText(t, x, y);

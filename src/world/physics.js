@@ -691,7 +691,8 @@ function footTick(dt) {
       const sp = Math.hypot(e.vx || 0, e.vy || 0);
       if (sp < 8) continue;
       e._fd = (e._fd || 0) + sp * dt;
-      if (e._fd < 13 * PEOPLE) continue;
+      // (patchy and dark, as dragged blood is on a road, with gaps: it was a solid, bright red tail at play zoom)
+      if (e._fd < 13 * PEOPLE * rand(1.2, 1.9)) continue;
       e._fd = 0;
       if (GS.decals.length > 395) continue;
       const a = Math.atan2(e.vy, e.vx),
@@ -701,8 +702,8 @@ function footTick(dt) {
         x: e.x - Math.cos(a) * 6 * PEOPLE,
         y: e.y - Math.sin(a) * 6 * PEOPLE,
         rot: a + rand(-0.12, 0.12),
-        s: PEOPLE * rand(1.4, 1.7),
-        tint: [c[0] * 0.7, c[1] * 0.7, c[2] * 0.7, rand(0.5, 0.7)],
+        s: PEOPLE * rand(0.9, 1.3),
+        tint: [c[0] * 0.42, c[1] * 0.4, c[2] * 0.4, rand(0.35, 0.55)],
         emit: [0, 0, 0],
         life: 45,
         max: 45,

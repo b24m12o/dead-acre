@@ -185,9 +185,24 @@ export function updateObjective(dt) {
       const ex = s.x - GS.P.x,
         ey = s.y - GS.P.y,
         el = Math.hypot(ex, ey) || 1;
-      if (el < 36) {
+      if (el < 36 * GK) {
         s.x = GS.P.x + (ex / el) * 36 * GK;
         s.y = GS.P.y + (ey / el) * 36 * GK;
+      } // (the same distance both ways: it tested the old size and put them at the new, a third as far)
+      // and not through each other: two of them on their way to their places walked into one another
+      for (const o of GS.buddies) {
+        if (o === s || o.gone || o.down > 0) continue;
+        const qx = s.x - o.x,
+          qy = s.y - o.y,
+          q = Math.hypot(qx, qy) || 0.01,
+          md = ((s.r || 6) + (o.r || 6)) * 1.3;
+        if (q < md) {
+          const k = (md - q) / 2;
+          s.x += (qx / q) * k;
+          s.y += (qy / q) * k;
+          o.x -= (qx / q) * k;
+          o.y -= (qy / q) * k;
+        }
       }
     }
     collide(s); /* never inside you */

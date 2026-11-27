@@ -115,6 +115,16 @@ export const PAD_KEYS =
 export const PAD_HINT =
   'Left stick move · right stick aim · RT fire · X reload · A roll · B shove · Y ability · RB next gun · hold LB wheel';
 export const padOn = () => !!(GS.pad && GS.pad.on);
+// the keys the HUD names for its own prompts (Enter to start, Tab for the cards), as they are on what you're holding
+export const ENTER = () => (padOn() ? 'Back' : 'Enter');
+export const CARDS = () => (padOn() ? 'D-pad up' : 'Tab');
+// a line written with the default keys in it (the radio's voiced tips say 'Press E'): as shown, the keys you have
+export const keyText = s =>
+  s
+    .replace(/\bPress Enter\b/g, () => 'Press ' + ENTER())
+    .replace(/\b(Tap|Hold) Q\b/g, (m, w) => w + ' ' + kn('wheel'))
+    .replace(/\bPress E\b/g, () => 'Press ' + kn('ability'))
+    .replace(/\bPress R\b/g, () => 'Press ' + kn('reload'));
 export const kn = id =>
   (padOn() && PAD_NAME[id]) || (id === 'roll' && bindOf(id) === 'ShiftLeft' ? 'Shift' : codeName(bindOf(id))); // either Shift rolls
 // text with {action} in it, the bound key's name put in: 'Press {reload} to reload'

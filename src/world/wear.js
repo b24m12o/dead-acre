@@ -119,7 +119,26 @@ export function scorchWalls(x, y, R0) {
 /* ---------- lamp-cast character shadows ---------- */
 /* ---------- atmosphere: ash & embers, burning buildings, the city beyond ---------- */
 const ash = [];
+// glowing embers only where something is burning near (a house, a car, a fire on the ground), and never in the rain:
+// they drifted over every quiet street (a fifth of the ash glowed, whatever was or wasn't on fire)
+let heatT = 0,
+  heat = 0;
+function nearHeat() {
+  if (GS.ev === 'storm') return 0;
+  const cx = GS.camX + viewW / 2,
+    cy = GS.camY + viewH / 2,
+    R2 = (viewW * 0.9) ** 2,
+    nr = (x, y) => (x - cx) ** 2 + (y - cy) ** 2 < R2;
+  for (const o of houses) if (o.burning && nr((o.x + o.w / 2) * TILE, (o.y + o.h / 2) * TILE)) return 1;
+  for (const c of cars) if (c.fire > 0.3 && nr(c.x, c.y)) return 1;
+  for (const f of GS.firePools || []) if (nr(f.x, f.y)) return 1;
+  return 0;
+}
 export function updateAsh(dt) {
+  if ((heatT -= dt) <= 0) {
+    heatT = 0.5;
+    heat = nearHeat();
+  }
   const ashTarget = gfxPreset().ash;
   if (ash.length > ashTarget) ash.length = ashTarget;
   if (ash.length < ashTarget)
@@ -130,7 +149,7 @@ export function updateAsh(dt) {
         z: rand(0, 200),
         ph: rand(0, TAU),
         s: rand(0.3, 0.7),
-        em: Math.random() < 0.22,
+        em: heat > 0 && Math.random() < 0.22,
       });
   const wind = 14 + Math.sin(GS.time * 0.2) * 10;
   for (const a of ash) {
@@ -147,6 +166,7 @@ export function updateAsh(dt) {
       a.x = GS.camX + rand(-40, viewW);
       a.y = GS.camY + rand(-40, viewH + 40);
       a.z = rand(80, 200);
+      a.em = heat > 0 && Math.random() < 0.22;
     }
   }
   for (const o of houses)

@@ -124,7 +124,8 @@ export function youRing(p, f = 1) {
   if (p.dead || p.hp <= 0 || GS.state === 'cine' || riding()) return;
   const Y = YOU_RING,
     s = Y.r / 26,
-    k = Y.glow * f;
+    thick = GS.ev === 'fog' || GS.ev === 'storm' ? 1.5 : 1, // (fog and rain flatten everyone: the ring speaks up)
+    k = Y.glow * f * thick;
   quad(
     R.you_ring,
     p.x,
@@ -135,7 +136,7 @@ export function youRing(p, f = 1) {
     Y.c[0],
     Y.c[1],
     Y.c[2],
-    Y.a * f,
+    Math.min(1, Y.a * f * thick),
     Y.c[0] * k,
     Y.c[1] * k,
     Y.c[2] * k,
@@ -410,9 +411,9 @@ export function render() {
         dm,
         dm,
         1,
-        0.55,
-        0.55,
-        0.55,
+        0.82, // (a brass glint: the box was a dark olive lump, as easy to miss as the litter)
+        0.66,
+        0.34,
         0
       );
     else
@@ -423,13 +424,13 @@ export function render() {
         0,
         1.2,
         1.2,
-        dm,
-        dm,
-        dm,
+        dm * 0.88,
+        dm * 0.88,
+        dm * 0.88,
         1,
-        0.5,
-        0.45,
-        0.45,
+        0.36, // (quieter: it outshone everything else on the street)
+        0.32,
+        0.32,
         0
       ); /* a modest self-glow: under a streetlamp they no longer burn out to a white square */
     scaleAbout(0, 0, 1);
@@ -625,14 +626,14 @@ export function render() {
     const cx = t.x,
       cy = t.y - 40 * t.s,
       R1 = 100 * t.s;
-    let near = GS.P && d2(cx, cy, GS.P.x, GS.P.y) < R1 * R1;
+    let near = GS.P && d2(cx, cy, GS.P.x, GS.P.y) < R1 * R1,
+      dead = false;
     if (!near && GS.P && d2(cx, cy, GS.P.x, GS.P.y) < 700 * 700) {
-      const R2 = 80 * t.s;
-      near =
-        GS.buddies.some(b => d2(cx, cy, b.x, b.y) < R2 * R2) ||
-        GS.enemies.some(e => !e.dead && e.emerge >= 1 && d2(cx, cy, e.x, e.y) < R2 * R2);
+      const R2 = 100 * t.s; // (the whole spread of it: under its edge the dead were still lost in the branches)
+      dead = GS.enemies.some(e => !e.dead && e.emerge >= 1 && d2(cx, cy, e.x, e.y) < R2 * R2);
+      near = dead || GS.buddies.some(b => d2(cx, cy, b.x, b.y) < R2 * R2);
     } // the whole canopy, and anything hiding under it near you, not just its trunk
-    t.fade += ((near ? 0.3 : 0.98) - t.fade) * 0.15;
+    t.fade += ((near ? (dead ? 0.2 : 0.3) : 0.98) - t.fade) * 0.15;
     quad(
       R['canopy' + t.v],
       t.x,

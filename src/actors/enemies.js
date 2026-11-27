@@ -152,7 +152,7 @@ export function makeEnemy(type, x, y) {
       e.hv = pick(heads);
       e.tc = pick([
         [1, 1, 1],
-        [0.88, 0.92, 1.05],
+        [0.9, 0.9, 0.92], // (no blue cast: that's your people's)
         [1.06, 0.94, 0.86],
         [0.82, 0.82, 0.84],
         [1.02, 1.0, 0.86],

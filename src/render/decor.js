@@ -559,7 +559,8 @@ export function decorLights() {
       if (s < 0) continue;
       const ax = d.x + Math.cos(d.a) * 46,
         col = s === 2 ? [0.1, 0.6, 0.25] : s === 1 ? [0.7, 0.5, 0.08] : [0.75, 0.1, 0.08];
-      addLight(ax, d.y, 120, col[0], col[1], col[2]);
+      // (a signal lamp washes the road under it, it doesn't flood the junction: the green pools read louder than you)
+      addLight(ax, d.y, 80, col[0] * 0.65, col[1] * 0.65, col[2] * 0.65);
     }
 }
 // a car's headlamps: a beam from each lamp, splayed a touch apart. Shot up, one of them flickers on a bad

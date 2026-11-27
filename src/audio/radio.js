@@ -7,6 +7,7 @@ import { saveMeta } from '../core/settings.js';
 import { AC, musDuck, noiseBuf, radBus, sfxBus, sfxDuck, thr } from './audio.js';
 import { TRAIT } from '../actors/enemies.js';
 import { hushBarks } from './barks.js';
+import { keyText } from '../core/binds.js';
 export const EV_NAME = { blood: 'Blood moon', fog: 'Fog', blackout: 'Blackout', storm: 'Storm' };
 const atSign = () =>
   ((GS.RUN && GS.RUN.district) || 'town') === 'town'; /* the painted HELP is only at the town crossroads */
@@ -482,7 +483,7 @@ export function tip(id) {
   saveMeta();
   if (T[1] && ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 4) return;
   if (inFight())
-    ticker(T[0]); // in a fight, read at the bottom edge rather than said
+    ticker(keyText(T[0])); // in a fight, read at the bottom edge rather than said
   else radio(T[0], null, 0);
 }
 export function radioTick(dt) {
@@ -503,7 +504,7 @@ export function radioTick(dt) {
   const q = GS.radioQ.shift(),
     l = typeof q === 'string' ? q : q.t,
     who = typeof q === 'string' ? '' : q.who;
-  el.innerHTML = `<b>CH 9${who ? ' · ' + who.toUpperCase() : ''}</b>“${l}”`;
+  el.innerHTML = `<b>CH 9${who ? ' · ' + who.toUpperCase() : ''}</b>“${keyText(l)}”`; // (the keys you have: binds.js)
   el.classList.add('show');
   GS.radioT = Math.max(3.4 + l.length * 0.035, voxDur(voxFor(l, who)) + 1.2);
   hushBarks(); // your people stop talking when the radio comes on

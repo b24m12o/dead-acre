@@ -19,7 +19,8 @@ import { GARAGE } from '../world/map.js';
 import { TRAITS } from '../actors/backups.js';
 import { EV_NAME } from '../audio/radio.js';
 import { objText } from '../game/objective-flow.js';
-import { kn } from '../core/binds.js';
+import { CARDS, ENTER, kn } from '../core/binds.js';
+import { mouse } from '../core/input.js';
 const hc = {};
 export const setT = (id, v) => {
   if (hc[id] !== v) {
@@ -60,6 +61,21 @@ export function hudRects() {
   if (now - HUDF.t < 200 && HUDF.rects.length) return HUDF.rects;
   HUDF.t = now;
   if (!HUDF.els) HUDF.els = ['gauge', 'wavePlate', 'scorePlate', 'bossBox', 'radio', 'lv', 'hint'].map(id => $(id)); // the level label and the controls line at the bottom count too
+  {
+    // with big HUD text the gauge runs into the night's plate in the middle: the plate steps right, clear of it
+    const g = $('gauge'),
+      w = $('wavePlate');
+    if (g && w && !g.hidden && !w.hidden) {
+      const k = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tsh')) || 1,
+        sh = parseFloat(w.dataset.sh || '0'),
+        over = g.getBoundingClientRect().right + 10 - (w.getBoundingClientRect().left - sh * k),
+        want = over > 0 ? Math.ceil(over / k) : 0;
+      if (want !== sh) {
+        w.dataset.sh = String(want);
+        w.style.transform = want ? `translateX(${want}px)` : '';
+      }
+    }
+  }
   const out = [];
   for (const el of HUDF.els) {
     if (el.hidden || ((el.id === 'radio' || el.id === 'hint') && !el.classList.contains('show'))) continue;
@@ -109,11 +125,14 @@ function hudFade() {
     }
   for (const c of GS.crates) if (c.landed) pts.push([(c.x - GS.camX) * ZOOM, (c.y - GS.camY) * ZOOM]);
   for (const q of rects) {
-    const hid = pts.some(([x, y]) => inRect(x, y, q, 22)),
+    // and well out of the way of the crosshair: what you're aiming at under a panel was hidden (the gauge only went
+    // to 0.8 for anything)
+    const aimUnder = mouse.seen && GS.state === 'play' && inRect(mouse.x, mouse.y, q, 18),
+      hid = pts.some(([x, y]) => inRect(x, y, q, 22)),
       hw = q.id === 'wavePlate' && GS.horde && !GS.horde.done && GS.horde.startT > 0, // the horde countdown stays readable
-      tgt = hid ? (q.id === 'gauge' || hw ? 0.8 : 0.5) : 1, // so do your guns and health
+      tgt = aimUnder ? 0.35 : hid ? (q.id === 'gauge' || hw ? 0.8 : 0.5) : 1, // so do your guns and health
       cur = HUDF.a[q.id] ?? 1,
-      v = cur + (tgt - cur) * Math.min(1, dt * (hid ? 9 : 4));
+      v = cur + (tgt - cur) * Math.min(1, dt * (hid || aimUnder ? 9 : 4));
     HUDF.a[q.id] = v;
     if (q.id === 'radar') continue;
     const el = $(q.id),
@@ -315,10 +334,10 @@ export function updateHud() {
                         : 'A truck is on its way'
               : GS.nightDone && !left && GS.interT > 0
                 ? GS.crates.some(c => c.dawn && !c.open) && GS.interT <= 4.05 && (GS.RUN.dawnX || 0) < 14
-                  ? `Drop unopened · Enter starts night ${GS.wave + 1}`
-                  : `Night ${GS.wave + 1} in ${Math.ceil(GS.interT)}${told() ? ' · ' + SIG[GS.RUN.nextSig.s] : ''}${viaTag(GS.wave + 1)} · Enter to start now`
+                  ? `Drop unopened · ${ENTER()} starts night ${GS.wave + 1}`
+                  : `Night ${GS.wave + 1} in ${Math.ceil(GS.interT)}${told() ? ' · ' + SIG[GS.RUN.nextSig.s] : ''}${viaTag(GS.wave + 1)} · ${ENTER()} to start now`
                 : GS.horde && !GS.horde.done && !GS.horde.finale && GS.horde.startT > 1 && GS.nightLive
-                  ? `Horde in ${Math.ceil(GS.horde.startT)} s · Enter to call it now`
+                  ? `Horde in ${Math.ceil(GS.horde.startT)} s · ${ENTER()} to call it now`
                   : quiet
                     ? 'Quiet'
                     : GS.RUN.tut
@@ -405,10 +424,10 @@ export function updateHud() {
       setT(
         'lvReady',
         lvWait()
-          ? `${bank > 1 ? bank + ' cards' : 'Cards'} at dawn · Tab now`
+          ? `${bank > 1 ? bank + ' cards' : 'Cards'} at dawn · ${CARDS()} now`
           : bank > 1
-            ? `${bank} level-ups · Tab`
-            : 'Level up · Tab'
+            ? `${bank} level-ups · ${CARDS()}`
+            : `Level up · ${CARDS()}`
       ); // in the fight they wait for dawn
   } // banked level-ups wait here until you open them, or a lull does
   setB('dashFill', 1 - GS.P.dashCd / S.dashCd);
@@ -424,16 +443,21 @@ export function updateHud() {
   } // the Soldier's brace: fills while he stands still, gold when every shot counts for more
   boonHud(); // a bar for each game changer that's running (game/boons.js)
   {
-    const sl = 'Shove · ' + kn('shove');
+    const sl = 'Shove · ' + kn('shove'),
+      rl = 'Roll · ' + kn('roll');
     if (hc.shL !== sl) {
       hc.shL = sl;
       $('shoveLbl').textContent = sl;
     }
+    if (hc.rlL !== rl) {
+      hc.rlL = rl;
+      $('rollLbl').textContent = rl;
+    } // (the roll names its key too, as the others do)
   } // the label follows the key, if you rebind it
   setB('abFill', 1 - (GS.P.abT || 0) / abCd());
   {
     const rd = !(GS.P.abT > 0),
-      lt = rd ? AB().name + ' · ' + kn('ability') : `${AB().name} · ${Math.ceil(GS.P.abT)}s`;
+      lt = rd ? AB().name + ' · ' + kn('ability') : `${Math.ceil(GS.P.abT)} s`; // (cooling: just the time; the name and the seconds didn't fit, and the seconds were what got cut)
     if (hc.abL !== lt) {
       hc.abL = lt;
       $('abLbl').textContent = lt;

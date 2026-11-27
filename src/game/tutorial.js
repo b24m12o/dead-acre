@@ -14,14 +14,28 @@ import { updateHint } from '../ui/settings-ui.js';
 import { radio } from '../audio/radio.js';
 import { freeAround } from './boss-flow.js';
 import { AB } from './abilities.js';
-import { keysIn, moveKeys } from '../core/binds.js';
+import { ENTER, keysIn, moveKeys, padOn } from '../core/binds.js';
+// (as they are on a gamepad while one is in use: they named the keyboard and mouse whatever you held)
 const TUT = [
-  { k: 'move', kbm: () => `Move with ${moveKeys()}` },
-  { k: 'shoot', kbm: 'Aim with the mouse · hold left click to fire' },
-  { k: 'roll', kbm: () => keysIn('Runners · roll with {roll} or right-click, through them, not into a wall') },
+  { k: 'move', kbm: () => (padOn() ? 'Move with the left stick' : `Move with ${moveKeys()}`) },
+  {
+    k: 'shoot',
+    kbm: () =>
+      padOn() ? 'Aim with the right stick · hold RT to fire' : 'Aim with the mouse · hold left click to fire',
+  },
+  {
+    k: 'roll',
+    kbm: () => keysIn(`Runners · roll with {roll}${padOn() ? '' : ' or right-click'}, through them, not into a wall`),
+  },
   { k: 'reload', kbm: () => keysIn('Press {reload} to reload before you run dry') },
   { k: 'case', kbm: 'A weapon case is coming down · walk onto it and take a gun' },
-  { k: 'swap', kbm: () => keysIn('Swap guns with 1–9 or the mouse wheel · tap {wheel} for the last one') },
+  {
+    k: 'swap',
+    kbm: () =>
+      padOn()
+        ? keysIn('Swap guns with RB · tap {wheel} for the last one, hold it for the wheel')
+        : keysIn('Swap guns with 1–9 or the mouse wheel · tap {wheel} for the last one'),
+  },
   {
     k: 'ability',
     kbm: () => keysIn(`Press {ability} · ${AB().name} · it recharges, so use it whenever they bunch up`),
@@ -111,7 +125,7 @@ export function tutHint() {
   if (!T || T.i < 0 || T.i >= TUT.length) return;
   const h = $('hint');
   const k = TUT[T.i].kbm;
-  h.innerHTML = `<b>Training ${T.i + 1}/${TUT.length}</b>${typeof k === 'function' ? k() : k} · Enter skips`;
+  h.innerHTML = `<b>Training ${T.i + 1}/${TUT.length}</b>${typeof k === 'function' ? k() : k} · ${ENTER()} skips`;
   h.classList.add('show', 'tut');
   clearTimeout(GS.hintTO);
 }

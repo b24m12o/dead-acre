@@ -96,7 +96,7 @@ export function drawUI() {
   if (GS.state !== 'play') return;
   const few = !GS.queue.length && GS.enemies.length <= 5;
   for (const e of GS.enemies) {
-    if (e.dormant) continue;
+    if (e.dormant || (e.lurk === 'lie' && !(e.aw > 0))) continue; // (one playing dead isn't given away)
     const big = e.type === 'queen' || e.type === 'beetle';
     if (!big && !few) continue;
     const [bx, by] = toS(e.x, e.y - e.z),
