@@ -14,9 +14,11 @@ export async function run(b) {
     const k0 = GS.meta.stats.kills || 0;
     out.noHero = !document.querySelector('#menu .hero, #menu [data-h], #heroes, #keysLine');
     out.gun = GS.P.gun;
-    let shots = 0, gone = 0;
+    let shots = 0;
+    const tops = new Set();
     for (let i = 0; i < 30 * 30; i++) {
       const n = GS.corpses.length; menuUpdate(1 / 30); tickWorld(1 / 30);
+      if (i % 10 === 0) tops.add(Math.round(document.querySelector('#menu h1').getBoundingClientRect().top));
       if (GS.corpses.length > n) shots++;
       if (i === 30 * 3) out.want3 = MUS.want;
     }
@@ -27,6 +29,7 @@ export async function run(b) {
     out.pickups = GS.pickups.length;
     out.want = MUS.want;
     out.ch9 = $('ch9t').textContent;
+    out.tops = [...tops];
     begin(); GS.RUN.tut = null; GS.state = 'play';
     update(1 / 60); tickWorld(1 / 60);
     out.wantPlay = MUS.want;

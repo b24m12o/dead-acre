@@ -311,7 +311,10 @@ export function init() {
       });
     };
     addEventListener('resize', fitSoon);
-    const mo = new MutationObserver(fitSoon);
+    // (Channel 9 typing on the title screen changes nothing that needs fitting again: its box holds its height)
+    const mo = new MutationObserver(ms => {
+      if (ms.some(m => m.target.id !== 'ch9t')) fitSoon();
+    });
     for (const o of document.querySelectorAll('.overlay'))
       mo.observe(o, { attributes: true, attributeFilter: ['hidden'], childList: true, subtree: true });
   }
