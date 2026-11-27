@@ -3283,6 +3283,7 @@ export function modelOf(e) {
 // you (or a survivor) in 3D, with your gun: when the meshes are in, and you're on your feet (rolling, down or riding
 // out, the pictures still draw)
 export function drawHero3D(p) {
+  if (!FIG.models) return false; // (the meshes come in after the title is up: the picture until then)
   // (he falls as recorded; so does one of your people, downed)
   const fell = (GS.state === 'over' ? p === GS.P : !!p.npc) && FIG.models.hero && FIG.models.hero.rest.length > 14;
   if (!fig3dOn() || !FIG.models.hero || ((p.down > 0 || p.hp <= 0) && !fell) || (p.ride && p.ride !== 'truck'))
