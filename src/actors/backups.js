@@ -262,7 +262,8 @@ export function buddyShoot(s, dt, slow) {
   }
   if (tgt) {
     s.aim += angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x)) * damp(14, dt);
-    if (ready && s.cd <= 0 && !mm && !cop) {
+    // (on target first, as the marksman and the cop are: on a new one it fired down the line of the last)
+    if (ready && s.cd <= 0 && !mm && !cop && Math.abs(angDiff(s.aim, Math.atan2(tgt.y - s.y, tgt.x - s.x))) < 0.15) {
       s.cd = S.buddyCd * 0.87;
       const c = Math.cos(s.aim),
         sn = Math.sin(s.aim),

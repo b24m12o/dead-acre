@@ -820,10 +820,16 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
     GS.xp += e.xp;
     return;
   } // a sac bursts where it sits: no tumbling body, just the split membrane and the bile
+  // blown apart: a blast, or buckshot from within a few metres. A single round, however heavy, throws the body down
+  // whole (the heavy-kill path below may take the head or an arm): a hunting-rifle shot used to burst a walker into
+  // thirty pieces until the night it had the health to take it
+  const B = GS.HITB,
+    round = src === 'bolt' || src === 'buddy',
+    blownBuck = B && B.pellet && B.ox !== undefined && Math.hypot(B.x - B.ox, B.y - B.oy) < 60 * GK;
   const overkill =
     !big &&
     (e.type === 'hopper' ||
-      (src !== 'boom' && dmg > e.maxHp * 0.75) ||
+      (src !== 'boom' && dmg > e.maxHp * 0.75 && (!round || blownBuck)) ||
       (src === 'boom' && e.r < 26 && Math.random() < 0.4) ||
       (src === 'crystal' && Math.random() < 0.5));
   let fallK = 0;
@@ -1518,8 +1524,8 @@ export function updateCrates(dt) {
           const dx = GS.P.x - c.x,
             dy = GS.P.y - c.y,
             dl = Math.hypot(dx, dy) || 1;
-          GS.P.vx += (dx / dl) * 420;
-          GS.P.vy += (dy / dl) * 420;
+          GS.P.vx += (dx / dl) * 420 * GK; // (a shove like any other hit: it was four times one)
+          GS.P.vy += (dy / dl) * 420 * GK;
           hurtPlayer(8, c.x, c.y, 'a falling supply crate');
         }
         GS.chutesDown.push({

@@ -706,17 +706,23 @@ export function updatePBullet(b, dt) {
           S.evo.oneshot &&
           (!(e.aw > 0) || (e.dazedT || 0) > GS.time || e.down > 0 || e.stunT > 0)), // One Shot: the hunting rifle never wastes a shot on one that hasn't seen you
       tr = b.pellet && b.ox !== undefined ? Math.hypot(b.x - b.ox, b.y - b.oy) : 0;
-    const rk = b.pellet ? clamp(1.3 - tr / (260 * GK), 0.4, 1.2) : 1,
+    // buckshot: full and a little over up close, the same out to three metres or so, then thinning to 0.6 by eight
+    // (it fell to 0.4 by five, so a shotgun did less than a pistol at any range past arm's length)
+    const tg = tr / GK,
+      rk = b.pellet ? (tg < 145 ? 1.15 - (tg / 145) * 0.15 : clamp(1 - ((tg - 145) / 275) * 0.4, 0.6, 1)) : 1,
       kbk = b.pellet ? clamp(1.5 - tr / (260 * GK), 0.35, 1.3) : 1; // buckshot hits hard up close and spreads thin
     GS.HITB = b.small ? null : b;
     // where on it: across its picture, and how far up it from its feet (blood, the flinch: game/combat.js, flinch.js)
     const up = fy - py;
     e.hitP = [clamp(px, e.x - e.r, e.x + e.r), e.y, (up + e.z * 0.6) / GK];
     e.hitHd = up > bodyTop(e) * 0.8 ? 1 : 0;
+    // a head shot counts as one: it rocked the head and looked it, and did no more than a body shot (a boss's head
+    // is no softer than the rest of it; a pellet's a smaller share of a shot)
+    const hk = e.hitHd && !e.big && e.type !== 'queen' ? (b.pellet ? 1.3 : 1.75) : 1;
     try {
       hurtEnemy(
         e,
-        b.dmg * rk * (crit ? 2.5 : 1),
+        b.dmg * rk * hk * (crit ? 2.5 : 1),
         crit,
         b.vx,
         b.vy,

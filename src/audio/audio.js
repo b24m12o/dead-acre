@@ -440,7 +440,7 @@ function panBuses() {
 }
 export const FAR = { on: false };
 export function spat(x, y) {
-  if (!AC || !GS.P || x === undefined || GS.state === 'menu' || !sfxBus) return undefined;
+  if (!AC || !GS.P || !Number.isFinite(x) || !Number.isFinite(y) || GS.state === 'menu' || !sfxBus) return undefined;
   const dx = x - GS.P.x,
     d = Math.hypot(dx, y - GS.P.y) / GK, // how far, against the old size of things (core/scale.js)
     B = panBuses(),
@@ -456,7 +456,8 @@ export function spat(x, y) {
   // long way off on purpose and pitched to sound it: it keeps its side and its muffle, at a level of its own
   g.gain.value = FAR.on ? 0.6 : d < 900 ? clamp(1.25 - d / 900, 0.25, 1.1) : 0.25 * Math.exp(-(d - 900) / 900);
   const occ = d > 70 && opt.los && !sightClear(GS.P.x, GS.P.y, x, y) ? 1 : 0,
-    k = Math.round((clamp(dx / (viewW * 0.55), -0.9, 0.9) + 0.9) / 0.225);
+    k0 = Math.round((clamp(dx / ((viewW || 600) * 0.55), -0.9, 0.9) + 0.9) / 0.225),
+    k = Number.isFinite(k0) ? k0 : 4; // (no screen yet, or a position gone bad: the middle, not an error)
   g.connect(B.b[occ][k]);
   return g;
 }

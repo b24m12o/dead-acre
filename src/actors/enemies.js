@@ -11,7 +11,7 @@ import { budKey, playR, thr } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { bossNight } from '../game/waves.js';
 import { bleed, distort, floatText, ring } from '../render/effects.js';
-import { cam } from '../game/state.js';
+import { S, cam } from '../game/state.js';
 import { viewH, viewW } from '../render/sprites.js';
 import { BILE, ZSKIN } from '../render/draw-enemies.js';
 import { INF } from '../game/districts.js';
@@ -246,6 +246,9 @@ export function makeEnemy(type, x, y) {
     e.half = true;
     e.lyG = 1;
   } // already on the ground: half a body
+  // a runner, however late the night and whatever it's made of, stays a little under your own pace: you can open the
+  // gap running flat out, not just hold it (late on, most of them were faster than you: 70% by the last night)
+  if (e.run) e.sp = Math.min(e.sp, S.speed * 0.95);
   GS.enemies.push(e);
   return e;
 }
