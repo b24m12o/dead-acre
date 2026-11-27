@@ -535,7 +535,8 @@ function scheduleMusic() {
         if (MUS.want === 'none')
           g.setTargetAtTime(0, t0 + (end ? 3.2 : 0), 0.03); // an ending rings out before the stop
         else {
-          const lv = MUS.want === 'boss' ? 0.75 : 1;
+          // (a fight's band plays loud by arrangement, 6 dB over the calm: it sits under your guns, not over them)
+          const lv = MUS.want === 'boss' ? 0.4 : MUS.want === 'fight' ? 0.45 : 1;
           if (MUS.level === 'none') g.setTargetAtTime(lv, t0, 0.02);
           else g.setTargetAtTime(lv, t0, 0.4);
         } // the boss song sits a little under the fight so your guns stay on top

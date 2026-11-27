@@ -546,7 +546,10 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
       t.dv = dmg;
     }
   } // hits landing together add up in one number instead of a pile
-  crit ? sfx.crit() : sfx.hit();
+  const own = !!GS.HITB, // (one of your rounds: heard as yours, in the middle)
+    sx = own ? undefined : e.x,
+    sy = own ? undefined : e.y;
+  crit ? sfx.crit(sx, sy) : sfx.hit(sx, sy);
   const col = bloodOf(e);
   if (armor) {
     if (e.type === 'queen') sfx.bossArmor(hx, hy, e.btype);
@@ -562,7 +565,7 @@ export function hurtEnemy(e, dmg, crit, kx, ky, kb = 1, src = 'bolt', hx, hy) {
     bleed(bx, by, bz, kx, ky, crit ? 6 : 3, col, 300);
     bleed(bx, by, bz, -kx, -ky, 1, col, 110);
     if (P) mist(bx, by - bz * GK, kx, ky, col, crit || dmg > 30 ? 1.4 : 1);
-    sfx.squelch();
+    sfx.squelch(sx, sy);
     if (dmg > 12 && Math.random() < 0.3) gib(hx, hy, R['g_meat' + randi(0, 1)], [1, 1, 1], col, 180, kx / kl, ky / kl);
     if (
       HUMAN[e.type] &&
@@ -932,7 +935,8 @@ export function killEnemy(e, dmg = 0, src = '', dx = 0, dy = 0, crit = false) {
   }
   splatterScreen(e.x, e.y, overkill ? 4 : 2);
   flashLight(ex, ey, e.r * 4, [0.5, 0.08, 0.05], 0.15);
-  sfx.splat();
+  if (GS.HITB) sfx.splat();
+  else sfx.splat(e.x, e.y);
   if (e.trait === 'bloater') {
     ring(ex, ey, 8, 110, 0.45, [0.5, 0.6, 0.2], 0.6);
     bleed(e.x, e.y, 16, 0, 0, 24, BILE, 320, 1.3);
@@ -1223,10 +1227,12 @@ export function impact(x, y, b) {
     t = tx >= 0 && ty >= 0 && tx < MW && ty < MH ? ttype[ty * MW + tx] : 1,
     back = Math.atan2(-b.vy, -b.vx);
   if (tx >= 0 && ty >= 0 && tx < MW && ty < MH && isBlock(t)) wallHit(ty * MW + tx, x, y);
+  // and what it sounds like where it went in: sheet steel, a wooden post, brick (it was silent, a car the gun's own
+  // dry click)
+  sfx.impact(x, y, t === 6 || t === 9 || t === 4 ? 'metal' : t === 3 ? 'wood' : 'wall');
   if (t === 6) {
     sparks(x, y, [1, 0.85, 0.5], 7, 320, back, 0.9);
     hitCar(tx, ty, b.dmg, x, y);
-    if (Math.random() < 0.5) playS('dry', 0.12, 2.2, 0, 0);
   } else if (t === 9 || t === 4) sparks(x, y, [1, 0.9, 0.6], 6, 300, back, 0.9);
   else if (t === 3) {
     chips(x, y, 2, [0.4, 0.3, 0.2], 3, 160);
@@ -1272,7 +1278,7 @@ export function explode(x, y, R0, dmg, hurtsPlayer = true, core = 0) {
   blastWorld(x, y, Rg, dmg);
   if (GS.boss && GS.boss.signAt && d2(x, y, GS.boss.signAt.x, GS.boss.signAt.y) < (Rg + 20 * GK) ** 2)
     hitSign(GS.boss, dmg);
-  sfx.boom(x, y);
+  sfx.boom(x, y, Math.sqrt(R0 / 120)); // (a grenade 1, a car about 1.6, the tanker 2.2)
   {
     const pd = GS.P ? Math.hypot(x - GS.P.x, y - GS.P.y) : 0;
     shake(0.4 * clamp(1.25 - pd / (600 * GK), 0.2, 1));
@@ -1351,7 +1357,7 @@ function shatterCrystal(c) {
   GS.flowTile = -1;
   const col = crystalCol(c),
     R0 = 150;
-  sfx.boom(c.x, c.y);
+  sfx.boom(c.x, c.y, 1.2);
   sfx.zap();
   shake(0.3);
   distort(c.x, c.y, 0.035, 0.9, 0.5);

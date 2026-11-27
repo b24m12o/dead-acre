@@ -10,7 +10,8 @@ import { RD_MUS } from './radio.js';
 /* =====================================================================
    Audio: effects + adaptive soundtrack
    ===================================================================== */
-export let ambG = null;
+export let ambG = null,
+  rainG = null; // (the rain's hiss on a stormy night: world/tick.js)
 GS.ambOn = false; // the low night-wind bed: only out in the town, never over the menu
 export let AC, master, sfxBus, sfxDuck, radBus, musBus, musLP, musDuck, musGate, revIn, dlyIn, noiseBuf;
 let lastPlay;
@@ -176,6 +177,36 @@ export function initAudio() {
     wf.connect(wg);
     wg.connect(sfxBus);
     src.start();
+    {
+      // rain: a broad hiss on the roofs and the road, a little brighter where it hits the cars, slowly gusting
+      const rs = AC.createBufferSource();
+      rs.buffer = noiseBuf;
+      rs.loop = true;
+      rs.playbackRate.value = 0.93; // (out of step with the wind's copy of the noise)
+      const hp = AC.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 700;
+      const lp = AC.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 7000;
+      const gust = AC.createGain();
+      gust.gain.value = 0.8;
+      const lfo = AC.createOscillator(),
+        lg = AC.createGain();
+      lfo.frequency.value = 0.13;
+      lg.gain.value = 0.2;
+      lfo.connect(lg);
+      lg.connect(gust.gain);
+      rainG = AC.createGain();
+      rainG.gain.value = 0;
+      rs.connect(hp);
+      hp.connect(lp);
+      lp.connect(gust);
+      gust.connect(rainG);
+      rainG.connect(sfxBus);
+      rs.start();
+      lfo.start();
+    }
     loadGunSounds();
     loadMusic();
     startMusic();
@@ -286,14 +317,20 @@ export function playS(k, vol, rate = 1, delay = 0, rev = 0.25) {
   }
   return true;
 }
-export function duck() {
-  if (!musDuck || !thr('duck', 150)) return;
+// the music steps back for the big sounds: to `to` of itself, held `hold` s, back over `rel` (a blast goes deeper and
+// longer the bigger it is, a boss's roar holds it down while it roars)
+export function duck(to = 0.56, hold = 0.12, rel = 0.35) {
+  if (!musDuck) return;
   const t = AC.currentTime;
+  if (t < (GS.duckUntil || 0) && to >= (GS.duckTo || 1)) return; // (a deeper one is on: it isn't cut short)
+  if (to >= 0.56 && !thr('duck', 150)) return;
+  GS.duckUntil = t + hold;
+  GS.duckTo = to;
   musDuck.gain.cancelScheduledValues(t);
-  musDuck.gain.setTargetAtTime(t < GS.radDuckEnd ? RD_MUS * 0.56 : 0.56, t, 0.01);
-  musDuck.gain.setTargetAtTime(t + 0.12 < GS.radDuckEnd ? RD_MUS : 1, t + 0.12, 0.35);
-  if (t + 0.12 < GS.radDuckEnd) musDuck.gain.setTargetAtTime(1, GS.radDuckEnd, 0.45);
-} // the music steps back for the big sounds
+  musDuck.gain.setTargetAtTime(t < GS.radDuckEnd ? RD_MUS * to : to, t, 0.01);
+  musDuck.gain.setTargetAtTime(t + hold < GS.radDuckEnd ? RD_MUS : 1, t + hold, rel);
+  if (t + hold < GS.radDuckEnd) musDuck.gain.setTargetAtTime(1, GS.radDuckEnd, 0.45);
+}
 export function stab(frets, dur) {
   // a muted power-chord stab from the soundtrack's guitar instead of an arcade chime
   if (!AC) return;
@@ -306,6 +343,17 @@ export function stab(frets, dur) {
     tone(mtof(40 + fr), dur, 'sawtooth', 0.05, 1, i * 0.13, 900);
     noise(0.06, 0.05, 2500, 900, 'bandpass', i * 0.13);
   });
+}
+// a throttle that lets a near one in over a far one: in a crowd every groan wants the one slot, and the first
+// asked used to get it, a zombie across the map over one at your shoulder
+const lastD = {};
+export function thrNear(k, ms, x, y) {
+  const d = GS.P && x !== undefined ? Math.hypot(x - GS.P.x, y - GS.P.y) : 0,
+    n = performance.now();
+  if (lastPlay[k] && n - lastPlay[k] < ms && !(d < (lastD[k] ?? 0) * 0.5 && n - lastPlay[k] > ms * 0.25)) return false;
+  lastPlay[k] = n;
+  lastD[k] = d;
+  return true;
 }
 export function thr(k, ms) {
   const n = performance.now();
@@ -390,6 +438,7 @@ function panBuses() {
   SINK.gain.value = 0;
   return PB;
 }
+export const FAR = { on: false };
 export function spat(x, y) {
   if (!AC || !GS.P || x === undefined || GS.state === 'menu' || !sfxBus) return undefined;
   const dx = x - GS.P.x,
@@ -402,7 +451,10 @@ export function spat(x, y) {
   }
   if (++spN > 14 && d > 350) return SINK;
   const g = AC.createGain();
-  g.gain.value = clamp(1.25 - d / 900, 0.15, 1.1);
+  // nearer louder; and on fading past the edge of the screen (it used to stop at 0.15 there and stay, so the far ones
+  // couldn't be told from the near ones just off screen). The town's own far-off life (ambience.js) is placed a
+  // long way off on purpose and pitched to sound it: it keeps its side and its muffle, at a level of its own
+  g.gain.value = FAR.on ? 0.6 : d < 900 ? clamp(1.25 - d / 900, 0.25, 1.1) : 0.25 * Math.exp(-(d - 900) / 900);
   const occ = d > 70 && opt.los && !sightClear(GS.P.x, GS.P.y, x, y) ? 1 : 0,
     k = Math.round((clamp(dx / (viewW * 0.55), -0.9, 0.9) + 0.9) / 0.225);
   g.connect(B.b[occ][k]);

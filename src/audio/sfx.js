@@ -1,8 +1,11 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
-import { rand, randi } from '../core/util.js';
-import { AC, DRYS, RLD, SBV, duck, noise, playR, playS, spat, thr, tone } from './audio.js';
+import { clamp, rand, randi } from '../core/util.js';
+import { AC, DRYS, RLD, SBV, duck, noise, playR, playS, spat, thr, thrNear, tone } from './audio.js';
 import { alarmNote } from '../game/noise.js';
+// handling (a magazine, a bolt, a pump, a shell thumbed in) 12-15 dB under the gun it belongs to: the recorded takes
+// came in as loud as the shots
+export const HANDLING = 0.24;
 // each gun's reload: [when, as a share of the reload, sound, only after an empty mag, volume, rate]
 export const RSTEP = {
   pistol: [
@@ -102,8 +105,8 @@ export const sfx = {
   splash(x, y, k = 0.6) {
     if (!thr('splash' + Math.round(x / 40), 140)) return;
     const b = spat(x, y);
-    noise(0.06, 0.03 + 0.03 * k, 900, 400, 'bandpass', 0, b);
-    noise(0.16, 0.02 + 0.025 * k, rand(2200, 3200), 1500, 'bandpass', 0.02, b);
+    noise(0.06, (0.03 + 0.03 * k) * 2, 900, 400, 'bandpass', 0, b); // (heard under the calm: it was 28 dB down)
+    noise(0.16, (0.02 + 0.025 * k) * 2, rand(2200, 3200), 1500, 'bandpass', 0.02, b);
   },
   // a dog somewhere a long way off, barking at something: two or three rough barks, then a pause and maybe another
   // run; the distance takes the top off it and blurs it
@@ -134,17 +137,17 @@ export const sfx = {
     const b = spat(x, y);
     if (!b) return;
     for (let t = 0; t < dur; t += 0.05) {
-      tone(2150, 0.045, 'triangle', 0.03, 0.995, t, 0, b);
-      tone(3020, 0.035, 'sine', 0.012, 0.995, t, 0, b);
+      tone(2150, 0.045, 'triangle', 0.095, 0.995, t, 0, b); // (a lure: it carries, as a shop's alarm bell does)
+      tone(3020, 0.035, 'sine', 0.038, 0.995, t, 0, b);
     }
   },
   // fists on a shop's window: the dull thump of the flat of them on plate glass, and the pane shivering in its frame
   glassBang(x, y) {
     if (!thr('glassBang', 200)) return;
     const b = spat(x, y);
-    noise(0.1, 0.22, 260, 90, 'lowpass', 0, b);
-    noise(0.22, 0.04, rand(2400, 3400), 1800, 'bandpass', 0.01, b);
-    tone(rand(1700, 2300), 0.18, 'sine', 0.012, 0.98, 0.01, 0, b);
+    noise(0.1, 0.7, 260, 90, 'lowpass', 0, b);
+    noise(0.22, 0.12, rand(2400, 3400), 1800, 'bandpass', 0.01, b);
+    tone(rand(1700, 2300), 0.18, 'sine', 0.038, 0.98, 0.01, 0, b);
   },
   // one of the dead at a body: a wet tear, and a smack or two of chewing, low and close
   feed(x, y) {
@@ -295,7 +298,8 @@ export const sfx = {
     tone(140, 0.14, 'sawtooth', 0.05, 0.4, 0, 700);
   },
   hunter() {
-    if (playS('hunter', 0.85, 1, 0, 0.45) && (playS('bolt', 0.5, SBV.bolt ? 1 : 1.15, 0.42, 0.1), true)) return;
+    if (playS('hunter', 0.85, 1, 0, 0.45) && (playS('bolt', 0.5 * HANDLING, SBV.bolt ? 1 : 1.15, 0.42, 0.1), true))
+      return;
     if (!thr('hunter', 200)) return;
     noise(0.12, 0.4, 4000, 700, 'bandpass');
     noise(0.03, 0.3, 9000, 5000, 'highpass');
@@ -338,10 +342,10 @@ export const sfx = {
   },
   lever() {
     if (SBV.lever && playS('lever', 0.8, 1, 0, 0.4)) {
-      playS('leverAct', 0.6, 1, 0.36, 0.08);
+      playS('leverAct', 0.6 * HANDLING, 1, 0.36, 0.08);
       return;
     }
-    if (playS('hunter', 0.7, 1.15, 0, 0.4) && (playS('pump', 0.45, 1.4, 0.3, 0.08), true)) return;
+    if (playS('hunter', 0.7, 1.15, 0, 0.4) && (playS('pump', 0.45 * HANDLING, 1.4, 0.3, 0.08), true)) return;
     if (!thr('lever', 200)) return;
     noise(0.1, 0.36, 3600, 700, 'bandpass');
     tone(110, 0.2, 'sine', 0.14, 0.6);
@@ -355,7 +359,7 @@ export const sfx = {
     noise(0.05, 0.08, 2600, 1400, 'bandpass', 0.06);
   }, // the hollow thoomp of a 40 mm round leaving the tube
   shotgun() {
-    if (playS('shotgun', 0.75, 1, 0, 0.35) && (playS('pump', 0.55, 1, 0.32, 0.1), true)) return;
+    if (playS('shotgun', 0.75, 1, 0, 0.35) && (playS('pump', 0.55 * HANDLING * 1.4, 1, 0.32, 0.1), true)) return; // (a pump-action's rack is part of its shot: a little more)
     if (!thr('shotgun', 120)) return;
     noise(0.42, 0.42, 2200, 90);
     noise(0.05, 0.25, 6000, 2500, 'highpass');
@@ -387,7 +391,7 @@ export const sfx = {
     }
     if (
       playS(GS.P && GS.P.gun === 'pistol' ? 'magInP' : 'magInR', 0.65, 1.2, 0, 0.05) &&
-      (GS.P && GS.P.gun !== 'pistol' ? playS('rack', 0.6, 1, 0.12, 0.05) : true)
+      (GS.P && GS.P.gun !== 'pistol' ? playS('rack', 0.6 * HANDLING, 1, 0.12, 0.05) : true)
     )
       return;
     noise(0.05, 0.12, 2600, 1500, 'bandpass');
@@ -408,7 +412,7 @@ export const sfx = {
     if (!r || r.g !== p.gun) return;
     while (r.i < r.steps.length && r.steps[r.i][0] <= k) {
       const [, key, , vol = 0.62, rate = 1] = r.steps[r.i++];
-      if (!playS(key, vol, rate, 0, 0.06)) {
+      if (!playS(key, vol * HANDLING, rate, 0, 0.06)) {
         if (/^magOut|^revOpen|^lchOpen/.test(key)) this.magOut();
         else if (/^magIn|^revClose|^lchClose/.test(key)) this.magIn();
       } // before the full sound set has arrived: the built-in clicks
@@ -420,13 +424,13 @@ export const sfx = {
     p.rl = null;
   },
   shell() {
-    if (GS.P && GS.P.gun === 'lever' && playS('shellL', 0.34, rand(0.92, 1.04), 0, 0.03)) return; // a round thumbed into the gate: soft, and never twice the same
-    if (playS('shell', 0.55, 1.1, 0, 0.05)) return;
+    if (GS.P && GS.P.gun === 'lever' && playS('shellL', 0.34 * HANDLING, rand(0.92, 1.04), 0, 0.03)) return; // a round thumbed into the gate: soft, and never twice the same
+    if (playS('shell', 0.55 * HANDLING * 0.8, 1.1, 0, 0.05)) return;
     noise(0.04, 0.08, 2800, 1800, 'bandpass');
     tone(rand(600, 700), 0.03, 'triangle', 0.025, 0.8);
   },
   pump() {
-    if (playS('pump', 0.6, 1, 0, 0.08)) return;
+    if (playS('pump', 0.6 * HANDLING * 1.4, 1, 0, 0.08)) return;
     noise(0.05, 0.12, 3000, 1500, 'bandpass');
     noise(0.05, 0.14, 4500, 2500, 'bandpass', 0.11);
     tone(900, 0.03, 'square', 0.02, 0.6, 0.11);
@@ -441,14 +445,14 @@ export const sfx = {
     tone(1320, 0.05, 'square', 0.02, 1, 0.08);
   },
   groan(x, y) {
-    if (!thr('groan', 900)) return;
+    if (!thrNear('groan', 900, x, y)) return;
     if (playR('zgroan', 0.09, x, y)) return;
     const b = spat(x, y);
     tone(rand(80, 125), rand(0.6, 0.9), 'sawtooth', 0.022, rand(0.6, 0.85), 0, 420, b);
     noise(0.5, 0.025, 380, 140, 'bandpass', 0, b);
   },
   growl(x, y) {
-    if (!thr('growl', 300)) return;
+    if (!thrNear('growl', 300, x, y)) return;
     if (playR('zgrowl', 0.14, x, y)) return;
     const b = spat(x, y);
     tone(rand(100, 140), 0.32, 'sawtooth', 0.035, 0.7, 0, 650, b);
@@ -487,23 +491,46 @@ export const sfx = {
     noise(0.4, 0.05, 2400, 800, 'bandpass', 0, spat(x, y));
   },
   scream(x, y) {
-    if (!thr('scream', 250)) return;
+    if (!thrNear('scream', 250, x, y)) return;
     if (playR('zscream', 0.21, x, y)) return;
     const b = spat(x, y);
     tone(rand(680, 860), 0.5, 'sawtooth', 0.03, 1.25, 0, 2600, b);
     noise(0.4, 0.07, 3200, 1200, 'bandpass', 0, b);
   },
-  hit() {
+  // the hits and the wet sounds after them: dry and in the middle for your own rounds, from where it happened, farther
+  // the quieter, for everyone else's (a buddy's hit across the street was as loud as yours)
+  hit(x, y) {
     if (!thr('hit', 45)) return;
-    if (playR('fhit', 0.075, undefined, undefined, rand(0.9, 1.15))) return;
-    noise(0.05, 0.08, rand(700, 1400), 400, 'bandpass');
-    tone(rand(80, 100), 0.06, 'sine', 0.05, 0.6);
+    if (playR('fhit', 0.075, x, y, rand(0.9, 1.15))) return;
+    const b = spat(x, y);
+    noise(0.05, 0.08, rand(700, 1400), 400, 'bandpass', 0, b);
+    tone(rand(80, 100), 0.06, 'sine', 0.05, 0.6, 0, 0, b);
   }, // wet, not clicky; the centre moves so no two hits match
   // one of your rounds went in: a short dry tick, under the gunfire, not over it (lower and fuller when it went down)
+  // (short and bright enough to cut through the gunfire without being loud; a kill keeps its own turn, so a hit and
+  // the kill in the same moment both click)
   confirm(kill) {
-    if (!thr('confirm', 40)) return;
-    noise(0.025, kill ? 0.05 : 0.035, kill ? 2600 : 3800, 1800, 'bandpass');
-    tone(kill ? 900 : 1400, 0.03, 'sine', kill ? 0.03 : 0.018, 0.7);
+    if (!thr(kill ? 'confirmK' : 'confirm', 40)) return;
+    noise(0.022, kill ? 0.14 : 0.1, kill ? 3000 : 4600, 2200, 'bandpass');
+    tone(kill ? 1000 : 1800, 0.028, 'sine', kill ? 0.085 : 0.05, 0.7);
+    if (kill) tone(520, 0.05, 'sine', 0.05, 0.6, 0.012);
+  },
+  // a round into the world, from where it struck: a car's panel or a fence's wire rings, wood thocks, brick and
+  // concrete crack and spit grit
+  impact(x, y, kind) {
+    if (!thr('impact', 35)) return;
+    const b = spat(x, y);
+    if (kind === 'metal') {
+      noise(0.03, 0.09, rand(3000, 4200), 1800, 'bandpass', 0, b);
+      tone(rand(1400, 2100), 0.09, 'triangle', 0.03, 0.97, 0, 0, b);
+      tone(rand(380, 520), 0.07, 'sine', 0.035, 0.8, 0, 0, b);
+    } else if (kind === 'wood') {
+      noise(0.05, 0.1, 900, 400, 'bandpass', 0, b);
+      tone(rand(240, 320), 0.06, 'triangle', 0.04, 0.7, 0, 0, b);
+    } else {
+      noise(0.04, 0.12, rand(1800, 2600), 900, 'bandpass', 0, b);
+      noise(0.09, 0.05, 4200, 2600, 'highpass', 0.015, b); // the grit after it
+    }
   },
   tink(x, y) {
     if (!thr('tink', 70)) return;
@@ -512,14 +539,15 @@ export const sfx = {
     tone(rand(2300, 2900), 0.12, 'sine', 0.03, 1, 0, 0, b);
     tone(rand(4200, 5200), 0.06, 'sine', 0.015, 1, 0, 0, b);
   }, // a round glancing off armour plate
-  crit() {
+  crit(x, y) {
     if (!thr('crit', 60)) return;
-    tone(1500, 0.07, 'sine', 0.04, 1.5);
+    tone(1500, 0.07, 'sine', 0.04, 1.5, 0, 0, spat(x, y));
   },
-  squelch() {
+  squelch(x, y) {
     if (!thr('squelch', 400)) return;
-    noise(0.12, 0.045, 2600, 1500, 'bandpass');
-    noise(0.05, 0.03, 3200, 2200, 'bandpass', 0.18);
+    const b = spat(x, y);
+    noise(0.12, 0.045, 2600, 1500, 'bandpass', 0, b);
+    noise(0.05, 0.03, 3200, 2200, 'bandpass', 0.18, b);
   },
   crunch(x, y) {
     if (!thr('crunch', 50)) return;
@@ -527,10 +555,11 @@ export const sfx = {
     noise(0.16, 0.16, 2400, 300, 'bandpass', 0, b);
     tone(rand(160, 220), 0.12, 'triangle', 0.05, 0.4, 0, 0, b);
   },
-  splat() {
+  splat(x, y) {
     if (!thr('splat', 60)) return;
-    noise(0.2, 0.16, 800, 100);
-    tone(rand(110, 160), 0.18, 'sine', 0.08, 0.4);
+    const b = spat(x, y);
+    noise(0.2, 0.16, 800, 100, 'lowpass', 0, b);
+    tone(rand(110, 160), 0.18, 'sine', 0.08, 0.4, 0, 0, b);
   },
   boing() {
     if (!thr('boing', 110)) return;
@@ -544,12 +573,19 @@ export const sfx = {
     if (!thr('pop', 70)) return;
     tone(rand(500, 600), 0.08, 'sine', 0.05, 0.5);
   },
-  boom(x, y) {
+  // a blast, k its size (1 a grenade; a car about 1.8, the tanker 2.2): louder, lower and longer the bigger it is,
+  // well over the guns, and the music ducks under it (it used to be one size, no louder than a pistol shot in a fight)
+  boom(x, y, k = 1) {
     if (!thr('boom', 70)) return;
-    const b = spat(x, y);
-    noise(0.8, 0.4, 1800, 50, 'lowpass', 0, b);
-    tone(75, 0.6, 'sine', 0.26, 0.35, 0, 0, b);
-    duck();
+    const b = spat(x, y),
+      kk = clamp(k, 0.6, 2.4);
+    noise(0.8 + 0.35 * kk, 1.1 * kk, 1800, 50, 'lowpass', 0, b);
+    noise(0.16, 0.9 * kk, 3200, 700, 'bandpass', 0, b); // the crack at the front of it
+    noise(0.5 + 0.2 * kk, 0.35 * kk, 900, 260, 'bandpass', 0.03, b); // the shove of air: the part you hear as loud
+    noise(0.7, 0.12 * kk, 5200, 2400, 'highpass', 0.12, b); // and what it throws, coming down
+    tone(75, 0.6 + 0.25 * kk, 'sine', 0.42 * kk, 0.35, 0, 0, b);
+    tone(42, 1 + 0.4 * kk, 'sine', 0.36 * kk, 0.5, 0.02, 0, b); // the body: what you feel more than hear
+    duck(clamp(0.45 - 0.08 * kk, 0.22, 0.45), 0.2 + 0.25 * kk, 0.6);
   },
   gem() {
     if (!thr('gem', 45)) return;
@@ -574,8 +610,8 @@ export const sfx = {
   },
   step() {
     if (!thr('step', 160)) return;
-    if (playR('fstep', 0.045, undefined, undefined, rand(0.9, 1.1))) return;
-    noise(0.05, 0.03, 900, 300, 'bandpass');
+    if (playR('fstep', 0.09, undefined, undefined, rand(0.9, 1.1))) return;
+    noise(0.05, 0.06, 900, 300, 'bandpass');
   },
   // a door (doors.js): the latch and the swing, the thud as it shuts, the frame giving way
   doorOpen(x, y) {
@@ -602,7 +638,7 @@ export const sfx = {
     if (!thr('roar', 400)) return;
     const b = spat(x, y),
       k = rand(0.9, 1.1);
-    duck(); // each boss has its own voice
+    duck(0.32, 1.5, 0.8); // each boss has its own voice, and the music holds back while it roars
     // and a real throat under it: a recorded take, slowed until it is the size of the thing (asset pack only)
     if (x !== undefined) {
       if (bt === 'roadkill') playR('zgrowl', 0.26, x, y, 0.5);

@@ -11,7 +11,7 @@ import { solidPt } from './nav.js';
 import { updateLegs } from '../actors/legs.js';
 import { pilesTick } from './piles.js';
 import { remainsTick } from '../render/remains.js';
-import { AC, MUS, ambG, musLP, playS, thr } from '../audio/audio.js';
+import { AC, MUS, ambG, musLP, playS, rainG, thr } from '../audio/audio.js';
 import { tickCrowd } from '../audio/crowd.js';
 import { tickAmbience } from '../audio/ambience.js';
 import { S, cam } from '../game/state.js';
@@ -322,7 +322,12 @@ export function tickWorld(dt) {
     const on = GS.state !== 'menu';
     if (ambG && on !== GS.ambOn) {
       GS.ambOn = on;
-      ambG.gain.setTargetAtTime(on ? 0.025 : 0, AC.currentTime, on ? 1.2 : 0.15);
+      ambG.gain.setTargetAtTime(on ? 0.12 : 0, AC.currentTime, on ? 1.2 : 0.15); // (heard under the calm, not lost in it)
+    }
+    const wet = on && GS.ev === 'storm';
+    if (rainG && wet !== GS.rainOn) {
+      GS.rainOn = wet;
+      rainG.gain.setTargetAtTime(wet ? 0.05 : 0, AC.currentTime, wet ? 1.5 : 0.2);
     }
   } // the wind fades in once you are out there, and is gone the moment you are back at the menu
   MUS.dist = GS.RUN ? GS.RUN.district : null; // the ground you are on picks the fight song

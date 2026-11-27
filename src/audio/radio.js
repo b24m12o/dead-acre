@@ -262,7 +262,7 @@ export function storyEnd() {
 // the radio voices: built into the one-file version, or loaded from assets/
 GS.VOX = (window.__DA_DATA && window.__DA_DATA.vox) || [];
 let radioCurve = null;
-const RADIO_VOL = 0.11,
+const RADIO_VOL = 0.26, // (over the music it ducks, not under it: it sat 10 dB down)
   VOX_IN = 0.75,
   voxBuf = {};
 function voxFor(line, who) {
@@ -428,7 +428,7 @@ export async function radioVoice(line, who) {
   } /* release: the closing kssh, and a pilot's roger beep */
   radioDuck(t0, tE + 0.3); /* the music and the street lean back while someone is talking */
 }
-export const RD_MUS = 0.42,
+export const RD_MUS = 0.3,
   RD_SFX = 0.6;
 function radioDuck(t0, t1) {
   if (!musDuck || !sfxDuck || musDuck.context !== AC) return;

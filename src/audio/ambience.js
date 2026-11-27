@@ -6,7 +6,7 @@
 // you are standing in.
 import { GS } from '../core/gs.js';
 import { TAU, pick, rand, randi } from '../core/util.js';
-import { AC, noiseBuf, playS, sfxBus, spat } from './audio.js';
+import { AC, FAR as FAR_MODE, noiseBuf, playS, sfxBus, spat } from './audio.js';
 import { alarmNote } from '../game/noise.js';
 import { sfx } from './sfx.js';
 import { placeId } from '../world/places.js';
@@ -140,7 +140,7 @@ export const FAR_OFF = {
   shots() {
     const gun = pick(['rifle_m', 'pistol_m', 'shotgun_m', 'auto_m']),
       n = gun === 'auto_m' ? randi(4, 7) : randi(2, 4),
-      v = rand(0.035, 0.06);
+      v = rand(0.09, 0.15); // (heard: they were 30 dB under the calm music)
     let t = 0;
     for (let i = 0; i < n; i++) {
       playS(gun, v * rand(0.8, 1.1), rand(0.86, 0.94), t, 0.7);
@@ -152,12 +152,20 @@ export const FAR_OFF = {
     sfx.siren(x, y, 2, true);
   },
   scream() {
-    playS('zscream', rand(0.02, 0.035), rand(0.82, 0.92), 0, 0.9);
+    playS('zscream', rand(0.05, 0.085), rand(0.82, 0.92), 0, 0.9);
   },
   bell() {
     const [x, y] = farPoint();
     sfx.bell(x, y);
-    setTimeout(() => GS.state === 'play' && sfx.bell(x, y), 2300);
+    setTimeout(() => {
+      if (GS.state !== 'play') return;
+      FAR_MODE.on = true;
+      try {
+        sfx.bell(x, y);
+      } finally {
+        FAR_MODE.on = false;
+      }
+    }, 2300);
   },
   creak() {
     const [x, y] = farPoint();
@@ -173,7 +181,7 @@ export const FAR_OFF = {
     const [x, y] = farPoint(),
       b = spat(x, y);
     if (!b) return;
-    const v = rand(0.02, 0.03);
+    const v = rand(0.05, 0.075);
     let t = 0;
     for (let i = 0; i < randi(8, 14); i++) {
       alarmNote(640, 1180, 0.42, 'square', v, b, t);
@@ -221,5 +229,10 @@ export function tickAmbience(dt) {
   if (what === GS.amb.last && T.length > 1) what = T[(T.findIndex(t => t[0] === what) + 1) % T.length][0]; // never the same twice running
   GS.amb.last = what;
   GS.amb.n++;
-  FAR_OFF[what]();
+  FAR_MODE.on = true;
+  try {
+    FAR_OFF[what]();
+  } finally {
+    FAR_MODE.on = false;
+  }
 }

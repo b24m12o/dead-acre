@@ -372,10 +372,14 @@ function honk(k = 1) {
   tone(196, 0.3, 'sawtooth', 0.04 * k, 1, 0.55, 900);
   tone(247, 0.3, 'sawtooth', 0.03 * k, 1, 0.55, 900);
 } // a tired two-tone horn, twice
+// the old diesel: a low, steady knock (the pieces overlap into one note), louder near it; it was a few faint blips
 function diesel(T, P, dt, k = 1) {
   if ((T.engT = (T.engT || 0) - dt) > 0) return;
-  T.engT = 0.18;
-  noise(0.22, 0.02 * k * clamp(1 - Math.hypot(T.x - P.x, T.y - P.y) / 1400, 0, 1), 140, 90, 'lowpass');
+  T.engT = 0.09;
+  const near = k * clamp(1 - Math.hypot(T.x - P.x, T.y - P.y) / 1400, 0, 1);
+  if (near <= 0) return;
+  noise(0.2, 0.1 * near, 170, 90, 'lowpass');
+  tone(46 + 10 * near, 0.18, 'sawtooth', 0.05 * near, 1, 0, 240);
 }
 function tickTruck(dt) {
   const T = GS.truck,

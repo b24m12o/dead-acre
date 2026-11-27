@@ -349,7 +349,7 @@ function fireAudio(dt) {
     out.connect(sfxBus);
     sr.start();
   }
-  fireG.gain.setTargetAtTime(0.2 * I, t0, 0.25);
+  fireG.gain.setTargetAtTime(0.6 * I, t0, 0.25); // (a fire close by is a roar: it was a murmur)
   if (fireP && I > 0) fireP.pan.setTargetAtTime(clamp((fx - GS.P.x) / (viewW * 0.55), -0.8, 0.8), t0, 0.2);
   if (I > 0.03 && Math.random() < dt * 24 * I) {
     const b = spat(fx + rand(-30, 30), fy + rand(-30, 30));

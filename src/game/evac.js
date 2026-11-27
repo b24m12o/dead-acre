@@ -7,8 +7,9 @@ import { TAU, angDiff, clamp, d2, damp, lerp, pick, rand, randi } from '../core/
 import { saveMeta, store } from '../core/settings.js';
 import { DIFF } from '../core/profile.js';
 import { MW, TILE, lamps } from '../world/map.js';
-import { AC, MUS, noise, noiseBuf, playS, sfxBus, spat, tone } from '../audio/audio.js';
+import { AC, MUS, duck, noise, noiseBuf, playS, sfxBus, spat, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
+import { viewW } from '../render/sprites.js';
 import { rec } from './state.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { banner, spawnPoint } from './waves.js';
@@ -268,43 +269,65 @@ export function updateEvac(dt) {
 let heliNodes = null;
 function startHeli() {
   if (!AC || heliNodes) return;
+  // the rotors: a low roar and the blades' slap over it, beating at 17 a second. The beat is a share of the sound at
+  // any distance (it used to be a fixed wobble on top of a level that went to almost nothing far off, so far away it
+  // was all flutter), the slap opens up as it comes in, and it sits where it is, left or right of you
   const src = AC.createBufferSource();
   src.buffer = noiseBuf;
   src.loop = true;
   const f = AC.createBiquadFilter();
   f.type = 'lowpass';
   f.frequency.value = 420;
-  const g = AC.createGain();
-  g.gain.value = 0;
+  const slap = AC.createBiquadFilter();
+  slap.type = 'bandpass';
+  slap.frequency.value = 950;
+  slap.Q.value = 1.4;
+  const slapG = AC.createGain();
+  slapG.gain.value = 0;
+  const beat = AC.createGain();
+  beat.gain.value = 0.62;
   const lfo = AC.createOscillator(),
     lg = AC.createGain();
   lfo.frequency.value = 17;
-  lg.gain.value = 0.18;
+  lg.gain.value = 0.38;
   lfo.connect(lg);
-  lg.connect(g.gain);
+  lg.connect(beat.gain);
+  const lvl = AC.createGain();
+  lvl.gain.value = 0;
+  const pan = AC.createStereoPanner ? AC.createStereoPanner() : null;
   src.connect(f);
-  f.connect(g);
-  g.connect(sfxBus);
+  f.connect(beat);
+  src.connect(slap);
+  slap.connect(slapG);
+  slapG.connect(beat);
+  beat.connect(lvl);
+  if (pan) {
+    lvl.connect(pan);
+    pan.connect(sfxBus);
+  } else lvl.connect(sfxBus);
   src.start();
   lfo.start();
-  heliNodes = { src, g, lfo, base: AC.createConstantSource ? null : null };
-  const bias = AC.createConstantSource();
-  bias.offset.value = 0.2;
-  bias.connect(g.gain);
-  bias.start();
-  heliNodes.bias = bias;
+  heliNodes = { src, lfo, lvl, f, slapG, pan };
 }
 export function heliVolume() {
   if (!heliNodes || !GS.evac) return;
-  const d = Math.hypot(GS.evac.hx - GS.P.x, GS.evac.hy - GS.P.y);
-  heliNodes.bias.offset.setTargetAtTime(clamp(1 - d / 1400, 0.05, 1) * 0.3, AC.currentTime, 0.2);
+  const dx = GS.evac.hx - GS.P.x,
+    d = Math.hypot(dx, GS.evac.hy - GS.P.y),
+    near = clamp(1 - d / 1500, 0, 1),
+    t = AC.currentTime,
+    H = heliNodes;
+  // the loudest thing in the county close by, a mutter at the edge of hearing far off
+  H.lvl.gain.setTargetAtTime(0.03 + near ** 1.6 * 1.7, t, 0.2);
+  H.f.frequency.setTargetAtTime(360 + 700 * near, t, 0.3);
+  H.slapG.gain.setTargetAtTime(near ** 2 * 0.55, t, 0.3);
+  if (H.pan) H.pan.pan.setTargetAtTime(clamp(dx / (viewW * 0.6), -0.85, 0.85), t, 0.2);
+  if (near > 0.75) duck(0.5, 0.4, 0.8); // (and the music gives way to it as it comes down)
 }
 export function stopHeli() {
   if (!heliNodes) return;
   try {
     heliNodes.src.stop();
     heliNodes.lfo.stop();
-    heliNodes.bias.stop();
   } catch (e) {}
   heliNodes = null;
 }

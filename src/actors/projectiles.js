@@ -354,7 +354,7 @@ export function bossSlam(e, harm = true) {
       sparks(L.hx, L.hy, [1, 0.9, 0.6], 14, 300);
       flashLight(L.hx, L.hy, 200, [1.4, 1.2, 0.8], 0.15);
     } // it lands on the light: the street goes darker
-  sfx.boom(e.x, e.y);
+  sfx.boom(e.x, e.y, 1.4);
   sfx.gib(e.x, e.y);
   shake(0.7);
   GS.hitstop = Math.max(GS.hitstop, 0.06);
