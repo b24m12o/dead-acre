@@ -710,3 +710,8 @@ body[data-st="cine"] .hud,body[data-st="cine"] #hint,body[data-st="cine"] #bossB
 #kitCol .note{margin:0;font-size:13px;line-height:1.4;color:#b9c1c5}
 #kitCol .chips{gap:6px}
 #kitCol .chip{font-size:14px;padding:7px 11px}
+/* before the sound is on: the radio asks to be tuned in */
+.ch9.tune span{color:#ffd08a;animation:tunein 2.2s ease-in-out infinite}
+.ch9.tune span::after{content:none}
+@keyframes tunein{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.ch9.tune span{animation:none}}

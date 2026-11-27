@@ -382,9 +382,28 @@ const ch9Dur = line => {
   const v = GS.VOX.find(r => r[4] === 'R' && r[1] === line);
   return v ? v[2] : 0;
 };
+// a page can't make a sound until it's clicked or a key is pressed (the browser's rule, not the game's): until then the
+// radio asks for that, and the moment the sound is on it keys up from its first line, the theme two seconds behind
+const TUNE = 'Click or press a key to tune in';
 function ch9Tick(dt) {
   const el = $('ch9t');
   if (!el) return;
+  const box = el.parentElement;
+  if (!AC || AC.state !== 'running') {
+    if (el.textContent !== TUNE) el.textContent = TUNE;
+    box.classList.add('tune');
+    ch9.tune = true;
+    return;
+  }
+  if (ch9.tune) {
+    ch9.tune = false;
+    box.classList.remove('tune');
+    el.textContent = '';
+    ch9.i = ch9.n = ch9.hold = 0;
+    ch9.said = false;
+    ch9.wait = 0.5;
+    GS.menuAt = Math.min(GS.menuAt ?? GS.time, GS.time - 3); // (world/tick.js: the theme 5 s after the menu, so 2 s from now)
+  }
   const L = CH9[ch9.i];
   if ((ch9.wait -= dt) > 0) return; // (the screen comes in first)
   if (!ch9.said) {

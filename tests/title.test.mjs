@@ -9,7 +9,11 @@ export async function run(b) {
   const { pg, errs, ev } = await openGame(b, { noFrames: true });
   const o = await ev(`(() => {
     const out = {};
+    // before any click or key, the browser keeps the sound off: the radio asks to be tuned in
+    for (let i = 0; i < 30; i++) menuUpdate(1 / 30);
+    out.ask = $('ch9t').textContent;
     initAudio();
+    let k = 0; while (AC.state !== 'running' && k++ < 1) AC.resume();
     GS.meta.stats = GS.meta.stats || {};
     const k0 = GS.meta.stats.kills || 0;
     out.noHero = !document.querySelector('#menu .hero, #menu [data-h], #heroes, #keysLine');
@@ -20,7 +24,7 @@ export async function run(b) {
       const n = GS.corpses.length; menuUpdate(1 / 30); tickWorld(1 / 30);
       if (i % 10 === 0) tops.add(Math.round(document.querySelector('#menu h1').getBoundingClientRect().top));
       if (GS.corpses.length > n) shots++;
-      if (i === 30 * 3) out.want3 = MUS.want;
+      if (i === 30) out.want3 = MUS.want; // (a second after the sound came on: not yet)
     }
     out.shots = shots;
     out.live = GS.enemies.length;
@@ -29,6 +33,7 @@ export async function run(b) {
     out.pickups = GS.pickups.length;
     out.want = MUS.want;
     out.ch9 = $('ch9t').textContent;
+    out.ac = AC.state;
     out.recorded = CH9.every(l => GS.VOX.some(r => r[4] === 'R' && r[1] === l)); // (every title line has Reyes' recording)
     out.tops = [...tops];
     begin(); GS.RUN.tut = null; GS.state = 'play';
@@ -43,11 +48,13 @@ export async function run(b) {
   check(o.live >= 5 && o.live <= 10, `and more keep coming: ${o.live} on their feet`);
   check(o.near > 40, `none of them should reach him: nearest ${Math.round(o.near)}`);
   check(o.kills === 0 && o.pickups === 0, `none of it counts: ${o.kills} kills logged, ${o.pickups} pickups`);
+  check(/tune in/.test(o.ask), `before the sound is on, the radio should ask to be tuned in: "${o.ask}"`);
+  check(o.ac !== 'running' || !/tune in/.test(o.ch9), `once it's on, the radio is on the air: "${o.ch9}"`);
   check(o.recorded, 'every Channel 9 line on the title should be one Reyes has recorded');
   check(o.ch9.length > 10, `Channel 9 should be typing: "${o.ch9}"`);
   check(
     o.want3 === 'none' && o.want === 'title',
-    `the theme should come up a few seconds in: ${o.want3} at 3 s, ${o.want} at 30 s`
+    `the theme should come up a couple of seconds after the sound comes on: ${o.want3} at 1 s, ${o.want} at 30 s`
   );
   check(o.wantPlay !== 'title', `and go when a run starts: ${o.wantPlay}`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));
