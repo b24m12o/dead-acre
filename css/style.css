@@ -634,3 +634,10 @@ body[data-st="cine"] .hud,body[data-st="cine"] #hint,body[data-st="cine"] #bossB
 #cineCard b{display:block;font-family:var(--font-hud);font-weight:600;font-size:clamp(34px,5vw,66px);text-transform:uppercase;letter-spacing:.05em;line-height:1;text-shadow:0 2px 14px rgba(0,0,0,.85)}
 #cineCard span{display:block;margin-top:10px;font-family:var(--font-mono);font-weight:600;font-size:clamp(12px,1.15vw,15px);letter-spacing:.14em;text-transform:uppercase;color:#cdbb9c;text-shadow:0 1px 6px rgba(0,0,0,.9)}
 #cineCard span:empty{display:none}
+/* the end screen's two pages (ui/summary.js) */
+.sumtabs{display:flex;gap:4px;margin:2px 0 12px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sumtabs button{font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;border:0;background:none;color:#8f9aa3;padding:8px 14px 9px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.sumtabs button:hover{color:var(--cream)}
+.sumtabs button.on{color:var(--cream);border-bottom-color:var(--ember)}
+.sumtabs button:focus-visible{outline:2px solid var(--ember);outline-offset:-2px}
+.panel[data-pg="2"] .pg1,.panel:not([data-pg="2"]) .pg2{display:none!important}

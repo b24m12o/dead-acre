@@ -174,6 +174,7 @@ export function syncOpts() {
       (DIFF_DESC[dNow] || DIFF_DESC.normal) + (runDiff ? ' Set for this run; change it from the menu.' : '');
   for (const b of $('gfxSeg').children) if (b.dataset.g) mark(b, b.dataset.g === GS.meta.hud.gfx);
   mark($('fpsBtn'), GS.meta.hud.fps);
+  for (const b of $('fpsCapSeg').children) if (b.dataset.f) mark(b, +b.dataset.f === GS.meta.hud.cap);
   for (const b of $('chCol').children) mark(b, b.dataset.c === GS.meta.ch.col);
   for (const b of $('chSize').children) if (b.dataset.s) mark(b, +b.dataset.s === GS.meta.ch.size);
   for (const b of $('hudSize').children) mark(b, b.dataset.h === GS.meta.hud.size);
@@ -447,6 +448,13 @@ export function init() {
         GS.rsCap = GS.RS_MAX;
         GS.rsDropT = 0;
         resize();
+      });
+  for (const b of $('fpsCapSeg').children)
+    if (b.dataset.f)
+      b.addEventListener('click', () => {
+        GS.meta.hud.cap = +b.dataset.f;
+        saveMeta();
+        syncOpts();
       });
   $('fpsBtn').addEventListener('click', () => {
     GS.meta.hud.fps = !GS.meta.hud.fps;

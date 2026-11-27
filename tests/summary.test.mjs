@@ -1,6 +1,6 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 // The run summary on both end screens: the ways you took on the road map, your gear, who was lost, the numbers,
-// all on screen in a 1132 × 692 window without scrolling; and the copied text carries the nights and the kills.
+// on two pages (the run; the numbers), each on screen in a 1132 × 692 window without scrolling, at one scale; and the copied text carries the nights and the kills.
 import { openGame, check } from './lib/harness.mjs';
 
 export const name = 'summary: the end screens tell the run';
@@ -31,6 +31,13 @@ export async function run(b) {
         ways: S.querySelectorAll('.rleg.past').length, marks: S.querySelectorAll('.rmark').length,
         text: S.textContent, report: $('${won ? 'wBreakdown' : 'oBreakdown'}').textContent, copy: GS.RUN.sumText };
     })()`);
+    // the second page: the numbers, at the same scale
+    out[id].p1 = await ev(`[$('${sum}').offsetHeight, $('${won ? 'wBreakdown' : 'oBreakdown'}').offsetHeight]`);
+    await pg.click(`#${id} .sumtabs [data-pg="2"]`);
+    await pg.waitForTimeout(400);
+    out[id].p2 =
+      await ev(`(() => { const pn = document.querySelector('#${id} > .panel'), r = pn.getBoundingClientRect();
+      return [$('${sum}').offsetHeight, $('${won ? 'wBreakdown' : 'oBreakdown'}').offsetHeight, +(pn.style.zoom || 1), r.bottom <= innerHeight + 1]; })()`);
     out[id].errs = errs;
     await pg.close();
   }
@@ -50,7 +57,12 @@ export async function run(b) {
       o.top >= 0 && o.bottom <= o.h + 1,
       `${id}: the panel should fit the window: ${Math.round(o.top)}–${Math.round(o.bottom)} of ${o.h}`
     );
-    check(o.zoom >= 0.62, `${id}: the panel should stay readable: zoom ${o.zoom}`);
+    check(o.zoom >= 0.75, `${id}: the panel should stay readable: zoom ${o.zoom}`);
+    check(o.p1[0] > 0 && o.p1[1] === 0, `${id}: it should open on the run, the numbers a page away: ${o.p1}`);
+    check(
+      o.p2[0] === 0 && o.p2[1] > 0 && o.p2[2] === o.zoom && o.p2[3],
+      `${id}: the second page should show the numbers, at the same scale, on screen: ${o.p2} (zoom ${o.zoom})`
+    );
     check(
       /Nights 1[15]/.test(o.copy) && /kills 1234/.test(o.copy),
       `${id}: the copied text should carry the nights and kills: ${o.copy.split('\n')[2]}`

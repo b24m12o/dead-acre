@@ -34,9 +34,32 @@ let last = performance.now(),
   perfN = 0,
   slow = 0;
 export let FPSV = 60;
+// how often a frame is drawn: in play, the cap you set (60 by default: a 120 Hz laptop screen would otherwise have
+// the GPU draw every frame twice as often, for little you can see); the menu behind its panel at 30; a still screen
+// (paused, the cards, the end of a run) at 20, as nothing on it moves but the odd flicker
+let nextT = 0;
+function frameGap() {
+  const st = WHEEL.open ? 'play' : GS.state,
+    cap = (GS.meta && GS.meta.hud && GS.meta.hud.cap) ?? 60,
+    play = cap ? 1000 / cap : 0;
+  if (st === 'play' || st === 'cine') return play;
+  if (st === 'menu') return Math.max(play, 1000 / 30);
+  return 1000 / 20; // (and 20 is the 0.05 s step the frame's time is held to: what runs on the end screens keeps time)
+}
 function frame(now) {
   if (fatalStopped || GS.glDead) return;
+  {
+    const gap = frameGap();
+    if (gap) {
+      if (now < nextT - 1.5) {
+        requestAnimationFrame(frame); // not yet: this one of the screen's refreshes is skipped
+        return;
+      }
+      nextT = now - nextT > gap ? now + gap : nextT + gap; // (on the beat, without drifting; late, a fresh start)
+    } else nextT = now;
+  }
   GS.inFrame = true;
+  GS.frameN = (GS.frameN || 0) + 1;
   const raw = (now - last) / 1000;
   last = now;
   const dt = Math.min(0.05, raw);
@@ -84,7 +107,8 @@ function frame(now) {
     runLater(sdt);
     tickWorld(sdt);
   } else tickWorld(0);
-  if ((GS.state === 'play' || GS.state === 'menu') && raw < 0.1) {
+  if (GS.state === 'play' && raw < 0.1 && frameGap() <= 1000 / 60) {
+    // (only in play, and only at 60 or more: a frame rate capped below that is not a slow GPU)
     perfAcc += raw;
     perfN++;
     if (perfN >= 90) {
@@ -214,8 +238,17 @@ function fitOverlays() {
     const pn = o.firstElementChild;
     if (!pn) continue;
     pn.style.zoom = '';
-    const h = pn.scrollHeight,
-      w = pn.offsetWidth;
+    let h = pn.scrollHeight;
+    if (pn.dataset.pg) {
+      // the end screen's two pages (ui/summary.js): one scale for both, the taller's, so turning the page doesn't jump
+      const pg = pn.dataset.pg;
+      for (const k of ['1', '2']) {
+        pn.dataset.pg = k;
+        h = Math.max(h, pn.scrollHeight);
+      }
+      pn.dataset.pg = pg;
+    }
+    const w = pn.offsetWidth;
     if (!h || !w) continue;
     const up = innerHeight >= 1250 && innerWidth >= 1500 ? Math.min(1.35, innerHeight / 1080) : 1,
       browse = ['hangar', 'chal', 'settings', 'practice'].includes(o.id),

@@ -236,7 +236,11 @@
   <div class="panel">
     <div class="eyebrow">They got you · The radio is still on</div>
     <h2 id="overTitle">Eaten on night 4 of 15</h2>
-    <dl class="stats">
+    <div class="sumtabs" role="tablist" aria-label="End of the run">
+      <button type="button" role="tab" data-pg="1">The run</button
+      ><button type="button" role="tab" data-pg="2">Numbers</button>
+    </div>
+    <dl class="stats pg1">
       <div>
         <dt id="oScoreL">Score</dt>
         <dd id="oScore">0</dd>
@@ -254,13 +258,13 @@
         <dd id="oLevel">1</dd>
       </div>
     </dl>
-    <div class="seeds" id="oSeeds"></div>
-    <p class="rec plain" id="oCrew" hidden></p>
-    <p class="lastcall" id="oRadio" hidden></p>
-    <div class="rec" id="oRec"></div>
-    <div class="runsum" id="oSum" aria-label="Run summary"></div>
-    <div class="runreport" id="oBreakdown" aria-label="Run performance"></div>
-    <div id="oChal"></div>
+    <div class="seeds pg1" id="oSeeds"></div>
+    <p class="rec plain pg1" id="oCrew" hidden></p>
+    <p class="lastcall pg1" id="oRadio" hidden></p>
+    <div class="rec pg1" id="oRec"></div>
+    <div class="runsum pg1" id="oSum" aria-label="Run summary"></div>
+    <div class="runreport pg2" id="oBreakdown" aria-label="Run performance"></div>
+    <div class="pg2" id="oChal"></div>
     <div class="btns">
       <button class="btn" id="againBtn" type="button">Try again</button
       ><button class="btn ghost" id="toMenuBtn" type="button">Menu</button>
@@ -271,7 +275,11 @@
   <div class="panel">
     <div class="eyebrow">Evac complete · The rotors are still spinning</div>
     <h2 id="wTitle">You made it out</h2>
-    <dl class="stats">
+    <div class="sumtabs" role="tablist" aria-label="End of the run">
+      <button type="button" role="tab" data-pg="1">The run</button
+      ><button type="button" role="tab" data-pg="2">Numbers</button>
+    </div>
+    <dl class="stats pg1">
       <div>
         <dt>Score</dt>
         <dd id="wScore">0</dd>
@@ -289,12 +297,12 @@
         <dd id="wInf">0</dd>
       </div>
     </dl>
-    <div class="seeds" id="wSeeds"></div>
-    <p class="rec plain" id="wCrew" hidden></p>
-    <p class="lastcall" id="wRadio"></p>
-    <div class="runsum" id="wSum" aria-label="Run summary"></div>
-    <div class="runreport" id="wBreakdown" aria-label="Run performance"></div>
-    <p class="rec plain" id="wUnlock"></p>
+    <div class="seeds pg1" id="wSeeds"></div>
+    <p class="rec plain pg1" id="wCrew" hidden></p>
+    <p class="lastcall pg1" id="wRadio"></p>
+    <div class="runsum pg1" id="wSum" aria-label="Run summary"></div>
+    <div class="runreport pg2" id="wBreakdown" aria-label="Run performance"></div>
+    <p class="rec plain pg2" id="wUnlock"></p>
     <div class="btns">
       <button class="btn" id="wonMenuBtn" type="button">Armory</button
       ><button class="btn ghost" id="wonHomeBtn" type="button">Menu</button>
@@ -409,6 +417,12 @@
         <button type="button" data-g="ultra">Ultra</button><button type="button" data-g="balanced">Balanced</button
         ><button type="button" class="tog" id="fpsBtn">Show FPS</button
         ><span class="segnote">Balanced suits older laptops</span>
+      </div>
+      <label>Frame rate</label>
+      <div class="seg" id="fpsCapSeg" role="group" aria-label="Frame rate limit">
+        <button type="button" data-f="30">30</button><button type="button" data-f="60">60</button
+        ><button type="button" data-f="0">Screen's own</button
+        ><span class="segnote">60 keeps a laptop cool; on a 120 Hz screen, Screen's own is twice the work</span>
       </div>
       <label>Look</label>
       <div class="seg">

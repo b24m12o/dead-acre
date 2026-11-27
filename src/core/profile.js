@@ -95,6 +95,7 @@ export function normalizeMeta() {
   if (!['compact', 'full'].includes(GS.meta.hud.size)) GS.meta.hud.size = 'compact';
   GS.meta.hud.op = clamp(Number.isFinite(Number(GS.meta.hud.op)) ? Number(GS.meta.hud.op) : 1, 0.45, 1);
   if (GS.meta.hud.gfx !== 'balanced') GS.meta.hud.gfx = 'ultra';
+  if (![30, 60, 0].includes(GS.meta.hud.cap)) GS.meta.hud.cap = 60; // frames a second at most (core/main.js)
   GS.meta.hud.fps = GS.meta.hud.fps === true;
   GS.meta.hud.ts = clamp(Number.isFinite(Number(GS.meta.hud.ts)) ? Number(GS.meta.hud.ts) : 1, 0.75, 1.5);
   for (const k of ['stats', 'chal', 'trophies', 'evacDist', 'tips']) if (!record(GS.meta[k])) GS.meta[k] = {};

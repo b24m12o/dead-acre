@@ -77,9 +77,27 @@ export function summaryText(D) {
   return L.join('\n');
 }
 // fill one end screen's summary box (id) and its copy button
+// the end screen in two pages, so each is read at full size: the run (the score, the radio, the road, your build and
+// your people) and the numbers (how you fought, the challenges). It opens on the run
+export function sumPage(pn, n) {
+  pn.dataset.pg = String(n);
+  for (const b of pn.querySelectorAll('.sumtabs [data-pg]')) {
+    const on = b.dataset.pg === String(n);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on);
+  }
+  dispatchEvent(new Event('resize')); // (fitted again to what's on it: core/main.js)
+}
 export function renderSummary(id, won) {
   const el = $(id);
   if (!el || !GS.RUN) return;
+  {
+    const pn = el.closest('.panel');
+    if (pn) {
+      sumPage(pn, 1);
+      for (const b of pn.querySelectorAll('.sumtabs [data-pg]')) b.onclick = () => sumPage(pn, +b.dataset.pg);
+    }
+  }
   const D = summaryData(won);
   GS.RUN.sumText = summaryText(D);
   const list = (h, items, empty) =>
