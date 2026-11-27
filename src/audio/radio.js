@@ -539,7 +539,7 @@ export function init() {
   TIPS = {
     // the convoy talks you through each thing the first time it happens, once per profile; basics are skipped for players who already reached night 4
     ammo: ['Ammo boxes are marked by round. Shells will not feed a rifle. Read the label.', 1],
-    wcase: ['Weapon case on the ground. Walk over it. What is in it is yours.', 0],
+    // (no weapon-case tip: the case says what's in it as it lands, and there's no choosing to explain now)
     supply: ['Supply crate down. Ammo and gear inside, no gun. Grab it while it is quiet.', 1],
     elite: [
       'The big one with the yellow cast is an elite. Hits harder, takes more, drops more. Keep your distance.',
