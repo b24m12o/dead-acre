@@ -12,6 +12,8 @@ import { TILT } from '../core/scale.js';
 import { sfx } from '../audio/sfx.js';
 import { placeLook } from './places.js';
 import { NIGHT } from '../render/draw-player.js';
+export const NIGHT_DIM = 0.82;
+let NK = 1;
 let DAWNV = 0;
 export const WXV = [0, 0, 0, 1];
 export function updateWeather(dt) {
@@ -56,8 +58,11 @@ export function updateWeather(dt) {
   GS.lightning = Math.max(0, GS.lightning - dt * 5);
   const base = { sun: [0.29, 0.345, 0.52], sky: [0.225, 0.252, 0.37] }; // moonlight: cold and low, enough to read the ground by
   const look = placeLook(); // each stop on the road tints the night its own way (places.js)
-  let sun = base.sun.map((v, i) => v * look.sun[i]),
-    sky = base.sky.map((v, i) => v * look.sky[i]);
+  // while the dead are out the moon is lower: a little darker, so your torch is the light you see by and the lamps
+  // are pools you make for (eased in and out, never so dark the dead can't be read)
+  NK += ((GS.state === 'play' && GS.nightLive ? NIGHT_DIM : 1) - NK) * Math.min(1, dt * 0.4);
+  let sun = base.sun.map((v, i) => v * look.sun[i] * NK),
+    sky = base.sky.map((v, i) => v * look.sky[i] * NK);
   if (GS.ev === 'blood') {
     sun = [0.42, 0.2, 0.21];
     sky = [0.25, 0.18, 0.21];

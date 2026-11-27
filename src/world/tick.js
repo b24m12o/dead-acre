@@ -319,10 +319,12 @@ export function tickWorld(dt) {
   MUS.quietT = live ? 0 : (MUS.quietT || 0) + dt;
   const hold = fightOn && MUS.quietT < (night ? 14 : dawn ? (liveN ? 5 : 0) : 4); // at dawn with the street empty the ending comes on the next bar: the calm gets its time
   {
-    const on = GS.state !== 'menu';
-    if (ambG && on !== GS.ambOn) {
-      GS.ambOn = on;
-      ambG.gain.setTargetAtTime(on ? 0.12 : 0, AC.currentTime, on ? 1.2 : 0.15); // (heard under the calm, not lost in it)
+    const on = GS.state !== 'menu',
+      title = GS.state === 'menu' && GS.time - (GS.menuAt ?? -99) > 1.5, // the title screen: the wind, lower, after a breath
+      lv = on ? 1 : title ? 0.55 : 0;
+    if (ambG && lv !== GS.ambOn) {
+      GS.ambOn = lv;
+      ambG.gain.setTargetAtTime(0.12 * lv, AC.currentTime, lv ? 1.2 : 0.15); // (heard under the calm, not lost in it)
     }
     const wet = on && GS.ev === 'storm';
     if (rainG && wet !== GS.rainOn) {

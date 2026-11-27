@@ -111,7 +111,7 @@
     </div>
     <div class="btns sub">
       <button class="btn ghost" id="hmBtn" type="button">Horde Mode</button>
-      <button class="btn ghost" id="hangarBtn" type="button">Armory <span class="badge" id="menuSeeds"></span></button>
+
       <button class="btn ghost" id="chalBtn" type="button">Challenges</button>
       <button class="btn ghost icon" id="settingsBtn" type="button" aria-label="Settings" title="Settings">
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
@@ -149,6 +149,18 @@
           ><span><b>1</b> chopper</span>
         </p>
       </div>
+    </div>
+    <div class="scol kit" id="kitCol">
+      <div class="kithead"><span class="sec">Your kit</span><span class="seeds" id="hangarSeeds"></span></div>
+      <div class="sec">Starting loadout</div>
+      <div class="chips" id="hangarOutfits" role="group" aria-label="Starting loadout"></div>
+      <p class="note" id="loadDesc"></p>
+      <div class="sec">Ability · E</div>
+      <div class="chips" id="hangarAbs" role="group" aria-label="Ability"></div>
+      <p class="note" id="abDesc"></p>
+      <div class="sec">Perks</div>
+      <div class="kitlist" id="hangarPerks"></div>
+      <p class="note" id="perkNote"></p>
     </div>
     <div class="scol">
       <div class="infrow">
@@ -305,7 +317,7 @@
     <div class="runreport pg2" id="wBreakdown" aria-label="Run performance"></div>
     <p class="rec plain pg2" id="wUnlock"></p>
     <div class="btns">
-      <button class="btn" id="wonMenuBtn" type="button">Armory</button
+      <button class="btn" id="wonMenuBtn" type="button">Play again</button
       ><button class="btn ghost" id="wonHomeBtn" type="button">Menu</button>
     </div>
   </div>
@@ -317,40 +329,13 @@
     <p class="chal-intro">
       Challenges count across <b>every run</b>, even ones where you die. Most come in tiers, I to III: finish one and
       you get its scrap straight away, and the next tier opens. Some also unlock something new: a
-      <span class="tag t-perk">perk</span> you can then buy in the Armory, a starting
+      <span class="tag t-perk">perk</span> you can then buy before a run (Your kit), a starting
       <span class="tag t-loadout">loadout</span> to take into night 1, or a whole new
       <span class="tag t-district">district</span> to play.
     </p>
     <div class="chal-sum" id="chalSum"></div>
     <div id="chalList"></div>
     <div class="btns"><button class="btn" id="chalBack" type="button">Back</button></div>
-  </div>
-</div>
-<div class="overlay" id="hangar" hidden>
-  <div class="panel">
-    <div class="eyebrow">Gas station back room · Workbench</div>
-    <h2>Armory</h2>
-    <div class="seeds" id="hangarSeeds"></div>
-    <div class="pv">
-      <canvas id="heroPv" width="200" height="200"></canvas>
-      <div class="pvt"><span class="pvk">Preview</span><b id="pvName"></b><span id="pvSub"></span></div>
-    </div>
-    <div class="perks" id="hangarHeroes" hidden></div>
-    <div class="sec">Your ability · E</div>
-    <div class="perks" id="hangarAbs"></div>
-    <div class="sec">Field manual</div>
-    <p class="secnote">Gear and combos that only turn up in level-up picks once a challenge has taught them to you.</p>
-    <div class="perks" id="hangarManual"></div>
-    <div class="sec">Perks</div>
-    <p class="secnote" id="perkNote"></p>
-    <div class="perks" id="hangarPerks"></div>
-    <div class="sec">Starting loadout</div>
-    <p class="secnote">What you carry into night 1 besides the pistol. Challenges earn them; take one at a time.</p>
-    <div class="perks" id="hangarOutfits"></div>
-    <div class="btns">
-      <button class="btn" id="hangarBack" type="button">Back</button
-      ><button class="btn ghost" id="chalBtn2" type="button">Challenges</button>
-    </div>
   </div>
 </div>
 <div class="overlay" id="practice" hidden>

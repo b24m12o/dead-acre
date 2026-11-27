@@ -18,7 +18,7 @@ import { texFromCanvas } from '../world/nav.js';
 import { setMuted } from '../audio/music.js';
 import { WHEEL, wheelTick } from '../game/state.js';
 import { syncOpts, updateHint } from '../ui/settings-ui.js';
-import { HPV, copyPreview, renderHeroes } from '../ui/hangar.js';
+import { renderHeroes } from '../ui/hangar.js';
 import { setPause, showMenuRec } from '../ui/screens.js';
 import { runLater } from './later.js';
 import { update } from './update.js';
@@ -136,10 +136,8 @@ function frame(now) {
       }
     }
   } // and it comes back up once there is headroom again
-  HPV.on = GS.state === 'menu' && !$('hangar').hidden;
   if (!window.__nr) {
     render();
-    if (HPV.on) copyPreview();
   }
   GS.inFrame = false;
   requestAnimationFrame(frame);
@@ -252,7 +250,7 @@ function fitOverlays() {
     const w = pn.offsetWidth;
     if (!h || !w) continue;
     const up = innerHeight >= 1250 && innerWidth >= 1500 ? Math.min(1.35, innerHeight / 1080) : 1,
-      browse = ['hangar', 'chal', 'settings', 'practice'].includes(o.id),
+      browse = ['chal', 'settings', 'practice'].includes(o.id),
       z = clamp(
         Math.min(browse ? Math.max((innerHeight - 56) / h, 0.94) : (innerHeight - 56) / h, (innerWidth - 24) / w, up),
         0.62,

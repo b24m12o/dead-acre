@@ -50,7 +50,7 @@ export const AB_DEF = {
     upName: 'Two-Gun Rig', // a second revolver on the other hip
   },
 };
-// each character's second ability, bought in the Armory once you have lived to night 5, and picked on the menu
+// each character's second ability, bought in your kit (the setup screen) once you have lived to night 5, and picked there
 export const AB_B = {
   ranger: {
     name: 'Claymore',

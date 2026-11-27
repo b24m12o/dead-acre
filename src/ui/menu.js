@@ -15,10 +15,11 @@ import { makeEnemy } from '../actors/enemies.js';
 import { HUMAN, flashLight } from '../render/effects.js';
 import { R } from '../render/atlas.js';
 import { GK } from '../core/scale.js';
-import { playR } from '../audio/audio.js';
+import { AC, playR } from '../audio/audio.js';
+import { radioVoice } from '../audio/radio.js';
 import { killEnemy } from '../game/combat.js';
 import { muzzleOf } from '../actors/player-weapons.js';
-import { PK, cleanRun, firstCase, pvLabel } from './hangar.js';
+import { PK, cleanRun, firstCase } from './hangar.js';
 import { rope } from '../core/later.js';
 import { INFECTION, TWISTS } from '../game/districts.js';
 import { LOADOUTS, chalDone, loadoutOpen, lockLine, stopOpen } from '../game/challenges.js';
@@ -191,26 +192,56 @@ function renderTwists() {
     (on.length ? `Twists on: ${on.map(t => t.name).join(', ')} (+${Math.round(k * 100)}% scrap).<br>` : '') +
     `This run: <b>${{ relaxed: 'Relaxed', normal: 'Normal', hard: 'Hard' }[GS.meta.diff] || 'Normal'}</b> difficulty · Infection <b>${Math.min(GS.meta.inf || 0, GS.meta.infMax || 0)}</b>${on.length ? ` · <b>${on.length}</b> twist${on.length > 1 ? 's' : ''}` : ''} · scrap <b>×${runScrapK().toFixed(2)}</b>`;
 }
+// a row of chips with one line under it that says what the chosen one does, and what one does when you point at it or
+// tab to it; the line keeps the height of the longest, so nothing moves under the pointer (as the twists do)
+export function chipNote(box, note, say, cur) {
+  const show = id => (note.innerHTML = say(id)),
+    back = () => show(cur);
+  if (note.offsetWidth) {
+    note.style.minHeight = '';
+    let h = 0;
+    for (const b of box.children) {
+      show(b.dataset.k);
+      h = Math.max(h, note.offsetHeight);
+    }
+    note.style.minHeight = h + 'px';
+  }
+  back();
+  for (const b of box.children) {
+    b.addEventListener('mouseenter', () => show(b.dataset.k));
+    b.addEventListener('focus', () => show(b.dataset.k));
+    b.addEventListener('mouseleave', back);
+    b.addEventListener('blur', back);
+  }
+}
 export function renderChallenges() {
-  // starting loadouts: earned from challenges, one taken into each new run
-  $('hangarOutfits').innerHTML = Object.entries(LOADOUTS)
+  // starting loadouts: earned from challenges, one taken into each new run (on the setup screen, your kit)
+  const box = $('hangarOutfits'),
+    cur = GS.meta.loadout && loadoutOpen(GS.meta.loadout) ? GS.meta.loadout : 'std';
+  box.innerHTML = Object.entries(LOADOUTS)
     .map(([id, o]) => {
       const open = loadoutOpen(id),
-        on = (GS.meta.loadout || 'std') === id,
-        ds =
-          o.desc ||
-          ((GUN_FROM[o.gun] || 1) > 2
-            ? `Your ${GUNS[o.gun].name} rides with the convoy and comes in the weapon case before night ${firstCase(GUN_FROM[o.gun])}, in place of that case.`
-            : `Start with the ${GUNS[o.gun].name} and its ammo. It takes the place of your first weapon case, which brings a supply crate and scrap instead.`);
-      return `<div class="perk"><span class="nm">${o.name}</span><button type="button" class="buy" data-load="${id}" ${!open || on ? 'disabled' : ''}>${on ? 'Taking' : open ? 'Take' : 'Locked'}</button><span class="ds">${ds}${open ? '' : ' ' + lockLine(o.req)}</span></div>`;
+        on = cur === id;
+      return `<button type="button" class="chip${on ? ' on' : ''}${open ? '' : ' lockd'}" data-k="${id}" aria-pressed="${on}" ${open ? '' : 'aria-disabled="true"'}><b>${o.name}</b>${open ? '' : '<em>locked</em>'}</button>`;
     })
     .join('');
-  for (const b of document.querySelectorAll('#hangarOutfits .buy'))
+  const say = id => {
+    const o = LOADOUTS[id],
+      ds =
+        o.desc ||
+        ((GUN_FROM[o.gun] || 1) > 2
+          ? `Your ${GUNS[o.gun].name} rides with the convoy and comes in the weapon case before night ${firstCase(GUN_FROM[o.gun])}.`
+          : `Start with the ${GUNS[o.gun].name} and its ammo, in place of your first weapon case.`);
+    return `<b>${o.name}</b> · ${ds}${loadoutOpen(id) ? '' : ' ' + lockLine(o.req)}`;
+  };
+  chipNote(box, $('loadDesc'), say, cur);
+  for (const b of box.children)
     b.addEventListener('click', () => {
-      GS.meta.loadout = b.dataset.load;
+      if (!loadoutOpen(b.dataset.k)) return;
+      GS.meta.loadout = b.dataset.k;
       saveMeta();
       renderChallenges();
-      if ($('pvName')) pvLabel();
+      refocus('hangarOutfits', `[data-k="${b.dataset.k}"]`);
     });
 }
 
@@ -334,26 +365,44 @@ export function menuInit() {
   for (let i = 0; i < 9; i++) standSpawn(rand(170, 380));
   $('bossBox').hidden = true;
 }
-// Channel 9 on the title screen: what the convoy says between nights, typed out as it comes in, held, then the next
+// Channel 9 on the title screen: the convoy on the air between nights, in Reyes' own recorded voice once the sound is
+// up (the click, the hiss, the words: radio.js), the line typed out as he says it; a long quiet, then the next. The
+// first is always the convoy's promise, the one that starts it all
 const CH9 = [
-  'Any station, this is Channel 9. If you can hear me, you are not alone out there.',
+  'Convoy to anyone on nine. We roll out in fifteen nights. Stay alive till then.',
   'Nine, convoy. Quiet on our end. Keep your head down.',
-  'Stay off the main roads after dark. They come to light, and they come to noise.',
-  'The chopper is fuelled. Fifteen nights, Nine. Hold on that long.',
-  'Supply drop inbound. Watch for the smoke, and get to it before they do.',
-  'Reyes here. Keep your radio on. Same channel, every night, as long as we can.',
+  'They are coming up out of the drains again. Watch your corners.',
+  'Still here, nine. So are you. Keep it that way.',
+  'Count your rounds before you count the dead.',
+  'Fog is coming off the river. Listen before you look.',
+  'Patrol saw a big group heading your way. Hold tight.',
 ];
-const ch9 = { i: Math.floor(Math.random() * CH9.length), n: 0, hold: 0 };
+const ch9 = { i: 0, n: 0, hold: 0, cps: 34, said: false, wait: 1.2 };
+const ch9Dur = line => {
+  const v = GS.VOX.find(r => r[4] === 'R' && r[1] === line);
+  return v ? v[2] : 0;
+};
 function ch9Tick(dt) {
   const el = $('ch9t');
   if (!el) return;
   const L = CH9[ch9.i];
-  if (ch9.n < L.length) ch9.n = Math.min(L.length, ch9.n + dt * 34);
-  else if ((ch9.hold += dt) > 5) {
+  if ((ch9.wait -= dt) > 0) return; // (the screen comes in first)
+  if (!ch9.said) {
+    // a line starts: on the air if the sound is up and the title is what you're looking at, typed as it's spoken
+    ch9.said = true;
+    const d = ch9Dur(L),
+      live = AC && AC.state === 'running' && !$('menu').hidden && d > 0;
+    if (live) radioVoice(L, 'Reyes');
+    ch9.cps = live ? L.length / (d + 0.1) : 34;
+    ch9.n = live ? -0.18 * ch9.cps : 0; // (the key-up click before the first word)
+  }
+  if (ch9.n < L.length) ch9.n = Math.min(L.length, ch9.n + dt * ch9.cps);
+  else if ((ch9.hold += dt) > 9) {
     ch9.i = (ch9.i + 1) % CH9.length;
     ch9.n = ch9.hold = 0;
+    ch9.said = false;
   }
-  const t = L.slice(0, Math.floor(ch9.n));
+  const t = L.slice(0, Math.max(0, Math.floor(ch9.n)));
   if (el.textContent !== t) el.textContent = t;
 }
 export function menuUpdate(dt) {

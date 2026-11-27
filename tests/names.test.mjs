@@ -1,5 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-// Every name the player can read on a card, in the Armory or on the wheel is used once: no two upgrades, combos,
+// Every name the player can read on a card, in your kit or on the wheel is used once: no two upgrades, combos,
 // perks, kits, abilities, traps, guns or challenges share a name, and each character's ability upgrades are named
 // for that ability (a claymore's upgrade never borrows the mortar's radio).
 import { openGame, check } from './lib/harness.mjs';

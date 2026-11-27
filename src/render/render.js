@@ -115,6 +115,9 @@ function beamK() {
   GS.flkT -= dt;
   return Math.sin(GS.flkT * 70) > 0.2 ? 1 : 0.45 + Math.random() * 0.2;
 }
+export const FLASH = { k: 1.35 };
+// pickups, drawn this much over life size
+export const PICK_K = 1.4;
 export const YOU_AO = { a: 0.34 };
 // which one is you, in a crowd of the living: a thin green ring on the street round your feet, its tick where you aim.
 // Faint, with a little glow of its own for the night; not while you ride the truck, are down, or a boss comes on
@@ -393,7 +396,8 @@ export function render() {
           );
       }
   for (const k of GS.pickups) {
-    scaleAbout(k.x, k.y, GK); // things to pick up, at life size (core/scale.js)
+    // things to pick up, well over life size (PICK_K): at life size a box of rounds was a crumb beside you
+    scaleAbout(k.x, k.y, GK * PICK_K);
     const bob = Math.sin(k.t * 5 + k.x) * 2.5,
       hot = lampHot(k.x, k.y),
       dm = 1 / (1 + 3.2 * hot); // right under a lamp the light pool is several times brighter than the street: dim the paint there so the kit keeps its colour
@@ -436,7 +440,7 @@ export function render() {
     scaleAbout(0, 0, 1);
   }
   for (const k of GS.boonDrops || []) {
-    scaleAbout(k.x, k.y, GK);
+    scaleAbout(k.x, k.y, GK * PICK_K);
     const bob = Math.sin(k.t * 5 + k.x) * 2.5,
       dm = 1 / (1 + 3.2 * lampHot(k.x, k.y)),
       al = boonBlink(k); // what one of the dead in uniform dropped (game/boons.js): it flickers in its last seconds
@@ -1187,25 +1191,20 @@ export function render() {
   if (GS.P && GS.state !== 'over') {
     GS.FLX = GS.P.x + Math.cos(GS.P.aimA) * 8 * GK;
     GS.FLY = GS.P.y + Math.sin(GS.P.aimA) * 8 * GK;
-    const bk = beamK();
-    addLight(
-      GS.FLX,
-      GS.FLY,
-      620 * GK * 1.3, // the torch: 16 m of street
-      1.05 * bk,
-      1.0 * bk,
-      0.84 * bk,
-      beamA(),
-      0.86
-    );
+    const bk = beamK(),
+      ba = beamA();
+    // the torch: 16 m of street in a spill as wide as a street lamp's light is bright, and in the middle of it a hot
+    // core, so the beam reads as yours against the lamps and the moon. FLASH.k: how bright (render tests)
+    addLight(GS.FLX, GS.FLY, 620 * GK * 1.3, 1.05 * FLASH.k * bk, 1.0 * FLASH.k * bk, 0.84 * FLASH.k * bk, ba, 0.86);
+    addLight(GS.FLX, GS.FLY, 620 * GK * 1.05, 0.7 * FLASH.k * bk, 0.68 * FLASH.k * bk, 0.6 * FLASH.k * bk, ba, 0.95);
     addLight(
       GS.P.x,
       GS.P.y,
       260 * GK,
-      GS.ev === 'fog' || GS.ev === 'blackout' ? 0.46 : 0.32,
-      GS.ev === 'fog' || GS.ev === 'blackout' ? 0.45 : 0.31,
-      GS.ev === 'fog' || GS.ev === 'blackout' ? 0.43 : 0.3
-    );
+      GS.ev === 'fog' || GS.ev === 'blackout' ? 0.38 : 0.22,
+      GS.ev === 'fog' || GS.ev === 'blackout' ? 0.37 : 0.21,
+      GS.ev === 'fog' || GS.ev === 'blackout' ? 0.35 : 0.2
+    ); // (the glow you carry round you: low, so the beam is what lights the way)
     const cl = CHEM.k * (0.94 + 0.06 * Math.sin(GS.time * 1.7)); // your chemlight (draw-player.js): a small cold-blue pool of light round you, no lamp's colour nor your people's green, so you are the one you find first in a crowd
     addLight(GS.P.x, GS.P.y - 6 * PEOPLE, CHEM.r, CHEM.c[0] * cl, CHEM.c[1] * cl, CHEM.c[2] * cl);
   }

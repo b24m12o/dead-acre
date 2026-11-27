@@ -1,5 +1,4 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
-import { GK } from '../core/scale.js';
 import { clearSave, restoreRun, savedRun } from '../game/save.js';
 import { resumeDawn } from '../game/night-flow.js';
 import { TW } from '../game/districts.js';
@@ -9,16 +8,14 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { pick } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
-import { GUNS, GUN_FROM, GUN_PATH, HEROES, PERKS, WEAPON_NIGHTS, nextGuns } from '../game/arsenal.js';
+import { GUNS, GUN_FROM, GUN_PATH, PERKS, WEAPON_NIGHTS, nextGuns } from '../game/arsenal.js';
 import { showStreak } from './callouts.js';
-import { glc } from '../render/gl.js';
-import { RW, VW, ZOOM } from '../render/sprites.js';
 import { initAudio } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { setMuted } from '../audio/music.js';
 import { AMMO_NAME, LV, giveGun } from '../game/state.js';
 import { newRun } from '../game/run.js';
-import { EVOS, UP, doReroll, offerUpgrades, pickLater, renderMods } from '../game/upgrades.js';
+import { UP, doReroll, offerUpgrades, pickLater, renderMods } from '../game/upgrades.js';
 import { giveTraps } from '../game/traps.js';
 import { AB_B, AB_DEF, abOwned, abPickB } from '../game/abilities.js';
 import { updateHint } from './settings-ui.js';
@@ -36,11 +33,11 @@ import {
   snapChal,
 } from '../game/challenges.js';
 import { startPractice } from '../game/practice.js';
-import { menuInit, renderChallenges, renderDistricts } from './menu.js';
+import { chipNote, menuInit, renderChallenges, renderDistricts } from './menu.js';
 import { keysIn } from '../core/binds.js';
 import { JOBS_J, STOPS } from '../game/route.js';
 const AB_COST = 300; // a second ability, per character
-// (there was a hero card on the menu: one hero now, and the ability is picked in the Armory)
+// (there was a hero card on the menu: one hero now, and the ability is picked in your kit on the setup screen)
 export function renderHeroes() {}
 export function PK() {
   const o = {},
@@ -53,88 +50,52 @@ export function cleanRun() {
     off = GS.meta.perkOff || {};
   return own.length > 0 && own.every(k => off[k]);
 } // every perk you own switched off: +25% scrap
-export const HPV = { on: false, hero: null }; // what the Armory preview shows
-export function pvLabel() {
-  const h = HEROES[HPV.hero || GS.meta.hero] || HEROES.ranger,
-    o = LOADOUTS[GS.meta.loadout] || LOADOUTS.std,
-    own = GS.meta.unlocked[HPV.hero || GS.meta.hero];
-  $('pvName').textContent = h.name;
-  $('pvSub').textContent = `${o.name}${own ? '' : ' · not bought yet'}`;
-}
-export function copyPreview() {
-  // the hero standing in the live menu scene, lit by its own flashlight, cut out of the frame that was just drawn
-  const c = $('heroPv');
-  if (!c || !GS.P) return;
-  const k = RW / VW,
-    sz = 88 * GK * ZOOM * k,
-    sx = (GS.P.x - GS.camX) * ZOOM * k - sz / 2,
-    sy = (GS.P.y - GS.camY - 4) * ZOOM * k - sz / 2;
-  const x = c.getContext('2d');
-  x.fillStyle = '#0e1215';
-  x.fillRect(0, 0, c.width, c.height);
-  try {
-    x.drawImage(glc, sx, sy, sz, sz, 0, 0, c.width, c.height);
-  } catch (err) {}
-  const W = c.width,
-    g = x.createRadialGradient(W / 2, W / 2, W * 0.18, W / 2, W / 2, W * 0.62);
-  g.addColorStop(0, 'rgba(14,18,21,0)');
-  g.addColorStop(1, 'rgba(14,18,21,0.85)');
-  x.fillStyle = g;
-  x.fillRect(0, 0, W, W); // a vignette so the eye goes to the character, not the street
-}
+export const HPV = { on: false, hero: null }; // (the Armory's preview of you: gone with the Armory)
 export function seedsLine() {
-  const r = GS.meta.heroRefund; // (profile.js: what was spent on the Deputy and the Gunslinger, back once)
-  return `Scrap <b>${GS.meta.seeds.toLocaleString()}</b>${r ? ` <span class="refund">· ${r} back from the Deputy and the Gunslinger, who now join you on the road</span>` : ''}`;
+  return `Scrap <b>${GS.meta.seeds.toLocaleString()}</b>`;
 }
-function renderHangar() {
+// your kit, on the setup screen (there was an Armory for it): the loadout you take, the E ability, the perks your
+// scrap buys, and the scrap
+export function renderKit() {
   checkChal(true);
   renderChallenges();
   $('hangarSeeds').innerHTML = seedsLine();
-  $('hangarHeroes').innerHTML = Object.entries(HEROES)
-    .filter(() => false) // (no more heroes to buy: the Deputy and the Gunslinger join you on the road)
-    .map(([id, h]) => {
-      const own = GS.meta.unlocked[id];
-      return `<div class="perk"><span class="nm">${h.name} · best with ${h.weapon}</span><button type="button" class="buy" data-hero="${id}" ${own || GS.meta.seeds < h.cost ? 'disabled' : ''}>${own ? 'Unlocked' : h.cost + ' scrap'}</button><span class="ds">${h.desc}</span></div>`;
-    })
-    .join('');
   {
-    const night5 = ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 5;
-    $('hangarAbs').innerHTML = Object.entries(AB_B)
-      .filter(([id]) => id === 'ranger')
-      .map(([id, d]) => {
-        const own = abOwned(id),
-          heroOk = GS.meta.unlocked[id],
-          cost = AB_COST;
-        const why = !night5 ? 'Survive five nights to unlock.' : !heroOk ? `Unlock the ${HEROES[id].name} first.` : '';
-        // the E ability: Mortar strike, or the second one once it's bought; the one in use is marked, the other picks it
-        const inB = abPickB(id),
-          a = AB_DEF[id];
-        return (
-          `<div class="perk"><span class="nm">${a.name}</span><button type="button" class="buy" data-absel="a" ${!inB ? 'disabled' : ''}>${!inB ? 'In use' : 'Use'}</button><span class="ds">${a.desc}</span></div>` +
-          `<div class="perk"><span class="nm">${d.name}</span>${
-            own
-              ? `<button type="button" class="buy" data-absel="b" ${inB ? 'disabled' : ''}>${inB ? 'In use' : 'Use'}</button>`
-              : `<button type="button" class="buy" data-abuy="${id}" ${why || GS.meta.seeds < cost ? 'disabled' : ''}>${why ? 'Locked' : cost + ' scrap'}</button>`
-          }<span class="ds">${d.desc}${why && !own ? ' ' + why : ''}</span></div>`
-        );
-      })
-      .join('');
+    // the E ability: Mortar strike, or the second one once it's bought (300 scrap, from the fifth night on)
+    const night5 = ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 5,
+      own = abOwned('ranger'),
+      inB = abPickB('ranger'),
+      A = AB_DEF.ranger,
+      B = AB_B.ranger,
+      box = $('hangarAbs');
+    box.innerHTML =
+      `<button type="button" class="chip${inB ? '' : ' on'}" data-k="a" aria-pressed="${!inB}"><b>${A.name}</b></button>` +
+      `<button type="button" class="chip${inB ? ' on' : ''}${own || night5 ? '' : ' lockd'}" data-k="b" aria-pressed="${inB}"><b>${B.name}</b>${own ? '' : `<em>${night5 ? AB_COST + ' scrap' : 'locked'}</em>`}</button>`;
+    chipNote(
+      box,
+      $('abDesc'),
+      k =>
+        k === 'a'
+          ? `<b>${A.name}</b> · ${A.desc}`
+          : `<b>${B.name}</b> · ${B.desc}${own ? '' : night5 ? ` Buy it for ${AB_COST} scrap.` : ' Survive five nights to unlock it.'}`,
+      inB ? 'b' : 'a'
+    );
+    for (const b of box.children)
+      b.addEventListener('click', () => {
+        if (b.dataset.k === 'b' && !own) {
+          if (!night5 || GS.meta.seeds < AB_COST) return;
+          GS.meta.seeds -= AB_COST;
+          GS.meta.abOwn = { ...(GS.meta.abOwn || {}), ranger: true };
+          sfx.level();
+        } else sfx.swap();
+        GS.meta.abSel = { ...(GS.meta.abSel || {}), ranger: b.dataset.k };
+        if (GS.RUN) GS.RUN.abB = abPickB(GS.RUN.hero);
+        saveMeta();
+        renderKit();
+        const f = $('hangarAbs').querySelector(`[data-k="${b.dataset.k}"]`);
+        if (f) f.focus({ preventScroll: true });
+      });
   }
-  $('hangarManual').innerHTML = [
-    ...UP.filter(u => u.lock),
-    ...EVOS.filter(v => v.lock).map(v => ({ ...v, cat: 'Combo' })),
-  ]
-    .map(u => {
-      const ok = chalDone(u.lock),
-        ds = typeof u.desc === 'function' ? u.desc() : u.desc,
-        need = u.need
-          ? ` Needs ${Object.entries(u.need)
-              .map(([k, n]) => `${(UP.find(x => x.id === k) || { name: k }).name}${n > 1 ? ' ×' + n : ''}`)
-              .join(' + ')}.`
-          : '';
-      return `<div class="perk${ok ? '' : ' lockd'}"><span class="nm">${u.name} · ${u.cat.toLowerCase()}</span><button type="button" class="buy" disabled>${ok ? 'Learned' : 'Locked'}</button><span class="ds">${ds}${need} ${ok ? '' : lockLine(u.lock)}</span></div>`;
-    })
-    .join('');
   $('hangarPerks').innerHTML = PERKS.map(pk => {
     if (pk.req && !chalDone(pk.req))
       return `<div class="perk"><span class="nm">${pk.name}</span><button type="button" class="buy" disabled>Locked</button><span class="ds">${pk.desc} ${lockLine(pk.req)}</span></div>`;
@@ -152,52 +113,18 @@ function renderHangar() {
         ? 'Every perk is switched off. Runs pay +25% scrap.'
         : 'Want it harder? Switch perks off; they stay yours. With every perk off, runs pay +25% scrap.';
   }
-  for (const b of document.querySelectorAll('#hangar .tgl'))
+  for (const b of document.querySelectorAll('#kitCol .tgl'))
     b.addEventListener('click', () => {
       GS.meta.perkOff = GS.meta.perkOff || {};
       GS.meta.perkOff[b.dataset.tog] = !GS.meta.perkOff[b.dataset.tog];
       saveMeta();
       initAudio();
       sfx.swap();
-      renderHangar();
+      renderKit();
     });
-  for (const b of document.querySelectorAll('#hangarHeroes .perk')) {
-    const id = b.querySelector('.buy') && b.querySelector('.buy').dataset.hero;
-    const on = () => {
-        HPV.hero = id;
-        pvLabel();
-      },
-      off = () => {
-        HPV.hero = null;
-        pvLabel();
-      };
-    b.addEventListener('mouseenter', on);
-    b.addEventListener('mouseleave', off);
-    b.addEventListener('focusin', on);
-    b.addEventListener('focusout', off);
-  }
-  pvLabel();
-  for (const b of document.querySelectorAll('#hangar .buy'))
+  for (const b of document.querySelectorAll('#kitCol .buy'))
     b.addEventListener('click', () => {
-      if (b.dataset.absel) {
-        GS.meta.abSel = { ...(GS.meta.abSel || {}), ranger: b.dataset.absel };
-        GS.RUN.abB = abPickB(GS.RUN.hero);
-      } else if (b.dataset.abuy) {
-        const id = b.dataset.abuy;
-        if (GS.meta.seeds >= AB_COST && !abOwned(id)) {
-          GS.meta.seeds -= AB_COST;
-          GS.meta.abOwn = { ...(GS.meta.abOwn || {}), [id]: true };
-          GS.meta.abSel = { ...(GS.meta.abSel || {}), [id]: 'b' };
-        }
-      } else if (b.dataset.hero) {
-        const h = HEROES[b.dataset.hero];
-        if (GS.meta.seeds >= h.cost) {
-          GS.meta.seeds -= h.cost;
-          GS.meta.unlocked[b.dataset.hero] = true;
-          GS.meta.hero = b.dataset.hero;
-          GS.RUN.hero = GS.meta.hero;
-        }
-      } else {
+      {
         const pk = PERKS.find(x => x.id === b.dataset.perk),
           lv = GS.meta.perks[pk.id] || 0,
           cost = pk.cost(lv);
@@ -209,15 +136,10 @@ function renderHangar() {
       saveMeta();
       initAudio();
       sfx.level();
-      renderHangar();
+      renderKit();
       renderHeroes();
       showMenuRec();
     });
-}
-export function openHangar() {
-  $('menu').hidden = true;
-  renderHangar();
-  $('hangar').hidden = false;
 }
 
 /* ---------- Flow ---------- */
@@ -284,7 +206,7 @@ export function begin() {
   };
   newRun();
   $('hud').classList.remove('camp');
-  ['menu', 'over', 'pause', 'levelup', 'hangar', 'settings'].forEach(id => ($(id).hidden = true));
+  ['menu', 'over', 'pause', 'levelup', 'settings'].forEach(id => ($(id).hidden = true));
   $('hint').classList.add('show');
   clearTimeout(GS.hintTO);
   GS.hintTO = setTimeout(() => $('hint').classList.remove('show'), 9000);
@@ -309,7 +231,7 @@ export const firstCase = w =>
     .map(Number)
     .sort((a, b) => a - b)
     .find(n => n >= w) || w;
-// the starting loadout taken in the Armory: a gun and its ammo, a few traps, or a survivor at your side from night 1
+// the starting loadout taken in your kit: a gun and its ammo, a few traps, or a survivor at your side from night 1
 function applyLoadout() {
   const id = GS.meta.loadout,
     L = LOADOUTS[id];
@@ -352,7 +274,7 @@ export function continueRun() {
     newRun();
     restoreRun(d);
     $('hud').classList.remove('camp');
-    ['menu', 'over', 'pause', 'levelup', 'hangar', 'settings'].forEach(id => ($(id).hidden = true));
+    ['menu', 'over', 'pause', 'levelup', 'settings'].forEach(id => ($(id).hidden = true));
     $('hud').hidden = false;
     $('bossBox').hidden = true;
     renderMods();
@@ -394,26 +316,16 @@ export function renderPauseGuns() {
 
 // runs once, in order with every other part's init, when the game starts (see src/index.js)
 export function init() {
-  $('hangarBtn').addEventListener('click', openHangar);
   $('chalBtn').addEventListener('click', () => openChal('menu'));
-  $('chalBtn2').addEventListener('click', () => openChal('hangar'));
   $('chalBack').addEventListener('click', () => {
     $('chal').hidden = true;
-    if (chalFrom === 'hangar') {
-      renderHangar();
-      $('hangar').hidden = false;
-    } else if (chalFrom === 'over') $('over').hidden = false;
+    if (chalFrom === 'over') $('over').hidden = false;
     else {
       renderDistricts();
       renderHeroes();
       showMenuRec();
       $('menu').hidden = false;
     }
-  });
-  $('hangarBack').addEventListener('click', () => {
-    $('hangar').hidden = true;
-    $('menu').hidden = false;
-    menuInit();
   });
   $('rerollBtn').addEventListener('click', doReroll);
   $('laterBtn').addEventListener('click', pickLater);

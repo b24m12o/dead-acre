@@ -691,3 +691,22 @@ body[data-st="cine"] .hud,body[data-st="cine"] #hint,body[data-st="cine"] #bossB
 .setroad .rvan rect{fill:#c9d49a;filter:drop-shadow(0 0 5px rgba(216,228,168,.6));animation:rvanIdle 1.6s ease-in-out infinite}
 .setroad .rpip{fill:#9fc0d4;stroke:#14181d;stroke-width:1.2}
 @media (prefers-reduced-motion:reduce){.setroad .rleg,.setroad .rstop circle,.setroad .rvan rect{animation:none}}
+/* the setup screen in three: the road, your kit (what the Armory was), the rules of the run */
+#survSetup>.panel.setup{width:min(1380px,calc(100vw - 32px));grid-template-columns:minmax(0,.95fr) minmax(0,1fr) minmax(0,1.05fr);column-gap:30px}
+@media (max-width:1100px){#survSetup>.panel.setup{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#survSetup .scol:first-child{grid-column:1/-1}}
+#kitCol{max-height:calc(100vh - 150px);overflow:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:#3a444d transparent}
+.kithead{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.kithead .seeds{margin:0}
+.kitlist{display:grid;gap:6px}
+.kitlist .perk{grid-template-columns:1fr auto;gap:2px 12px;padding:8px 12px;border-radius:10px}
+.kitlist .perk .nm{font-size:16px}
+.kitlist .perk .ds{font-size:13px;line-height:1.35;color:#b9c1c5}
+.kitlist .perk .buy{font-size:11px;padding:6px 10px;white-space:nowrap}
+.kitlist .perk .acts{grid-row:1/4;flex-direction:row;align-items:center;gap:6px}
+.kitlist .perk .tgl{padding:4px 7px;font-size:11px}
+.kitlist .perk .tgl span{display:none}
+.kitlist .perk .pips{grid-column:1}
+.chip.lockd{opacity:.5;cursor:default}
+#kitCol .note{margin:0;font-size:13px;line-height:1.4;color:#b9c1c5}
+#kitCol .chips{gap:6px}
+#kitCol .chip{font-size:14px;padding:7px 11px}

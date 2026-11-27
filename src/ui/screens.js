@@ -13,7 +13,7 @@ import { S, rec } from '../game/state.js';
 import { BLOOD } from '../render/draw-enemies.js';
 import { bleed, pool, shake } from '../render/effects.js';
 import { syncOpts } from './settings-ui.js';
-import { PK, begin, continueRun, openHangar, renderHeroes, renderPauseGuns } from './hangar.js';
+import { PK, begin, continueRun, renderHeroes, renderKit, renderPauseGuns } from './hangar.js';
 import { setB, setT } from './hud.js';
 import { DISTRICTS, FINAL_NIGHT, twistK } from '../game/districts.js';
 import { chalRunSummary, checkChal, openChal, statMax } from '../game/challenges.js';
@@ -91,7 +91,7 @@ export function gameOver() {
     $('oSeeds').innerHTML =
       `<b>${GS.meta.seeds.toLocaleString()}</b> scrap banked` +
       (af.length
-        ? `<br><span class="afford">In the Armory you can now buy: ${af.slice(0, 3).join(' · ')}${af.length > 3 ? ` · and ${af.length - 3} more` : ''}</span>`
+        ? `<br><span class="afford">Your kit can now buy: ${af.slice(0, 3).join(' · ')}${af.length > 3 ? ` · and ${af.length - 3} more` : ''}</span>`
         : '');
   }
   const nb = GS.score > rec.score,
@@ -166,10 +166,9 @@ export function renderRunReport(id) {
   el.innerHTML = cells.map(([label, value]) => `<div><span>${label}</span><b>${value}</b></div>`).join('');
 }
 export function showMenuRec() {
-  $('menuRec').innerHTML = rec.score
-    ? `Best <b>${rec.score.toLocaleString()}</b> · furthest night <b>${rec.wave}</b> of 15`
-    : '';
-  $('menuSeeds').textContent = (GS.meta.seeds || 0).toLocaleString(); // (your scrap, on the way into the Armory)
+  $('menuRec').innerHTML =
+    (rec.score ? `Best <b>${rec.score.toLocaleString()}</b> · furthest night <b>${rec.wave}</b> of 15` : '') +
+    (GS.meta.seeds ? `${rec.score ? ' · ' : ''}scrap <b>${GS.meta.seeds.toLocaleString()}</b>` : '');
   $('menuNote').textContent = GS.meta.heroRefund
     ? `${GS.meta.heroRefund} scrap back from the Deputy and the Gunslinger: they join you on the road now`
     : '';
@@ -213,6 +212,7 @@ export function init() {
     }
     $('menu').hidden = true;
     renderDistricts();
+    renderKit();
     syncOpts();
     $('survSetup').hidden = false;
     $('startBtn').focus({ preventScroll: true });
@@ -232,7 +232,7 @@ export function init() {
   };
   $('wonMenuBtn').addEventListener('click', () => {
     wonToMenu();
-    openHangar();
+    openSetup('camp'); // straight to the road out again, your kit on the same screen
   });
   $('wonHomeBtn').addEventListener('click', wonToMenu);
   $('againBtn').addEventListener('click', () => {

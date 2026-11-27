@@ -29,6 +29,7 @@ export async function run(b) {
     out.pickups = GS.pickups.length;
     out.want = MUS.want;
     out.ch9 = $('ch9t').textContent;
+    out.recorded = CH9.every(l => GS.VOX.some(r => r[4] === 'R' && r[1] === l)); // (every title line has Reyes' recording)
     out.tops = [...tops];
     begin(); GS.RUN.tut = null; GS.state = 'play';
     update(1 / 60); tickWorld(1 / 60);
@@ -42,6 +43,7 @@ export async function run(b) {
   check(o.live >= 5 && o.live <= 10, `and more keep coming: ${o.live} on their feet`);
   check(o.near > 40, `none of them should reach him: nearest ${Math.round(o.near)}`);
   check(o.kills === 0 && o.pickups === 0, `none of it counts: ${o.kills} kills logged, ${o.pickups} pickups`);
+  check(o.recorded, 'every Channel 9 line on the title should be one Reyes has recorded');
   check(o.ch9.length > 10, `Channel 9 should be typing: "${o.ch9}"`);
   check(
     o.want3 === 'none' && o.want === 'title',

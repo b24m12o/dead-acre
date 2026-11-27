@@ -7,7 +7,7 @@ import { showStreak } from '../ui/callouts.js';
 import { DISTRICTS } from './districts.js';
 // Challenges come in families: one goal, tiers I, II and III further along it. Each tier is its own entry with its own
 // id (the save only stores which ids are done), so the ids things are gated on (a perk's req, a district's lock) stay
-// as they were. Rewards: scrap, and for some tiers an Armory perk to buy, a district, or a starting loadout.
+// as they were. Rewards: scrap, and for some tiers a perk to buy, a district, or a starting loadout.
 const ROM = ['I', 'II', 'III'];
 const fmt = n => n.toLocaleString('en-US');
 function fam(grp, name, stat, desc, hint, tiers) {
@@ -271,7 +271,7 @@ function rewardChips(c) {
   let h = `<span class="tag t-scrap">+${c.scrap} scrap</span>`;
   for (const u of unlocks(c)) {
     const [k, n] = UNLOCK_KIND[u];
-    h += `<span class="tag t-${k}">${k}: ${n}</span><span class="note">${k === 'perk' ? 'then buy it in the Armory' : k === 'loadout' ? 'take it from the Armory' : 'pick it when you choose where to fight'}</span>`;
+    h += `<span class="tag t-${k}">${k}: ${n}</span><span class="note">${k === 'perk' ? 'then buy it in your kit before a run' : k === 'loadout' ? 'take it in your kit before a run' : 'pick it when you choose where to fight'}</span>`;
   }
   for (const n of gearLockedBy(c.id))
     h += `<span class="tag t-perk">gear: ${n}</span><span class="note">it can turn up in level-up picks</span>`;
@@ -311,7 +311,7 @@ function renderChalScreen() {
 }
 export function openChal(from) {
   chalFrom = from;
-  ['menu', 'hangar', 'over'].forEach(id => ($(id).hidden = true));
+  ['menu', 'over'].forEach(id => ($(id).hidden = true));
   renderChalScreen();
   $('chal').hidden = false;
   $('chalBack').focus({ preventScroll: true });

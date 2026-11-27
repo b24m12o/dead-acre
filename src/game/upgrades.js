@@ -324,7 +324,7 @@ export const UP = [
       S.magnet *= 1.6;
     },
   },
-  // the Field Manual: gear that only turns up in runs once a challenge has taught it to you (see the Armory)
+  // the Field Manual: gear that only turns up in runs once a challenge has taught it to you (the challenges say which)
   {
     id: 'wind',
     short: 'Once a night, a hit that would nearly kill you leaves you on 30 health',

@@ -171,7 +171,6 @@ export function init() {
     } else if (k === 'escape' && GS.state === 'menu') {
       for (const [id, b] of [
         ['practice', 'practiceBack'],
-        ['hangar', 'hangarBack'],
         ['settings', 'settingsBack'],
         ['chal', 'chalBack'],
         ['survSetup', 'survBack'],

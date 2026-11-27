@@ -265,7 +265,7 @@ export function nextGuns(n = 2) {
     .slice(0, n);
 } // a gun you turned down went back on the truck for good // the first case always holds a gun your character is good with
 export const PERKS = [
-  { id: 'hp', name: 'Kevlar Inserts', desc: '+10 max health for every character.', max: 5, cost: l => 60 + l * 60 },
+  { id: 'hp', name: 'Kevlar Inserts', desc: '+10 max health.', max: 5, cost: l => 60 + l * 60 },
   { id: 'dmg', name: 'Hand-loaded Ammo', desc: '+6% damage for every weapon.', max: 5, cost: l => 80 + l * 70 },
   { id: 'reroll', name: 'Scavenger Instinct', desc: '+1 gear reroll per run.', max: 3, cost: l => 110 + l * 110 },
   { id: 'magnet', name: 'Deep Pockets', desc: '+15% ammo carried and pickup range.', max: 3, cost: l => 70 + l * 60 },
