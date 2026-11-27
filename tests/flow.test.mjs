@@ -56,7 +56,10 @@ export async function run(b) {
   })()`);
   await pg.close();
   check(o.wheel, 'the weapon wheel would not open with only a pistol');
-  check(o.lamp && !o.lamp.shot, 'a round through a bulb should pass it by, the lamp still lit: ' + JSON.stringify(o.lamp));
+  check(
+    o.lamp && !o.lamp.shot,
+    'a round through a bulb should pass it by, the lamp still lit: ' + JSON.stringify(o.lamp)
+  );
   check(o.lull !== undefined && o.lull < 8, `a breather with four far-off unaware ones lasted ${o.lull} s (of 18)`);
   check(o.idle <= 6, `an empty dawn still counts down from ${o.idle}`);
   check(o.busy > 10, `a dawn with an unopened drop came down to ${o.busy}`);
