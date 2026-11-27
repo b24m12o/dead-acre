@@ -10,35 +10,21 @@ import { zoomK } from '../render/sprites.js';
 import { $ } from '../core/errors.js';
 import { pick } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
-import { GUNS, GUN_FROM, GUN_PATH, PERKS, WEAPON_NIGHTS, nextGuns } from '../game/arsenal.js';
-import { showStreak } from './callouts.js';
+import { GUNS, GUN_PATH, PERKS, WEAPON_NIGHTS, nextGuns } from '../game/arsenal.js';
 import { initAudio } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { setMuted } from '../audio/music.js';
-import { AMMO_NAME, LV, giveGun } from '../game/state.js';
+import { AMMO_NAME } from '../game/state.js';
 import { newRun } from '../game/run.js';
-import { UP, doReroll, offerUpgrades, pickLater, renderMods } from '../game/upgrades.js';
-import { giveTraps } from '../game/traps.js';
-import { AB_B, AB_DEF, abOwned, abPickB } from '../game/abilities.js';
+import { doReroll, offerUpgrades, pickLater, renderMods } from '../game/upgrades.js';
+import { AB, ABILITIES, AB_IDS, abDef, abOpen, abPicked } from '../game/abilities.js';
 import { updateHint } from './settings-ui.js';
 import { showMenuRec } from './screens.js';
-import {
-  LOADOUTS,
-  loadoutOpen,
-  stat,
-  chalDone,
-  chalFrom,
-  checkChal,
-  stopOpen,
-  lockLine,
-  openChal,
-  snapChal,
-} from '../game/challenges.js';
+import { chalDone, chalFrom, checkChal, stopOpen, lockLine, openChal, snapChal } from '../game/challenges.js';
 import { startPractice } from '../game/practice.js';
-import { chipNote, menuInit, renderChallenges, renderDistricts } from './menu.js';
+import { chipNote, menuInit, renderDistricts } from './menu.js';
 import { keysIn } from '../core/binds.js';
 import { JOBS_J, STOPS } from '../game/route.js';
-const AB_COST = 300; // a second ability, per character
 export function PK() {
   const o = {},
     off = GS.meta.perkOff || {};
@@ -53,52 +39,41 @@ export function cleanRun() {
 export function seedsLine() {
   return `Scrap <b>${GS.meta.seeds.toLocaleString()}</b>`;
 }
-// what your kit comes to, on its button on the setup screen: the loadout, the ability, how many perks are on
+// what your kit comes to, on its button on the setup screen: the ability, how many perks are on
 export function kitSum() {
   const el = $('kitSum');
   if (!el) return;
-  const lo = LOADOUTS[GS.meta.loadout && loadoutOpen(GS.meta.loadout) ? GS.meta.loadout : 'std'],
-    ab = abPickB('ranger') ? AB_B.ranger : AB_DEF.ranger,
-    on = PERKS.filter(pk => (GS.meta.perks[pk.id] || 0) > 0 && !(GS.meta.perkOff || {})[pk.id]).length;
-  el.textContent = `${lo ? lo.name : 'Standard Issue'} · ${ab.name} · ${on ? on + ' perk' + (on > 1 ? 's' : '') + ' on' : 'no perks'}`;
+  const on = PERKS.filter(pk => (GS.meta.perks[pk.id] || 0) > 0 && !(GS.meta.perkOff || {})[pk.id]).length;
+  el.textContent = `${AB().name} · ${on ? on + ' perk' + (on > 1 ? 's' : '') + ' on' : 'no perks'}`;
 }
 // your kit, on the setup screen (there was an Armory for it): the loadout you take, the E ability, the perks your
 // scrap buys, and the scrap
 export function renderKit() {
   checkChal(true);
-  renderChallenges();
   $('hangarSeeds').innerHTML = seedsLine();
   kitSum();
   {
-    // the E ability: Mortar strike, or the second one once it's bought (300 scrap, from the fifth night on)
-    const night5 = ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 5,
-      own = abOwned('ranger'),
-      inB = abPickB('ranger'),
-      A = AB_DEF.ranger,
-      B = AB_B.ranger,
+    // the E ability: six to pick from, the flashbang yours from the start, the rest opened by challenges (the mortar
+    // strike last: five bosses down). The line under them says what the picked one does, or how one's opened
+    const cur = abPicked(),
       box = $('hangarAbs');
-    box.innerHTML =
-      `<button type="button" class="chip${inB ? '' : ' on'}" data-k="a" aria-pressed="${!inB}"><b>${A.name}</b></button>` +
-      `<button type="button" class="chip${inB ? ' on' : ''}${own || night5 ? '' : ' lockd'}" data-k="b" aria-pressed="${inB}"><b>${B.name}</b>${own ? '' : `<em>${night5 ? AB_COST + ' scrap' : 'locked'}</em>`}</button>`;
+    box.innerHTML = AB_IDS.map(id => {
+      const open = abOpen(id),
+        on = id === cur;
+      return `<button type="button" class="chip${on ? ' on' : ''}${open ? '' : ' lockd'}" data-k="${id}" aria-pressed="${on}" ${open ? '' : 'aria-disabled="true"'}><b>${abDef(id).name}</b>${open ? '' : '<em>locked</em>'}</button>`;
+    }).join('');
     chipNote(
       box,
       $('abDesc'),
-      k =>
-        k === 'a'
-          ? `<b>${A.name}</b> · ${A.desc}`
-          : `<b>${B.name}</b> · ${B.desc}${own ? '' : night5 ? ` Buy it for ${AB_COST} scrap.` : ' Survive five nights to unlock it.'}`,
-      inB ? 'b' : 'a'
+      id => `<b>${abDef(id).name}</b> · ${abDef(id).desc}${abOpen(id) ? '' : ' ' + lockLine(ABILITIES[id].req)}`,
+      cur
     );
     for (const b of box.children)
       b.addEventListener('click', () => {
-        if (b.dataset.k === 'b' && !own) {
-          if (!night5 || GS.meta.seeds < AB_COST) return;
-          GS.meta.seeds -= AB_COST;
-          GS.meta.abOwn = { ...(GS.meta.abOwn || {}), ranger: true };
-          sfx.level();
-        } else sfx.swap();
-        GS.meta.abSel = { ...(GS.meta.abSel || {}), ranger: b.dataset.k };
-        if (GS.RUN) GS.RUN.abB = abPickB(GS.RUN.hero);
+        if (!abOpen(b.dataset.k)) return;
+        sfx.swap();
+        GS.meta.ab = b.dataset.k;
+        if (GS.RUN) GS.RUN.ab = b.dataset.k;
         saveMeta();
         renderKit();
         const f = $('hangarAbs').querySelector(`[data-k="${b.dataset.k}"]`);
@@ -184,7 +159,7 @@ export function begin() {
     GS.RUN.hm = true;
     GS.RUN.endless = true;
   } // Horde Mode: wave after wave of hordes, no evac
-  GS.RUN.abB = abPickB(GS.RUN.hero);
+  GS.RUN.ab = abPicked(); // (your E ability, picked in your kit)
   if (!GS.RUN.practice) clearSave(); // a new run replaces whatever was saved
   GS.RUN.jobN = camp ? JOBS_J.map(w => (w === 7 ? pick([6, 7]) : w)) : [3, 7, 12, pick([9, 13])]; // Hale can be found either night at the gas station
   if (camp) GS.RUN.stop = 0; // Main Street, Dead Acre
@@ -226,7 +201,7 @@ export function begin() {
   GS.state = 'play';
   updateHint();
   setMuted(GS.muted);
-  if (!GS.RUN.practice && !GS.RUN.resumed) applyLoadout();
+  // (no starting loadouts any more: every run starts with the pistol, and the weapon cases bring the rest)
   if (PK().start && !GS.RUN.practice && !GS.RUN.resumed)
     GS.later.push({
       t: 0.4,
@@ -241,34 +216,6 @@ export const firstCase = w =>
     .map(Number)
     .sort((a, b) => a - b)
     .find(n => n >= w) || w;
-// the starting loadout taken in your kit: a gun and its ammo, a few traps, or a survivor at your side from night 1
-function applyLoadout() {
-  const id = GS.meta.loadout,
-    L = LOADOUTS[id];
-  if (!L || id === 'std' || !loadoutOpen(id)) return;
-  if (!GS.RUN.endless && (GS.meta.tutForce || (!GS.meta.tutDone && (stat('maxNight') || 0) < 2))) return; // the training run teaches the guns and traps itself
-  if (L.gun && !TW('pistol')) {
-    if ((GUN_FROM[L.gun] || 1) > 2) {
-      GS.RUN.lgun = L.gun; // a heavy gun rides with the convoy: it comes in the first weapon case of its night (night-flow.js)
-      GS.later.push({
-        t: 4,
-        fn: () =>
-          showStreak(
-            `Your ${GUNS[L.gun].name} is with the convoy`,
-            `It comes in the weapon case before night ${firstCase(GUN_FROM[L.gun])}`
-          ),
-      });
-    } else {
-      giveGun(L.gun);
-      GS.RUN.lcase = true; // the loadout gun is this run's first weapon case: that dawn brings a supply crate instead
-    }
-  } // "Sidearm only" means it: the loadout's gun stays home
-  if (L.traps) giveTraps(L.traps);
-  if (L.buddy) {
-    LV.buddy = (LV.buddy || 0) + 1;
-    UP.find(u => u.id === 'buddy').apply();
-  }
-}
 // Continue: the run saved at its last dawn, picked up at that dawn
 export function continueRun() {
   offAir();

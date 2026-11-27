@@ -16,6 +16,7 @@ import { dust, floatText, shake } from '../render/effects.js';
 import { explode, quietKill, quietTarget, releaseGrab, shoveEnemy } from './combat.js';
 import { showStreak } from '../ui/callouts.js';
 import { saveMeta } from '../core/settings.js';
+import { chalDone } from './challenges.js';
 import { mouse, moveInput } from '../core/input.js';
 import { makeNoise } from './noise.js';
 export const AB_DEF = {
@@ -83,9 +84,39 @@ export const AB_B = {
     upName: 'Bigger Bundles',
   },
 };
-export const abOwned = h => !!(GS.meta.abOwn && GS.meta.abOwn[h]);
-export const abPickB = h => abOwned(h) && !!(GS.meta.abSel && GS.meta.abSel[h] === 'b');
-export const AB = () => (GS.RUN.abB ? AB_B[GS.RUN.hero] : AB_DEF[GS.RUN.hero]) || AB_DEF[GS.RUN.hero] || AB_DEF.ranger,
+// the six E abilities the Soldier can take (the Deputy's and the Gunslinger's came to him with them): whose it was
+// and whether it was their second (how it's thrown, below), and the challenge that opens it. The flashbang is yours
+// from the start; the mortar strike, the best of them, comes late: five bosses down
+export const ABILITIES = {
+  flash: { h: 'breacher', b: false },
+  flare: { h: 'breacher', b: true, req: 'trap50' },
+  dyn: { h: 'grenadier', b: true, req: 'cars50' },
+  claymore: { h: 'ranger', b: true, req: 'shotgun300' },
+  rapid: {
+    h: 'grenadier',
+    b: false,
+    req: 'heads250',
+    name: 'Rapid fire',
+    desc: 'Six fast shots from the hip at everything in front of you, no ammo used.',
+    upShort: 'Rapid fire: 3 more shots',
+    up: 'Rapid fire fires 3 more shots.',
+    upName: 'Hair Trigger',
+  },
+  mortar: { h: 'ranger', b: false, req: 'boss5' },
+};
+export const AB_IDS = Object.keys(ABILITIES);
+export const abDef = id => {
+  const A = ABILITIES[id] || ABILITIES.flash,
+    D = (A.b ? AB_B : AB_DEF)[A.h];
+  return A.name ? { ...D, name: A.name, desc: A.desc, upShort: A.upShort, up: A.up, upName: A.upName } : D;
+};
+// open: its challenge done (or the claymore, bought back when it was the Soldier's second)
+export const abOpen = id => {
+  const A = ABILITIES[id];
+  return !!A && (!A.req || chalDone(A.req) || (id === 'claymore' && !!(GS.meta.abOwn && GS.meta.abOwn.ranger)));
+};
+export const abPicked = () => (GS.meta.ab && abOpen(GS.meta.ab) ? GS.meta.ab : 'flash');
+export const AB = () => abDef((GS.RUN && GS.RUN.ab) || abPicked()),
   abCd = () => AB().cd * S.abCd;
 // under a roof a throw only leaves by a doorway (roofs.js): against the wall it drops there, and you are told why
 const underRoof = (tx, ty) => {
@@ -129,8 +160,9 @@ export function useAbility() {
     cwy = cam.y + mouse.y / ZOOM,
     a = Math.atan2(cwy - GS.P.y, cwx - GS.P.x),
     dl = Math.hypot(cwx - GS.P.x, cwy - GS.P.y),
-    h = GS.RUN.hero;
-  if (GS.RUN.abB && AB_B[h]) {
+    AA = ABILITIES[GS.RUN.ab] || ABILITIES.flash,
+    h = AA.h; // (thrown as its old owner threw it)
+  if (AA.b) {
     if (h === 'ranger') {
       GS.mines = GS.mines || [];
       while (GS.mines.length >= 2 + S.abLv) GS.mines.shift();

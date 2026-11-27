@@ -3,7 +3,7 @@ import { GS } from '../core/gs.js';
 import { $ } from '../core/errors.js';
 import { TAU, angDiff, d2, damp, rand } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
-import { GUNS, GUN_FROM, PERKS } from '../game/arsenal.js';
+import { GUNS, PERKS } from '../game/arsenal.js';
 import { DIFF } from '../core/profile.js';
 import { viewH, viewW, zoomK } from '../render/sprites.js';
 import { collide, los, solidPt } from '../world/nav.js';
@@ -19,10 +19,10 @@ import { AC, playR } from '../audio/audio.js';
 import { radioVoice } from '../audio/radio.js';
 import { killEnemy } from '../game/combat.js';
 import { muzzleOf } from '../actors/player-weapons.js';
-import { PK, cleanRun, firstCase } from './hangar.js';
+import { PK, cleanRun } from './hangar.js';
 import { rope } from '../core/later.js';
 import { INFECTION, TWISTS } from '../game/districts.js';
-import { LOADOUTS, chalDone, loadoutOpen, lockLine, stopOpen } from '../game/challenges.js';
+import { chalDone, stopOpen } from '../game/challenges.js';
 import { STOPS } from '../game/route.js';
 // the setup screen is for the campaign, or for Horde Mode, which is fought on any place the campaign has taken
 // you to: pick the ground
@@ -220,36 +220,6 @@ export function chipNote(box, note, say, cur) {
     b.addEventListener('mouseleave', back);
     b.addEventListener('blur', back);
   }
-}
-export function renderChallenges() {
-  // starting loadouts: earned from challenges, one taken into each new run (on the setup screen, your kit)
-  const box = $('hangarOutfits'),
-    cur = GS.meta.loadout && loadoutOpen(GS.meta.loadout) ? GS.meta.loadout : 'std';
-  box.innerHTML = Object.entries(LOADOUTS)
-    .map(([id, o]) => {
-      const open = loadoutOpen(id),
-        on = cur === id;
-      return `<button type="button" class="chip${on ? ' on' : ''}${open ? '' : ' lockd'}" data-k="${id}" aria-pressed="${on}" ${open ? '' : 'aria-disabled="true"'}><b>${o.name}</b>${open ? '' : '<em>locked</em>'}</button>`;
-    })
-    .join('');
-  const say = id => {
-    const o = LOADOUTS[id],
-      ds =
-        o.desc ||
-        ((GUN_FROM[o.gun] || 1) > 2
-          ? `Your ${GUNS[o.gun].name} rides with the convoy and comes in the weapon case before night ${firstCase(GUN_FROM[o.gun])}.`
-          : `Start with the ${GUNS[o.gun].name} and its ammo, in place of your first weapon case.`);
-    return `<b>${o.name}</b> · ${ds}${loadoutOpen(id) ? '' : ' ' + lockLine(o.req)}`;
-  };
-  chipNote(box, $('loadDesc'), say, cur);
-  for (const b of box.children)
-    b.addEventListener('click', () => {
-      if (!loadoutOpen(b.dataset.k)) return;
-      GS.meta.loadout = b.dataset.k;
-      saveMeta();
-      renderChallenges();
-      refocus('hangarOutfits', `[data-k="${b.dataset.k}"]`);
-    });
 }
 
 /* ---------- Menu attract ---------- */

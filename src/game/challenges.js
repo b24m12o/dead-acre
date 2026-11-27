@@ -7,7 +7,7 @@ import { showStreak } from '../ui/callouts.js';
 import { DISTRICTS } from './districts.js';
 // Challenges come in families: one goal, tiers I, II and III further along it. Each tier is its own entry with its own
 // id (the save only stores which ids are done), so the ids things are gated on (a perk's req, a district's lock) stay
-// as they were. Rewards: scrap, and for some tiers a perk to buy, a district, or a starting loadout.
+// as they were. Rewards: scrap, and for some tiers a perk to buy, a district, or an E ability.
 const ROM = ['I', 'II', 'III'];
 const fmt = n => n.toLocaleString('en-US');
 function fam(grp, name, stat, desc, hint, tiers) {
@@ -42,7 +42,7 @@ export const CHAL = [
     'A critical hit that kills a zombie can take its head off.',
     [
       ['heads50', 50, 80],
-      ['heads250', 250, 75, 'Sharpshooter loadout'],
+      ['heads250', 250, 75, 'Rapid fire ability'],
       ['heads1000', 1000, 150],
     ]
   ),
@@ -78,7 +78,7 @@ export const CHAL = [
     'Shoot a wrecked car until it catches fire and blows.',
     [
       ['cars10', 10, 80],
-      ['cars50', 50, 100, 'Demolition loadout'],
+      ['cars50', 50, 100, 'Dynamite ability'],
     ]
   ),
   // ---- weapons ----
@@ -87,7 +87,7 @@ export const CHAL = [
     ['pistol1500', 1500, 125],
   ]),
   ...fam('Weapons', 'Buckshot', 'shotgun', g => `${fmt(g)} kills with shotguns`, '', [
-    ['shotgun300', 300, 100, ['Drum Magazines', 'Door Kicker loadout']],
+    ['shotgun300', 300, 100, ['Drum Magazines', 'Claymore ability']],
     ['shotgun1500', 1500, 125],
   ]),
   ...fam(
@@ -98,7 +98,7 @@ export const CHAL = [
     'Assault Rifle, Hunting Rifle and Machine Gun all count.',
     [
       ['rifle300', 300, 100, 'Steel-Core Ammo'],
-      ['rifle1500', 1500, 125, 'Patrol loadout'],
+      ['rifle1500', 1500, 125],
     ]
   ),
   // ---- traps ----
@@ -109,7 +109,7 @@ export const CHAL = [
     g => `Kill ${fmt(g)} zombies in the blast of a land mine, gas drum or rigged car you set`,
     "The dawn kit brings traps; set the one you hold with F. Claymores and the fire after a blast don't count.",
     [
-      ['trap50', 50, 100, 'Trapper loadout'],
+      ['trap50', 50, 100, 'Road flare ability'],
       ['trap250', 250, 100],
       ['trap1000', 1000, 200],
     ]
@@ -150,7 +150,7 @@ export const CHAL = [
     ]
   ),
   ...fam('Survival', 'Good Samaritan', 'rescues', g => `Rescue ${fmt(g)} survivors`, '', [
-    ['rescue5', 5, 120, 'Buddy System loadout'],
+    ['rescue5', 5, 120],
     ['rescue12', 12, 150],
   ]),
   ...fam(
@@ -180,7 +180,7 @@ export const CHAL = [
     'A boss comes every fifth night.',
     [
       ['boss1', 1, 100],
-      ['boss5', 5, 125, 'Heavy Weapons loadout'],
+      ['boss5', 5, 125, 'Mortar strike ability'],
       ['boss15', 15, 250],
     ]
   ),
@@ -254,13 +254,12 @@ const UNLOCK_KIND = {
   'Molotov Start': ['perk', 'Molotov Start'],
   'Route 9': ['district', 'Route 9'],
   'Hollow Hill': ['district', 'Hollow Hill'],
-  'Sharpshooter loadout': ['loadout', 'Sharpshooter'],
-  'Door Kicker loadout': ['loadout', 'Door Kicker'],
-  'Patrol loadout': ['loadout', 'Patrol'],
-  'Heavy Weapons loadout': ['loadout', 'Heavy Weapons'],
-  'Trapper loadout': ['loadout', 'Trapper'],
-  'Demolition loadout': ['loadout', 'Demolition'],
-  'Buddy System loadout': ['loadout', 'Buddy System'],
+  // (they were starting loadouts; an E ability each now, to pick in your kit: abilities.js ABILITIES)
+  'Road flare ability': ['ability', 'Road flare'],
+  'Dynamite ability': ['ability', 'Dynamite'],
+  'Claymore ability': ['ability', 'Claymore'],
+  'Rapid fire ability': ['ability', 'Rapid fire'],
+  'Mortar strike ability': ['ability', 'Mortar strike'],
 };
 const unlocks = c => [].concat(c.unlock || []).filter(u => UNLOCK_KIND[u]);
 export let gearLockedBy = () => []; // the level-up gear a challenge teaches (set up in upgrades.js, which knows the picks)
@@ -271,7 +270,7 @@ function rewardChips(c) {
   let h = `<span class="tag t-scrap">+${c.scrap} scrap</span>`;
   for (const u of unlocks(c)) {
     const [k, n] = UNLOCK_KIND[u];
-    h += `<span class="tag t-${k}">${k}: ${n}</span><span class="note">${k === 'perk' ? 'then buy it in your kit before a run' : k === 'loadout' ? 'take it in your kit before a run' : 'pick it when you choose where to fight'}</span>`;
+    h += `<span class="tag t-${k}">${k}: ${n}</span><span class="note">${k === 'perk' ? 'then buy it in your kit before a run' : k === 'ability' ? 'pick it in your kit before a run' : 'pick it when you choose where to fight'}</span>`;
   }
   for (const n of gearLockedBy(c.id))
     h += `<span class="tag t-perk">gear: ${n}</span><span class="note">it can turn up in level-up picks</span>`;
