@@ -1440,7 +1440,7 @@ export function dropCrate(gun, alt, kits, note, alt2) {
     else if (gun && alt)
       showStreak(
         'Convoy airdrop',
-        `A weapon case, dropped nearby · ${GUNS[gun].name}${alt2 ? `, ${GUNS[alt2].name}` : ''} or ${GUNS[alt].name}`,
+        `A weapon case, dropped nearby · ${GUNS[gun].name}${alt2 ? `, ${GUNS[alt2].name}` : ''} and ${GUNS[alt].name}`,
         undefined,
         live
       );
@@ -1613,7 +1613,9 @@ export function updateCrates(dt) {
       c.gun
     ) {
       c.open = true;
-      if (c.alt && !GS.P.owned.includes(c.alt) && !GS.P.owned.includes(c.gun)) {
+      if (c.both) {
+        for (const g of [c.gun, c.alt]) if (g && !GS.P.owned.includes(g)) giveGun(g); // the checkpoint's codes: both
+      } else if (c.alt && !GS.P.owned.includes(c.alt) && !GS.P.owned.includes(c.gun)) {
         const gs = [c.gun, c.alt, c.alt2].filter(Boolean); // a third with the checkpoint's radio codes
         const go = () => {
           if (GS.state === 'play') {

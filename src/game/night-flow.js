@@ -106,11 +106,12 @@ function dawnDrops() {
     GS.later.push({
       t: 1.6,
       fn: () => {
-        const gs = nextGuns(codesDue() ? 3 : 2); // the checkpoint's radio codes: a third gun in it
+        const gs = nextGuns(codesDue() ? 2 : 1); // the checkpoint's radio codes: the next gun on the ladder in it too
         if (GS.state === 'play' && gs.length) {
-          const c = dropCrate(gs[0], gs[1], null, undefined, gs[2]);
+          const c = dropCrate(gs[0], gs[1], null, undefined);
           if (c) {
             c.dawn = true;
+            c.both = gs.length > 1; // (both yours: no choosing)
             laterCase(gs.length);
           }
         }

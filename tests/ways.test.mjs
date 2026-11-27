@@ -124,12 +124,12 @@ export async function run(b) {
     out.bandBefore = bandaged(); laterArrive(2); out.bandAt = bandaged();
     GS.wave = 7; GS.nightLive = true; out.bandLast = bandaged();
     GS.wave = 8; laterNight(); out.bandAfter = bandaged(); out.bandPend = laterPending().length;
-    // the checkpoint: the next weapon case holds three guns, once
+    // the checkpoint: the next weapon case holds the next two guns on the ladder, both yours, once
     GS.RUN.viaLater = []; GS.wave = 4; GS.P.owned = ['pistol']; GS.RUN.declined = [];
     applyVia('checkpoint', ['checkpoint', 'road']);
     out.codes = codesDue();
-    const gs = nextGuns(codesDue() ? 3 : 2), c = dropCrate(gs[0], gs[1], null, undefined, gs[2]); laterCase(gs.length);
-    out.case = gs.length; out.alt2 = !!(c && c.alt2); out.codesAfter = codesDue();
+    const gs = nextGuns(codesDue() ? 2 : 1), c = dropCrate(gs[0], gs[1], null, undefined); laterCase(gs.length);
+    out.case = gs.length; out.alt2 = !!(c && c.alt); out.codesAfter = codesDue();
     out.saidCodes = said.filter(x => /^From the checkpoint/.test(x)).length;
     // never promised when the road ahead can't deliver
     GS.RUN.tw = { pistol: true }; out.noCodes = laterLine('checkpoint', 2) === ''; GS.RUN.tw = {};
@@ -225,8 +225,8 @@ export async function run(b) {
     'bandages for three nights from arrival'
   );
   lw(
-    L.codes && L.case === 3 && L.alt2 && !L.codesAfter && L.saidCodes === 1,
-    'the next case should hold three guns, once'
+    L.codes && L.case === 2 && L.alt2 && !L.codesAfter && L.saidCodes === 1,
+    'the next case should hold two guns, once'
   );
   lw(L.noCodes && L.noTimber && L.noJerry, 'no Later line when the road ahead cannot deliver');
   lw(L.saved === 'wrecks@3', 'a Continue should keep what is waiting');

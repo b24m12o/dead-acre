@@ -248,22 +248,15 @@ export const GUN_DESC = {
 // run grows into its firepower (a weapon case only holds guns whose night has come; a loadout's gun waits for it too)
 export const GUN_FROM = { shotgun: 2, smg: 2, rifle: 4, lever: 4, hunter: 7, auto: 7, lmg: 9, launcher: 9 };
 export const gunOpen = (g, w = GS.wave + 1) => w >= (GUN_FROM[g] || 1);
-export function nextGuns(n = 2) {
-  if (TW('pistol')) return [];
-  const fav = { ranger: 'rifle', breacher: 'shotgun', grenadier: 'smg' }[GS.RUN.hero] || 'shotgun',
-    base = GS.RUN.gunPath || GUN_PATH,
-    path = [fav, ...base.filter(g => g !== fav)];
-  return path
-    .filter(
-      g =>
-        GS.P &&
-        !GS.P.owned.includes(g) &&
-        !(GS.RUN.declined || []).includes(g) &&
-        g !== GS.RUN.lgun && // your loadout's gun comes on its own
-        gunOpen(g)
-    )
-    .slice(0, n);
-} // a gun you turned down went back on the truck for good // the first case always holds a gun your character is good with
+// the guns the weapon cases bring, one to a case, in this order: each the gun for the nights it comes before (the
+// shotgun for the first crowds, the SMG as they thicken, the rifle for the big ones, the hunting rifle through whole
+// lines of them, the LMG to hold a street at the end). A gun you already have (a loadout's) is skipped: the next one
+// comes. No choosing between two any more
+export const GUN_LADDER = ['shotgun', 'smg', 'rifle', 'hunter', 'lmg'];
+export function nextGuns(n = 1) {
+  if (TW('pistol') || !GS.P) return [];
+  return GUN_LADDER.filter(q => !GS.P.owned.includes(q) && q !== GS.RUN.lgun).slice(0, n); // (two: the checkpoint's codes)
+}
 export const PERKS = [
   { id: 'hp', name: 'Kevlar Inserts', desc: '+10 max health.', max: 5, cost: l => 60 + l * 60 },
   { id: 'dmg', name: 'Hand-loaded Ammo', desc: '+6% damage for every weapon.', max: 5, cost: l => 80 + l * 70 },

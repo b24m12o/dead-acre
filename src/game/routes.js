@@ -531,9 +531,9 @@ export const LATER = {
     paid: 'Bandages · your people get back up twice as fast for 3 nights',
   },
   checkpoint: {
-    text: 'Radio codes · the next weapon case holds three guns, not two',
+    text: 'Radio codes · the next weapon case holds two guns, both yours',
     from: 'the checkpoint',
-    paid: 'Radio codes · three guns in this case',
+    paid: 'Radio codes · two guns in this case',
   },
   tanker: {
     text: 'A jerrycan · the next garage truck needs 2 cans of fuel, not 3',
@@ -590,11 +590,11 @@ function pay(l, show = true) {
 }
 // the pharmacy's bandages: are they working tonight?
 export const bandaged = () => LAT().some(l => l.id === 'pharmacy' && l.on && GS.wave + (GS.nightLive ? 0 : 1) <= l.w1);
-// the radio codes: owed at this weapon case? (the case calls laterCase once it holds three)
+// the radio codes: owed at this weapon case? (the case calls laterCase once it holds two)
 export const codesDue = () => !!due('checkpoint');
 export function laterCase(n) {
   const l = due('checkpoint');
-  if (l && n >= 3) pay(l);
+  if (l && n >= 2) pay(l); // (the codes put a second gun in the case)
 }
 // the jerrycan: the garage truck here needs one can less (paid as the truck is found)
 export function jerrycan() {
