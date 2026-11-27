@@ -24,7 +24,7 @@ export async function run(b) {
       const n = GS.corpses.length; menuUpdate(1 / 30); tickWorld(1 / 30);
       if (i % 10 === 0) tops.add(Math.round(document.querySelector('#menu h1').getBoundingClientRect().top));
       if (GS.corpses.length > n) shots++;
-      if (i === 30) out.want3 = MUS.want; // (a second after the sound came on: not yet)
+      if (i === 30) out.want3 = MUS.want; // (a second after the sound came on: the theme, its entrance)
     }
     out.shots = shots;
     out.live = GS.enemies.length;
@@ -53,8 +53,8 @@ export async function run(b) {
   check(o.recorded, 'every Channel 9 line on the title should be one Reyes has recorded');
   check(o.ch9.length > 10, `Channel 9 should be typing: "${o.ch9}"`);
   check(
-    o.want3 === 'none' && o.want === 'title',
-    `the theme should come up a couple of seconds after the sound comes on: ${o.want3} at 1 s, ${o.want} at 30 s`
+    o.want3 === 'title' && o.want === 'title',
+    `the theme should come in as the sound comes on, opening on its entrance: ${o.want3} at 1 s, ${o.want} at 30 s`
   );
   check(o.wantPlay !== 'title', `and go when a run starts: ${o.wantPlay}`);
   check(!errs.length, 'page errors: ' + errs.join(' | '));

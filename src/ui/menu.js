@@ -413,8 +413,8 @@ function ch9Tick(dt) {
     el.textContent = '';
     ch9.i = ch9.n = ch9.hold = 0;
     ch9.said = false;
-    ch9.wait = 0.5;
-    GS.menuAt = Math.min(GS.menuAt ?? GS.time, GS.time - 3); // (world/tick.js: the theme 5 s after the menu, so 2 s from now)
+    ch9.wait = 3.6; // (after the title theme's entrance: its riser and hit, music.js)
+    GS.menuAt = Math.min(GS.menuAt ?? GS.time, GS.time - 5); // (world/tick.js: the theme 5 s after the menu: now)
   }
   const L = CH9[ch9.i];
   if ((ch9.wait -= dt) > 0) return; // (the screen comes in first)
