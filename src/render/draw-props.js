@@ -1,4 +1,5 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
+import { youRing } from './render.js';
 import { gunPose, rideCiv } from '../game/evac-ride.js';
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, d2, lerp } from '../core/util.js';
@@ -435,11 +436,17 @@ export function drawCasters() {
         e.type === 'queen' &&
         (e.dead ? e.y - 18 : e.y + 240) > P.y &&
         Math.hypot(P.x - e.x, (P.y - e.y) * 1.2) < e.r * (e.sc || 1) * 1.9 + 24;
-    if (GS.enemies.some(over) || GS.corpses.some(over)) {
+    // and the crowd: bodies standing in front of you (drawn after you) and across your figure hide you in a mob,
+    // gun, ring and all, so you show through them too, and your ring over them, faintly
+    const front = e =>
+      !e.dead && !(e.emerge < 1) && e.y > P.y && e.y - P.y < 26 && Math.abs(e.x - P.x) < (e.r || 6) + 12;
+    const mob = GS.enemies.some(front) || GS.buddies.some(front);
+    if (GS.enemies.some(over) || GS.corpses.some(over) || mob) {
       GS.xray = 0.5;
       drawRanger(P);
       GS.xray = 0;
       GS.gA = 1;
+      if (mob) youRing(P, 0.55);
     }
   } // a boss standing over you, alive or dead, never hides you: you show through it, faintly
   for (const g of GS.bangs) {

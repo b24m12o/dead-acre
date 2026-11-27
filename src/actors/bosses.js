@@ -322,11 +322,14 @@ export function graveCrack(e, ga, ph, summon) {
 export function interruptBoss(e) {
   // every forced state change goes through here, so nothing an attack set up is left behind
   if (e.st === 'leap' || e.st === 'crouch') {
+    // brought down in mid-air it drops where it is, short of the dust it marked: a heavy fall, not the slam (that
+    // would land somewhere nothing warned of), and the mark goes
     if ((e.z || 0) > 1) {
       e.z = 0;
-      bossSlam(e);
+      bossSlam(e, false);
     }
     e.z = 0;
+    GS.warns = GS.warns.filter(w => !(w.k === 'dust' && (w.owner === e || w.owner === undefined)));
   }
   e.rushHit = false;
   e.chop2 = false;
@@ -576,8 +579,8 @@ export function bossRoadkill(dist, dt, e, lead, ph, spMul) {
   if (e.hugT > [1.1, 0.85, 0.65][ph] && GS.time > (e.stompCd || 0)) {
     e.hugT = 0;
     e.stompCd = GS.time + 3.2;
-    const R0 = 195 * GK;
-    bossWarn({ x: e.x, y: e.y, r: R0, dur: 0.6, k: 'slam', follow: e });
+    const R0 = 195 * GK; // (its reach on the street; the ring and the warning take it unscaled: they scale it themselves)
+    bossWarn({ x: e.x, y: e.y, r: 195, dur: 0.6, k: 'slam', follow: e });
     sfx.windup(e.x, e.y); // stand under it and it stamps: the road heaves out to the edge of the ring
     bossAct(
       e,
@@ -588,7 +591,7 @@ export function bossRoadkill(dist, dt, e, lead, ph, spMul) {
         sfx.crunch(e.x, e.y);
         shake(0.5);
         GS.hitstop = Math.max(GS.hitstop, 0.05);
-        ring(e.x, e.y, 18, R0, 0.4, [1.5, 1.3, 1.0], 1.2);
+        ring(e.x, e.y, 18, 195, 0.4, [1.5, 1.3, 1.0], 1.2);
         dust(e.x, e.y, 18, 200, 1.8, 1.4);
         chips(e.x, e.y, 14, null, 4, 380);
         decal(R.hole, e.x, e.y, 2.6, [1, 1, 1, 0.9], [0, 0, 0], 40);
@@ -909,7 +912,8 @@ export function bossChief(dist, dt, e, lead, ph) {
     e.st = 'chop';
     e.stT = [0.8, 0.7, 0.6][ph];
     e.busyT = e.stT + 1.4;
-    bossWarn({ lane: true, x: e.x, y: e.y, a: e.ga, len: 300, w: 56, dur: e.stT, k: 'slam' });
+    // (as far and as wide as the axe reaches: bossChop takes it 320 out and 28 to a side, and you are a body)
+    bossWarn({ lane: true, x: e.x, y: e.y, a: e.ga, len: 330, w: 60, dur: e.stT, k: 'slam' });
     sfx.axeRing(e.x, e.y);
     return;
   }

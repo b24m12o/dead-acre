@@ -161,9 +161,17 @@ export function syncOpts() {
   $('volMaster').value = Math.round(GS.meta.vol.master * 100);
   $('volMusic').value = Math.round((GS.meta.vol.music / 0.6) * 100);
   $('volSfx').value = Math.round((GS.meta.vol.sfx / 0.8) * 100);
+  // in a run the difficulty is the run's, set when it began: shown, not changeable until it's over
+  const runDiff = GS.state !== 'menu' && GS.RUN && GS.RUN.diff,
+    dNow = runDiff || GS.meta.diff;
   for (const seg of document.querySelectorAll('.diffSeg'))
-    for (const b of seg.children) mark(b, b.dataset.d === GS.meta.diff);
-  for (const dd of document.querySelectorAll('.diffDesc')) dd.textContent = DIFF_DESC[GS.meta.diff] || DIFF_DESC.normal;
+    for (const b of seg.children) {
+      mark(b, b.dataset.d === dNow);
+      b.disabled = !!runDiff;
+    }
+  for (const dd of document.querySelectorAll('.diffDesc'))
+    dd.textContent =
+      (DIFF_DESC[dNow] || DIFF_DESC.normal) + (runDiff ? ' Set for this run; change it from the menu.' : '');
   for (const b of $('gfxSeg').children) if (b.dataset.g) mark(b, b.dataset.g === GS.meta.hud.gfx);
   mark($('fpsBtn'), GS.meta.hud.fps);
   for (const b of $('chCol').children) mark(b, b.dataset.c === GS.meta.ch.col);
@@ -256,7 +264,9 @@ let chPrevSt;
 let settingsFrom;
 function openSettings(from) {
   settingsFrom = from;
-  for (const el of document.querySelectorAll('.pracRow')) el.hidden = from !== 'menu';
+  // (practice: from the menu, once there's a boss you've met: the first is on night 5)
+  const metBoss = ((GS.meta.stats && GS.meta.stats.maxNight) || 0) >= 5 || Object.keys(GS.meta.trophies || {}).length;
+  for (const el of document.querySelectorAll('.pracRow')) el.hidden = from !== 'menu' || !metBoss;
   $(from).hidden = true;
   syncOpts();
   $('settings').hidden = false;

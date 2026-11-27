@@ -11,7 +11,6 @@ import { choose, doReroll, openLevel, pickLater } from '../game/upgrades.js';
 import { tryDash, tryShove, useAbility } from '../game/abilities.js';
 import { begin } from '../ui/hangar.js';
 import { setPause } from '../ui/screens.js';
-import { openPractice } from '../game/practice.js';
 import { tutEnd } from '../game/tutorial.js';
 import { cycleTrap, trapDown } from '../game/traps.js';
 import { callHorde } from '../game/horde.js';
@@ -178,7 +177,7 @@ export function init() {
           $(b).click();
           break;
         }
-    } else if (k === 'b' && GS.state === 'menu' && !$('menu').hidden && !e.repeat) openPractice('menu'); // tester shortcut: boss practice
+    }
     if (k === 'm') setMuted(!GS.muted);
     if (k === 'n') setMusic(!opt.music);
   });

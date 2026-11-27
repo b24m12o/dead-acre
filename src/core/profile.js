@@ -46,7 +46,8 @@ const DIFFS = {
   normal: { hp: 1, dmg: 1, seeds: 1 },
   hard: { hp: 1.3, dmg: 1.4, seeds: 1.5 },
 };
-export const DIFF = () => DIFFS[GS.meta.diff] || DIFFS.normal;
+// the run's own difficulty while one is on (chosen when it began: hangar.js), the menu's choice otherwise
+export const DIFF = () => DIFFS[(GS.state !== 'menu' && GS.RUN && GS.RUN.diff) || GS.meta.diff] || DIFFS.normal;
 export function normalizeMeta() {
   const record = v => !!v && typeof v === 'object' && !Array.isArray(v);
   GS.meta.seeds = Number.isFinite(Number(GS.meta.seeds))

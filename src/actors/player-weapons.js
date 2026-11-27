@@ -9,9 +9,10 @@ import { GUNS } from '../game/arsenal.js';
 import { kitMod } from '../game/kits.js';
 import { ZOOM } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
-import { crystals } from '../world/map.js';
+import { MW, TILE, crystals, isWall } from '../world/map.js';
+import { WHT } from '../render/blocks.js';
 import { lampShot } from '../world/lights.js';
-import { los, query, solidPt } from '../world/nav.js';
+import { firstSolid, los, query, solidPt } from '../world/nav.js';
 import { noise, playS, spat, SBV } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, cam, gd, heroGun, startReload } from '../game/state.js';
@@ -78,7 +79,7 @@ export function roundLift(b, x, y) {
 const REACH = 360;
 const TRK = { e: null, x: 0, y: 0, t: 0, vx: 0, vy: 0 };
 // which one the crosshair is on, and the height on it (above the street) the crosshair marks
-const AIMON = { e: null, h: 0 };
+export const AIMON = { e: null, h: 0 };
 export function aimPoint(p, gx, gy) {
   const e = aimedAt(gx, gy);
   if (e) {
@@ -168,7 +169,8 @@ export function firePlayer(cwx, cwy, p, target) {
   const nB = GS.pbullets.length;
   // a flick and a click: the round goes where you clicked, not where the arm has got to on its way round (it turns
   // over a few frames; the shot snaps it there)
-  if (Number.isFinite(target) && !GUNS[p.gun].lob && d2(cwx, cwy, p.x, p.y) > (40 * GK) ** 2) p.aimA = target;
+  if (Number.isFinite(target) && !GUNS[p.gun].lob && (AIMON.e || d2(cwx, cwy, p.x, p.y) > (40 * GK) ** 2))
+    p.aimA = target;
   firePlayer0(cwx, cwy, p, target);
   const ax = cam.x + mouse.x / ZOOM,
     ay = cam.y + mouse.y / ZOOM;
@@ -680,7 +682,10 @@ export function updatePBullet(b, dt) {
           cy = b.sy + (b.vy / sp) * dc,
           [lx, ly] = roundLift(b, cx, cy),
           h = roundH(b, dc);
-        if (h < ez - 2 || h > ez + eh + 2) continue;
+        // (a dog, a crawler, one down: as tall as the line a round flies along, whatever its build; a round going
+        // over it would be fired over a body you'd see it cross. A round still goes under one in the air, and over
+        // a head when it was fired up past it)
+        if (h < ez - 2 || h > ez + Math.max(eh, b.h0) + 2) continue;
         hitIt = true;
         hx = cx;
         hy = cy + e.z;
@@ -741,6 +746,20 @@ export function updatePBullet(b, dt) {
     } else b.life = 0;
     return true;
   });
+  // (the wall it met on the way this frame, not only where it ended up: a fast round goes further in one than a
+  // wall's corner is deep; and a line between two blocks that meet corner to corner meets them)
+  if (b.life > 0) {
+    const W = firstSolid(b.x - b.vx * dt, b.y - b.vy * dt, b.x, b.y);
+    if (W) {
+      b.x = W.x;
+      b.y = W.y;
+      if (W.pinch) {
+        b.life = 0;
+        impact(b.x - b.vx * 0.012, b.y - b.vy * 0.012, b);
+        return;
+      }
+    }
+  }
   if (b.life > 0 && solidPt(b.x, b.y) && passSolid(b, dt)) return;
   if (b.life > 0 && b.bounce > 0 && !b.pellet && solidPt(b.x, b.y)) {
     const px = b.x - b.vx * dt,
@@ -890,11 +909,25 @@ export function updateMortar(m, dt, p) {
 export function updateBang(g, dt, p) {
   if (g.t < g.dur) {
     g.t += dt;
-    const k = Math.min(1, g.t / g.dur);
+    const k = Math.min(1, g.t / g.dur),
+      px = g.x,
+      py = g.y;
     g.x = lerp(g.x0, g.tx, k);
     g.y = lerp(g.y0, g.ty, k);
     g.z = Math.sin(k * Math.PI) * (24 + g.dur * 90) * GK;
     g.spin += dt * 16;
+    // a wall it isn't high enough to clear: it hits it and drops at its foot (it used to go through, and could land
+    // inside one)
+    const tx = Math.floor(g.x / TILE),
+      ty = Math.floor(g.y / TILE);
+    if (isWall(tx, ty) && (WHT[ty * MW + tx] || 0) > 0 && g.z < WHT[ty * MW + tx]) {
+      g.x = g.tx = px;
+      g.y = g.ty = py;
+      g.t = g.dur;
+      g.z = 0;
+      sfx.ting();
+      return;
+    }
     if (k >= 1) {
       g.z = 0;
       sfx.ting();
@@ -918,7 +951,8 @@ export function updateBang(g, dt, p) {
   GS.whiteFlash = Math.max(GS.whiteFlash, clamp(1 - pd / (Rg * 2.2), 0, 1) * 0.6 + 0.12);
   let nh = 0;
   query(g.x, g.y, Rg + 40 * GK, e => {
-    if (!e.dead && d2(g.x, g.y, e.x, e.y) < (Rg + e.r) ** 2) {
+    if (!e.dead && d2(g.x, g.y, e.x, e.y) < (Rg + e.r) ** 2 && los(g.x, g.y, e.x, e.y)) {
+      // (only what it can see: a wall between them takes the flash and the bang)
       hurtEnemy(e, gd() * (g.big ? 1.5 : 0.8 + S.pulse * 0.4), false, e.x - g.x, e.y - g.y, g.big ? 3.5 : 2.5, 'pulse');
       if (!e.dead) {
         const st = g.big ? 2.5 + S.abLv : 1.3 + 0.3 * S.pulse;

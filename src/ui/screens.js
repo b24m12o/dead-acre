@@ -240,7 +240,7 @@ export function init() {
     const qb = $('quitBtn');
     if (qb.dataset.sure !== '1') {
       qb.dataset.sure = '1';
-      qb.textContent = "Quit? This run's scrap is lost";
+      qb.textContent = 'Quit? The run ends: its scrap and its dawn save are lost';
       setTimeout(() => {
         qb.dataset.sure = '';
         qb.textContent = 'Quit run';

@@ -45,7 +45,7 @@ import { mouse, moveInput } from './input.js';
 import { PK } from '../ui/hangar.js';
 import { rope, runLater } from './later.js';
 import { comeRound, sieging, updateEnemy } from '../actors/enemy-ai.js';
-import { aimPoint, firePlayer, updateBang, updateMortar, updatePBullet } from '../actors/player-weapons.js';
+import { AIMON, aimPoint, firePlayer, updateBang, updateMortar, updatePBullet } from '../actors/player-weapons.js';
 import { bossProj } from '../actors/projectiles.js';
 import { BILE } from '../render/draw-enemies.js';
 import { throwMolotov } from '../world/fire.js';
@@ -282,7 +282,10 @@ export function update(dt) {
   let firing = false,
     target = p.aimA;
   const [cwx, cwy] = aimPoint(p, cam.x + mouse.x / ZOOM, cam.y + mouse.y / ZOOM); // (player-weapons.js)
-  if (d2(cwx, cwy, p.x, p.y) > (40 * GK) ** 2) target = Math.atan2(cwy - p.y, cwx - p.x);
+  // (on one of the dead you turn to it however close: one clawing at your side, inside the reach you'd otherwise hold
+  // your aim through, gets shot)
+  if ((AIMON.e && d2(cwx, cwy, p.x, p.y) > 1) || d2(cwx, cwy, p.x, p.y) > (40 * GK) ** 2)
+    target = Math.atan2(cwy - p.y, cwx - p.x);
   firing = mouse.down;
   if (WHEEL.open) {
     target = p.aimA;

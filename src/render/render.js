@@ -120,12 +120,27 @@ export const YOU_AO = { a: 0.34 };
 // Faint, with a little glow of its own for the night; not while you ride the truck, are down, or a boss comes on
 // (about a metre and a half across: wide enough that you stand in it, the camera's tilt standing you up out of its middle)
 export const YOU_RING = { r: 36 * PEOPLE, up: 8, c: [0.3, 1, 0.36], a: 0.6, glow: 0.42 };
-function youRing(p) {
+export function youRing(p, f = 1) {
   if (p.dead || p.hp <= 0 || GS.state === 'cine' || riding()) return;
   const Y = YOU_RING,
     s = Y.r / 26,
-    k = Y.glow;
-  quad(R.you_ring, p.x, p.y - Y.up, p.aimA, s, s, Y.c[0], Y.c[1], Y.c[2], Y.a, Y.c[0] * k, Y.c[1] * k, Y.c[2] * k, 0);
+    k = Y.glow * f;
+  quad(
+    R.you_ring,
+    p.x,
+    p.y - Y.up,
+    p.aimA,
+    s,
+    s,
+    Y.c[0],
+    Y.c[1],
+    Y.c[2],
+    Y.a * f,
+    Y.c[0] * k,
+    Y.c[1] * k,
+    Y.c[2] * k,
+    0
+  );
 }
 export function render() {
   fig3dFrame(); // a fresh row of the bone texture for each 3D figure this frame

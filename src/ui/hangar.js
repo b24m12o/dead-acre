@@ -269,6 +269,7 @@ export function begin() {
     clean: cleanRun(),
     practice: !!GS.PRACTICE,
     tw: GS.PRACTICE ? {} : Object.assign({}, GS.meta.twists || {}),
+    diff: GS.meta.diff, // (set for the run: changed from the pause menu it would pay out at the new rate)
   };
   if (GS.HM && !GS.PRACTICE) {
     GS.RUN.hm = true;

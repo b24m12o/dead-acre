@@ -24,7 +24,7 @@ import {
   shake,
   sparks,
 } from '../render/effects.js';
-import { blowBarrel, bossOf, crushCrystals, hitCrystal, hurtEnemy, hurtPlayer } from '../game/combat.js';
+import { blowBarrel, bossOf, cover, crushCrystals, hitCrystal, hurtEnemy, hurtPlayer } from '../game/combat.js';
 import { interruptBoss } from './bosses.js';
 import { BILE } from '../render/draw-enemies.js';
 import { DOWN_T, lyAngle, supOK } from '../render/draw-bodies.js';
@@ -47,7 +47,8 @@ export function shellBoom(x, y, R0, dmg, main) {
     const dd = Math.sqrt(d2(x, y, e.x, e.y));
     if (dd < Rg + e.r) {
       const crit = Math.random() < S.crit;
-      hurtEnemy(e, dmg * (crit ? 2.5 : 1) * (1 - 0.35 * Math.min(1, dd / Rg)), crit, e.x - x, e.y - y, 1.6, 'shell');
+      const k = (crit ? 2.5 : 1) * (1 - 0.35 * Math.min(1, dd / Rg)) * cover(x, y, e.x, e.y); // (behind a wall: a fifth)
+      hurtEnemy(e, dmg * k, crit, e.x - x, e.y - y, 1.6, 'shell');
       if (S.evo.stun && !e.dead) e.slowT = Math.max(e.slowT || 0, 0.8);
     }
   });
@@ -342,8 +343,10 @@ export function bossProj(b, dt, p) {
     }
   }
 }
-export function bossSlam(e) {
-  const R0 = 150;
+// where it lands: everything inside the dust circle it marked (bossWarn r 150, which scales by GK) is under it.
+// harm false: a fall, not a slam (cut short in mid-air: bosses.js interruptBoss)
+export function bossSlam(e, harm = true) {
+  const R0 = 150 * GK;
   for (const L of lamps)
     if (!L.down && !L.lantern && d2(L.bx, L.by, e.x, e.y) < (230 * GK) ** 2) {
       L.down = true;
@@ -356,11 +359,12 @@ export function bossSlam(e) {
   shake(0.7);
   GS.hitstop = Math.max(GS.hitstop, 0.06);
   distort(e.x, e.y, 0.06, 1.1, 0.6);
-  ring(e.x, e.y, 20, R0 * 1.2, 0.45, [1.6, 1.38, 1.1], 1.4);
+  ring(e.x, e.y, 20, 150 * 1.2, 0.45, [1.6, 1.38, 1.1], 1.4);
   dust(e.x, e.y, 22, 220, 2, 1.6);
   chips(e.x, e.y, 22, null, 4, 460);
   decal(R.hole, e.x, e.y, 3.6, [1, 1, 1, 0.95], [0, 0, 0], 40);
   flashLight(e.x, e.y, 420, [1.4, 0.4, 0.2], 0.35);
+  if (!harm) return;
   if (GS.state === 'play' && d2(e.x, e.y, GS.P.x, GS.P.y) < (R0 + GS.P.r * 0.3) ** 2)
     hurtPlayer(e.dmg * 1.35, e.x, e.y);
   crushCrystals(e.x, e.y, R0);

@@ -502,7 +502,13 @@ function ridePath(T, via = null) {
           }
       let pole = 0;
       for (let j = -1; j <= 1; j++)
-        for (let k = -1; k <= 1; k++) if (poles[(ty + j) * MW + tx + k]) pole += j || k ? 1.5 : 5;
+        for (let k = -1; k <= 1; k++) {
+          if (poles[(ty + j) * MW + tx + k]) pole += j || k ? 1.5 : 5;
+          // a crate, a power box, a burning barrel right beside it: the truck's flank would go through it (it can't
+          // smash them: a power box goes up), so it keeps well off
+          const t = isWall(tx + k, ty + j) ? ttype[(ty + j) * MW + tx + k] : 0;
+          if (t === 4 || t === 7) pole += 40;
+        }
       const W = (k, j) => isWall(tx + k, ty + j) && !SMASH.has(ttype[(ty + j) * MW + tx + k]),
         narrow = (W(-1, 0) && W(1, 0)) || (W(0, -1) && W(0, 1)); // a one-tile gap: narrower than the truck
       base[i] =

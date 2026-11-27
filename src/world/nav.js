@@ -3,7 +3,7 @@ import { GS } from '../core/gs.js';
 import { GK } from '../core/scale.js';
 import { clamp, d2 } from '../core/util.js';
 import { gl } from '../render/gl.js';
-import { MH, MW, TILE, TRAD, WH, WW, grid, isWall, ttype } from './map.js';
+import { MH, MW, TILE, TRAD, WH, WW, cars, grid, isWall, ttype } from './map.js';
 export function texFromCanvas(c, mip, premul = true) {
   const t = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, t);
@@ -57,6 +57,96 @@ const isFence = (tx, ty) =>
 const fenceRun = (tx, ty) =>
   (isFence(tx - 1, ty) || isFence(tx + 1, ty) ? 1 : 0) | (isFence(tx, ty - 1) || isFence(tx, ty + 1) ? 2 : 0);
 const FENCE_W = 4; // half its thickness: posts and wire
+// A wall is the square block that is drawn (it used to be a round post in each tile, touching the next: a body
+// caught on every joint walking along one, and slipped between two that met corner to corner). A car or a truck is
+// the box that is drawn, turned as it sits (render/cars.js: 78 by 38, a truck 118 by 44), its overhang past its own
+// tiles included; a wreck stays where it burnt.
+export const SQUARE = t => t === 1 || t === 5;
+const carHalf = c => (c.truck ? [59, 22] : [39, 19]);
+let CM = null,
+  CMfor = null,
+  CMn = -1,
+  CMl = null;
+// (which tiles a car's box reaches into: the cars near each, looked up by tile)
+function carsNear(tx, ty) {
+  if (CMfor !== cars || CMn !== cars.length || !CM) {
+    CMfor = cars;
+    CMn = cars.length;
+    CM = new Int32Array(MW * MH).fill(-1);
+    CMl = [];
+    for (const c of cars) {
+      const [hl, hw] = carHalf(c),
+        R = Math.hypot(hl, hw) + 2;
+      for (let y = Math.floor((c.y - R) / TILE); y <= Math.floor((c.y + R) / TILE); y++)
+        for (let x = Math.floor((c.x - R) / TILE); x <= Math.floor((c.x + R) / TILE); x++) {
+          if (x < 0 || y < 0 || x >= MW || y >= MH) continue;
+          const i = y * MW + x;
+          if (CM[i] < 0) {
+            CM[i] = CMl.length;
+            CMl.push([c]);
+          } else CMl[CM[i]].push(c);
+        }
+    }
+  }
+  if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return null;
+  const k = CM[ty * MW + tx];
+  return k < 0 ? null : CMl[k];
+}
+// a point against a car's box, in its own frame: [along, across, half length, half width]
+function inCar(c, x, y) {
+  const [hl, hw] = carHalf(c),
+    ca = Math.cos(c.a),
+    sa = Math.sin(c.a),
+    dx = x - c.x,
+    dy = y - c.y;
+  return [dx * ca + dy * sa, -dx * sa + dy * ca, hl, hw, ca, sa];
+}
+export function inCarPt(x, y, pad = 0) {
+  const L = carsNear(Math.floor(x / TILE), Math.floor(y / TILE));
+  if (!L) return false;
+  for (const c of L) {
+    const [u, v, hl, hw] = inCar(c, x, y);
+    if (Math.abs(u) < hl + pad && Math.abs(v) < hw + pad) return true;
+  }
+  return false;
+}
+function pushOutCar(o, r, c) {
+  const [u, v, hl, hw, ca, sa] = inCar(c, o.x, o.y);
+  if (Math.abs(u) >= hl + r || Math.abs(v) >= hw + r) return false;
+  let nu, nv, pen;
+  if (Math.abs(u) < hl && Math.abs(v) < hw) {
+    // inside the box: out by the nearest side
+    const pu = hl - Math.abs(u),
+      pv = hw - Math.abs(v);
+    if (pu < pv) {
+      nu = u < 0 ? -1 : 1;
+      nv = 0;
+      pen = pu + r;
+    } else {
+      nu = 0;
+      nv = v < 0 ? -1 : 1;
+      pen = pv + r;
+    }
+  } else {
+    const qu = u - clamp(u, -hl, hl),
+      qv = v - clamp(v, -hw, hw),
+      d = Math.hypot(qu, qv);
+    if (d >= r) return false;
+    nu = qu / (d || 1);
+    nv = qv / (d || 1);
+    pen = r - d;
+  }
+  const ux = nu * ca - nv * sa,
+    uy = nu * sa + nv * ca;
+  o.x += ux * pen;
+  o.y += uy * pen;
+  const vn = o.vx * ux + o.vy * uy;
+  if (vn < 0) {
+    o.vx -= vn * ux;
+    o.vy -= vn * uy;
+  }
+  return true;
+}
 export function collide(o, r = o.cr || o.r, only = null) {
   let hit = false;
   {
@@ -64,10 +154,24 @@ export function collide(o, r = o.cr || o.r, only = null) {
       cy = Math.floor(o.y / TILE);
     if (
       isWall(cx, cy) &&
-      (cx < 0 || cy < 0 || cx >= MW || cy >= MH || ttype[cy * MW + cx] === 1 || ttype[cy * MW + cx] === 11)
+      (cx < 0 || cy < 0 || cx >= MW || cy >= MH || SQUARE(ttype[cy * MW + cx]) || ttype[cy * MW + cx] === 11)
     )
       return unstick(o);
   } // the centre is inside solid wall (or off the map): back to open ground, not on through the wall
+  // the cars about it, by their boxes (only = a test of the tile kind: cars are kind 6)
+  if (!only || only(6)) {
+    const seen = [];
+    for (let ty = Math.floor((o.y - r) / TILE); ty <= Math.floor((o.y + r) / TILE); ty++)
+      for (let tx = Math.floor((o.x - r) / TILE); tx <= Math.floor((o.x + r) / TILE); tx++) {
+        const L = carsNear(tx, ty);
+        if (L)
+          for (const c of L)
+            if (!seen.includes(c)) {
+              seen.push(c);
+              if (pushOutCar(o, r, c)) hit = true;
+            }
+      }
+  }
   const tx0 = Math.floor((o.x - r) / TILE),
     tx1 = Math.floor((o.x + r) / TILE),
     ty0 = Math.floor((o.y - r) / TILE),
@@ -113,7 +217,8 @@ export function collide(o, r = o.cr || o.r, only = null) {
         }
         continue;
       }
-      if (t !== 1 && t !== 11) {
+      if (t === 6 && carsNear(tx, ty)) continue; // (its car's box, above)
+      if (!SQUARE(t) && t !== 11) {
         const cx = (tx + 0.5) * TILE,
           cy = (ty + 0.5) * TILE,
           dx = o.x - cx,
@@ -121,10 +226,12 @@ export function collide(o, r = o.cr || o.r, only = null) {
           rad = TRAD(t) + r,
           dd = Math.hypot(dx, dy);
         if (dd >= rad) continue;
-        const d = dd || 0.001,
+        // (dead on the middle of a round one, there's no way out to take: out the way it was coming from, or up)
+        const vl = Math.hypot(o.vx || 0, o.vy || 0),
+          d = dd || 0.001,
           pen = rad - d,
-          ux = dx / d,
-          uy = dy / d;
+          ux = dd > 0.001 ? dx / d : vl > 0 ? -o.vx / vl : 0,
+          uy = dd > 0.001 ? dy / d : vl > 0 ? -o.vy / vl : -1;
         o.x += ux * pen;
         o.y += uy * pen;
         const vn = o.vx * ux + o.vy * uy;
@@ -165,11 +272,12 @@ export function collide(o, r = o.cr || o.r, only = null) {
 export function solidPt(x, y) {
   const tx = Math.floor(x / TILE),
     ty = Math.floor(y / TILE);
-  if (!isWall(tx, ty)) return false;
+  if (!isWall(tx, ty)) return inCarPt(x, y, 1); // (a turned car's end, over the next tile)
   if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return true;
   const t = ttype[ty * MW + tx];
-  if (t === 1) return true;
+  if (SQUARE(t)) return true;
   if (t === 11) return false; // water: you can't wade it, but shots and sight go over it
+  if (t === 6 && carsNear(tx, ty)) return inCarPt(x, y, 1);
   return Math.hypot(x - (tx + 0.5) * TILE, y - (ty + 0.5) * TILE) < TRAD(t) + 1;
 }
 // a point you can walk to from where you are (the flow field is kept to you)
@@ -185,16 +293,30 @@ export function blockPt(x, y) {
     ty = Math.floor(y / TILE);
   return isWall(tx, ty) && ttype[ty * MW + tx] === 11;
 }
-export function los(x0, y0, x1, y1) {
+// Along a straight line, the first point that's solid, or where it would squeeze between two square blocks that
+// meet corner to corner (no gap there, though no one point on the line is inside either): { x, y, pinch }, or null.
+// Ends left out with skip (a body touching a wall at either end still sees past it)
+const sq = (tx, ty) => tx < 0 || ty < 0 || tx >= MW || ty >= MH || (isWall(tx, ty) && SQUARE(ttype[ty * MW + tx]));
+export function firstSolid(x0, y0, x1, y1, step = 6, skip = false) {
   const dx = x1 - x0,
     dy = y1 - y0,
-    L = Math.hypot(dx, dy),
-    n = Math.ceil(L / 14);
-  for (let i = 1; i < n; i++) {
-    const t = i / n;
-    if (solidPt(x0 + dx * t, y0 + dy * t)) return false;
+    n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / step));
+  let px = Math.floor(x0 / TILE),
+    py = Math.floor(y0 / TILE);
+  for (let i = 1; i <= n - (skip ? 1 : 0); i++) {
+    const x = x0 + (dx * i) / n,
+      y = y0 + (dy * i) / n,
+      tx = Math.floor(x / TILE),
+      ty = Math.floor(y / TILE);
+    if (tx !== px && ty !== py && sq(px, ty) && sq(tx, py)) return { x: x - dx / n, y: y - dy / n, pinch: true }; // (stopped short of it)
+    if (solidPt(x, y)) return { x, y, pinch: false };
+    px = tx;
+    py = ty;
   }
-  return true;
+  return null;
+}
+export function los(x0, y0, x1, y1) {
+  return !firstSolid(x0, y0, x1, y1, 14, true);
 }
 export let flow;
 let flowAt;

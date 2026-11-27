@@ -13,7 +13,7 @@ import { GUNS, HERO_TRAIT } from './arsenal.js';
 import { DIFF } from '../core/profile.js';
 import { R } from '../render/atlas.js';
 import { MH, MW, TILE, WH, WW, cars, crystals, grid, houses, isWall, ttype } from '../world/map.js';
-import { query, blockPt, reachPt } from '../world/nav.js';
+import { query, blockPt, firstSolid, inCarPt, reachPt } from '../world/nav.js';
 import { MUS, noise, playS, spat, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, ammoNeed, dropAmmo, giveGun } from './state.js';
@@ -1240,6 +1240,13 @@ export function impact(x, y, b) {
 // see: inside it the full damage, then less and less out to a fifth at the very edge (a tenth and a half for you), so
 // a step back from the fire is a step back from death. 0: the old flat blast, kept for your own grenades and gadgets
 // R0 at the old size of things: the effects scale themselves, the blast's reach (Rg) is brought to life size
+// a wall or a car between a blast and someone takes most of it: a fifth gets round (over, through a window). Traced
+// from them to it; a car or a tanker going up isn't cover from itself
+export function cover(x, y, tx, ty) {
+  const W = firstSolid(tx, ty, x, y, 10, true);
+  if (!W) return 1;
+  return inCarPt(x, y) && inCarPt(W.x, W.y, 2) && Math.hypot(W.x - x, W.y - y) < 75 ? 1 : 0.2;
+}
 export function explode(x, y, R0, dmg, hurtsPlayer = true, core = 0) {
   const Rg = R0 * GK,
     fall = (px, py, edge) => {
@@ -1301,13 +1308,13 @@ export function explode(x, y, R0, dmg, hurtsPlayer = true, core = 0) {
     const k0 = GS.kills;
     query(x, y, Rg + 70 * GK, e => {
       if (!e.dead && d2(x, y, e.x, e.y) < (Rg + e.r) ** 2)
-        hurtEnemy(e, dmg * fall(e.x, e.y, 0.2), false, e.x - x, e.y - y, 2.5, 'boom');
+        hurtEnemy(e, dmg * fall(e.x, e.y, 0.2) * cover(x, y, e.x, e.y), false, e.x - x, e.y - y, 2.5, 'boom');
     });
     const n = GS.kills - k0;
     if (n >= 6) floatText(x, y - 50 * GK, `${n} in one blast`, '#ffcf7a', 16 + Math.min(10, n / 3));
     hordeBlast(n);
     if (hurtsPlayer && d2(x, y, GS.P.x, GS.P.y) < (Rg + GS.P.r) ** 2)
-      hurtPlayer(dmg * 0.3 * fall(GS.P.x, GS.P.y, 0.15), x, y, 'an explosion');
+      hurtPlayer(dmg * 0.3 * fall(GS.P.x, GS.P.y, 0.15) * cover(x, y, GS.P.x, GS.P.y), x, y, 'an explosion');
   }
   for (const b of GS.barrels)
     if (!b.dead && d2(x, y, b.x, b.y) < (Rg + 10 * GK) ** 2) {
