@@ -1016,7 +1016,8 @@ function tickRide(dt, onLeave) {
         c.a += rand(-0.18, 0.18);
       }
       B.push += B.hp ? 6 : 0;
-      B.fwd += B.hp ? 7 : 0; // each ram shoves them on a little; he follows them up
+      B.fwd += B.hp ? 7 : 4; // each ram shoves them on a little; he follows them up
+      if (!B.hp) B.pv = 210; // the last one throws them apart: hard, then dragging to a stop on their rims
       const [fx, fy] = along(r.path, r.s + TL / 2);
       query(fx, fy, 70 * GK, z => {
         if (!z.dead && z.dying === undefined && z.type !== 'queen')
@@ -1029,7 +1030,10 @@ function tickRide(dt, onLeave) {
     }
     if (ph < 1.12) B.hit = false;
   }
-  if (r.block && r.block.hp <= 0) r.block.push = Math.min(70, r.block.push + dt * 160); // shoved aside as he goes through
+  if (r.block && r.block.hp <= 0 && r.block.pv > 0.5) {
+    r.block.push += r.block.pv * dt;
+    r.block.pv *= Math.exp(-5.2 * dt);
+  } // shoved aside as he goes through, scraping to a stop (about 40 more: a gap the truck's width and more)
   const [x, y, a] = along(r.path, r.s - back);
   T.x = x;
   T.y = y;

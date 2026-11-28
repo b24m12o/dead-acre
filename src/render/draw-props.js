@@ -906,7 +906,7 @@ function drawRoadblock([c, B]) {
     f = B.fwd || 0,
     x = c.x + c.px * d + (B.dx || 0) * f,
     y = c.y + c.py * d + (B.dy || 0) * f,
-    a = c.a + d * 0.012;
+    a = c.a + d * 0.005; // (turned a little as it's shoved, not spun)
   // a burnt-out car, in 3D as the street's others are (fig3d.js), shoved along as the truck rams it
   const v = c._v || (c._v = { burnt: true, hp: 1, max: 1 });
   v.x = x;
