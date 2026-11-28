@@ -186,7 +186,7 @@ float post(vec3 p){ return bx(p,vec3(22.0,0.0,0.0),vec3(22.0,0.7,0.7),0.12); }
 float lump(vec3 p){ return sdSph(p,vec3(-0.6,0.0,0.0),2.6)+0.5*fbm(p.xz*0.9+p.y); }
 float model(vec3 p){ return min(min(plate(p),post(p)),lump(p)); }
 float bx2(vec2 v, vec2 s){ vec2 b=abs(v)-s; return length(max(b,0.0))+min(max(b.x,b.y),0.0); }
-float stopTxt(vec2 q){ /* S T O P, in strokes: q in the plate's own (x along the word, y up the letters) */
+float stopTxt(vec2 q){ /* S T O P, in strokes: q in the plate's own (x along the word, y up the letters: up the post, the plate on top) */
   float d=1e3, w=0.55;
   vec2 o=q-vec2(-6.0,0.0);
   float st=max(abs(length(o-vec2(0.0,1.3))-1.3)-w*0.5,-bx2(o-vec2(1.1,0.75),vec2(1.0,0.7))); /* S: the top loop open at its lower right */
@@ -203,7 +203,7 @@ void attrs(vec3 p){ gPart=0; gU=0.5; gReg=99;
   else { vec2 q=vec2(p.x-42.0,p.y); float o=octo(q,11.4);
     if(p.z>-0.75) gCol=hx(0x9aa0a0)*(0.85+0.2*fbm(q*1.5)); /* its back: bare aluminium */
     else if(o>-1.1) gCol=hx(0xe8e6dc); /* the white rim */
-    else gCol=stopTxt(vec2(-q.y,q.x)*1.25)<0.0?hx(0xeceae0):hx(0xa8160e)*(0.85+0.25*fbm(q*0.6)); }
+    else gCol=stopTxt(vec2(q.y,-q.x)*1.25)<0.0?hx(0xeceae0):hx(0xa8160e)*(0.85+0.25*fbm(q*0.6)); }
   gCol=mix(gCol,hx(0x2a2420),clamp((fbm(p.xz*0.35+7.0)-0.6)*1.6,0.0,0.45)); } /* road grime */
 `,
   REGION,

@@ -1317,8 +1317,10 @@ function poseZombie(e, D, o) {
     if (CH) {
       const L = len(sc3(sub(r[ub + 1], r[ub]), k)) * 2,
         bd = Math.abs(dot(sub(sh, Jc), rt)) * 0.62,
-        ahead = clamp((dot(sub(hand, Jc), fwd) - bd * 0.3) / bd, 0, 1),
+        ahead0 = clamp((dot(sub(hand, Jc), fwd) - bd * 0.3) / bd, 0, 1),
         up = clamp((hand[2] - sh[2]) / L + 0.15, 0, 1),
+        low = clamp((sh[2] - hand[2]) / (0.6 * L) - 0.4, 0, 1),
+        ahead = ahead0 * (1 - low * 0.8), // (a hand held low by his side, the elbow back)
         P = [0, 1, 2].map(i =>
           lerp(lerp([-0.8, 0.3, -0.55][i], [0.35, 0.75, -0.55][i], ahead), [-0.2, 0.8, -0.3][i], up)
         );
@@ -3516,11 +3518,11 @@ export function modelOf(e) {
 // much his left hand is on it at all (two: 0, swinging free; 1, on it). Every move of his is a set of these, and they go
 // from one to the next on springs: a carry is loose, a blow stiff. His hands and what he carries follow them, so they
 // always agree with each other and nothing jumps (all in his own units, scaled by his build)
-const AXP = ['f', 's', 'h', 'p', 'az', 'g', 'u', 'two'];
+const AXP = ['f', 's', 'h', 'p', 'az', 'g', 'u', 'two', 'fe', 'fa'];
 function chiefTarget(e, t) {
   const st = e.st,
     stride = (e.stride || 0) * Math.PI * 2,
-    T = (v, K) => [[...v, 2, 1], K];
+    T = (v, K) => [[...v, 2, 1, 0, 0], K];
   if (e.stunT > 0) return T([7, 6, -20, -0.6, -0.4, 10], 60);
   if (st === 'rear' || st === 'roar') return T([2, -1, 14, 0.15, -1.45, 14], 70); // raised over his head, crossways
   if (st === 'brace') return T([8, 6, -7, 0.25, -0.95, 14], 110); // down across him, set to go
@@ -3535,30 +3537,55 @@ function chiefTarget(e, t) {
   if (e.recT > 0.25) return T([8, 4, -18, -0.2, -0.2, 12], 60); // spent: the head down by his knees
   return T([6, 5, -14 + Math.sin(stride * 2) * 0.8, 0.85, -0.75, 13], 70); // carried at port: across him, the head by his left shoulder
 }
-// Roadkill and his sign: dragged behind him by the post on the walk, its face scraping the road; held out ahead in
-// both fists to ram with on the charge; drawn back and swung round in the haymaker; both fists on a new one's post,
-// heaving it out of the street; drawn far back and thrown; raised overhead in one fist to roar
+// Roadkill and his sign, held the way a sign stands: by the post, the plate up, its face turned up and to the front
+// (to be read from above: an upright plate is seen edge on), swung flat, edge first. Each pose is where
+// his right fist is from his right shoulder (ahead, out, up, in arm's lengths), which way the post points (its rise and
+// its bearing off his facing), which way the plate's face looks (the same), where on the post his right fist is and his
+// left (from the right, along it) and whether the left is on it. Each was checked against his body, posed, for the sign
+// or an arm through him, out of reach, or a fist holding the post along its forearm
+const RK = {
+  carry: [0.45, 0.25, -0.15, 0.85, Math.PI, 0, 10, 0, 1.5, 0], // up on his right shoulder, the plate up behind it
+  charge: [0.65, -0.55, -0.15, 1.2, Math.PI, -9, 16, 1, 0.35, 0], // a shield before him in both fists, STOP to the front
+  wind: [0.55, -0.05, 0, 0.8, 2.3, -8, 12, 1, 1.5, 0], // wound back over his right shoulder, like a bat
+  claw0: [0.7, -0.25, -0.45, 0.45, 1.2, -8, 12, 1, 1.5, 0], // the swing coming round, flat, its edge leading
+  claw1: [0.65, -0.55, -0.1, 0.1, -0.3, -8, 8, 1, 1.5, 0], // and through, out ahead of him to his left
+  roar: [0.1, 0.1, 0.5, 1.0, Math.PI, 0, 6, 0, 1.5, 0], // up high in his right fist
+  pull: [0.7, -0.3, -0.45, 1.5, Math.PI, -8, 30, 1, 0, Math.PI / 2], // both fists low on a post, heaving it up
+  throw: [-0.15, 0.3, 0.45, 0.5, 2.8, 0, 10, 0, 0.6, 0], // drawn back over his right shoulder to throw
+  stun: [0.4, 0.35, -0.7, 1.2, 1.3, 0, 6, 0, 1.5, 0], // let droop out to his side
+  bolt: [-0.2, 0.5, -0.4, 1.2, Math.PI, 0, 14, 0, 1.5, 0], // hunched, drawn back, about to go
+  none: [0.08, 0.1, -0.86, 1.5, Math.PI, 0, 6, 0, 0, 0], // (nothing in his hands: it hangs)
+};
+const rkMix = (a, b, t) => a.map((v, i) => lerp(v, b[i], t));
 function roadkillTarget(e, t) {
   const st = e.st,
     act = st === 'act' ? e.act : null,
     stride = (e.stride || 0) * Math.PI * 2,
     T = (v, K) => [v, K];
-  if (!e.sign) return T([4, 9, -14, -0.6, 0.6, 6, 4, 0], 60); // (nothing in his hands: drawn nowhere)
-  if (act === 'pull') return T([16, 0, -12 + Math.sin(t * 7) * 1.5, 1.3, 0, 6, 30, 1], 120); // heaving a post up out of the ground
-  if (act === 'signthrow') return T([-8, 8, 8, 0.55, 2.8, 5, 6, 1], 160); // drawn far back over his right shoulder
-  if (act === 'stomp') return T([2, 10, 14, 1.2, 0.4, 6, 4, 0], 120); // up in one fist as his weight comes down
-  if (act === 'bolt') return T([-6, 10, -10, -0.4, 2.6, 6, 4, 0], 110); // hunched, arms back, about to go
-  if (e.stunT > 0) return T([6, 8, -18, -0.5, 0.6, 6, 4, 0], 60); // let hang, its face on the road
-  if (st === 'rear' || st === 'roar') return T([0, 8, 18, 1.35, 0.3, 6, 4, 0], 70); // held up over his head
-  if (st === 'charge' || st === 'sprint') return T([8, 3, -6, 0.05, -0.1, 10, 4, 1], 140); // out ahead, edge first, a ram
-  if ((e.claw || 0) > 0) return T([6, 6, -2, 0.15, lerp(2.0, -1.3, e.claw), 6, 4, 1], 650); // the haymaker
-  if ((e.wind || 0) > 0) return T([-4, 8, 4, 0.25, 2.3 * e.wind, 6, 4, 1], 130); // drawn back to his right
-  if (e.recT > 0.25) return T([6, 8, -18, -0.5, 0.6, 6, 4, 0], 60); // spent
-  return T([-2, 9, -16 + Math.sin(stride * 2) * 0.6, -0.3, 2.7, 6, 4, 0], 60); // dragged behind him by the post
+  if (!e.sign) return T(RK.none, 60);
+  if (act === 'pull') return T([...RK.pull.slice(0, 2), RK.pull[2] + Math.sin(t * 7) * 0.04, ...RK.pull.slice(3)], 120);
+  if (act === 'signthrow') return T(RK.throw, 160);
+  if (act === 'stomp' || st === 'rear' || st === 'roar') return T(RK.roar, 90);
+  if (act === 'bolt') return T(RK.bolt, 110);
+  if (e.stunT > 0 || e.recT > 0.25) return T(RK.stun, 60);
+  if (st === 'charge' || st === 'sprint') return T(RK.charge, 140);
+  if ((e.claw || 0) > 0) return T(rkMix(RK.claw0, RK.claw1, clamp(e.claw, 0, 1)), 650);
+  if ((e.wind || 0) > 0) return T(rkMix(RK.carry, RK.wind, clamp(e.wind, 0, 1)), 130);
+  const c = RK.carry.slice();
+  c[2] += Math.sin(stride * 2) * 0.02; // (bobbing to his step)
+  c[3] += Math.sin(stride) * 0.04; // (and swaying with it)
+  return T(c, 60);
 }
 export const GIANT3D = {
   chief: { model: 'chief', prop: 'axe', k: 1.5, tgt: chiefTarget },
-  roadkill: { model: 'roadkill', prop: 'stopsign', k: 1.7, tgt: roadkillTarget, has: e => !!e.sign },
+  roadkill: {
+    model: 'roadkill',
+    prop: 'stopsign',
+    k: 1.29, // (the sign the size it was drawn flat: a giant's, not a man's, but not as tall as he is)
+    tgt: roadkillTarget,
+    has: e => !!e.sign,
+    sh: true, // (posed from his shoulders, the plate's face set)
+  },
 };
 // a giant's hand target made one his arm can reach: out of his body (round his side if it's on its own side of him,
 // across his front if it's reaching over), not up against the shoulder (the arm folded flat on itself), never further
@@ -3620,7 +3647,8 @@ function chiefArms(e, Jc, yaw, k, SH) {
       A.d[i] += ((Tg[i] - A.v[i]) * K - A.d[i] * c) * h;
       A.v[i] += A.d[i] * h;
     }
-  const [f, s0, hh, p, az, g, u, two] = A.v,
+  const [f, s0, hh, p, az, g, u, two, fe, fa] = A.v,
+    sP = G.sh ? FIGK * G.k : 0,
     F = [Math.cos(yaw), Math.sin(yaw)],
     Rt = [-Math.sin(yaw), Math.cos(yaw)],
     kx = k[0],
@@ -3629,8 +3657,11 @@ function chiefArms(e, Jc, yaw, k, SH) {
     shY = Math.abs(REST[4][1]),
     armL = len(sub(REST[5], REST[4])) + len(sub(MODEL_END[5], REST[5])),
     // (the right hand where his arm can put it: the thing in it follows)
+    [shR, LR] = SH[0],
     rear = fitHand(
-      [Jc[0] + (F[0] * f + Rt[0] * s0) * kx, Jc[1] + (F[1] * f + Rt[1] * s0) * kx, Jc[2] + hh * kz],
+      G.sh
+        ? [shR[0] + (F[0] * f + Rt[0] * s0) * LR, shR[1] + (F[1] * f + Rt[1] * s0) * LR, shR[2] + hh * LR]
+        : [Jc[0] + (F[0] * f + Rt[0] * s0) * kx, Jc[1] + (F[1] * f + Rt[1] * s0) * kx, Jc[2] + hh * kz],
       SH[0][0],
       SH[0][1],
       Jc,
@@ -3644,8 +3675,10 @@ function chiefArms(e, Jc, yaw, k, SH) {
     X = [cp * Math.cos(a2), cp * Math.sin(a2), sp],
     // its edge (the blade, the plate's rim) to the swing: up and ahead wound back over the shoulder, down into what it
     // comes down on
-    Z = [sp * Math.cos(a2), sp * Math.sin(a2), -cp],
-    front = [rear[0] + X[0] * g * kx, rear[1] + X[1] * g * kx, rear[2] + X[2] * g * kz],
+    Z = G.sh ? faceOf(X, fe, yaw + fa) : [sp * Math.cos(a2), sp * Math.sin(a2), -cp],
+    gx = G.sh ? sP : kx,
+    gz = G.sh ? sP : kz,
+    front = [rear[0] + X[0] * g * gx, rear[1] + X[1] * g * gx, rear[2] + X[2] * g * gz],
     // his left hand when it isn't on it: hanging by his side from the shoulder, just clear of his body, the elbow a
     // little bent, swinging to his stride
     sw = Math.sin((e.stride || 0) * Math.PI * 2) * armL * 0.12,
@@ -3667,8 +3700,15 @@ function chiefArms(e, Jc, yaw, k, SH) {
   A.X = X;
   A.Z = Z;
   A.two = clamp(two, 0, 1);
-  A.foot = [rear[0] - X[0] * u * kx, rear[1] - X[1] * u * kx, rear[2] - X[2] * u * kz];
+  A.foot = [rear[0] - X[0] * u * gx, rear[1] - X[1] * u * gx, rear[2] - X[2] * u * gz];
   return [rear, left];
+}
+// a flat thing's turn about its length X, its face looking as near (rise fe, bearing fb) as it can: Z, its back
+function faceOf(X, fe, fb) {
+  const d = [Math.cos(fe) * Math.cos(fb), Math.cos(fe) * Math.sin(fb), Math.sin(fe)],
+    k = dot(d, X),
+    f = nrm([d[0] - X[0] * k, d[1] - X[1] * k, d[2] - X[2] * k]);
+  return [-f[0], -f[1], -f[2]];
 }
 // a giant in 3D (GIANT3D): his body posed as the street's dead are (poseZombie), his hands and what he carries by
 // chiefArms. False if he can't be: his picture draws
