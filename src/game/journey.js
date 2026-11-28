@@ -294,14 +294,14 @@ function openGarage(G) {
   noise(0.25, 0.05, 400, 120, 'lowpass', 0.95); // and banging home at the top
 }
 // the tank's filler, by the truck's side in the garage (the side you're on): where you pour the cans in
-const capOf = (T, P) => {
+const capOf = (T, P, inset = 16) => {
   const c = Math.cos(T.a),
     s = Math.sin(T.a),
     side = P && -(P.x - T.x) * s + (P.y - T.y) * c < 0 ? -1 : 1,
     u = -12,
-    v = side * (TW_ / 2 + 16);
+    v = side * (TW_ / 2 + inset);
   return [T.x + u * c - v * s, T.y + u * s + v * c];
-};
+}; // (inset 16: where you stand to pour; -2: the filler itself, on the truck's flank)
 // the fuel run, in the order it would go: get to the garage and he lets you in (the door goes up, there's the truck,
 // dry); find the cans round the place (in any order: some may be in your hands already); pour them into its tank,
 // standing at its side; he starts it and pulls it out, and you climb in the back
@@ -339,10 +339,13 @@ function fuelRun(T, P, dt) {
   const [cx, cy] = capOf(T, P),
     near = d2(P.x, P.y, cx, cy) < (40 * GK) ** 2 && P.hp > 0 && !(P.dashT > 0) && !P.held;
   T.poured = T.poured || 0;
+  const [fx, fy] = capOf(T, P, -2); // the filler on the truck's flank: what he faces and pours into
   if (near) {
-    const a = Math.atan2(cy - P.y, cx - P.x);
+    const a = Math.atan2(fy - P.y, fx - P.x);
     P.pour = { a, k: T.fill / POUR };
-    P.aimA = a; // (turned to the filler; update.js holds the gun's fire while the can is up)
+    P.aimA = P.bodyA = a; // (turned to the filler; update.js holds the gun's fire while the can is up)
+    P.x += (cx - P.x) * damp(6, dt);
+    P.y += (cy - P.y) * damp(6, dt); // (settled in close beside the truck, at its filler)
     T.fill += dt;
     T.glugT = (T.glugT || 0) - dt;
     if (T.glugT <= 0) {
@@ -357,8 +360,8 @@ function fuelRun(T, P, dt) {
         y: P._spout[1],
         z: P._spout[2] * TILT,
         vz: -20,
-        vx: (cx - P._spout[0]) * 2 + rand(-6, 6),
-        vy: (cy - P._spout[1]) * 2 + rand(-6, 6),
+        vx: (fx - P._spout[0]) * 2 + rand(-6, 6),
+        vy: (fy - P._spout[1]) * 2 + rand(-6, 6),
         life: 0.5,
         max: 0.5,
         size: 0.35,
