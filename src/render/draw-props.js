@@ -12,6 +12,8 @@ import { drawEnemy } from './draw-enemies.js';
 import { crows, drawCrow, drawFlies, drawRat, drawSheet, lying, rats, sheets } from '../world/life.js';
 import { victims } from '../actors/feeding.js';
 import { drawCar3D, drawHero3D, figFlush } from './fig3d.js';
+import { drawCrate3D, drawPickup, pickup3D } from './pickups3d.js';
+import { boonBlink } from '../game/boons.js';
 import { drawBlock } from './blocks.js';
 import { carKey, drawCar, drawWreck } from './cars.js';
 import { decorKey, drawDecor, drawGrave, drawLampPole, drawPole, drawProp, drawTrunk, propShadow } from './decor.js';
@@ -24,8 +26,12 @@ const FL_CAP = 48; // zombies whose shadows the flashlight throws, nearest first
 // a crate and its parachute at life size (core/scale.js): the long weapon case a little smaller than the supply box
 const crateK = c => (c && c.gun ? WCASE : CRATE);
 function drawCrate(c) {
+  if (!(GS.SHMODE && !c.landed) && drawCrate3D(c, crateK(c))) return;
   return scaled(c.x, c.y - c.z, crateK(c), drawCrate0, c);
 }
+// the things to pick up, in 3D among the street's things (pickups3d.js); their pictures draw on the street (render.js)
+const drawPick = k => drawPickup(k);
+const drawBoonPick = k => drawPickup(k, true, boonBlink(k));
 function drawCrate0(c) {
   if (GS.SHMODE && !c.landed) return;
   setH(c.landed ? 10 : 0);
@@ -370,6 +376,8 @@ export function drawCasters() {
       ])
         push(r.y + oy, drawPillar, [r.x + ox, r.y + oy]);
   for (const c of GS.crates) push(c.y, drawCrate, c);
+  for (const k of GS.pickups) if (vis(k.x, k.y, 40) && pickup3D(k)) push(k.y, drawPick, k);
+  for (const k of GS.boonDrops || []) if (vis(k.x, k.y, 40) && pickup3D(k, true)) push(k.y, drawBoonPick, k);
   for (const h of GS.chutesDown) if (vis(h.x, h.y, 160)) push(h.cy - 30, drawChuteDown, h);
   if (!GS.NOHERO || GS.SHMODE === 1) for (const b of GS.buddies) push(b.y, drawRanger, b);
   for (const b of GS.fallen || []) if (vis(b.x, b.y)) push(b.y - 18, drawHero3D, b); // (lying: under whoever stands by them)
@@ -843,7 +851,7 @@ export function heliRotor(e) {
       );
     }
 }
-export const PREG = () => [null, null, null, R.chip, R.rockchip, R.leafbit, R.petalbit, R.shell, R.drop, R.g_meat0];
+export const PREG = () => [null, null, null, R.chip, R.rockchip, R.leafbit, R.petalbit, R.brass, R.drop, R.g_meat0];
 GS.PARTREG = null;
 GS.WETV = 0.42;
 // a manhole: its lid, or once shoved off, the black hole and the lid lying beside it

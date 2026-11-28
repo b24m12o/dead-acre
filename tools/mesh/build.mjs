@@ -5,17 +5,19 @@
 // told its normal, its bones (with weights blending across each joint), what it is (skin, shirt, trousers...), how far
 // along its limb it sits and how deep in a crease. Writes assets/mesh.<hash>.bin and its entry in assets/pack.json,
 // and preview pictures of each model to build/mesh/.
-//   node tools/mesh/build.mjs [--res 0.8] [--only a,b] [--preview-only]
+//   node tools/mesh/build.mjs [--res 0.8] [--only a,b] [--preview-only] [--merge]
+// (--merge: with --only, the models built go into the pack as it is, every other one kept byte for byte)
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { browser, ROOT } from '../../tests/lib/harness.mjs';
 import { SDF_LIB } from '../../src/render/sdf-lib.js';
 import { MODELS as PEOPLE } from './humanoid.mjs';
 import { DOG, EGG } from './creatures.mjs';
 import { GUNS } from './guns.mjs';
 import { VEHICLES } from './vehicles.mjs';
+import { PICKUPS } from './pickups.mjs';
 
 const arg = (k, d) => {
   const i = process.argv.indexOf(k);
@@ -25,7 +27,7 @@ const LODS = [+arg('--res', 0.8), +arg('--res-lo', 1.4)]; // each model twice: c
 const ONLY = arg('--only', null); // just these models (comma-separated), for a quick look
 // each model, and what its kind may wear over it (zombie+cap, riot+shield: see humanoid.mjs's KIT)
 const MODELS = Object.fromEntries(
-  Object.entries({ ...PEOPLE, dog: DOG, egg: EGG, ...GUNS, ...VEHICLES, ...(globalThis.__EXTRA || {}) })
+  Object.entries({ ...PEOPLE, dog: DOG, egg: EGG, ...GUNS, ...VEHICLES, ...PICKUPS, ...(globalThis.__EXTRA || {}) })
     .flatMap(([n, M]) => [[n, M], ...Object.entries(M.kits || {}).map(([k, K]) => [n + '+' + k, K])])
     .filter(([n]) => !ONLY || ONLY.split(',').some(o => n === o || n.startsWith(o + '+')))
 );
@@ -125,7 +127,7 @@ vec3 grad(vec3 p){ vec2 e=vec2(0.12,-0.12); return normalize(e.xyy*model(p+e.xyy
 void main(){ vec3 p=texelFetch(uPos,ivec2(gl_FragCoord.xy),0).xyz;
   for(int i=0;i<4;i++){ p-=grad(p)*model(p); } // onto the surface
   vec3 n=grad(p);
-  ${['o=vec4(p,0.0);', 'o=vec4(n,clamp(model(p+n*2.0)/2.0,0.0,1.0)*0.5+clamp(model(p+n*5.0)/5.0,0.0,1.0)*0.5);', 'attrs(p); o=vec4(float(gPart),float(gReg),gU,0.0);'][pass]} }`);
+  ${['o=vec4(p,0.0);', 'o=vec4(n,clamp(model(p+n*2.0)/2.0,0.0,1.0)*0.5+clamp(model(p+n*5.0)/5.0,0.0,1.0)*0.5);', glsl.includes('vec3 gCol;') ? 'attrs(p); vec3 q=floor(sqrt(clamp(gCol,0.0,1.0))*vec3(31.0,63.0,31.0)+0.5); o=vec4(float(gPart),float(gReg),gU,q.x*2048.0+q.y*32.0+q.z);' : 'attrs(p); o=vec4(float(gPart),float(gReg),gU,0.0);'][pass]} }`); // (gCol: a thing painted corner by corner, not by region: its own colour, RGB 5-6-5 over its square root, so the dark keeps its steps)
         gl.useProgram(p);
         const T = target(W, H); // (binds its own texture: the corners' go back on after)
         gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -158,15 +160,15 @@ void main(){ vec3 p=texelFetch(uPos,ivec2(gl_FragCoord.xy),0).xyz;
       sh(
         gl.VERTEX_SHADER,
         `#version 300 es
-in vec3 aP; in vec3 aN; in float aR; uniform mat3 uV; uniform float uS; uniform vec3 uC; out vec3 vN; out float vR;
+in vec3 aP; in vec3 aN; in float aR; uniform mat3 uV; uniform float uS; uniform vec3 uC; out vec3 vN; flat out float vR;
 void main(){ vec3 q=uV*(aP-uC); gl_Position=vec4(q.x/uS,q.y/uS,-q.z/100.0,1.0); vN=uV*aN; vR=aR; }`
       );
       sh(
         gl.FRAGMENT_SHADER,
         `#version 300 es
-precision highp float; in vec3 vN; in float vR; out vec4 o;
-void main(){ int r=int(vR+0.5); vec3 c=r==0?vec3(0.62,0.66,0.52):r==1?vec3(0.2,0.17,0.14):r==2?vec3(0.58,0.62,0.5):r<=4?vec3(0.36,0.44,0.52):r==5?vec3(0.22,0.22,0.26):r==6?vec3(0.36,0.44,0.52):r<=8?vec3(0.62,0.66,0.52):r<=10?vec3(0.22,0.22,0.26):r==11?vec3(0.12,0.1,0.09):r==14?vec3(0.2,0.22,0.2):r==15?vec3(0.14,0.15,0.17):r==16?vec3(0.35,0.4,0.45):r==17?vec3(0.5,0.42,0.3):r==24?vec3(0.27,0.28,0.2):r==25?vec3(0.08):r==26?vec3(0.15,0.145,0.13):r==27?vec3(0.95,0.92,0.8):r==28?vec3(0.07):r==29?vec3(0.11):r==30?vec3(0.45,0.5,0.6):r==31?vec3(0.1,0.13,0.16):r==32?vec3(0.06):r==33?vec3(0.03):r==34?vec3(1.0,0.95,0.8):r==35?vec3(0.8,0.05,0.04):r==36?vec3(0.9):r==37?vec3(0.15):r==38?vec3(0.7,0.72,0.74):r==39?vec3(0.6,0.1,0.07):r==40?vec3(0.12,0.1,0.09):r==41?vec3(0.62,0.62,0.6):r==45?vec3(0.36,0.22,0.12):vec3(0.3,0.03,0.02);
-  vec3 n=normalize(vN); float l=0.3+0.7*max(dot(n,normalize(vec3(0.4,0.6,0.7))),0.0); o=vec4(c*l,1.0); }`
+precision highp float; in vec3 vN; flat in float vR; out vec4 o;
+void main(){ int r=int(vR+0.5); vec3 c=r>=1000?vec3(float(((r-1000)>>11)&31)/31.0,float(((r-1000)>>5)&63)/63.0,float((r-1000)&31)/31.0):r==0?vec3(0.62,0.66,0.52):r==1?vec3(0.2,0.17,0.14):r==2?vec3(0.58,0.62,0.5):r<=4?vec3(0.36,0.44,0.52):r==5?vec3(0.22,0.22,0.26):r==6?vec3(0.36,0.44,0.52):r<=8?vec3(0.62,0.66,0.52):r<=10?vec3(0.22,0.22,0.26):r==11?vec3(0.12,0.1,0.09):r==14?vec3(0.2,0.22,0.2):r==15?vec3(0.14,0.15,0.17):r==16?vec3(0.35,0.4,0.45):r==17?vec3(0.5,0.42,0.3):r==24?vec3(0.27,0.28,0.2):r==25?vec3(0.08):r==26?vec3(0.15,0.145,0.13):r==27?vec3(0.95,0.92,0.8):r==28?vec3(0.07):r==29?vec3(0.11):r==30?vec3(0.45,0.5,0.6):r==31?vec3(0.1,0.13,0.16):r==32?vec3(0.06):r==33?vec3(0.03):r==34?vec3(1.0,0.95,0.8):r==35?vec3(0.8,0.05,0.04):r==36?vec3(0.9):r==37?vec3(0.15):r==38?vec3(0.7,0.72,0.74):r==39?vec3(0.6,0.1,0.07):r==40?vec3(0.12,0.1,0.09):r==41?vec3(0.62,0.62,0.6):r==45?vec3(0.36,0.22,0.12):vec3(0.3,0.03,0.02);
+  if(r>=1000) c*=c; vec3 n=normalize(vN); float l=0.3+0.7*max(dot(n,normalize(vec3(0.4,0.6,0.7))),0.0); o=vec4(c*l,1.0); }`
       );
       gl.linkProgram(p);
       gl.useProgram(p);
@@ -358,6 +360,7 @@ try {
         part = new Uint8Array(nv),
         reg = new Float32Array(nv),
         u = new Float32Array(nv),
+        col = new Uint16Array(nv),
         idx = [];
       let o = 0;
       for (const { P, N, A, idx: gi, nv: gn } of G) {
@@ -369,6 +372,7 @@ try {
           part[i] = A[j * 4];
           reg[i] = A[j * 4 + 1];
           u[i] = A[j * 4 + 2];
+          col[i] = A[j * 4 + 3];
         }
         for (const t of gi) idx.push(t + o);
         o += gn;
@@ -378,7 +382,7 @@ try {
         for (let i = 0; i < part.length; i++)
           part[i] = M.REMAP([pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]], part[i], reg[i]); // on to a fuller skeleton (fk22.mjs)
       const W = weights(pos, part, M.BONES, M.RIGID);
-      built.push({ name, M, pos, nrm, ao, reg, u, idx: net.idx, W });
+      built.push({ name, M, pos, nrm, ao, reg, u, col, idx: net.idx, W });
       console.log(
         `${name}: ${nv} corners, ${net.idx.length / 3} triangles, ${((Date.now() - t0) / 1000).toFixed(1)} s`
       );
@@ -404,7 +408,7 @@ try {
         [
           b64f(pos),
           b64f(nrm),
-          b64f(reg),
+          b64f(reg.map((r, i) => (r === 99 ? 1000 + col[i] : r))),
           b64f(new Float32Array(net.idx.buffer)),
           [view(0, 0.1), view(Math.PI / 2, 0.1), view(Math.PI, 0.1), view(0, 1.5), view(0.7, 0.7)],
           [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2],
@@ -420,10 +424,32 @@ try {
 if (!process.argv.includes('--preview-only')) {
   // the file: a JSON header (each model's bones and where its corners and triangles are), then the data
   // each corner, 16 bytes: position (3 × int16, /256), normal (2 × int8, octahedral), bones (2 × uint8), the first's
-  // weight, region, along (u), crease (ao), spare
+  // weight, region, along (u), crease (ao), its own colour (region 99: RGB 5-6-5)
   const parts = [],
     head = { v: 1, models: {} };
   let off = 0;
+  // (--merge: the pack's other models as they are)
+  if (process.argv.includes('--merge')) {
+    const old = gunzipSync(
+        readFileSync(join(ROOT, 'assets', JSON.parse(readFileSync(join(ROOT, 'assets/pack.json'), 'utf8')).mesh.file))
+      ),
+      hl0 = old.readUInt32LE(0),
+      h0 = JSON.parse(old.subarray(4, 4 + hl0).toString()),
+      b0 = 4 + hl0,
+      mine = new Set(built.map(m => m.name));
+    for (const [n, m] of Object.entries(h0.models)) {
+      if (mine.has(n)) continue;
+      const vb = old.subarray(b0 + m.vo, b0 + m.vo + m.nv * 16),
+        ib = old.subarray(b0 + m.io, b0 + m.io + m.ni * 2);
+      head.models[n] = { ...m, vo: off, io: off + vb.length };
+      parts.push(vb, ib);
+      off += vb.length + ib.length;
+      if (off % 4) {
+        parts.push(Buffer.alloc(4 - (off % 4)));
+        off += 4 - (off % 4);
+      }
+    }
+  }
   for (const m of built) {
     const nv = m.pos.length / 3,
       vb = Buffer.alloc(nv * 16);
@@ -442,6 +468,7 @@ if (!process.argv.includes('--preview-only')) {
       vb.writeUInt8(Math.round(m.reg[i]), i * 16 + 11);
       vb.writeUInt8(Math.round(Math.max(0, Math.min(1, m.u[i])) * 255), i * 16 + 12);
       vb.writeUInt8(Math.round(Math.max(0, Math.min(1, m.ao[i])) * 255), i * 16 + 13);
+      vb.writeUInt16LE(m.col[i], i * 16 + 14);
     }
     const ib = Buffer.from(new Uint16Array(m.idx).buffer);
     if (nv > 65535) throw new Error(m.name + ': too many corners for 16-bit indices');

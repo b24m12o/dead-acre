@@ -24,7 +24,7 @@ const SH3 = 0.3;
 const NB = 22, // bones in a figure's skeleton at most (14 for most: tools/mesh/humanoid.mjs; 22 with recorded motion: fk22.mjs)
   TW = NB * 3 + 8, // texels in a figure's row: three for each bone's matrix, then its looks
   ROWS = 1024;
-export const FIG = { models: null, n: 0, drawn: 0, calls: 0, tw: TW }; // tw: texels in a figure's row
+export const FIG = { models: null, n: 0, drawn: 0, calls: 0, tw: TW, figk: 1 }; // tw: texels in a figure's row; figk: a figure's units to the street's
 
 // ---------- the meshes ----------
 // from assets/mesh.*.bin: a JSON header, then each model's corners (16 bytes each) and triangles
@@ -49,6 +49,8 @@ export function meshArrived(buf) {
       gl.vertexAttribIPointer(2, 2, gl.UNSIGNED_BYTE, 16, 8); // its two bones
       gl.enableVertexAttribArray(3);
       gl.vertexAttribPointer(3, 4, gl.UNSIGNED_BYTE, true, 16, 10); // the first bone's weight, what it is, how far along, crease
+      gl.enableVertexAttribArray(5);
+      gl.vertexAttribIPointer(5, 1, gl.UNSIGNED_SHORT, 16, 14); // its own colour, for a thing painted corner by corner (region 99)
       const ib = gl.createBuffer();
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buf, base + m.io, m.ni), gl.STATIC_DRAW);
@@ -133,7 +135,7 @@ const rowBuf = () => {
 // ---------- the shaders: the body (three targets) and its shadow (one) ----------
 const VS = shadow => `#version 300 es
 precision highp float; precision highp int;
-layout(location=0) in vec3 aP; layout(location=1) in vec2 aN; layout(location=2) in uvec2 aB; layout(location=3) in vec4 aW; layout(location=4) in float aRow;
+layout(location=0) in vec3 aP; layout(location=1) in vec2 aN; layout(location=2) in uvec2 aB; layout(location=3) in vec4 aW; layout(location=4) in float aRow; layout(location=5) in uint aC;
 uniform highp sampler2D uBones; uniform uint uHB; uniform float uTilt; uniform vec4 uCam; uniform int uMode; uniform vec2 uSun; uniform vec4 uLight; uniform vec4 uKt; uniform vec3 uKp;
 out vec3 vC; out vec3 vN; out vec3 vO; out float vAO; out float vZ; out float vS; out vec4 vM; flat out vec4 vK; flat out float vPat; flat out vec3 vE; flat out vec3 vH; flat out vec3 vSk; flat out float vSty;
 vec4 T(int x, int r){ return texelFetch(uBones,ivec2(x,r),0); }
@@ -223,11 +225,13 @@ void main(){
   else if(reg==41) c=vec3(0.6,0.6,0.58);
   else if(reg==44) c=vec3(0.06,0.12,0.55);
   else if(reg==45) c=vec3(0.3,0.17,0.09); // a gun's walnut
+  else if(reg==99){ c=vec3(float((aC>>11)&31u)/31.0,float((aC>>5)&63u)/63.0,float(aC&31u)/31.0); c*=c; } // its own colour (a thing to pick up: tools/mesh/pickups.mjs)
   else if(reg==17) c=TI.w<-0.5?vec3(0.3,0.1,0.08):SK.rgb*vec3(1.08,0.96,0.7); // raw flesh (on a dog), or swollen, stretched and veined
   vC=c*TI.rgb; vS=shirt; vPat=TI.w;
   bool hd=aB.x==uHB&&aW.x>0.5; // on the head
-  float gloss=reg==31?1.0:reg==30||reg==36||reg==39?0.55:reg==38||reg==41?0.35:0.0; // a car's paint and glass catch the sky
-  vM=vec4(reg==5||reg==9||reg==10?1.0:0.0, hd&&reg==1?1.0:0.0, reg>=30?gloss:hd&&reg==0?1.0:0.0, reg==12?1.0:reg==34?X7.w:reg==35?X7.w*0.45:0.0); // trousers, scalp, face (a car's gloss), eyes (a car's lamps, lit)
+  float gloss=reg==31?1.0:reg==30||reg==36||reg==39?0.55:reg==38||reg==41?0.35:reg==99?0.3:0.0; // a car's paint and glass catch the sky
+  if(reg==25) gloss=0.45; // a gun's steel: its edges catch the sky as metal does
+  vM=vec4(reg==5||reg==9||reg==10?1.0:0.0, hd&&reg==1?1.0:0.0, reg>=30||reg==25?gloss:hd&&reg==0?1.0:0.0, reg==12?1.0:reg==34?X7.w:reg==35?X7.w*0.45:0.0); // trousers, scalp, face (a car's gloss), eyes (a car's lamps, lit)
   vE=X7.xyz; vH=HA.rgb; vSk=SK.rgb; vSty=X6.z;`
   }
 }`;
@@ -338,8 +342,12 @@ void main(){
   else c*=0.8+0.34*fbm(vO.yz*0.42+vO.x*0.3+seed); // dirt, wear, the cloth's weave and the skin's mottling
   float bl=smoothstep(0.58,0.7,fbm(vO.xz*0.16+vO.y*0.11+seed*1.7))*max(vK.w,0.0); // old blood, soaked in
   c=mix(c,vec3(0.21,0.03,0.025),bl*0.9);
-  float sh=(0.46+0.54*pow(nz,1.2))*mix(1.0,vAO,0.7)*mix(0.62,1.0,smoothstep(0.0,26.0,vZ));
-  vec3 em=vec3(0.5,0.64,0.82)*pow(1.0-nz,1.7)*0.3+vec3(vK.y)+vE*vM.w;
+  bool pk=vK.w<-1.5; // a thing to pick up (posePick): low on the street, so not darkened as a figure's feet are
+  float sh=(0.46+0.54*pow(nz,1.2))*mix(1.0,vAO,0.7)*(pk?mix(0.8,1.0,smoothstep(0.0,5.0,vZ)):mix(0.62,1.0,smoothstep(0.0,26.0,vZ)));
+  vec3 em=vec3(0.5,0.64,0.82)*pow(1.0-nz,1.7)*0.3+vec3(pk?0.0:vK.y)+vE*vM.w;
+  // ...and now and then a shine runs across it, corner to corner (vK.y: where the band is, in its own units), as light
+  // catches a lid or a can: what tells you at a glance it's a thing you could take, not more of the street
+  if(pk) em+=vec3(1.0,0.93,0.78)*0.75*exp(-pow((vO.x*0.8-vO.y*0.6-vK.y)/1.7,2.0))*(0.35+0.65*nz);
   if(sty==0) em+=vec3(0.42,0.52,0.66)*vM.z*(0.1*smoothstep(0.55,1.0,nz)*(0.55+0.45*vn(vO.xy*0.07+seed))+0.12*pow(1.0-nz,2.5)); // a car's paint and glass, the sky in them // the moon on its edges; a hit's flare; its eyes, if they shine
   o0=vec4(c*sh*a,a); o1=vec4(em*a,a); o2=vec4((n.xy*0.5+0.5)*a,0.1*a,a);`
   }
@@ -797,6 +805,7 @@ const EYE = [0, 0, 0];
 // tall, so 0.64 of that is 1.75 m; a big dog 1.1 m from nose to tail; the brute a little bigger again
 const FIGK = ((1.75 * PER_M) / 55) * HEROIC,
   DOGK = 0.45 * HEROIC;
+FIG.figk = FIGK;
 // how this one walks, its own from the start (a hash of who it is): how much it rolls from side to side, how far it
 // leans into the walk and lurches forward now and then, how high it lifts its feet (a shuffler barely does), how wide
 // it stands and turns its toes out, one leg taking a shorter step than the other, its head nodding or hanging to a
@@ -2018,6 +2027,15 @@ function poseHero(p, D, o) {
 // the arms and the gun on whichever skeleton (C: the pose so far, and its bones' numbers)
 // the guns loaded a shell at a time (each shell its own reload)
 const PER_SHELL = { shotgun: 1, lever: 1 };
+// the guns whose magazine comes out on a reload, and its middle (gun units: tools/mesh/guns.mjs mag_)
+export const MAG_OUT = {
+  rifle: [4.6, 0, -1.6],
+  smg: [4.4, 0, -1.4],
+  auto: [4.3, 0, -1.3],
+  lmg: [3, 0.25, -1.45],
+  pistol: [-0.3, 0, -0.9],
+};
+export const MAG_C = Object.fromEntries(Object.entries(MAG_OUT).map(([g, c]) => ['mag_' + g, c]));
 // the free hand through a reload, at its point u (0..1): a magazine's out, dropped; a fresh one fetched from the
 // front of the vest, brought up and seated (0.6, when its sound plays); then, if the gun ran dry, the bolt or slide
 // racked (0.84) and the hand back. A shell at a time: to the pouch on the belt, back, and thumbed into the gate
@@ -2159,6 +2177,30 @@ function heroArms(p, D, o, C) {
           : lerp3(out, H2, (tk - 0.3) / 0.7);
   }
   p.__th = [HL[0], HL[1]]; // where the free hand is (the tests read it)
+  // the magazine, on a reload (its beats as reloadHand's path): the hand on it at the well, drawing it out and down;
+  // let go below the gun (the empty falls: game/state.js); none while the hand goes to the pouch; the fresh one in
+  // the hand from the pouch, up and into the well, seated
+  {
+    const M = p._magAt || (p._magAt = [0, 0, 0]),
+      W0 = p._magW || (p._magW = [0, 0, 0]);
+    let off = 0;
+    if (RU >= 0 && rl > 0.02 && !PER_SHELL[gm] && MAG_OUT[gm]) {
+      if (RU >= 0.2 && RU < 0.38) off = -1;
+      else if ((RU >= 0.06 && RU < 0.2) || (RU >= 0.38 && RU < 0.6)) off = 1;
+    }
+    if (off < 0 || !MAG_OUT[gm]) p._magAt = off < 0 ? null : M;
+    else {
+      const wh = hand(H.mag);
+      M[0] = off ? HL[0] - wh[0] : 0;
+      M[1] = off ? HL[1] - wh[1] : 0;
+      M[2] = off ? HL[2] - wh[2] : 0;
+      p._magAt = M;
+      const c = add(G, W(MAG_OUT[gm]));
+      W0[0] = c[0] + M[0];
+      W0[1] = c[1] + M[1];
+      W0[2] = c[2] + M[2]; // (where it is in the street: where the empty drops from)
+    }
+  }
   // the elbows: the gun arm's out to the side and down; the other's under the gun (a pistol's, both down and in)
   const pis = H.style === 'pistol';
   // (the hand's end is the fingertips: the grip sits in the palm, a little short of them and under)
@@ -2764,9 +2806,10 @@ function poseGun(g, D, o) {
   REST = MM.rest;
   MODEL_END = MM.ends;
   const bs = FIGK * MM.scale,
-    h = g.holder;
-  bone(D, o, 0, mul3(h._gunR, [bs, bs]), h._grip, REST[0]);
-  for (let b = 1; b < REST.length; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], h._grip, REST[b]);
+    h = g.holder,
+    J = g.off ? v3(h._grip[0] + g.off[0], h._grip[1] + g.off[1], h._grip[2] + g.off[2]) : h._grip; // (a magazine out of the gun, in the hand: moved with it)
+  bone(D, o, 0, mul3(h._gunR, [bs, bs]), J, REST[0]);
+  for (let b = 1; b < REST.length; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], J, REST[b]);
   const q = o + NB * 12;
   D.set([g.x, g.y + 40, GS.gA ?? 1, 0], q);
   for (let i = 4; i < 24; i += 4) D.set([1, 1, 1, 0], q + i);
@@ -2819,6 +2862,76 @@ function poseCar(c, D, o) {
   D.set([0, 0, 0, -1], q + 24); // (-1: a car, see FS)
   D.set([1.6 * lit, 1.5 * lit, 1.25 * lit, lit ? 1 : 0], q + 28);
 }
+// ---------- the things to pick up and the supply drops: one rigid bone, at the size their pictures are drawn ----------
+// (k.pk: its turn (9), where it is (3), its scale across and up (2), how solid, where its shine is; set by drawPick3D)
+function posePick(k, D, o) {
+  poolReset();
+  k._kits = null;
+  const MM = FIG.models[k.pk3d],
+    Q = k._pk;
+  REST = MM.rest;
+  MODEL_END = MM.ends;
+  const Rs = mul3(Q.R, [Q.s, Q.sz]),
+    J = Q.c ? sub(Q.at, mv(Rs, Q.c)) : Q.at;
+  bone(D, o, 0, Rs, J, REST[0]);
+  for (let b = 1; b < REST.length; b++) bone(D, o, b, [0, 0, 0, 0, 0, 0, 0, 0, 0], J, REST[b]);
+  const q = o + NB * 12;
+  D.set([Q.at[0], Q.at[1] + 40, Q.al, Q.sw], q);
+  for (let i = 4; i < 20; i += 4) D.set([1, 1, 1, 0], q + i);
+  D.set([1, 1, 1, 0], q + 20); // (its own colours: no tint, no pattern)
+  D.set([0, 0, 0, -2], q + 24); // (-2: a thing to pick up, see FS)
+  D.set([0, 0, 0, Q.seed], q + 28);
+}
+const pkName = n => (FIG.models[n] ? n : 'pk_' + n); // (a magazine is a model of its own: mag_rifle)
+export const pick3dOn = n => fig3dOn() && !!FIG.models[pkName(n)];
+// a thing to pick up in 3D, n its model (pk_ + n), drawn with the street's things (draw-props.js): turned by R (a
+// 3×3, row-major), at x, y and z up off the street, s its scale (sz up, for a landing's squash), al how solid, sw where
+// its shine has got to (in its own units; far off for none). False if it can't: the picture draws
+export function drawPick3D(k, n, R, x, y, z, s, sz, al, sw, ctr = null) {
+  if (!pick3dOn(n)) return false;
+  if (k.id === undefined) k.id = 11000 + Math.floor(Math.random() * 9999);
+  k.pk3d = pkName(n);
+  const Q = k._pk || (k._pk = { R: null, at: [0, 0, 0], s: 1, sz: 1, al: 1, sw: 99, seed: Math.random() });
+  Q.R = R;
+  Q.at[0] = x;
+  Q.at[1] = y;
+  Q.at[2] = z;
+  Q.s = s;
+  Q.sz = sz;
+  Q.al = al;
+  Q.sw = sw;
+  Q.c = ctr; // (turned about this point of it, not its own origin: a magazine, made in its gun's place)
+  if (k._f3 === frame) k._f3 = -1; // (moved since it was posed this frame: a shadow pass, then the picture's own)
+  return drawFig3D(k);
+}
+// a turn: yaw about the up, then tipped by th about the level axis at ax (a tumble in the air, a lid's wobble)
+export function pickTurn(yaw, ax, th) {
+  const c = Math.cos(yaw),
+    s = Math.sin(yaw),
+    Y = [c, -s, 0, s, c, 0, 0, 0, 1];
+  if (!th) return Y;
+  const ca = Math.cos(ax),
+    sa = Math.sin(ax),
+    k = [ca, sa, 0],
+    C = Math.cos(th),
+    S = Math.sin(th),
+    t = 1 - C,
+    T = [
+      t * k[0] * k[0] + C,
+      t * k[0] * k[1],
+      S * k[1],
+      t * k[0] * k[1],
+      t * k[1] * k[1] + C,
+      -S * k[0],
+      -S * k[1],
+      S * k[0],
+      C,
+    ],
+    M = new Array(9);
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++) M[i * 3 + j] = T[i * 3] * Y[j] + T[i * 3 + 1] * Y[3 + j] + T[i * 3 + 2] * Y[6 + j];
+  return M;
+}
 // a car in 3D (cars.js), drawn where it falls among the street's things: what's queued before it goes first
 export function drawCar3D(c) {
   if (!fig3dOn() || opt.car3d === false) return false;
@@ -2849,6 +2962,7 @@ function onBed(p, D, o) {
 }
 const poseFig = (e, D, o) => {
   const m = modelOf(e);
+  if (e.pk3d) return posePick(e, D, o);
   if (e.veh3d) return poseCar(e, D, o);
   return m === 'dog'
     ? poseDog(e, D, o)
@@ -3245,6 +3359,7 @@ let POSE = poseFig;
 // ---------- which figures draw in 3D ----------
 // the model each of the dead is drawn with: by its type, its special kind or its elite trait
 export function modelOf(e) {
+  if (e.pk3d) return e.pk3d;
   if (e.veh3d) return e.veh3d;
   if (e.hero3d) return 'hero';
   if (e.holder) return e.gm;
@@ -3304,6 +3419,16 @@ export function drawHero3D(p) {
     g.x = p.x;
     g.y = p.y + 1;
     drawFig3D(g);
+    // its magazine: seated in it, or out in the free hand on a reload (heroArms: _magAt), or gone (dropped, not yet
+    // a fresh one out of the pouch)
+    if (FIG.models['mag_' + gm] && p._magAt) {
+      const m = p._magE || (p._magE = { id: p.id + 2, holder: p });
+      m.gm = 'mag_' + gm;
+      m.x = p.x;
+      m.y = p.y + 1.2;
+      m.off = p._magAt[0] || p._magAt[1] || p._magAt[2] ? p._magAt : null;
+      drawFig3D(m);
+    }
   }
   return true;
 }

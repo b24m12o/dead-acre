@@ -118,10 +118,8 @@ export function tickWorld(dt) {
     if (q.k === 9 && q.life > 0 && q.life < dt * 1.5 && GS.decals.length < 400)
       decal(R['splat' + ((q.x | 0) & 3)], q.x, q.y, q.size0 * 0.22, [0.2, 0.03, 0.03, 0.75], [0, 0, 0], 50); // a gone piece leaves a dark smear where it lay
   for (const q of GS.parts)
-    if (q.k === 12 && q.life > 0 && q.life < dt * 1.5) decal(R.mag, q.x, q.y, q.size0, [1, 1, 1, 1], [0, 0, 0], 40);
-  for (const q of GS.parts)
     if (q.k === 7 && q.life > 0 && q.life < dt * 1.5 && GS.decals.length < 400)
-      decal(R.shell, q.x, q.y, q.size0, q.tc ? [q.tc[0], q.tc[1], q.tc[2], 1] : [1, 1, 1, 1], [0, 0, 0], 30);
+      decal(q.reg || R.brass, q.x, q.y, q.size0, q.tc ? [q.tc[0], q.tc[1], q.tc[2], 1] : [1, 1, 1, 1], [0, 0, 0], 30);
   if (dt > 0) keepIf(GS.parts, q => q.life > 0);
   for (const d of GS.decals) {
     d.life -= dt * (GS.decals.length > 340 ? 3 : 1);

@@ -398,6 +398,94 @@ export function paintBasics() {
     1,
     0
   );
+  // spent brass, painted big and drawn small (player-weapons.js: a few tenths of this): a rifle's bottlenecked case
+  // (the rim, the body, the shoulder, the neck, the open mouth), a pistol's short straight one, a shotgun's red hull
+  // on its brass head. Lit from the top edge, so it glints as it turns over
+  const brass = (a, x0, x1, h, neck) => {
+    const hg = (y0, y1, c0, c1, c2) =>
+      grad(a, 0, y0, 0, y1, [
+        [0, c0],
+        [0.45, c1],
+        [1, c2],
+      ]);
+    a.fillStyle = hg(-h / 2, h / 2, '#fff2b8', '#d8a43c', '#6a4a14');
+    rr(a, x0, -h / 2, (neck ? x1 - 3.2 : x1) - x0, h, h * 0.2);
+    a.fill();
+    if (neck) {
+      a.beginPath();
+      a.moveTo(x1 - 3.4, -h / 2);
+      a.lineTo(x1 - 2.0, -h * 0.3);
+      a.lineTo(x1, -h * 0.3);
+      a.lineTo(x1, h * 0.3);
+      a.lineTo(x1 - 2.0, h * 0.3);
+      a.lineTo(x1 - 3.4, h / 2);
+      a.closePath();
+      a.fill();
+    }
+    a.fillStyle = '#5a3c10';
+    rr(a, x0, -h / 2 - 0.15, 0.9, h + 0.3, 0.3); // the rim
+    a.fill();
+    a.fillStyle = '#2a1a08';
+    rr(a, x1 - 0.5, -h * (neck ? 0.22 : 0.36), 0.5, h * (neck ? 0.44 : 0.72), 0.2); // the mouth
+    a.fill();
+  };
+  region('brass', 12, 4, a => brass(a, -6, 6, 3, true), 1, 1, 0);
+  region('brass9', 8, 4, a => brass(a, -4, 4, 3.2, false), 1, 1, 0);
+  region(
+    'hull',
+    14,
+    5,
+    a => {
+      a.fillStyle = grad(a, 0, -2, 0, 2, [
+        [0, '#f06050'],
+        [0.45, '#a8241c'],
+        [1, '#4a0c08'],
+      ]);
+      rr(a, -3.5, -2, 10.5, 4, 0.8);
+      a.fill();
+      a.fillStyle = grad(a, 0, -2.2, 0, 2.2, [
+        [0, '#fff2b8'],
+        [0.45, '#c8963a'],
+        [1, '#5a3c10'],
+      ]);
+      rr(a, -7, -2.2, 4, 4.4, 0.5); // the brass head
+      a.fill();
+      a.fillStyle = '#3a0a06';
+      rr(a, 6.4, -1.6, 0.6, 3.2, 0.3); // the crimp, opened
+      a.fill();
+    },
+    1,
+    1,
+    0
+  );
+  // a round in flight, all glow (it lights itself): a hot white head, its core trailing back and cooling, a faint
+  // streak behind that (render.js draws it long and a hair thick)
+  region(
+    'tracer',
+    48,
+    6,
+    (a, e) => {
+      e.fillStyle = grad(e, -24, 0, 24, 0, [
+        [0, 'rgba(255,255,255,0)'],
+        [0.55, 'rgba(255,255,255,0.3)'],
+        [1, 'rgba(255,255,255,0.85)'],
+      ]);
+      rr(e, -24, -1.6, 48, 3.2, 1.6);
+      e.fill();
+      e.fillStyle = grad(e, -4, 0, 24, 0, [
+        [0, 'rgba(255,255,255,0)'],
+        [1, '#fff'],
+      ]);
+      rr(e, -4, -0.6, 28, 1.2, 0.6);
+      e.fill();
+      e.fillStyle = '#fff';
+      circ(e, 22.6, 0, 1.2);
+      e.fill();
+    },
+    0,
+    1,
+    0
+  );
   region(
     'leafbit',
     10,

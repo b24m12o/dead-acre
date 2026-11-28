@@ -6,8 +6,8 @@ import { TAU, angDiff, clamp, rand } from '../core/util.js';
 import { TS, store } from '../core/settings.js';
 import { AMMO_BOX, AMMO_MAX, GUNS, GUN_ORDER, HEROES, HERO_TRAIT } from './arsenal.js';
 import { ui } from '../render/gl.js';
-import { VH, VW, ZOOM } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
+import { VH, VW, ZOOM } from '../render/sprites.js';
 import { thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
@@ -513,15 +513,16 @@ export function startReload() {
     for (let i = 0; i < Math.min(6, magSize(g) - p.mag[g]); i++)
       part({
         k: 7,
-        x: p.x + rand(-4, 4),
-        y: p.y + rand(-4, 4),
+        reg: R.brass9,
+        x: p.x + rand(-4, 4) * GK,
+        y: p.y + rand(-4, 4) * GK,
         z: 10,
-        vz: rand(20, 70),
-        vx: rand(-40, 40),
-        vy: rand(-40, 40),
+        vz: rand(20, 60),
+        vx: rand(-25, 25),
+        vy: rand(-25, 25),
         life: 1.4,
         max: 1.4,
-        size: 0.8,
+        size: 0.22,
         rot: rand(0, TAU),
         vr: rand(-20, 20),
         drag: 3,
@@ -529,29 +530,43 @@ export function startReload() {
       });
   } else if (!G.perShell) {
     sfx.reloadStart(p, g, p.mag[g] <= 0, false);
-    const cc = Math.cos(p.aimA),
-      ss = Math.sin(p.aimA),
-      big = g === 'lmg' ? 1.5 : g === 'pistol' ? 0.8 : 1.1;
-    part({
-      k: 12,
-      reg: R.mag,
-      x: p.x + cc * 10,
-      y: p.y + ss * 10,
-      z: 14,
-      vz: rand(10, 40),
-      vx: cc * rand(10, 30) + rand(-15, 15),
-      vy: ss * rand(10, 30) + rand(-15, 15),
-      life: 1.2,
-      max: 1.2,
-      size: big,
-      rot: p.aimA + rand(-0.5, 0.5),
-      vr: rand(-6, 6),
-      drag: 4,
-      c: [1, 1, 1],
-    });
+    // the empty: drawn out of the well and let go below the gun a fifth of the way in (render/fig3d.js heroArms has
+    // the hand's path, and where the magazine is when it's let go), and down on the street, where it lies a while
+    const rm = p.reloadMax,
+      mod = MAGS[g] || (G.ammo === 'rifle' && g !== 'hunter' ? 'mag_rifle' : null);
+    if (mod)
+      GS.later.push({
+        t: rm * 0.2,
+        fn: () => {
+          if (!(p.reload > 0) || p.gun !== g) return;
+          const at = p._magW,
+            cc = Math.cos(p.aimA),
+            ss = Math.sin(p.aimA);
+          part({
+            k: 12,
+            m3d: mod,
+            x: at ? at[0] : p.x + cc * 8 * GK,
+            y: at ? at[1] : p.y + ss * 8 * GK,
+            z: at ? Math.max(4, at[2]) : 14,
+            vz: rand(-10, 15),
+            vx: cc * rand(10, 30) * GK + rand(-12, 12) * GK + (p.vx || 0) * 0.5,
+            vy: ss * rand(10, 30) * GK + rand(-12, 12) * GK + (p.vy || 0) * 0.5,
+            life: 12,
+            max: 12,
+            size: g === 'lmg' ? 1.5 : g === 'pistol' ? 0.6 : 1,
+            rot: p.aimA,
+            vr: rand(-3, 3),
+            drag: 5,
+            c: [1, 1, 1],
+          });
+          sfx.magDrop && sfx.magDrop(p.x, p.y);
+        },
+      });
   }
   if (GS.enemies.length > 2 && GS.nightLive) heroSay('reload', 0.15); // now and then you say so
 }
+// the magazine that comes out of each gun (tools/mesh/guns.mjs)
+const MAGS = { rifle: 'mag_rifle', smg: 'mag_smg', auto: 'mag_auto', lmg: 'mag_lmg', pistol: 'mag_pistol' };
 export function ammoRoomK() {
   const ts = new Set(GS.P.owned.map(g => GUNS[g].ammo).filter(Boolean));
   if (!ts.size) return 9;

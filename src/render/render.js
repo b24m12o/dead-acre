@@ -5,6 +5,7 @@ import { GS } from '../core/gs.js';
 import { angDiff, clamp, d2, lerp, rand } from '../core/util.js';
 import { opt } from '../core/settings.js';
 import { gl, hasCBF } from './gl.js';
+import { PICK_K, pickZ, pickup3D } from './pickups3d.js';
 import {
   P_COMP,
   P_DOWN,
@@ -72,7 +73,7 @@ import { drawMoths } from '../world/life.js';
 import { atmosLights, drawAsh, drawAshGlow, shaftGlow } from '../world/wear.js';
 import { lampShadowPass } from './lampshadows.js';
 import { primeBoss3D } from './boss3d.js';
-import { fig3dFrame, is3D } from './fig3d.js';
+import { FIG, MAG_C, drawPick3D, fig3dFrame, figFlush, is3D, pick3dOn, pickTurn } from './fig3d.js';
 import { occTex } from './lampocc.js';
 import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
 import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
@@ -117,7 +118,7 @@ function beamK() {
 }
 export const FLASH = { k: 1.35 };
 // pickups, drawn this much over life size, and the colour of each kind's glint (the rim round it, the light under it)
-export const PICK_K = 1.25;
+export { PICK_K };
 const PICK_GLINT = { ammo: [1, 0.72, 0.28], hp: [0.42, 1, 0.5], pouch: [0.85, 0.74, 0.5], boon: [1, 0.86, 0.35] };
 export const YOU_AO = { a: 0.34 };
 // which one is you, in a crowd of the living: a thin green ring on the street round your feet, its tick where you aim.
@@ -399,8 +400,32 @@ export function render() {
   // things to pick up, a little over life size (PICK_K): lying on the street with a shadow under them, not hovering,
   // and round each a thin rim in its own colour that breathes slowly, so you can find it and tell what it is at a
   // glance: brass for rounds, green for a medkit, khaki for a dead one's pouch, gold for what the ones in uniform drop
-  const pick = (reg, k, sc, glint, al = 1) => {
+  const pick = (reg, k, sc, glint, al = 1, boon = false) => {
     if (!reg) return;
+    if (pickup3D(k, boon)) {
+      // in 3D (pickups3d.js, drawn with the street's things): here only the soft dark under it, smaller and fainter as it goes up
+      const z = pickZ(k),
+        f = 1 / (1 + z / (8 * GK));
+      scaleAbout(k.x, k.y, GK * PICK_K);
+      quad(
+        R.blob,
+        k.x + 1,
+        k.y + 1.5,
+        0,
+        ((sc * 22) / 15) * f,
+        ((sc * 13) / 15) * f,
+        0,
+        0,
+        0,
+        0.55 * al * f,
+        0,
+        0,
+        0,
+        0
+      );
+      scaleAbout(0, 0, 1);
+      return;
+    }
     const hot = lampHot(k.x, k.y),
       dm = 1 / (1 + 3.2 * hot), // right under a lamp the light pool is several times brighter than the street: dim the paint there so the kit keeps its colour
       pu = 0.55 + 0.45 * Math.sin(k.t * 2.6 + k.x * 0.05) ** 2,
@@ -415,9 +440,50 @@ export function render() {
     if (k.k === 'pouch') pick(R.pouch || R.medkit, k, 1.2, PICK_GLINT.pouch);
     else if (k.k === 'ammo') pick(R['ammo_' + k.at] || R.ammo, k, k.at ? 1.25 : 1, PICK_GLINT.ammo);
     else pick(R.medkit, k, 1.2, PICK_GLINT.hp);
-  for (const k of GS.boonDrops || []) pick(R['bn_' + k.id] || R.medkit, k, 1.3, PICK_GLINT.boon, boonBlink(k)); // (game/boons.js: it flickers in its last seconds)
+  for (const k of GS.boonDrops || []) pick(R['bn_' + k.id] || R.medkit, k, 1.3, PICK_GLINT.boon, boonBlink(k), true); // (game/boons.js: it flickers in its last seconds)
   for (const q of GS.parts)
     if (q.k >= 3 && q.k !== 10 && q.k !== 11 && q.k !== 13) {
+      if (q.m3d) {
+        // an empty magazine (game/state.js): falling, tipping onto its side, lying there; fading as it goes
+        if (pick3dOn(q.m3d)) {
+          const age = q.max - q.life,
+            th =
+              Math.min(Math.PI / 2, age * 7) +
+              (q.z > 0.5 ? 0 : Math.sin(Math.min(1, age * 3) * 9) * 0.06 * Math.max(0, 1 - age)),
+            s = FIG.figk; // (at the gun's own size, turned about its own middle)
+          drawPick3D(
+            q,
+            q.m3d,
+            pickTurn(q.rot, q.rot, th),
+            q.x,
+            q.y,
+            Math.max(0, q.z) + 0.6,
+            s,
+            s,
+            Math.min(1, q.life),
+            99,
+            MAG_C[q.m3d]
+          );
+          figFlush();
+        } else
+          quad(
+            R.pixel,
+            q.x,
+            q.y - q.z,
+            q.rot,
+            4.5 * q.size,
+            1.8 * q.size,
+            0.09,
+            0.09,
+            0.08,
+            Math.min(1, q.life),
+            0,
+            0,
+            0,
+            0
+          );
+        continue;
+      }
       const f = Math.min(1, q.life * 2),
         c = q.k === 3 || q.k === 8 ? q.c : q.tc || [1, 1, 1],
         tint = q.k === 3 ? 0.85 : 1;
@@ -813,7 +879,6 @@ export function render() {
     }
   }
   if (GS.arcs.length && GS.arcs.every(z => GS.time - z.t0 > 0.45)) GS.arcs.length = 0;
-  const BOLT_W = 0.42; // a round's streak across: a hair, not a pipe (it was as thick as the gun)
   for (const b of GS.pbullets) {
     if (b.shell) {
       if (b.t >= 0) quad(R.glow, b.x, b.y - b.z, 0, 0.3 * GK, 0.3 * GK, 0, 0, 0, 1, 1.2, 0.6, 0.2, 0);
@@ -829,23 +894,32 @@ export function render() {
     const [ox, oy] = roundLift(b, b.x, b.y), // (actors/player-weapons.js: the same picture it strikes by)
       bx = b.x + ox,
       by = b.y + oy;
-    if (b.tr) quad(R.glow, bx, by, 0, 0.16 * sc, 0.16 * sc, 0, 0, 0, 1, gc[0] * 0.18, gc[1] * 0.18, gc[2] * 0.18, 0);
-    quad(
-      R.bolt,
-      bx - Math.cos(a) * 12 * sc,
-      by - Math.sin(a) * 12 * sc,
-      a,
-      1.05 * sc,
-      0.28 * (b.pellet ? 0.8 : 1) * BOLT_W, // thinner than the barrel it left
-      0,
-      0,
-      0,
-      1,
-      gc[0] * 0.75 * tk,
-      gc[1] * 0.7 * tk,
-      gc[2] * 0.6 * tk,
-      0
-    );
+    // a hair-thin streak, the head hot white and the trail cooling to orange behind it: a tracer long and bright, the
+    // rounds between it short and faint; never trailing back past the muzzle it just left
+    const k0 = sc / GK,
+      L = Math.min(
+        (b.tr ? 30 : 17) * k0 * (b.pellet ? 0.55 : 1),
+        Math.hypot(b.x - (b.sx ?? b.x), b.y - (b.sy ?? b.y)) + 3
+      ),
+      T = (b.tr ? 1.7 : 1.15) * (b.heavy ? 1.3 : 1) * (b.pellet ? 0.8 : 1);
+    if (b.tr) quad(R.glow, bx, by, 0, 0.12 * sc, 0.12 * sc, 0, 0, 0, 1, gc[0] * 0.2, gc[1] * 0.2, gc[2] * 0.2, 0);
+    if (L > 1)
+      quad(
+        R.tracer,
+        bx - Math.cos(a) * (L * 0.47),
+        by - Math.sin(a) * (L * 0.47),
+        a,
+        L / 48,
+        T / 6,
+        0,
+        0,
+        0,
+        1,
+        gc[0] * (b.tr ? 0.95 : 0.4) * tk,
+        gc[1] * (b.tr ? 0.9 : 0.36) * tk,
+        gc[2] * (b.tr ? 0.85 : 0.3) * tk,
+        0
+      );
   }
   // where a pictured one's head is: drawEnemy draws it scaled about where it stands (scale.js), and noted the head
   // before that scaling

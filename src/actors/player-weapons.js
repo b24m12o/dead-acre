@@ -9,6 +9,7 @@ import { GUNS } from '../game/arsenal.js';
 import { kitMod } from '../game/kits.js';
 import { ZOOM } from '../render/sprites.js';
 import { R } from '../render/atlas.js';
+import { FIG, gunModel } from '../render/fig3d.js';
 import { MW, TILE, crystals, isWall } from '../world/map.js';
 import { WHT } from '../render/blocks.js';
 import { firstSolid, los, query, solidPt } from '../world/nav.js';
@@ -19,6 +20,76 @@ import { makeEnemy } from './enemies.js';
 // the height you aim at: the gun's (its muzzle's, as posed). The crosshair marks the point at that height under it,
 // so the rounds, drawn at the gun's height, pass through it; and the crosshair on one of the dead's chests aims at
 // that one, not at the street behind it
+// a spent case out of the ejection port on the gun's right, kicked out and a little back and up, turning over as it
+// goes, and down on the street a pace or so off: a rifle's bottlenecked brass, a pistol's short case, a shotgun's red
+// hull (render/paint/basics.js), each drawn near its true size. The port is the gun's own, where its mesh is posed
+// this frame (render/fig3d.js heroArms: _grip, _gunR); a gun pictured flat throws it from beside you
+const PORT = {
+  rifle: [2.8, 0.7, 2.2],
+  smg: [3.0, 0.8, 2.0],
+  auto: [2.8, 0.85, 1.8],
+  lmg: [4.0, 1.0, 2.0],
+  pistol: [2.6, 0.5, 2.0],
+  shotgun: [2.6, 0.8, 1.7],
+  hunter: [2.2, 0.7, 1.8],
+  lever: [1.6, 0.7, 1.8],
+};
+export function eject(g, n = 1) {
+  const P = GS.P;
+  if (!P) return;
+  const G = GUNS[g] || {},
+    gm = gunModel(g),
+    shot = !!G.pellets || gm === 'shotgun' || gm === 'auto',
+    nine = gm === 'pistol' || gm === 'smg' || G.ammo === 'light',
+    reg = shot ? R.hull : nine ? R.brass9 : R.brass,
+    sz = shot ? 0.24 : nine ? 0.2 : gm === 'hunter' ? 0.27 : 0.22,
+    po = PORT[gm] || PORT.rifle,
+    live = P._grip && P._gunR && GS.time - (P._mzT ?? -9) < 0.25,
+    Rg = P._gunR,
+    k = FIG.figk;
+  for (let i = 0; i < n; i++) {
+    let x, y, z, rx, ry;
+    if (live) {
+      x = P._grip[0] + k * (Rg[0] * po[0] + Rg[1] * po[1] + Rg[2] * po[2]);
+      y = P._grip[1] + k * (Rg[3] * po[0] + Rg[4] * po[1] + Rg[5] * po[2]);
+      z = P._grip[2] + k * (Rg[6] * po[0] + Rg[7] * po[1] + Rg[8] * po[2]);
+      rx = Rg[1];
+      ry = Rg[4];
+      const l = Math.hypot(rx, ry) || 1;
+      rx /= l;
+      ry /= l;
+    } else {
+      const c = Math.cos(P.aimA),
+        s = Math.sin(P.aimA);
+      x = P.x + c * 12 * GK;
+      y = P.y + s * 12 * GK;
+      z = 34;
+      rx = -s;
+      ry = c;
+    }
+    const sp = rand(38, 62),
+      bk = rand(6, 18),
+      fx = Math.cos(P.aimA),
+      fy = Math.sin(P.aimA);
+    part({
+      k: 7,
+      reg,
+      x,
+      y,
+      z: z * TILT, // (a particle's height is drawn straight up the screen; the figures' only TILT of it)
+      vz: rand(45, 85),
+      vx: rx * sp - fx * bk + (P.vx || 0) * 0.8 + rand(-6, 6),
+      vy: ry * sp - fy * bk + (P.vy || 0) * 0.8 + rand(-6, 6),
+      life: 1.5,
+      max: 1.5,
+      size: sz,
+      rot: rand(0, TAU),
+      vr: rand(-26, 26),
+      drag: 2.6,
+      c: [1, 1, 1],
+    });
+  }
+}
 export const aimH = p => (p && p._mz && GS.time - (p._mzT ?? -9) < 0.25 ? p._mz[2] : 32);
 // the creature drawn under the crosshair (gx, gy, read on the ground), if any: anywhere on its picture, from its feet
 // to the top of it as the camera's tilt stands it up (bodyTop), a little either side; of two, the one whose middle
@@ -331,28 +402,7 @@ function firePlayer0(cwx, cwy, p, target) {
       p.vy -= s * (G.perShell ? 80 : 50) * GK;
       shake(G.perShell ? 0.09 : 0.06);
       for (let k = 0; k < 3; k++) dust(mxp + c * 10, myp + s * 10, 1, 70, 0.6, 0.5);
-      const ej = () => {
-        if (!GS.P) return;
-        const cc = Math.cos(GS.P.aimA),
-          ss = Math.sin(GS.P.aimA);
-        part({
-          k: 7,
-          x: GS.P.x + cc * 22 * GK,
-          y: GS.P.y + ss * 22 * GK,
-          z: 8,
-          vz: rand(60, 120),
-          vx: -ss * rand(80, 140),
-          vy: cc * rand(80, 140),
-          life: 1.6,
-          max: 1.6,
-          size: 1.5,
-          rot: rand(0, TAU),
-          vr: rand(-20, 20),
-          drag: 3,
-          c: [1, 1, 1],
-          tc: [1, 0.3, 0.25],
-        });
-      };
+      const ej = () => eject(g);
       if (G.perShell) GS.later.push({ t: 0.38, fn: ej });
       else ej();
     } else {
@@ -441,27 +491,7 @@ function firePlayer0(cwx, cwy, p, target) {
         shake(0.12);
         GS.hitstop = Math.max(GS.hitstop, 0.02);
       } else if (g === 'pistol' || g === 'lmg') shake(0.03);
-      const ej = () => {
-        if (!GS.P) return;
-        const cc = Math.cos(GS.P.aimA),
-          ss = Math.sin(GS.P.aimA);
-        part({
-          k: 7,
-          x: GS.P.x + cc * 22 * GK,
-          y: GS.P.y + ss * 22 * GK,
-          z: 8,
-          vz: rand(60, 120),
-          vx: -ss * rand(70, 130) + rand(-20, 20),
-          vy: cc * rand(70, 130) + rand(-20, 20),
-          life: 1.4,
-          max: 1.4,
-          size: G.shell,
-          rot: rand(0, TAU),
-          vr: rand(-20, 20),
-          drag: 3,
-          c: [1, 1, 1],
-        });
-      };
+      const ej = () => eject(g);
       if (big) GS.later.push({ t: 0.5, fn: ej });
       else if (G.shell) ej();
     }
