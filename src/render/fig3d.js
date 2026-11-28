@@ -2167,7 +2167,7 @@ function heroArms(p, D, o, C) {
   const tt = t - (p.throwT ?? -9),
     tk = tt >= 0 && tt < 0.36 && !(p.reload > 0) ? tt / 0.36 : -1;
   let HL = H2;
-  if (tk >= 0) {
+  if (tk >= 0 && !p.pour) {
     const ta = p.throwA ?? aim,
       tc = Math.cos(ta),
       ts = Math.sin(ta),
@@ -2208,7 +2208,23 @@ function heroArms(p, D, o, C) {
   // the elbows: the gun arm's out to the side and down; the other's under the gun (a pistol's, both down and in)
   const pis = H.style === 'pistol';
   // (the hand's end is the fingertips: the grip sits in the palm, a little short of them and under)
-  const GH = add(G, W(pis ? [0.9, 0.35, -0.6] : [1.0, 0.45, -0.9]));
+  let GH = add(G, W(pis ? [0.9, 0.35, -0.6] : [1.0, 0.45, -0.9]));
+  // pouring fuel (game/journey.js): the gun down on its sling, a jerrycan lifted in both hands in front of him and
+  // tipped into the truck's filler, the right hand on its handles, the left under its front
+  p._can = null;
+  if (p.pour && FIG.models.jerry) {
+    const s = FIGK * 1.0,
+      tilt = 0.25 + 0.85 * Math.min(1, (p.pour.k || 0) * 3 + 0.3) * (0.92 + 0.08 * Math.sin(t * 9)),
+      Rk = pickTurn(aim, aim + Math.PI / 2, tilt), // (its top, and the spout on it, tipped forward and down)
+      ctr = [0, 0, 7.2],
+      C = add(Jc, add(mul(af, 12 * k[0]), v3(0, 0, -17 * k[1]))),
+      at = v => add(C, mul(mv(Rk, sub(v, ctr)), s));
+    p._can = { R: Rk, c: [C[0], C[1], C[2]], s };
+    GH = at([-1.2, -0.6, 15.9]);
+    HL = at([3.6, 1.2, 2.0]);
+    const sp = at([4.9, 0, 15.6]);
+    p._spout = [sp[0], sp[1], sp[2]];
+  }
   const [uR, fR, uL, fL] = C.arms,
     // (with hands of their own, the forearm reaches the wrist: the hand on in line with it to the grip)
     wristTo = (sh, tg) => {
@@ -2963,6 +2979,12 @@ export function drawCar3D(c) {
 // riding in the truck's bed: all of him, and his gun's grip and muzzle, up on its floor (its height there, from its mesh)
 function onBed(p, D, o) {
   const T = GS.truck;
+  if (p._climbZ > 0 && p.ride !== 'truck' && T) {
+    const dz = (carTop(T, -40, 0) || 30) * p._climbZ,
+      nb = (p.__MM || FIG.models.hero).rest.length;
+    for (let b = 0; b < nb; b++) D[o + b * 12 + 11] += dz;
+    return;
+  } // climbing in over the tailgate (journey.js): lifted up onto it, as high as he'll ride
   if (p.ride !== 'truck' || !T) return;
   const dx = p.x - T.x,
     dy = p.y - T.y,
@@ -3426,6 +3448,12 @@ export function drawHero3D(p) {
   if (p._f3 === frame && p._pT !== p.throwT) p._f3 = -1; // thrown since it was posed this frame: posed afresh
   p._pT = p.throwT;
   if (!drawFig3D(p)) return false;
+  // (pouring fuel: the can in his hands, not the gun: heroArms)
+  if (p.pour && p._can) {
+    const cE = p._canE || (p._canE = { id: p.id + 3 });
+    drawPick3D(cE, 'jerry', p._can.R, p._can.c[0], p._can.c[1], p._can.c[2], p._can.s, p._can.s, 1, 99, [0, 0, 7.2]);
+    return true;
+  }
   const gm = gunModel(heldGun(p));
   if (FIG.models[gm] && p._grip && !p.unarmed) {
     const g = p._gunE || (p._gunE = { id: p.id + 1, holder: p });

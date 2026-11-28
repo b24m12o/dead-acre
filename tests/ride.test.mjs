@@ -79,7 +79,7 @@ export async function run(b) {
     `at the garage door the door should go up, the truck still dry: ${JSON.stringify(o.g)}`
   );
   check(
-    o.g.label2 === 'FUEL IN' && o.g.fuelled,
+    o.g.label2 === 'POUR FUEL' && o.g.fuelled,
     `pouring at the truck's side never fuelled it: ${JSON.stringify(o.g)}`
   );
   check(

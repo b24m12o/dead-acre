@@ -287,7 +287,7 @@ export function update(dt) {
   // your aim through, gets shot)
   if ((AIMON.e && d2(cwx, cwy, p.x, p.y) > 1) || d2(cwx, cwy, p.x, p.y) > (40 * GK) ** 2)
     target = Math.atan2(cwy - p.y, cwx - p.x);
-  firing = mouse.down && !throwing(p); // (a full throw has the body: the gun waits for it, a third of a second)
+  firing = mouse.down && !throwing(p) && !p.pour && !p.busy; // (a full throw has the body: the gun waits for it, a third of a second; so does a can of fuel being poured, and the climb into the truck)
   if (WHEEL.open) {
     target = p.aimA;
     firing = false;

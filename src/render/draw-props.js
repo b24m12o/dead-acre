@@ -11,7 +11,7 @@ import { drawRanger, lampHot } from './draw-player.js';
 import { drawEnemy } from './draw-enemies.js';
 import { crows, drawCrow, drawFlies, drawRat, drawSheet, lying, rats, sheets } from '../world/life.js';
 import { victims } from '../actors/feeding.js';
-import { drawCar3D, drawHero3D, figFlush } from './fig3d.js';
+import { FIG, drawCar3D, drawHero3D, drawPick3D, figFlush, pick3dOn, pickTurn } from './fig3d.js';
 import { drawCrate3D, drawPickup, pickup3D } from './pickups3d.js';
 import { boonBlink } from '../game/boons.js';
 import { drawBlock } from './blocks.js';
@@ -321,6 +321,25 @@ function drawGen0() {
   lamp(GS.obj.x + 13, GS.obj.y - 10);
 }
 function drawCan(c) {
+  // a jerrycan of fuel lying on its side on the road, in 3D (its X up), a shine running over it now and then
+  if (!c.reg && pick3dOn('jerry')) {
+    if (c._yaw === undefined) c._yaw = (Math.sin(c.x * 12.9898 + c.y * 78.233) * 43758.5453) % TAU;
+    const s = FIG.figk * 1.15,
+      u = (GS.time + (c.t || 0)) % 2.6;
+    return drawPick3D(
+      c,
+      'jerry',
+      pickTurn(c._yaw, c._yaw, Math.PI / 2),
+      c.x,
+      c.y,
+      2.6 * s,
+      s,
+      s,
+      1,
+      u < 0.5 ? -10 + u * 40 : 99,
+      [0, 0, 7.2]
+    );
+  }
   return scaled(c.x, c.y, JERRY, drawCan0, c);
 }
 function drawCan0(c) {
@@ -419,7 +438,9 @@ export function drawCasters() {
     } // the moon's shadows: in a big crowd, the ones further off cast a soft blob, not every limb
     for (const e of L) push(e.y + (e.type === 'queen' ? 240 : 0), drawEnemy, e); // bosses tower over the cars and clutter they wade through
   }
-  if (GS.P && (GS.state !== 'over' || GS.P.down > 0) && !GS.NOHERO && !GS.P.ride) push(GS.P.y, drawRanger, GS.P);
+  if (GS.P && GS.truck && GS.truck.climb && !GS.P.ride && !GS.NOHERO)
+    push(carKey(GS.truck) + 1, drawRanger, GS.P); // climbing in over its tailgate: over the truck, as he will ride
+  else if (GS.P && (GS.state !== 'over' || GS.P.down > 0) && !GS.NOHERO && !GS.P.ride) push(GS.P.y, drawRanger, GS.P);
   else if (GS.P && GS.P.ride === 'truck' && GS.truck && !GS.NOHERO) push(carKey(GS.truck) + 1, drawRanger, GS.P); // standing in the truck bed, on the gun // aboard the chopper, you're up in its door; dead, you lie where you fell
   for (const s of rideCiv()) push(s.y, drawRanger, s);
   if (GS.obj && GS.obj.type === 'gen' && GS.obj.hp > 0) push(GS.obj.y, drawGen, null);

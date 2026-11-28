@@ -8,9 +8,9 @@
 // night's fight drift in while you make your way out. The whole run goes with you: gear, guns, ammo, traps, your
 // people and your level.
 import { GS } from '../core/gs.js';
-import { GK } from '../core/scale.js';
+import { GK, TILT } from '../core/scale.js';
 import { $ } from '../core/errors.js';
-import { TAU, angDiff, clamp, d2, damp, rand } from '../core/util.js';
+import { TAU, angDiff, clamp, d2, damp, lerp, rand } from '../core/util.js';
 import { GARAGE, MH, MW, ROAD, RY, TILE, WH, WW, cars, fires, grid, isWall, lamps, ttype } from '../world/map.js';
 import { breakTile } from '../world/physics.js';
 import { GUN_HEAT } from './evac-ride.js';
@@ -19,10 +19,11 @@ import { R } from '../render/atlas.js';
 import { noise, playS, thr, tone } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { showStreak } from '../ui/callouts.js';
-import { chips, flashLight, floatText, shake, sparks } from '../render/effects.js';
+import { chips, flashLight, floatText, part, shake, sparks } from '../render/effects.js';
 import { makeEnemy } from '../actors/enemies.js';
 import { freeSpot, makeSurvivor } from '../actors/backups.js';
 import { npcSay } from '../audio/barks.js';
+import { smoke } from '../world/fire.js';
 import { DRIVER } from '../audio/hero-lines.js';
 import { mouse } from '../core/input.js';
 import { opt } from '../core/settings.js';
@@ -45,7 +46,8 @@ export const leaveAfter = w => {
 };
 export const nextStop = () => STOPS[Math.min(STOPS.length - 1, stopNow() + 1)];
 
-const TL = 118,
+const BOARD = 0.5, // seconds at the tailgate before you climb in
+  TL = 118,
   TW_ = 44; // the box truck's length and width, as the parked ones on the map
 const lo = () => 5 * TILE,
   hi = () => (MW - 5) * TILE; // the map's inner edge (as functions: this module loads before the map's sizes do)
@@ -166,7 +168,7 @@ export function callTruck(now = false) {
 }
 // ---- the truck in the garage: shut in, tank dry, until you bring it fuel ----
 const FUEL_N = 3,
-  FILL = 1.6; // cans to find; seconds at the door pouring them in
+  POUR = 0.85; // cans to find; seconds to pour each one in (the gun down, the can tipped to the filler)
 export const truckPlan = () => (GARAGE ? 'garage' : 'convoy');
 function garageTruck() {
   const G = GARAGE;
@@ -332,13 +334,68 @@ function fuelRun(T, P, dt) {
     return;
   }
   if (T.fuel < T.cans.length) return;
+  // pouring: at the filler and standing there, the gun lowered, a can lifted and tipped into it, one can after
+  // another (each one's empty thrown down); step away and what's poured stays poured
   const [cx, cy] = capOf(T, P),
-    near = d2(P.x, P.y, cx, cy) < (40 * GK) ** 2 && P.hp > 0 && !(P.dashT > 0);
-  T.fill = near ? T.fill + dt : Math.max(0, T.fill - dt * 2);
-  if (T.fill > 0.4) driverSay(T, 'pour');
-  if (T.fill >= FILL) {
+    near = d2(P.x, P.y, cx, cy) < (40 * GK) ** 2 && P.hp > 0 && !(P.dashT > 0) && !P.held;
+  T.poured = T.poured || 0;
+  if (near) {
+    const a = Math.atan2(cy - P.y, cx - P.x);
+    P.pour = { a, k: T.fill / POUR };
+    P.aimA = a; // (turned to the filler; update.js holds the gun's fire while the can is up)
+    T.fill += dt;
+    T.glugT = (T.glugT || 0) - dt;
+    if (T.glugT <= 0) {
+      T.glugT = 0.24;
+      noise(0.09, 0.05, 340, 160, 'lowpass');
+      tone(110 + Math.random() * 40, 0.06, 'sine', 0.03, 0.6);
+    } // the fuel glugging out of the can
+    if (P._spout && Math.random() < dt * 40)
+      part({
+        k: 8,
+        x: P._spout[0],
+        y: P._spout[1],
+        z: P._spout[2] * TILT,
+        vz: -20,
+        vx: (cx - P._spout[0]) * 2 + rand(-6, 6),
+        vy: (cy - P._spout[1]) * 2 + rand(-6, 6),
+        life: 0.5,
+        max: 0.5,
+        size: 0.35,
+        size0: 0.35,
+        drag: 2,
+        c: [0.78, 0.6, 0.2],
+      }); // its stream, running down into the filler
+  } else P.pour = null;
+  if (T.fill > 0.3) driverSay(T, 'pour');
+  if (T.fill >= POUR) {
+    T.fill = 0;
+    T.poured++;
+    floatText(cx, cy - 34, `Fuel ${T.poured} / ${T.cans.length}`, '#ffd08a', 15);
+    const a = (P.pour ? P.pour.a : 0) + Math.PI / 2 + rand(-0.5, 0.5);
+    part({
+      k: 12,
+      m3d: 'jerry',
+      x: P.x,
+      y: P.y,
+      z: 10,
+      vz: rand(30, 60),
+      vx: Math.cos(a) * rand(40, 70) * GK,
+      vy: Math.sin(a) * rand(40, 70) * GK,
+      life: 20,
+      max: 20,
+      size: 1,
+      rot: rand(0, TAU),
+      vr: rand(-4, 4),
+      drag: 4,
+      c: [1, 1, 1],
+    }); // the empty, thrown down beside you
+    noise(0.12, 0.08, 900, 300, 'bandpass', 0.3); // and clanking on the road
+  }
+  if (T.poured >= T.cans.length) {
     T.dry = false;
     T.fill = 0;
+    P.pour = null;
     floatText(cx, cy - 40, 'Fuelled', '#8ef0b8', 16);
     T.crank = 1.5;
     T.lights = true;
@@ -439,21 +496,69 @@ function tickTruck(dt) {
     if (Math.abs(u) < hu && Math.abs(v) < hv) {
       let nu = u,
         nv = v;
-      if (hu - Math.abs(u) < hv - Math.abs(v) && !(T.drive && T.garage)) nu = Math.sign(u || 1) * hu;
+      if (T.climb)
+        nu = u; // (climbing in over the tailgate: not pushed back off it)
+      else if (hu - Math.abs(u) < hv - Math.abs(v) && !(T.drive && T.garage)) nu = Math.sign(u || 1) * hu;
       else nv = Math.sign(v || 1) * hv; // out by the shorter way; as it pulls out of the garage, always to the side: it doesn't shove you ahead of it into whatever is in front
       P.x = T.x + nu * c - nv * s;
       P.y = T.y + nu * s + nv * c;
     }
   }
+  if (T.parked && T.climb) {
+    // climbing in: to the tailgate, a hand on it, a foot up and over into the bed (fig3d.js lifts him: _climbZ)
+    const C = T.climb,
+      c = Math.cos(T.a),
+      s = Math.sin(T.a),
+      bx = T.x - c * (TL / 2 + 6),
+      by = T.y - s * (TL / 2 + 6),
+      top = T.x - c * (TL / 2 - 16),
+      topY = T.y - s * (TL / 2 - 16);
+    C.t += dt;
+    const u = C.t / 0.32,
+      w = clamp((C.t - 0.32) / 0.5, 0, 1),
+      e = w * w * (3 - 2 * w);
+    P.vx = P.vy = 0;
+    P.aimA = P.bodyA = T.a;
+    if (u < 1) {
+      P.x = lerp(C.x0, bx, u);
+      P.y = lerp(C.y0, by, u);
+    } else {
+      P.x = lerp(bx, top, e);
+      P.y = lerp(by, topY, e);
+      P._climbZ = Math.sin(e * Math.PI * 0.5) * (1 + 0.12 * Math.sin(e * Math.PI)); // up, a little over, down onto it (fig3d.js: as high as the truck is there)
+    }
+    if (C.t >= 0.82) {
+      P._climbZ = 0;
+      P.busy = false;
+      sfx.ammo();
+      startRide(T);
+    }
+    return;
+  }
   if (T.parked) {
     T.parkT = (T.parkT || 0) + dt;
-    const near = T.parkT > 2 && atBack(T, P) && P.hp > 0 && !(P.dashT > 0); // you climb in at the back, and not the instant it stops
+    const near = T.parkT > 2 && atBack(T, P) && P.hp > 0 && !(P.dashT > 0) && !P.held; // you climb in at the back, and not the instant it stops
     T.board = near ? T.board + dt : Math.max(0, T.board - dt * 2);
-    if (T.board >= 1.1) {
-      sfx.ammo();
-      floatText(P.x, P.y - 44, 'Aboard', '#8ef0b8', 16);
-      startRide(T);
+    if (T.board >= BOARD) {
+      T.climb = { t: 0, x0: P.x, y0: P.y };
+      P.busy = true; // (no shooting while you climb: update.js)
+      noise(0.1, 0.07, 600, 200, 'lowpass'); // a boot on the tailgate
       return;
+    }
+    // it waits running: smoke off the exhaust, and the driver leans on the horn now and then if you're far off
+    T.exT = (T.exT || 0) - dt;
+    if (T.exT <= 0) {
+      T.exT = 0.45;
+      const c = Math.cos(T.a),
+        s = Math.sin(T.a),
+        ex = T.x - c * (TL / 2 + 4) + s * (TW_ / 2 - 6),
+        ey = T.y - s * (TL / 2 + 4) - c * (TW_ / 2 - 6);
+      smoke(ex, ey, 1, 30);
+    }
+    T.hornT = (T.hornT ?? 6) - dt;
+    if (T.hornT <= 0 && T.parkT > 6 && d2(P.x, P.y, T.x, T.y) > (420 * GK) ** 2) {
+      T.hornT = 7;
+      honk(0.55);
     }
   }
   if (T.parked || T.dry || T.crank > 0 || T.drive) stragglers(T, dt);
@@ -1153,7 +1258,7 @@ export function wayOut() {
   const T = GS.truck;
   if (T && !T.gone && !T.ride && T.parked) {
     const [x, y] = rearOf(T, GS.P);
-    return { x, y, label: 'TRUCK', board: T.board / 1.1 };
+    return { x, y, label: 'CLIMB IN', short: 'TRUCK', board: T.climb ? 1 : T.board / BOARD };
   }
   if (T && !T.gone && T.dry) {
     if (!T.garage.open) {
@@ -1162,7 +1267,7 @@ export function wayOut() {
     } // first the garage: the door goes up when you get there
     if (T.fuel >= T.cans.length) {
       const [x, y] = capOf(T, GS.P);
-      return { x, y, label: 'FUEL IN', short: 'TRUCK', board: T.fill / FILL };
+      return { x, y, label: 'POUR FUEL', short: 'TRUCK', board: ((T.poured || 0) + T.fill / POUR) / T.cans.length };
     } // then the tank, at the truck's side
     let best = null,
       bd = 1e18;
