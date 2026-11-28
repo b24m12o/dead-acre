@@ -1265,7 +1265,21 @@ function poseZombie(e, D, o) {
       [24 - Math.sin(ph) * 6, 9],
     ]; // down on the ground ahead of it, hand over hand
   raise = rear * 18 + scrm * 8 + swl * 6;
-  const CH = e.c3d && !ground ? chiefArms(e, Jc, yaw, k) : null; // the Fire Chief: both hands on the axe
+  // the 3D giants: both hands on what they carry (their shoulders and arms' reach, for keeping the hands where an arm
+  // can put them)
+  const CH =
+    e.c3d && !ground
+      ? chiefArms(
+          e,
+          Jc,
+          yaw,
+          k,
+          [4, 6].map(ub => [
+            add(Jc, mv(Rc, sc3(sub(r[ub], r[2]), k))),
+            len(sc3(sub(r[ub + 1], r[ub]), k)) + len(sc3(sub(MODEL_END[ub + 1], r[ub + 1]), k)),
+          ])
+        )
+      : null;
   for (const sd of [1, -1]) {
     const h2 = hd2[sd > 0 ? 1 : 0],
       ub = sd > 0 ? 4 : 6,
@@ -1297,7 +1311,19 @@ function poseZombie(e, D, o) {
       hand = [0, 1, 2].map(i => lerp(g0[i], hand[i], uprightK));
     }
     if (CH) hand = CH[sd > 0 ? 0 : 1]; // (right where he holds it, left along it: or hanging free)
-    const pole = nrm(add(mul(rt, sd * 0.6), [0, 0, -0.8]));
+    let pole = nrm(add(mul(rt, sd * 0.6), [0, 0, -0.8]));
+    // the giants' elbows as a man's go: back and down (not winged out) with the hand hanging by his side; out to his
+    // side and down with it held out before him (not back into his chest); out as it comes up over the shoulder
+    if (CH) {
+      const L = len(sc3(sub(r[ub + 1], r[ub]), k)) * 2,
+        bd = Math.abs(dot(sub(sh, Jc), rt)) * 0.62,
+        ahead = clamp((dot(sub(hand, Jc), fwd) - bd * 0.3) / bd, 0, 1),
+        up = clamp((hand[2] - sh[2]) / L + 0.15, 0, 1),
+        P = [0, 1, 2].map(i =>
+          lerp(lerp([-0.8, 0.3, -0.55][i], [0.35, 0.75, -0.55][i], ahead), [-0.2, 0.8, -0.3][i], up)
+        );
+      pole = nrm(add(add(mul(fwd, P[0]), mul(rt, sd * P[1])), [0, 0, P[2]]));
+    }
     // the riot cop's shield arm: the forearm upright before its chest, the shield's face to the front
     if (riot && sd < 0 && e.shield && !dead && !(e.stag > 0) && !ground) {
       // the upper arm down by its side and a little forward, the forearm upright through the straps: the shield from
@@ -3534,7 +3560,50 @@ export const GIANT3D = {
   chief: { model: 'chief', prop: 'axe', k: 1.5, tgt: chiefTarget },
   roadkill: { model: 'roadkill', prop: 'stopsign', k: 1.7, tgt: roadkillTarget, has: e => !!e.sign },
 };
-function chiefArms(e, Jc, yaw, k) {
+// a giant's hand target made one his arm can reach: out of his body (round his side if it's on its own side of him,
+// across his front if it's reaching over), not up against the shoulder (the arm folded flat on itself), never further
+// than a bent arm goes
+function fitHand(hand, sh, L, Jc, F, Rt, sd) {
+  const o = sub(sh, Jc),
+    sw = Math.abs(o[0] * Rt[0] + o[1] * Rt[1]),
+    bw = sw * 0.86,
+    bd = sw * 0.62,
+    shz = o[2];
+  let h = hand.slice();
+  const loc = () => {
+    const d = sub(h, Jc);
+    return [d[0] * F[0] + d[1] * F[1], d[0] * Rt[0] + d[1] * Rt[1], d[2]];
+  };
+  // (folded up against the shoulder: out from it, away from his body)
+  let v = sub(h, sh),
+    d = len(v);
+  const lo = L * 0.4,
+    out = [Rt[0] * sd, Rt[1] * sd, 0];
+  if (d < lo) {
+    const dir = nrm(add(d > 1e-3 ? mul(v, 1 / d) : [0, 0, -1], mul(out, 1.2 * (1 - d / lo))));
+    h = add(sh, mul(dir, lo));
+  }
+  // (inside his body below the collar: round his side; reaching over to his other side, across his front, clear of
+  // his chest, so the arm goes before him and not through him)
+  let [lf, ls, lz] = loc();
+  if (lz < shz + 4) {
+    const cross = ls * sd < 0,
+      e2 = (Math.max(0, lf) / bd) ** 2 + (ls / bw) ** 2;
+    if (cross) lf = Math.max(lf, bd + 3);
+    else if (e2 < 1 || lf < 0) {
+      if (lf < bd * 0.55 || e2 >= 1)
+        ls = sd * Math.max(Math.abs(ls), bw * Math.sqrt(Math.max(0, 1 - (Math.max(0, lf) / bd) ** 2)) + 2);
+      else lf = bd * Math.sqrt(Math.max(0, 1 - (ls / bw) ** 2)) + 2;
+    }
+    h = [Jc[0] + F[0] * lf + Rt[0] * ls, Jc[1] + F[1] * lf + Rt[1] * ls, Jc[2] + lz];
+  }
+  // (out of reach: drawn in till the elbow bends)
+  v = sub(h, sh);
+  d = len(v);
+  if (d > L * 0.9) h = add(sh, mul(v, (L * 0.9) / d));
+  return h;
+}
+function chiefArms(e, Jc, yaw, k, SH) {
   const A = e._ax,
     G = GIANT3D[e.btype],
     [Tg, K] = G.tgt(e, GS.time);
@@ -3551,12 +3620,24 @@ function chiefArms(e, Jc, yaw, k) {
       A.d[i] += ((Tg[i] - A.v[i]) * K - A.d[i] * c) * h;
       A.v[i] += A.d[i] * h;
     }
-  const [f, s, hh, p, az, g, u, two] = A.v,
+  const [f, s0, hh, p, az, g, u, two] = A.v,
     F = [Math.cos(yaw), Math.sin(yaw)],
     Rt = [-Math.sin(yaw), Math.cos(yaw)],
     kx = k[0],
     kz = k[1],
-    rear = [Jc[0] + (F[0] * f + Rt[0] * s) * kx, Jc[1] + (F[1] * f + Rt[1] * s) * kx, Jc[2] + hh * kz],
+    // his build: how far out his shoulders are, how long his arms
+    shY = Math.abs(REST[4][1]),
+    armL = len(sub(REST[5], REST[4])) + len(sub(MODEL_END[5], REST[5])),
+    // (the right hand where his arm can put it: the thing in it follows)
+    rear = fitHand(
+      [Jc[0] + (F[0] * f + Rt[0] * s0) * kx, Jc[1] + (F[1] * f + Rt[1] * s0) * kx, Jc[2] + hh * kz],
+      SH[0][0],
+      SH[0][1],
+      Jc,
+      F,
+      Rt,
+      1
+    ),
     a2 = yaw + az,
     cp = Math.cos(p),
     sp = Math.sin(p),
@@ -3565,10 +3646,24 @@ function chiefArms(e, Jc, yaw, k) {
     // comes down on
     Z = [sp * Math.cos(a2), sp * Math.sin(a2), -cp],
     front = [rear[0] + X[0] * g * kx, rear[1] + X[1] * g * kx, rear[2] + X[2] * g * kz],
-    // his left hand when it isn't on it: hanging at his side, swinging to his stride
-    sw = Math.sin((e.stride || 0) * Math.PI * 2) * 4,
-    free = [Jc[0] + (F[0] * (2 + sw) - Rt[0] * 11) * kx, Jc[1] + (F[1] * (2 + sw) - Rt[1] * 11) * kx, Jc[2] - 21 * kz],
-    left = [0, 1, 2].map(i => lerp(free[i], front[i], clamp(two, 0, 1)));
+    // his left hand when it isn't on it: hanging by his side from the shoulder, just clear of his body, the elbow a
+    // little bent, swinging to his stride
+    sw = Math.sin((e.stride || 0) * Math.PI * 2) * armL * 0.12,
+    shZ = REST[6][2] - REST[2][2],
+    free = [
+      Jc[0] + (F[0] * (2 + sw) - Rt[0] * (shY + 3)) * kx,
+      Jc[1] + (F[1] * (2 + sw) - Rt[1] * (shY + 3)) * kx,
+      Jc[2] + (shZ - armL * 0.86) * kz,
+    ],
+    left = fitHand(
+      [0, 1, 2].map(i => lerp(free[i], front[i], clamp(two, 0, 1))),
+      SH[1][0],
+      SH[1][1],
+      Jc,
+      F,
+      Rt,
+      -1
+    );
   A.X = X;
   A.Z = Z;
   A.two = clamp(two, 0, 1);
