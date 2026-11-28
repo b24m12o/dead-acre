@@ -146,7 +146,14 @@ export function siegeTarget(e) {
   if (!e.sg) return null;
   const P = GS.P;
   if (P && e.los && d2(e.x, e.y, P.x, P.y) < (150 * GK) ** 2) return null; // you, close and in sight, come first
-  if (d2(e.x, e.y, o.cx, o.cy) > (1400 * GK) ** 2) return null;
+  if (o.finale && !e._fr) {
+    e._fr = true;
+    if (!e.run && Math.random() < 0.7) {
+      e.run = true;
+      e.sp *= 1.6;
+    }
+  } // the last of the night: they come running
+  if (!o.finale && d2(e.x, e.y, o.cx, o.cy) > (1400 * GK) ** 2) return null; // (at the end, from wherever they are)
   if (e.sgIn && inHouse(o, e.x, e.y) && o.civ.length) {
     let best = o.civ[0],
       bd = 1e12;
@@ -197,6 +204,20 @@ export function tickSiege(dt) {
       floatText(o.cx, o.cy - 60, 'More of them', '#ff9a6a', 14);
       sfx.groan(o.cx + rand(-300, 300), o.cy + rand(-300, 300));
     } // every so often they come in a rush, not one at a time
+    // the end of the night: when it's down to its last few, everything left out there comes at the house at once, a
+    // horde from every side, running (not a long wait at a window for the last stragglers to wander in)
+    if (!o.finale && GS.nightLive && !GS.nightDone && !GS.queue.length) {
+      let alive = 0;
+      for (const e of GS.enemies) if (!e.dead && !e.fly) alive++;
+      if (alive <= 6) {
+        o.finale = true;
+        GS.queue.push(...Array(14 + 2 * Math.min(8, GS.wave)).fill('skitter'));
+        o.rushT = 8;
+        showStreak('The rest of them', 'Everything left out there is coming for the house · hold it', true);
+        for (let k = 0; k < 3; k++) sfx.groan(o.cx + rand(-360, 360), o.cy + rand(-360, 360));
+        shake(0.15);
+      }
+    }
   }
   // the boards: the dead pound on them, and you nail them back
   for (const b of o.bars) {

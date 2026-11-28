@@ -410,7 +410,7 @@ export function drawCasters() {
       (GS.blockade && GS.blockade.cars && !(GS.truck && GS.truck.ride) ? GS.blockade : null);
     if (B) for (const c of B.cars) if (vis(c.x, c.y)) push(c.y + 20, drawRoadblock, [c, B]);
   } // the wrecks across the convoy's road: there from the moment you arrive at a place you'll leave by truck
-  if (!GS.SHMODE) for (const h of HATCHES) if (vis(h.x, h.y)) push(h.y - 60, drawHatch, h); // flat in the road, under whoever crosses it
+  if (!GS.SHMODE) for (const h of HATCHES) if (h.open > 0 && h.open < 1 && vis(h.x, h.y)) push(h.y - 60, drawHatch, h); // (a lid being shoved off, lifted as it goes: with the street's things; lying flat, with the street: drawFlatHatches)
   for (const e of GS.corpses) if (vis(e.x, e.y)) push(e.y - 18, drawEnemy, e);
   if (!GS.SHMODE) for (const e of GS.corpses) if (!e.burnt && vis(e.x, e.y, 20)) push(e.y - 17, drawFlies, e); // (life.js)
   if (!GS.SHMODE) for (const e of lying) if (vis(e.x, e.y, 20)) push(e.y - 17, drawFlies, e);
@@ -878,6 +878,17 @@ GS.WETV = 0.42;
 // a manhole: its lid, or once shoved off, the black hole and the lid lying beside it
 function drawHatch(h) {
   return scaled(h.x, h.y, MANHOLE, drawHatch0, h);
+}
+// the manholes as they lie flat in the road (shut, or open with the lid beside): drawn with the street, before the
+// ring round your feet and the shadows under people, so whoever stands on one stands on it (render.js)
+export function drawFlatHatches() {
+  for (const h of HATCHES)
+    if (
+      !(h.open > 0 && h.open < 1) &&
+      Math.abs(h.x - GS.camX - viewW / 2) < viewW &&
+      Math.abs(h.y - GS.camY - viewH / 2) < viewH
+    )
+      drawHatch(h);
 }
 function drawHatch0(h) {
   setH(0);

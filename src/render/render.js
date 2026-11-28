@@ -76,7 +76,7 @@ import { primeBoss3D } from './boss3d.js';
 import { FIG, MAG_C, drawPick3D, fig3dFrame, figFlush, is3D, pick3dOn, pickTurn } from './fig3d.js';
 import { occTex } from './lampocc.js';
 import { WINDX, hazeCollect, hazeSrc } from '../world/physics.js';
-import { chuteGeom, drawCasters, drawChutes, heliCrew, heliRotor } from './draw-props.js';
+import { chuteGeom, drawCasters, drawChutes, drawFlatHatches, heliCrew, heliRotor } from './draw-props.js';
 import { drawUI } from '../ui/draw-ui.js';
 import { buildVisGPU, visH, visTex, visW } from './visgpu.js';
 import { LAMPV, POLE_H, decorLights, drawHouseRoofs, roofShadows, streetLampHead } from './decor.js';
@@ -291,6 +291,7 @@ export function render() {
   {
     // contact shadows: soft occlusion where bodies meet the ground
     const ao = (x, y, r, al, a = 0, ex = 1) => quad(R.blob, x, y, a, (r * ex) / 15, r / 15, 0, 0, 0, al, 0, 0, 0, 0);
+    drawFlatHatches(); // (the manholes, flat in the road: under the ring and the shadows, not over them)
     if (GS.P && GS.state !== 'menu') {
       ao(GS.P.x - 0.5, GS.P.y + 1, 19 * PEOPLE * 1.2, 0.42, GS.P.bodyA, 1.15); // (the size of you: core/scale.js)
       ao(GS.P.x - 0.25, GS.P.y + 0.5, 12 * PEOPLE * 1.2, YOU_AO.a, GS.P.bodyA, 1.1); // a darker core right under you: you stand out on a lit road

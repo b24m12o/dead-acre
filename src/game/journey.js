@@ -10,7 +10,7 @@
 import { GS } from '../core/gs.js';
 import { GK, TILT } from '../core/scale.js';
 import { $ } from '../core/errors.js';
-import { TAU, angDiff, clamp, d2, damp, lerp, rand } from '../core/util.js';
+import { TAU, angDiff, clamp, d2, damp, lerp, pick, rand } from '../core/util.js';
 import { GARAGE, MH, MW, ROAD, RY, TILE, WH, WW, cars, fires, grid, isWall, lamps, ttype } from '../world/map.js';
 import { breakTile } from '../world/physics.js';
 import { GUN_HEAT } from './evac-ride.js';
@@ -994,7 +994,7 @@ function tickRide(dt, onLeave) {
       B.on = true;
       honk(1);
       showStreak('Roadblock', 'Hold them off while he rams through', true);
-      r.rush = 16 + 2 * Math.min(6, GS.wave >> 1); // they heard the horn
+      r.rush = 26 + 3 * Math.min(6, GS.wave >> 1); // they heard the horn
     }
     B.t += dt;
     const ph = B.t % 1.7;
@@ -1109,20 +1109,38 @@ function tickRide(dt, onLeave) {
   } // the cards wait for solid ground
   // the dead come out of the side streets ahead of the truck, running at the engine: they start out of sight
   // and you see them come in from the edges, never out of thin air
+  // and every so often a surge: the whole of a side street empties at the engine, from both sides at once, for a
+  // few seconds (not in the last stretch: you get there)
+  r.surgeT = (r.surgeT ?? rand(7, 10)) - dt;
+  if (r.surgeT <= 0 && !(r.rush > 0) && r.s < r.path.len - 700) {
+    r.surgeT = rand(9, 13);
+    r.surge = 3;
+    showStreak(
+      pick(['Off the side streets', 'Both sides', 'Here they come']),
+      'Keep the gun on them · in bursts',
+      true
+    );
+  }
+  if (r.surge > 0) r.surge -= dt;
+  const wk = 1 + 0.06 * Math.min(10, GS.wave); // later nights, more of them
   r.spawnT -= dt;
-  if (r.spawnT <= 0 && GS.enemies.length < 120 && r.s < r.path.len - 300) {
-    const rush = r.rush > 0;
-    r.spawnT = rush ? 0.3 : 0.42;
+  if (r.spawnT <= 0 && GS.enemies.length < 140 && r.s < r.path.len - 300) {
+    const rush = r.rush > 0,
+      surge = r.surge > 0;
+    r.spawnT = (rush ? 0.26 : surge ? 0.2 : 0.34) / wk;
     if (rush) r.rush -= 2;
-    const sp = rush ? sideSpot(r, -380, 380, 300, 520) : sideSpot(r, 480, 900, 150, 460);
-    if (sp) {
-      const n = 2 + ((Math.random() * 2) | 0);
+    const spots = surge
+      ? [sideSpot(r, 260, 700, 150, 420), sideSpot(r, 260, 700, 150, 420)]
+      : [rush ? sideSpot(r, -380, 380, 300, 520) : sideSpot(r, 480, 900, 150, 460)];
+    for (const sp of spots) {
+      if (!sp) continue;
+      const n = 3 + ((Math.random() * 3) | 0);
       for (let i = 0; i < n; i++) {
-        const z = makeEnemy(Math.random() < 0.1 ? 'hound' : 'skitter', sp[0] + rand(-14, 14), sp[1] + rand(-14, 14));
+        const z = makeEnemy(Math.random() < 0.14 ? 'hound' : 'skitter', sp[0] + rand(-16, 16), sp[1] + rand(-16, 16));
         z.emerge = 1;
         z.aw = 9;
         z.cvy = true; // one of the dead that came at the convoy
-        if (Math.random() < 0.55) {
+        if (Math.random() < 0.65) {
           z.run = true;
           z.sp *= 1.8;
         }
@@ -1135,7 +1153,7 @@ function tickRide(dt, onLeave) {
   for (const z of GS.enemies) if (z.cling && !z.dead) cl++;
   query(T.x, T.y, TL / 2 + 40, z => {
     if (z.dead || z.type === 'queen' || z.fly || z.cling) return;
-    if (outOfBox(T, z, z.r * 0.7) && !z.crawl && cl < 4 && Math.random() < (v < 60 ? 0.05 : 0.012)) {
+    if (outOfBox(T, z, z.r * 0.7) && !z.crawl && cl < 6 && Math.random() < (v < 60 ? 0.08 : 0.02)) {
       const c = Math.cos(T.a),
         sn = Math.sin(T.a),
         rx = z.x - T.x,
@@ -1143,6 +1161,11 @@ function tickRide(dt, onLeave) {
       z.cling = { u: clamp(rx * c + ry * sn, -TL / 2, TL / 2), w: -rx * sn + ry * c, t: 0, hitT: 0.9 };
       sfx.growl(z.x, z.y); // one has a hold of the side
       cl++;
+      if (cl >= 3 && GS.time - (r.climbTold ?? -99) > 8) {
+        r.climbTold = GS.time;
+        floatText(P.x, P.y - 60, 'They\u2019re climbing on', '#ff8a5a', 16);
+        shake(0.2);
+      } // the truck lurching under their weight
     }
   });
   for (const z of GS.enemies) {

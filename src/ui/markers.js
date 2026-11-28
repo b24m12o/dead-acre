@@ -137,7 +137,8 @@ export function objectiveLights() {
 }
 export function markerList() {
   const m = [];
-  for (const k of boonDrops()) m.push({ x: k.x, y: k.y, col: BOONS[k.id].col, label: BOONS[k.id].name.toUpperCase() }); // a game changer on the ground, while it lasts
+  for (const k of boonDrops())
+    m.push({ x: k.x, y: k.y, col: BOONS[k.id].col, label: BOONS[k.id].name.toUpperCase(), low: true }); // a game changer on the ground, while it lasts
   if (GS.evac && !GS.evac.ride) m.push({ x: GS.evac.x, y: GS.evac.y, col: '#8ef0a0', label: 'EVAC' });
   if (GS.evac && GS.evac.ride)
     for (const g of GS.evac.ride.groups)
@@ -152,7 +153,7 @@ export function markerList() {
     m.push({ x: GS.RUN.sg.horde.x, y: GS.RUN.sg.horde.y, col: '#ff8a6a', label: 'HORDE' });
   {
     const W = wayOut();
-    for (const c of truckCans()) m.push({ x: c.x, y: c.y, col: '#ffb070', label: 'FUEL' }); // every can still out there
+    for (const c of truckCans()) m.push({ x: c.x, y: c.y, col: '#ffb070', label: 'FUEL', low: true }); // every can still out there
     if (W && !W.can) m.push({ x: W.x, y: W.y, col: '#d8e4a8', label: W.label });
   } // the way on to the next place: the fuel for the truck, the garage, the truck, or the road out
   if (GS.RUN.lz && !GS.evac && !GS.RUN.hm && GS.wave >= FINAL_NIGHT - 1)
@@ -172,7 +173,13 @@ export function markerList() {
     if (GS.obj.type === 'fuel')
       for (const c of GS.obj.cans)
         if (!c.got) {
-          m.push({ x: c.x, y: c.y, col: c.reg === 'medkit' ? '#8ef0a0' : '#ffb070', label: c.label || 'FUEL' });
+          m.push({
+            x: c.x,
+            y: c.y,
+            col: c.reg === 'medkit' ? '#8ef0a0' : '#ffb070',
+            label: c.label || 'FUEL',
+            low: true,
+          });
         }
     if (GS.obj.type === 'hunt')
       for (const e of GS.enemies)
@@ -576,7 +583,7 @@ export function drawMarkersUI(toS) {
     ui.strokeStyle = 'rgba(20,24,29,0.85)';
     if (bx > 0 && by > 0 && bx < VW && by < VH) {
       // (over the head, not on it: a figure stands about 23 units tall, the label sat at 14 and hid the face)
-      const [lx2, ly2] = safeLabel(mk.label, bx, by - 80 * GK * ZOOM);
+      const [lx2, ly2] = safeLabel(mk.label, bx, by - (mk.low ? 30 : 80) * GK * ZOOM); // (a thing lying on the ground: just over it)
       ui.strokeText(mk.label, lx2, ly2);
       ui.fillStyle = mk.col;
       ui.fillText(mk.label, lx2, ly2);
