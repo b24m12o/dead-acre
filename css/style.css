@@ -4374,3 +4374,16 @@ body[data-st='cine'] #bossBox {
     grid-template-columns: 1fr;
   }
 }
+
+/* a way's card holds only what it gives and costs; the rest shows under the cards for the one you point at */
+#route .way .wmore {
+  display: none;
+}
+#route .ways .wdet {
+  grid-column: 1 / -1;
+  min-height: 2.8em;
+  margin: 2px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: rgba(242, 234, 216, 0.6);
+}

@@ -16,7 +16,7 @@ import { bleed, pool, shake } from '../render/effects.js';
 import { syncOpts } from './settings-ui.js';
 import { PK, begin, continueRun, renderKit, renderPauseGuns } from './hangar.js';
 import { setB, setT } from './hud.js';
-import { DISTRICTS, FINAL_NIGHT, twistK } from '../game/districts.js';
+import { FINAL_NIGHT, twistK } from '../game/districts.js';
 import { chalRunSummary, checkChal, openChal, statMax } from '../game/challenges.js';
 import { practiceReport } from '../game/practice.js';
 import { bossLogHtml } from '../game/boss-flow.js';
@@ -179,10 +179,10 @@ export function showMenuRec() {
     cb.hidden = !d;
     $('survBtn').classList.toggle('ghost', !!d);
     if (d) {
-      cb.textContent = d.RUN.hm
-        ? `Continue · horde ${d.wave + 1}`
-        : `Continue · night ${d.wave + 1} of ${FINAL_NIGHT}${d.RUN.journey ? ' · ' + STOPS[Number.isInteger(d.RUN.stop) ? d.RUN.stop : stopAt(d.wave + 1)].name : ''}`;
-      cb.title = `${(HEROES[d.RUN.hero] || HEROES.ranger).name} · ${(DISTRICTS[d.RUN.district] || DISTRICTS.town).name} · saved at dawn`;
+      cb.textContent = 'Continue'; // (where the run stands: on its tooltip, not across the button)
+      cb.title = d.RUN.hm
+        ? `Horde ${d.wave + 1} · saved at dawn`
+        : `Night ${d.wave + 1} of ${FINAL_NIGHT}${d.RUN.journey ? ' · ' + STOPS[Number.isInteger(d.RUN.stop) ? d.RUN.stop : stopAt(d.wave + 1)].name : ''} · ${(HEROES[d.RUN.hero] || HEROES.ranger).name} · saved at dawn`;
     }
   } // a run saved at its last dawn: pick it up where it stopped
 }

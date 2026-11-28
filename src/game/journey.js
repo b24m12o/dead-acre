@@ -1248,17 +1248,16 @@ export function showRoute(onGo, ways, how) {
   const box = $('routeWays');
   box.innerHTML =
     `<p class="wq">${how === 'truck' ? `The driver asks: which way to ${S.short}?` : `Which way to ${S.short}?`}</p>` +
-    `<p class="wnote">${
-      ways && ways.length >= 3
-        ? `Yours when you get there; its trouble follows you in for the first night. A little of both lasts through ${S.area}.`
-        : `You only pass through. What a way gives you is yours when you get there; its trouble follows you to ${S.short} for your first night.`
-    }</p>` +
+    // each way at a glance: what it is, what you get, what it costs (and who of yours changes it); the rest (what it
+    // looks like, what it leaves on the rest of the country, what it sets up later) in one line under them, for the
+    // way you point at
     (ways || [])
       .map(
         (id, i) =>
-          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><span class="wtag r${VIA[id].risk || 0}">${glyphSvg(id)}${RISK[VIA[id].risk || 0]}</span><b>${VIA[id].name}</b><span class="wwhat">${VIA[id].what}</span><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span>${wayBud(id) ? `<span class="wbud">${wayBud(id).text}</span>` : ''}${STAY[id] ? `<span class="wstay"><i>The rest of ${S.area}</i><span class="wgain">${STAY[id].boon}</span><span class="wcost">${STAY[id].trouble}</span></span>` : `<span class="wstay"><i>The rest of ${S.area}</i><span>Nothing either way</span></span>`}${laterLine(id, to) ? `<span class="wlater">Later · ${laterLine(id, to)}</span>` : ''}</button>`
+          `<button class="way" type="button" data-i="${i}" disabled><span class="wk">${i + 1}</span><span class="wtag r${VIA[id].risk || 0}">${glyphSvg(id)}${RISK[VIA[id].risk || 0]}</span><b>${VIA[id].name}</b><span class="wgain">${viaGain(id)}</span><span class="wcost">${VIA[id].cost}</span>${wayBud(id) ? `<span class="wbud">${wayBud(id).text}</span>` : ''}<span class="wmore"><span class="wwhat">${VIA[id].what}</span>${STAY[id] ? `<span class="wstay"><i>The rest of ${S.area}</i><span class="wgain">${STAY[id].boon}</span><span class="wcost">${STAY[id].trouble}</span></span>` : `<span class="wstay"><i>The rest of ${S.area}</i><span>Nothing either way</span></span>`}${laterLine(id, to) ? `<span class="wlater">Later · ${laterLine(id, to)}</span>` : ''}</span></button>`
       )
-      .join('');
+      .join('') +
+    `<p class="wdet">Point at a way for more</p>`;
   box.hidden = !(ways && ways.length);
   box.classList.toggle('n3', !!ways && ways.length >= 3);
   el.querySelector('.panel').classList.toggle('wide', !!ways && ways.length >= 3); // three across need the room
@@ -1312,7 +1311,19 @@ export function showRoute(onGo, ways, how) {
   btn.onclick = () => go();
   for (const w of box.querySelectorAll('.way')) {
     w.onclick = () => go(+w.dataset.i);
-    w.onmouseenter = w.onfocus = () => !done && hotWay(road, +w.dataset.i); // its fork on the map lights up
+    w.onmouseenter = w.onfocus = () => {
+      if (done) return;
+      hotWay(road, +w.dataset.i); // its fork on the map lights up
+      const id = ways[+w.dataset.i],
+        st = STAY[id],
+        lt = laterLine(id, to);
+      box.querySelector('.wdet').textContent =
+        `${VIA[id].what}` +
+        (st
+          ? ` · Rest of ${S.area}: + ${st.boon.replace(/^\+\s*/, '')}, − ${st.trouble.replace(/^[−-]\s*/, '')}`
+          : '') +
+        (lt ? ` · Later: ${lt}` : '');
+    };
     w.onmouseleave = w.onblur = () => !done && hotWay(road, -1);
   }
   return () => {
