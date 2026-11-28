@@ -1691,7 +1691,7 @@ const HOLD = {
   launcher: { style: 'shoulder', butt: [-9.2, 0, 1.4], fore: [8, 0, 0.6], mag: [12, 0, 2.3], blade: 0.3 },
   smg: { style: 'compact', butt: [-5.4, 0, 1.4], fore: [4.2, 0, -0.4], mag: [4.2, 0, -3.2], blade: 0.18 },
   lmg: { style: 'hip', butt: [-9.8, 0, 1.4], fore: [12, 0, 0.6], mag: [3, 0, -2.8], blade: 0.42 },
-  pistol: { style: 'pistol', butt: [0, 0, 0], fore: [-0.2, -0.95, -0.5], mag: [0, 0, -1.6], blade: 0 },
+  pistol: { style: 'pistol', butt: [0, 0, 0], fore: [-0.2, -0.95, -0.5], mag: [0, 0, -1.9], blade: 0.24 },
 };
 // where each one's bore comes out (tools/mesh/guns.mjs): the shots are seen to leave from there
 const TIP = {
@@ -1703,7 +1703,7 @@ const TIP = {
   lever: [24, 0, 2],
   lmg: [28, 0, 2],
   launcher: [16, 0, 2.3],
-  pistol: [6.4, 0, 1.9],
+  pistol: [7.7, 0, 2.3], // (its mesh drawn a fifth over: tools/mesh/guns.mjs)
 };
 const lerp3 = (a, b, f) => v3(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
 // a recorded loop's row at a moment of its stride (0..1), column j (motion.js), between its samples
@@ -2033,9 +2033,11 @@ export const MAG_OUT = {
   smg: [4.4, 0, -1.4],
   auto: [4.3, 0, -1.3],
   lmg: [3, 0.25, -1.45],
-  pistol: [-0.3, 0, -0.9],
+  pistol: [-0.36, 0, -1.08],
 };
-export const MAG_C = Object.fromEntries(Object.entries(MAG_OUT).map(([g, c]) => ['mag_' + g, c]));
+export const MAG_C = Object.fromEntries(
+  Object.entries(MAG_OUT).map(([g, c]) => ['mag_' + g, g === 'pistol' ? c.map(v => v / 1.2) : c])
+); // (in the mesh's own units: the pistol's is drawn a fifth over)
 // the free hand through a reload, at its point u (0..1): a magazine's out, dropped; a fresh one fetched from the
 // front of the vest, brought up and seated (0.6, when its sound plays); then, if the gun ran dry, the bolt or slide
 // racked (0.84) and the hand back. A shell at a time: to the pouch on the belt, back, and thumbed into the gate
@@ -2120,10 +2122,12 @@ function heroArms(p, D, o, C) {
     W = (v, s = 1) => sc3(mv(Rg, v), [k[0] * s, k[1] * s]); // a point of the gun, in the street
   let G;
   if (H.style === 'pistol') {
-    // out in front, both arms near straight, the gun at the height of the chin's line to the target
-    const reach = (17 - kick * 2.5 - rl * 6 - sw * 5 + shv * 3) * k[0],
-      mid = add(Jc, mv(Rc, sc3([1.5, 0, 0], k)));
-    G = [mid[0] + af[0] * reach, mid[1] + af[1] * reach, shR[2] - (2.2 + rl * 4 + sw * 5) * k[1]];
+    // a two-handed stance, pressed out but not locked: the elbows bent a little and out, the gun on the body's
+    // middle line at chin height, the body turned a touch side-on behind it (blade); a straight-armed reach read
+    // from above as two stiff poles
+    const reach = (12.5 - kick * 2.0 - rl * 4.5 - sw * 4 + shv * 3) * k[0],
+      mid = add(Jc, mv(Rc, sc3([1.5, 0.6, 0], k)));
+    G = [mid[0] + af[0] * reach, mid[1] + af[1] * reach, shR[2] - (0.9 + rl * 4 + sw * 5) * k[1]];
   } else {
     // the stock's butt in the pocket inside the shoulder (lower, under the arm, for the machine gun); pulled in and
     // down to reload; driven out on a shove
@@ -2222,10 +2226,20 @@ function heroArms(p, D, o, C) {
     Rc,
     shR,
     wristTo(shR, GH),
-    add(mul(ar, pis ? 0.5 : 0.55), [0, 0, pis ? -0.9 : H.style === 'hip' ? -0.8 : -0.6]),
+    add(mul(ar, pis ? 0.75 : 0.55), [0, 0, pis ? -0.8 : H.style === 'hip' ? -0.8 : -0.6]),
     k
   ); // out a little and down: seen from above a flared elbow reads as an arm hanging
-  const [RfL, wL] = limb(D, o, uL, fL, Rc, shL, wristTo(shL, HL), add(mul(ar, pis ? -0.5 : 0.15), [0, 0, -1]), k);
+  const [RfL, wL] = limb(
+    D,
+    o,
+    uL,
+    fL,
+    Rc,
+    shL,
+    wristTo(shL, HL),
+    add(mul(ar, pis ? -0.85 : 0.15), [0, 0, pis ? -0.7 : -1]),
+    k
+  );
   if (C.hands) {
     D3(C.hands[0], RfR, wR);
     D3(C.hands[1], RfL, wL);

@@ -268,6 +268,7 @@ const CAR_FLAME = 0.75;
 export const carBlastR = c => (c.truck ? 120 : 100) * (c.tanker ? 1.6 : c.rig ? 1.3 : 1);
 function blowCar(c) {
   c.dead = true;
+  c.burnt = true; // (what's left stands where it stood, as solid as it was: the burnt-out shell, in 3D)
   c.fire = 0;
   if (c.warn) c.warn.life = 0; // the warning goes with the car: never left hanging over the wreck
   c.warn = null;
@@ -294,7 +295,7 @@ function blowCar(c) {
         d = rand(130, 190);
       GS.later.push({ t: 0.1 + i * 0.05, fn: () => firePool(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d, 60, 11) });
     } // burning fuel thrown out in a ring
-  GS.wrecks.push({ x: c.x, y: c.y, a: c.a, s: c.truck ? 1.5 : 1 });
+  GS.wrecks.push({ x: c.x, y: c.y, a: c.a, s: c.truck ? 1.5 : 1, car: c }); // (its fire and smoke: the shell itself is the car)
   shake(0.6);
   GS.hitstop = Math.max(GS.hitstop, 0.05);
   for (let i = 0; i < 10; i++) chips(c.x, c.y, 1, [0.25, 0.25, 0.27], 3, 520);

@@ -212,7 +212,22 @@ function makeBox() {
       Math.round((((a % TAU) + TAU) % TAU) / (TAU / 8)) % 8
     ],
   };
-  GS.wrecks.push({ x, y, a: rand(0, TAU), s: 1.5, sm: 0, crash: true });
+  // the truck itself: a burnt-out box truck, as solid as any on the road (it stands in the open, turned so it fits)
+  let ta = rand(0, TAU),
+    truck = true;
+  const fits = (a, tr) => {
+    const ca = Math.cos(a),
+      sa = Math.sin(a),
+      [hl, hw] = tr ? [62, 25] : [42, 22];
+    for (let u = -hl; u <= hl; u += 12)
+      for (let v = -hw; v <= hw; v += 11) if (blockPt(x + u * ca - v * sa, y + u * sa + v * ca)) return false;
+    return true;
+  };
+  for (let i = 0; i < 12 && !fits(ta, true); i++) ta += TAU / 12;
+  if (!fits(ta, true)) truck = false;
+  const wreck = { x, y, a: ta, truck, burnt: true, dead: true, hp: 0, max: 520, fire: 0, col: '#c8c8c0', crash: true };
+  if (truck || fits(ta, false)) cars.push(wreck);
+  GS.wrecks.push({ x, y, a: ta, s: 1.5, sm: 0, crash: true, car: cars.includes(wreck) ? wreck : null });
   decal(R.scorch, x, y, 2.2, [1, 1, 1, 0.9], [0, 0, 0], 600);
   for (let k = 0, tries = 0; GS.obj.piles.length < 5 && tries < 80; tries++) {
     const pa = rand(0, TAU),

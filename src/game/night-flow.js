@@ -271,7 +271,7 @@ function planDawn() {
       const kit = { mine: 3, drum: 3, noise: 1, rig: 2 };
       giveTraps(kit);
       GS.RUN.trapDawn = GS.wave; // a long dawn to lay them: it lasts while there are traps to lay
-      GS.interT = 50;
+      GS.interT = 30;
       GS.later.push({
         t: 6.5,
         fn: () =>
@@ -288,7 +288,7 @@ function planDawn() {
       const kit = { mine: 3, drum: 2, noise: 1, rig: 1 };
       giveTraps(kit);
       GS.RUN.trapDawn = GS.wave; // a long dawn to lay them: it lasts while there are traps to lay
-      GS.interT = 45;
+      GS.interT = 25;
       GS.later.push({
         t: 3.2,
         fn: () =>
@@ -301,7 +301,7 @@ function planDawn() {
       const kit = { mine: 3, drum: 2, noise: 1, rig: 1 + (GS.wave >= 8 || GS.RUN.hm ? 1 : 0) };
       giveTraps(kit);
       GS.RUN.trapDawn = GS.wave; // a long dawn to lay them: it lasts while there are traps to lay
-      GS.interT = GS.RUN.hm ? 20 : 45; // a long dawn to lay the traps (Enter still starts the night); in Horde Mode every wave is a horde, so a shorter one
+      GS.interT = GS.RUN.hm ? 15 : 25; // a long dawn to lay the traps (Enter still starts the night); in Horde Mode every wave is a horde, so a shorter one
       GS.later.push({ t: 6.5, fn: () => GS.nightDone && trapKitStreak(kit) });
     } // a horde tonight: the convoy drops a trap kit, and the day is yours to set them
   } // what tonight holds is known at dawn
@@ -442,11 +442,11 @@ export function resumeDawn() {
     s = kept || planSig(GS.wave + 1); // tomorrow was already announced: it stays what it was
   GS.RUN.nextSig = s ? { w: GS.wave + 1, s } : null;
   if (s === 'horde') {
-    GS.interT = GS.RUN.hm ? 20 : 45; // the kit came with the save
+    GS.interT = GS.RUN.hm ? 15 : 25; // the kit came with the save
     GS.RUN.trapDawn = GS.wave;
   }
   if (GS.RUN.journey && BOSS_HORDE_J[GS.wave + 1]) {
-    GS.interT = 45;
+    GS.interT = 25;
     GS.RUN.trapDawn = GS.wave;
     GS.later.push({
       t: 3.2,
@@ -457,7 +457,7 @@ export function resumeDawn() {
   } // the long dawn before the boss and its horde (the kit came with the save)
   if (!GS.RUN.hm && GS.wave + 1 === FINAL_NIGHT) {
     GS.RUN.lz = HELIPAD ? HELIPAD.slice() : freeSpot(260, 520); // the map is laid out afresh on a resume: a new landing zone on it
-    GS.interT = 50;
+    GS.interT = 30;
     GS.RUN.trapDawn = GS.wave;
     GS.later.push({
       t: 4,

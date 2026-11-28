@@ -450,7 +450,7 @@ export function render() {
             th =
               Math.min(Math.PI / 2, age * 7) +
               (q.z > 0.5 ? 0 : Math.sin(Math.min(1, age * 3) * 9) * 0.06 * Math.max(0, 1 - age)),
-            s = FIG.figk; // (at the gun's own size, turned about its own middle)
+            s = FIG.figk * (FIG.models[q.m3d].scale || 1); // (at the gun's own size, turned about its own middle)
           drawPick3D(
             q,
             q.m3d,
@@ -889,7 +889,7 @@ export function render() {
       sc = (b.small ? 0.65 : b.pellet ? 0.55 : b.heavy ? 1.6 : 1) * GK, // a round's streak, at life size (core/scale.js)
       gc = S.evo.gold && !b.small ? [2.8, 2.2, 0.8] : b.pellet ? [2.4, 1.6, 0.7] : [2.8, 1.7, 0.6];
     if (b.tr === undefined) b.tr = S.evo.gold || Math.random() < (b.pellet ? 0.12 : b.small ? 0.2 : 0.3);
-    const tk = b.tr ? 1 : 0.32;
+    const tk = b.tr || b.pellet ? 1 : 0.32; // (a shotgun's pellets all show, short and alike: you see the spread)
     // beside the aim line, out of the muzzle, closing on it to meet the crosshair point
     const [ox, oy] = roundLift(b, b.x, b.y), // (actors/player-weapons.js: the same picture it strikes by)
       bx = b.x + ox,
@@ -897,12 +897,11 @@ export function render() {
     // a hair-thin streak, the head hot white and the trail cooling to orange behind it: a tracer long and bright, the
     // rounds between it short and faint; never trailing back past the muzzle it just left
     const k0 = sc / GK,
-      L = Math.min(
-        (b.tr ? 30 : 17) * k0 * (b.pellet ? 0.55 : 1),
-        Math.hypot(b.x - (b.sx ?? b.x), b.y - (b.sy ?? b.y)) + 3
-      ),
-      T = (b.tr ? 1.7 : 1.15) * (b.heavy ? 1.3 : 1) * (b.pellet ? 0.8 : 1);
-    if (b.tr) quad(R.glow, bx, by, 0, 0.12 * sc, 0.12 * sc, 0, 0, 0, 1, gc[0] * 0.2, gc[1] * 0.2, gc[2] * 0.2, 0);
+      L = Math.min((b.pellet ? 11 : b.tr ? 30 : 17) * k0, Math.hypot(b.x - (b.sx ?? b.x), b.y - (b.sy ?? b.y)) + 3),
+      T = b.pellet ? 1.0 : (b.tr ? 1.7 : 1.15) * (b.heavy ? 1.3 : 1),
+      br = b.pellet ? 0.62 : b.tr ? 1 : 0.42; // (a shotgun's pellets all show, short and alike: you see the spread)
+    if (b.tr && !b.pellet)
+      quad(R.glow, bx, by, 0, 0.12 * sc, 0.12 * sc, 0, 0, 0, 1, gc[0] * 0.2, gc[1] * 0.2, gc[2] * 0.2, 0);
     if (L > 1)
       quad(
         R.tracer,
@@ -915,9 +914,9 @@ export function render() {
         0,
         0,
         1,
-        gc[0] * (b.tr ? 0.95 : 0.4) * tk,
-        gc[1] * (b.tr ? 0.9 : 0.36) * tk,
-        gc[2] * (b.tr ? 0.85 : 0.3) * tk,
+        gc[0] * 0.95 * br * (b.pellet ? 1 : tk),
+        gc[1] * 0.88 * br * (b.pellet ? 1 : tk),
+        gc[2] * 0.78 * br * (b.pellet ? 1 : tk),
         0
       );
   }

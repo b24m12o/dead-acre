@@ -98,10 +98,12 @@ float lamp(vec3 p){ return 1e3; }`,
   // a pistol: the slide and its sights over the frame, the raked grip, the trigger guard, a light under the muzzle;
   // the magazine up inside the grip apart (only its base shows)
   pistol: `
-float steel(vec3 p){ float d=bx(p,vec3(2.6,0.0,1.95),vec3(3.5,0.45,0.55),0.18); d=min(d,bx(p,vec3(5.6,0.0,2.58),vec3(0.12,0.1,0.15),0.04)); d=min(d,bx(p,vec3(-0.5,0.0,2.58),vec3(0.15,0.3,0.15),0.04)); return d; }
-float poly(vec3 p){ float d=bx(p,vec3(2.2,0.0,1.05),vec3(2.7,0.4,0.38),0.15); d=min(d,bxr(p,vec3(-0.1,0.0,-0.35),vec3(0.62,0.42,1.4),0.3,0.3)); d=min(d,bx(p,vec3(1.3,0.0,0.45),vec3(0.9,0.1,0.06),0.04)); return d; }
+float steel(vec3 p){ float d=bx(p,vec3(2.6,0.0,1.95),vec3(3.5,0.45,0.55),0.18); d+=0.06*step(abs(p.x+0.3),0.6)*smoothstep(0.55,0.85,abs(fract(p.x*2.6)*2.0-1.0)); /* grip serrations at the back of the slide */
+  d=min(d,bx(p,vec3(5.6,0.0,2.58),vec3(0.12,0.1,0.15),0.04)); d=min(d,bx(p,vec3(-0.5,0.0,2.58),vec3(0.15,0.3,0.15),0.04)); d=min(d,rodX(p,6.0,6.15,0.0,1.95,0.2)); return d; } // the sights, the muzzle's crown
+float poly(vec3 p){ float d=bx(p,vec3(2.2,0.0,1.05),vec3(2.7,0.4,0.38),0.15); d=min(d,bxr(p,vec3(-0.1,0.0,-0.35),vec3(0.62,0.42,1.4),0.3,0.3)); d=min(d,bx(p,vec3(1.3,0.0,0.45),vec3(0.9,0.1,0.06),0.04));
+  d=smin(d,bx(p,vec3(-0.75,0.0,1.25),vec3(0.35,0.38,0.2),0.12),0.3); return d; } // the frame, the raked grip, the guard, the beavertail
 float magz(vec3 p){ return bxr(p,vec3(-0.3,0.0,-0.9),vec3(0.5,0.38,1.35),0.15,0.3); }
-float lamp(vec3 p){ return rodX(p,4.0,5.6,0.0,0.6,0.42); }`,
+float lamp(vec3 p){ return rodX(p,4.2,5.4,0.0,0.68,0.3); }`,
 };
 // what a shape leaves out gets a stand-in that is nowhere
 const fill = src =>
@@ -174,10 +176,13 @@ export const GUNS = {
     [-10, -2.5, -2.5],
     [16.5, 2.5, 5],
   ]),
-  pistol: gun('pistol', [
-    [-2.4, -1, -2.2],
-    [6.4, 1, 3],
-  ]),
+  pistol: {
+    ...gun('pistol', [
+      [-2.4, -1, -2.2],
+      [6.4, 1, 3],
+    ]),
+    SCALE: 1.2,
+  }, // (a fifth over life size: in two hands at the chin it was lost between them)
   mag_rifle: mag(
     'rifle',
     [
@@ -210,12 +215,15 @@ export const GUNS = {
     ],
     REGION.pack
   ),
-  mag_pistol: mag(
-    'pistol',
-    [
-      [-2, -0.7, -2.7],
-      [1.2, 0.7, 0.8],
-    ],
-    REGION.grip
-  ),
+  mag_pistol: {
+    ...mag(
+      'pistol',
+      [
+        [-2, -0.7, -2.7],
+        [1.2, 0.7, 0.8],
+      ],
+      REGION.grip
+    ),
+    SCALE: 1.2,
+  },
 };

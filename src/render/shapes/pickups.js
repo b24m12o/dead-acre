@@ -7,6 +7,18 @@ export function shapePickups() {
     'pk',
     `
   float rounds(vec3 p, vec2 c0, vec2 step, int nx, int ny, float r, float zc){ float d=1e3; for(int j=0;j<4;j++){ if(j>=ny) break; for(int i=0;i<6;i++){ if(i>=nx) break; vec2 c=c0+vec2(float(i),float(j))*step; d=min(d,sdSph(p,vec3(c,zc),r)); } } return d; } /* rows of cartridges standing in an open box: their tips, seen from above */
+  /* turnout gear: a firefighter's coat folded in a bundle (tan, its yellow-and-silver bands across it, the collar
+     rolled at one end) and the helmet left on top of it, turned a little: all one scuffed yellow, the long brim lower
+     at the back, ribs over the dome, the black leather front plate standing up off the brim */
+  float gearCoat(vec3 p){ float d=sdBox(p,vec3(-3.2,0.0,1.7),vec3(10.2,7.6,0.5),1.2); d-=0.3*fbm(p.xy*0.35)-0.15;
+    d=smin(d,sdCap(p,vec3(-13.6,-7.2,2.3),vec3(-13.6,7.2,2.3),1.35,1.35),0.8); d+=0.35*exp(-pow(p.x+3.0,2.0)*0.6)*step(2.2,p.z); return d; }
+  vec3 gearQ(vec3 p){ vec3 q=(p-vec3(5.6,0.6,3.0))/0.68; float a=0.55, c=cos(a), s=sin(a); return vec3(c*q.x+s*q.y,-s*q.x+c*q.y,q.z); }
+  float gearHelm(vec3 p){ vec3 q=gearQ(p);
+    float d=sdEll(q,vec3(-1.4,0.0,1.3),vec3(13.4,10.2,1.3)); d=max(d,-(q.z-0.35)); d=smin(d,sdEll(q,vec3(-1.4,0.0,1.6),vec3(12.6,9.6,1.0)),0.6); /* the brim, thick at its rolled edge */
+    d=smin(d,sdEll(q,vec3(1.0,0.0,3.4),vec3(8.0,6.8,5.0)),1.2);
+    for(int s=-1;s<=1;s++) d=smin(d,sdCap(q,vec3(-6.4,float(s)*2.4,6.4-abs(float(s))*1.0),vec3(6.8,float(s)*2.4,6.7-abs(float(s))*1.0),0.7,0.7),0.6);
+    d=min(d,sdBox(q,vec3(9.0,0.0,5.4),vec3(0.4,2.8,2.4),0.5));
+    return d*0.68; }
   float map(vec3 p){
     int k=uPart; float d;
     if(k==0){ /* a hard first-aid case: lid seam, two latches, a carry handle */
@@ -53,11 +65,8 @@ export function shapePickups() {
       for(int s=-1;s<=1;s+=2) d=min(d,sdCap(p,vec3(-5.4,float(s)*1.7,9.5),vec3(5.4,float(s)*1.7,9.5),0.85,0.85));
       d=smin(d,sdBox(p,vec3(13.2,0.0,3.6),vec3(0.8,4.0,1.8),1.0),0.8);
     }
-    else if(k==12){ /* a firefighter's helmet: the long brim (longest at the back), the ribbed dome, the leather front shield */
-      d=sdEll(p,vec3(-1.6,0.0,1.1),vec3(14.4,11.2,0.85));
-      d=smin(d,sdEll(p,vec3(1.0,0.0,3.6),vec3(8.4,7.0,5.0)),1.2);
-      for(int s=-1;s<=1;s++) d=smin(d,sdCap(p,vec3(-6.6,float(s)*2.6,6.6-abs(float(s))*0.9),vec3(7.0,float(s)*2.6,6.9-abs(float(s))*0.9),0.75,0.75),0.6);
-      d=min(d,sdBox(p,vec3(9.2,0.0,5.0),vec3(0.7,3.0,3.2),0.5));
+    else if(k==12){ /* turnout gear: the coat folded, the helmet on it (gearCoat, gearHelm) */
+      d=min(gearCoat(p),gearHelm(p));
     }
     else if(k==13){ /* a drum-fed auto shotgun on its side: stock, grip, receiver, the drum under it, barrel and handguard */
       d=sdBox(p,vec3(0.0,1.0,2.0),vec3(6.4,2.1,1.5),0.5);
@@ -98,9 +107,15 @@ export function shapePickups() {
     if(k==9){ if(p.z<0.9) return hx(0xd4d8d4)*(0.88+0.12*fbm(p.xy*1.5)); if(p.x<-9.7) c=hx(0x2a58d0); else if(p.x>8.8) c=hx(0xe8601c); else c=hx(0xe6c024)*(0.9+0.15*fbm(p.xy*2.0)); if(abs(p.x-0.6)<3.0&&p.x>-9.7&&p.x<8.8) c=hx(0xf0eee4); return c; }
     if(k==10){ c=hx(0x1e2a4a)*(0.85+0.2*fbm(p.xy*0.8)); if(p.x<-8.4) c*=0.8; if(abs(p.x)<8.4&&abs(p.y)<5.2&&p.z>4.0){ c=hx(0xc89a40)*(0.85+0.3*fbm(p.xy*3.0)); vec2 q=fract((p.xy+vec2(8.4-2.4,6.0-2.4))/2.4+0.5)-0.5; if(length(q)<0.22) c=hx(0xb06a3a); } if(abs(abs(p.y)-5.9)<0.5&&p.z>1.0&&p.z<3.6) c=hx(0xd8b040); return c; }
     if(k==11){ c=hx(0x1e2024)*(0.82+0.3*fbm(p.xy*1.2)); if(abs(p.y)<0.6&&p.z>8.6&&abs(p.x)<9.4) c=hx(0x8a8c90); if(p.z>9.0&&abs(abs(p.y)-1.7)<1.0&&abs(p.x)<5.6) c=hx(0x2c2e32); if(p.z>7.2&&abs(p.x+6.0)<3.0&&abs(p.y-4.4)<1.5){ c=hx(0x203a78); if(abs(p.y-4.4)<0.45&&fract(p.x*0.9)<0.62) c=hx(0xe8e8e4); } if(p.x>12.2) c*=0.85; return c; }
-    if(k==12){ c=hx(0xd8a82a)*(0.84+0.24*fbm(p.xy*0.8)); c=mix(c,hx(0x3a2a1a),clamp((fbm(p.xy*0.5+5.0)-0.55)*1.6,0.0,0.55)); /* scorched */
-      if(p.z<2.2&&length((p.xy-vec2(-1.6,0.0))/vec2(14.4,11.2))>0.86) c=hx(0xd0d4c8)*(0.9+0.1*fbm(p.xy*2.0)); /* the reflective trim round the brim */
-      if(p.x>8.4&&p.z>2.0) c=hx(0x2a1e16)*(0.9+0.2*fbm(p.xy*2.0)); return c; }
+    if(k==12){ if(gearHelm(p)<gearCoat(p)){ vec3 q=gearQ(p);
+        c=hx(0xe0a820)*(0.86+0.22*fbm(q.xy*0.7)); c=mix(c,hx(0x4a3418),clamp((fbm(q.xy*0.45+5.0)-0.6)*1.5,0.0,0.4)); /* the yellow, scuffed and smoke-stained */
+        if(q.z>3.0&&abs(fract((q.y+1.2)/2.4)-0.5)<0.12&&abs(q.x)<6.8) c*=0.86; /* the ribs' shadows */
+        if(q.x>8.4&&q.z>2.5){ c=hx(0x1c1814)*(0.85+0.3*fbm(q.yz*2.0)); if(abs(q.y)<1.4&&abs(q.z-4.8)<1.5) c=hx(0xd8b048); } /* the black leather front plate, its brass number */
+        return c; }
+      c=hx(0xa8874e)*(0.8+0.3*fbm(p.xy*0.6)); c=mix(c,hx(0x3a2c1c),clamp((fbm(p.xy*0.3+9.0)-0.58)*1.5,0.0,0.45)); /* the coat's tan, sooty */
+      if(p.x<-12.0) c=hx(0x4a3c28)*(0.85+0.2*fbm(p.xy*1.2)); /* the collar */
+      for(int i=0;i<2;i++){ float bx=-8.0+float(i)*8.6, w=abs(p.x-bx); if(w<1.5&&p.x>-12.0){ c=hx(0xd4dc3a)*(0.9+0.12*fbm(p.xy*2.0)); if(w<0.5) c=hx(0xd0d4d0)*(0.92+0.1*fbm(p.xy*3.0)); } } /* the bands: lime-yellow, a silver stripe down each */
+      return c; }
     if(k==13){ c=hx(0x1e1f22)*(0.85+0.25*fbm(p.xy*1.4)); if(p.x>6.2&&abs(p.y-2.2)<1.2) c=hx(0x3a3c40); float r=length(p.xy-vec2(1.0,-4.4)); if(r<5.4&&p.y<-0.6){ c=hx(0x2a2c2a)*(0.9+0.15*fbm(p.xy*2.0)); if(fract(r*0.55)>0.86) c*=0.6; if(r<1.3) c=hx(0x4a4c4e); } return c; }
     if(k==14){ c=hx(0x6a4a30)*(0.78+0.32*fbm(p.xy*0.9)); if(p.z>4.4&&p.y<2.6) c=hx(0x5a3e28)*(0.8+0.3*fbm(p.xy*1.1)); if(abs(p.y-2.3)<0.3&&p.z>4.2) c=hx(0xb89a70); if(length(p.xy-vec2(0.0,-5.4))<1.1&&p.z>5.0) c=hx(0xc8a050); c=mix(c,hx(0x2a1a10),clamp((fbm(p.xy*0.5+3.0)-0.6)*1.5,0.0,0.4)); return c; }
     c=hx(0x5a6438)*(0.86+0.2*fbm(p.xy*0.6)); c=mix(c,hx(0x3e4628),clamp((fbm(p.xy*0.25+4.0)-0.55)*1.5,0.0,0.45)); /* olive-drab polymer, scuffed */

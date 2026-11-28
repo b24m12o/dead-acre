@@ -358,11 +358,11 @@ export function drawCasters() {
     }
   const vis = (x, y, m = 130) =>
     x > GS.camX - m && x < GS.camX + viewW + m && y > GS.camY - m && y < GS.camY + viewH + m * 1.4;
-  for (const c of cars) if (!c.dead && vis(c.x, c.y)) push(carKey(c), drawCar, c);
+  for (const c of cars) if (vis(c.x, c.y)) push(carKey(c), drawCar, c); // (one blown up: its burnt-out shell)
   if (GS.truck && GS.truck.driver && !GS.truck.driver.in && GS.truck.garage && GS.truck.garage.open && !GS.NOHERO)
     push(GS.truck.driver.y, drawRanger, GS.truck.driver); // the driver, by his cab, once the door is up
   if (GS.truck && !GS.truck.gone && vis(GS.truck.x, GS.truck.y, 200)) push(carKey(GS.truck), drawCar, GS.truck); // the convoy truck come for you
-  for (const w of GS.wrecks) if (vis(w.x, w.y)) push(w.y + 20, drawWreck, w);
+  for (const w of GS.wrecks) if (!w.car && vis(w.x, w.y)) push(w.y + 20, drawWreck, w);
   for (const d of GS.decor) if (vis(d.x, d.y)) push(decorKey(d), drawDecor, d);
   for (const L of lamps) if (vis(L.bx, L.by)) push(L.by, drawLampPole, L);
   for (const t of trees) if (vis(t.x, t.y)) push(t.y, drawTrunk, t);

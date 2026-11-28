@@ -331,6 +331,26 @@ export function drawWheel() {
     ui.lineTo(W.cx + Math.cos(a) * (R0 + 34 * k), W.cy + Math.sin(a) * (R0 + 34 * k));
     ui.stroke();
   }
+  // what you hold now (and the trap you have set to lay): its wedge warm, a bright rim along its outer edge
+  for (let i = 0; i < W.n; i++) {
+    const id = WHEEL_SLOTS[i];
+    if (!(id === GS.P.gun || (isTrap(id) && GS.RUN.trapSel === id))) continue;
+    const a = slotA(i),
+      h = Math.PI / W.n,
+      ro = R0 + 34 * k;
+    ui.beginPath();
+    ui.arc(W.cx, W.cy, ro, a - h, a + h);
+    ui.arc(W.cx, W.cy, 58 * k, a + h, a - h, true);
+    ui.closePath();
+    ui.fillStyle = 'rgba(255,176,90,0.2)';
+    ui.fill();
+    ui.strokeStyle = '#ffb45a';
+    ui.lineWidth = 3.5 * k;
+    ui.lineCap = 'butt';
+    ui.beginPath();
+    ui.arc(W.cx, W.cy, ro - 1.75 * k, a - h + 0.02, a + h - 0.02);
+    ui.stroke();
+  }
   // the slot you point at: its wedge lit
   if (WHEEL.sel >= 0) {
     const a = slotA(WHEEL.sel),
@@ -383,11 +403,17 @@ export function drawWheel() {
         if (n > 0 && n < 10) ui.fillText(String(n), x - iw / 2 - 4 * k, y - ih / 2 - 4 * k);
       } // the number key that draws it
       if (id === GS.P.gun || (trap && GS.RUN.trapSel === id)) {
+        const tg = trap ? 'SET' : 'IN HAND';
+        ui.font = `700 ${8.5 * k}px "JetBrains Mono", monospace`;
+        const tw = ui.measureText(tg).width + 10 * k,
+          ty = y - ih / 2 - 15 * k;
         ui.fillStyle = '#ffb45a';
         ui.beginPath();
-        ui.arc(x, y - ih / 2 - 12 * k, 2.6 * k, 0, TAU);
+        ui.roundRect(x - tw / 2, ty - 7 * k, tw, 14 * k, 7 * k);
         ui.fill();
-      } // what you hold now
+        ui.fillStyle = '#1a1208';
+        ui.fillText(tg, x, ty + 0.5 * k);
+      } // what you hold now: a tag over it
     }
     ui.globalAlpha = 1;
   }

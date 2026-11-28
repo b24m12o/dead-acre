@@ -9,8 +9,10 @@ import { $ } from '../core/errors.js';
 import { TAU, d2, rand, randi } from '../core/util.js';
 import { saveMeta } from '../core/settings.js';
 import { R } from '../render/atlas.js';
-import { MW, TILE, WH, WW, cars, houses, lamps } from '../world/map.js';
-import { flow, blockPt } from '../world/nav.js';
+import { MW, TILE, WH, WW, cars, houses, lamps, roofs } from '../world/map.js';
+import { flow, blockPt, los } from '../world/nav.js';
+import { roofStop } from '../world/roofs.js';
+import { viewH, viewW } from '../render/sprites.js';
 import { MUS, noise, spat } from '../audio/audio.js';
 import { sfx } from '../audio/sfx.js';
 import { S, cam, dropAmmo } from './state.js';
@@ -112,21 +114,37 @@ export function freeAround(x, y, r = 22) {
   );
 }
 // d0, d1 at the old size of things (core/scale.js)
+// (under a roof: inside a roofed building, or under a canopy; nothing comes out there that you could see)
+const roofed = (x, y) =>
+  houses.some(
+    o =>
+      o.roof &&
+      !o.open &&
+      x > o.x * TILE - 24 &&
+      x < (o.x + o.w) * TILE + 24 &&
+      y > o.y * TILE - 24 &&
+      y < (o.y + o.h) * TILE + 24
+  ) || roofs.some(r => Math.abs(x - r.x) < 150 * (r.s || 1) && Math.abs(y - r.y) < 80 * (r.s || 1));
 function stageSpot(d0, d1) {
-  for (let k = 0; k < 80; k++) {
-    const a = rand(0, TAU),
-      r = rand(d0, d1) * GK;
+  const P = GS.P;
+  for (let k = 0; k < 140; k++) {
+    const strict = k < 100,
+      a = rand(0, TAU),
+      r = rand(d0, d1) * GK * (strict ? 1 : rand(0.75, 1));
     if (k < 50 && Math.abs(Math.sin(a)) > 0.55) continue; // the screen is wider than tall: arrive from the side where it can be seen
-    const x = GS.P.x + Math.cos(a) * r,
-      y = GS.P.y + Math.sin(a) * r;
-    if (!freeAround(x, y, 30 * GK)) continue;
+    const x = P.x + Math.cos(a) * r,
+      y = P.y + Math.sin(a) * r;
+    if (!freeAround(x, y, 30 * GK) || roofed(x, y)) continue;
     const tx = Math.floor(x / TILE),
       ty = Math.floor(y / TILE);
     if (flow && !(flow[ty * MW + tx] < 65535)) continue;
+    // in the open and in sight: on the screen as it stands, nothing between you and it, no roof over the way
+    if (strict && (Math.abs(x - P.x) > viewW * 0.42 || Math.abs(y - P.y) > viewH * 0.4)) continue;
+    if (strict && (!los(P.x, P.y, x, y) || roofStop(P.x, P.y, x, y))) continue;
     return [x, y];
   }
   return spawnPoint(d0, false);
-} // close enough to watch it arrive, on ground it can walk from
+} // close enough to watch it arrive, out in the open where you can see it, on ground it can walk from
 function lampOff(L, quiet) {
   if (L.down || L.off) return;
   L.off = GS.time;
