@@ -709,8 +709,22 @@ const DRESSED = { zombie: 1, lean: 1, gaunt: 1, bloat: 1 },
   CAPS = [0, 2, 3, 7, 8, 9, 11, 13], // a cap's colours (the shader's HAT list)
   KNITS = [3, 8, 9, 7, 10, 11, 2, 0];
 // e's look for this model, worked out once: its pattern or outfit, sleeves, trousers, hair, what it wears on its head
+const RK_SKIN = [0.66, 0.5, 0.42]; // Roadkill: sunburnt, bruised, road-rashed
 function lookOf(e, name, id) {
   if (e._lk && e._lk.m === name) return e._lk;
+  if (name === 'roadkill')
+    return (e._lk = {
+      m: name,
+      kits: null,
+      pat: 26, // bare to the waist (DRESS 16)
+      slv: 0,
+      pa: [0.2, 0.22, 0.27], // work jeans, black with road
+      paw: 1.1,
+      ha: [0.1, 0.08, 0.07],
+      bald: true,
+      sty: 0,
+      hat: 0,
+    });
   if (name === 'chief')
     return (e._lk = {
       m: name,
@@ -1282,7 +1296,7 @@ function poseZombie(e, D, o) {
       const g0 = hands[sd > 0 ? 0 : 1];
       hand = [0, 1, 2].map(i => lerp(g0[i], hand[i], uprightK));
     }
-    if (CH) hand = CH[sd > 0 ? 0 : 1]; // (right on the foot of the handle, left along it)
+    if (CH) hand = CH[sd > 0 ? 0 : 1]; // (right where he holds it, left along it: or hanging free)
     const pole = nrm(add(mul(rt, sd * 0.6), [0, 0, -0.8]));
     // the riot cop's shield arm: the forearm upright before its chest, the shield's face to the front
     if (riot && sd < 0 && e.shield && !dead && !(e.stag > 0) && !ground) {
@@ -1346,11 +1360,13 @@ function poseZombie(e, D, o) {
             ? [0.34, 0.35, 0.34] // near black
             : kd === 'blind'
               ? [0.72, 0.72, 0.7] // ashen
-              : brute
-                ? [0.56, 0.6, 0.5] // grey-green, swollen with muscle
-                : hop
-                  ? [0.7, 0.68, 0.48] // sickly, stretched tight
-                  : SKINS[e.sk || 0] || SKINS[0],
+              : name === 'roadkill'
+                ? RK_SKIN
+                : brute
+                  ? [0.56, 0.6, 0.5] // grey-green, swollen with muscle
+                  : hop
+                    ? [0.7, 0.68, 0.48] // sickly, stretched tight
+                    : SKINS[e.sk || 0] || SKINS[0],
     shc = (
       spit
         ? [0.4, 0.42, 0.34]
@@ -1360,11 +1376,13 @@ function poseZombie(e, D, o) {
             ? [0.3, 0.24, 0.2]
             : name === 'chief'
               ? [0.78, 0.64, 0.38] // tan turnout cloth, sooted
-              : hop
-                ? [0.27, 0.33, 0.39]
-                : riot || name === 'armored'
-                  ? [0.2, 0.24, 0.32] // a uniform under the gear
-                  : (SHIRTS && SHIRTS[e.v || 0]) || [0.36, 0.44, 0.52]
+              : name === 'roadkill'
+                ? RK_SKIN.map(x => (x * 0.86) / 0.72) // (no shirt: skin)
+                : hop
+                  ? [0.27, 0.33, 0.39]
+                  : riot || name === 'armored'
+                    ? [0.2, 0.24, 0.32] // a uniform under the gear
+                    : (SHIRTS && SHIRTS[e.v || 0]) || [0.36, 0.44, 0.52]
     ).map(x => x * 0.72),
     tc = e.tc || [1, 1, 1],
     LK = lookOf(e, name, id),
@@ -3424,7 +3442,7 @@ let POSE = poseFig;
 // the model each of the dead is drawn with: by its type, its special kind or its elite trait
 export function modelOf(e) {
   if (e.pk3d) return e.pk3d;
-  if (e.c3d) return 'chief'; // the Fire Chief, in 3D (drawChief3D)
+  if (e.c3d) return e.c3d; // a giant in 3D: the Fire Chief, Roadkill (drawGiant3D)
   if (e.veh3d) return e.veh3d;
   if (e.hero3d) return 'hero';
   if (e.holder) return e.gm;
@@ -3465,39 +3483,64 @@ export function modelOf(e) {
 // the ground, missing an arm or its head, and painted into the street once they lie still
 // you (or a survivor) in 3D, with your gun: when the meshes are in, and you're on your feet (rolling, down or riding
 // out, the pictures still draw)
-// ---- the Fire Chief's axe: what he does with it, as a few numbers on springs ----
-// where his right hand holds the foot of the handle (f ahead of his chest, s to his right, h up from it), the handle's
-// pitch (p: up from level, ahead; past a right angle it's over his shoulder) and its turn off his facing (az: to his
-// left as it goes negative), and how far along it his left hand is (g). Every move of his is a set of these, and they
-// go from one to the next on springs: a carry is loose, the chop's blow stiff. His hands and the axe follow them, so
-// they always agree with each other and nothing jumps (all in his own units, scaled by his build)
-const AXP = ['f', 's', 'h', 'p', 'az', 'g'];
+// ---- the giants in 3D (the Fire Chief, Roadkill): what each does with what he carries, as a few numbers on springs ----
+// where his right hand holds it (f ahead of his chest, s to his right, h up from it), the thing's pitch (p: up from
+// level, ahead; past a right angle it's over his shoulder) and its turn off his facing (az: to his left as it goes
+// negative), how far along it his left hand is (g), where along it his right hand is (u, from its own foot), and how
+// much his left hand is on it at all (two: 0, swinging free; 1, on it). Every move of his is a set of these, and they go
+// from one to the next on springs: a carry is loose, a blow stiff. His hands and what he carries follow them, so they
+// always agree with each other and nothing jumps (all in his own units, scaled by his build)
+const AXP = ['f', 's', 'h', 'p', 'az', 'g', 'u', 'two'];
 function chiefTarget(e, t) {
-  const st = e.dying !== undefined ? 'dead' : e.st,
-    stride = (e.stride || 0) * Math.PI * 2;
-  if (e.stunT > 0) return [[7, 6, -20, -0.6, -0.4, 10], 60];
-  if (st === 'rear' || st === 'roar') return [[2, -1, 14, 0.15, -1.45, 14], 70]; // raised over his head, crossways
-  if (st === 'brace') return [[8, 6, -7, 0.25, -0.95, 14], 110]; // down across him, set to go
-  if (st === 'rush' || st === 'charge') return [[10, 5, -9, 0.2, -0.35, 13], 120]; // out ahead, low, as he comes
+  const st = e.st,
+    stride = (e.stride || 0) * Math.PI * 2,
+    T = (v, K) => [[...v, 2, 1], K];
+  if (e.stunT > 0) return T([7, 6, -20, -0.6, -0.4, 10], 60);
+  if (st === 'rear' || st === 'roar') return T([2, -1, 14, 0.15, -1.45, 14], 70); // raised over his head, crossways
+  if (st === 'brace') return T([8, 6, -7, 0.25, -0.95, 14], 110); // down across him, set to go
+  if (st === 'rush' || st === 'charge') return T([10, 5, -9, 0.2, -0.35, 13], 120); // out ahead, low, as he comes
   if (st === 'chop') {
-    if (e.stT > 0.15) return [[-1, 3, 7, 2.25, 0.1, 4], 150]; // back over his right shoulder
-    return [[14, 1, -12, -0.5, 0, 4], 1100]; // and down: into the street ahead of him
+    if (e.stT > 0.15) return T([-1, 3, 7, 2.25, 0.1, 4], 150); // back over his right shoulder
+    return T([14, 1, -12, -0.5, 0, 4], 1100); // and down: into the street ahead of him
   }
-  if (e.stuckT > 0) return [[15, 1, -14, -0.55 + Math.sin(t * 15) * 0.04 * (e.stuckT > 0.35 ? 1 : 0), 0, 5], 160]; // stuck: he hauls at it
-  if ((e.claw || 0) > 0) {
-    const c = e.claw;
-    return [[10, 4, -4, 0.15, lerp(1.4, -1.45, c), 4], 700]; // swung through, side to side
-  }
-  if ((e.wind || 0) > 0) return [[2, 8, 0, 0.45, 1.5 * e.wind, 4], 140]; // drawn back to his right
-  if (e.recT > 0.25) return [[8, 4, -18, -0.2, -0.2, 12], 60]; // spent: the head down by his knees
-  return [[6, 5, -14 + Math.sin(stride * 2) * 0.8, 0.85, -0.75, 13], 70]; // carried at port: across him, the head by his left shoulder
+  if (e.stuckT > 0) return T([15, 1, -14, -0.55 + Math.sin(t * 15) * 0.04 * (e.stuckT > 0.35 ? 1 : 0), 0, 5], 160); // stuck: he hauls at it
+  if ((e.claw || 0) > 0) return T([10, 4, -4, 0.15, lerp(1.4, -1.45, e.claw), 4], 700); // swung through, side to side
+  if ((e.wind || 0) > 0) return T([2, 8, 0, 0.45, 1.5 * e.wind, 4], 140); // drawn back to his right
+  if (e.recT > 0.25) return T([8, 4, -18, -0.2, -0.2, 12], 60); // spent: the head down by his knees
+  return T([6, 5, -14 + Math.sin(stride * 2) * 0.8, 0.85, -0.75, 13], 70); // carried at port: across him, the head by his left shoulder
 }
+// Roadkill and his sign: dragged behind him by the post on the walk, its face scraping the road; held out ahead in
+// both fists to ram with on the charge; drawn back and swung round in the haymaker; both fists on a new one's post,
+// heaving it out of the street; drawn far back and thrown; raised overhead in one fist to roar
+function roadkillTarget(e, t) {
+  const st = e.st,
+    act = st === 'act' ? e.act : null,
+    stride = (e.stride || 0) * Math.PI * 2,
+    T = (v, K) => [v, K];
+  if (!e.sign) return T([4, 9, -14, -0.6, 0.6, 6, 4, 0], 60); // (nothing in his hands: drawn nowhere)
+  if (act === 'pull') return T([16, 0, -12 + Math.sin(t * 7) * 1.5, 1.3, 0, 6, 30, 1], 120); // heaving a post up out of the ground
+  if (act === 'signthrow') return T([-8, 8, 8, 0.55, 2.8, 5, 6, 1], 160); // drawn far back over his right shoulder
+  if (act === 'stomp') return T([2, 10, 14, 1.2, 0.4, 6, 4, 0], 120); // up in one fist as his weight comes down
+  if (act === 'bolt') return T([-6, 10, -10, -0.4, 2.6, 6, 4, 0], 110); // hunched, arms back, about to go
+  if (e.stunT > 0) return T([6, 8, -18, -0.5, 0.6, 6, 4, 0], 60); // let hang, its face on the road
+  if (st === 'rear' || st === 'roar') return T([0, 8, 18, 1.35, 0.3, 6, 4, 0], 70); // held up over his head
+  if (st === 'charge' || st === 'sprint') return T([8, 3, -6, 0.05, -0.1, 10, 4, 1], 140); // out ahead, edge first, a ram
+  if ((e.claw || 0) > 0) return T([6, 6, -2, 0.15, lerp(2.0, -1.3, e.claw), 6, 4, 1], 650); // the haymaker
+  if ((e.wind || 0) > 0) return T([-4, 8, 4, 0.25, 2.3 * e.wind, 6, 4, 1], 130); // drawn back to his right
+  if (e.recT > 0.25) return T([6, 8, -18, -0.5, 0.6, 6, 4, 0], 60); // spent
+  return T([-2, 9, -16 + Math.sin(stride * 2) * 0.6, -0.3, 2.7, 6, 4, 0], 60); // dragged behind him by the post
+}
+export const GIANT3D = {
+  chief: { model: 'chief', prop: 'axe', k: 1.5, tgt: chiefTarget },
+  roadkill: { model: 'roadkill', prop: 'stopsign', k: 1.7, tgt: roadkillTarget, has: e => !!e.sign },
+};
 function chiefArms(e, Jc, yaw, k) {
   const A = e._ax,
-    [T, K] = chiefTarget(e, GS.time);
+    G = GIANT3D[e.btype],
+    [Tg, K] = G.tgt(e, GS.time);
   if (!A.v) {
-    A.v = T.slice();
-    A.d = T.map(() => 0);
+    A.v = Tg.slice();
+    A.d = Tg.map(() => 0);
   }
   const dt = A.dt || 0,
     n = Math.max(1, Math.ceil(dt / 0.008)),
@@ -3505,10 +3548,10 @@ function chiefArms(e, Jc, yaw, k) {
     c = 2 * Math.sqrt(K);
   for (let j = 0; j < n; j++)
     for (let i = 0; i < AXP.length; i++) {
-      A.d[i] += ((T[i] - A.v[i]) * K - A.d[i] * c) * h;
+      A.d[i] += ((Tg[i] - A.v[i]) * K - A.d[i] * c) * h;
       A.v[i] += A.d[i] * h;
     }
-  const [f, s, hh, p, az, g] = A.v,
+  const [f, s, hh, p, az, g, u, two] = A.v,
     F = [Math.cos(yaw), Math.sin(yaw)],
     Rt = [-Math.sin(yaw), Math.cos(yaw)],
     kx = k[0],
@@ -3518,20 +3561,27 @@ function chiefArms(e, Jc, yaw, k) {
     cp = Math.cos(p),
     sp = Math.sin(p),
     X = [cp * Math.cos(a2), cp * Math.sin(a2), sp],
-    // the blade to the swing: up and ahead wound back over the shoulder, down into what it's chopping
+    // its edge (the blade, the plate's rim) to the swing: up and ahead wound back over the shoulder, down into what it
+    // comes down on
     Z = [sp * Math.cos(a2), sp * Math.sin(a2), -cp],
-    front = [rear[0] + X[0] * g * kx, rear[1] + X[1] * g * kx, rear[2] + X[2] * g * kz];
+    front = [rear[0] + X[0] * g * kx, rear[1] + X[1] * g * kx, rear[2] + X[2] * g * kz],
+    // his left hand when it isn't on it: hanging at his side, swinging to his stride
+    sw = Math.sin((e.stride || 0) * Math.PI * 2) * 4,
+    free = [Jc[0] + (F[0] * (2 + sw) - Rt[0] * 11) * kx, Jc[1] + (F[1] * (2 + sw) - Rt[1] * 11) * kx, Jc[2] - 21 * kz],
+    left = [0, 1, 2].map(i => lerp(free[i], front[i], clamp(two, 0, 1)));
   A.X = X;
   A.Z = Z;
-  A.foot = [rear[0] - X[0] * 2 * kx, rear[1] - X[1] * 2 * kx, rear[2] - X[2] * 2 * kz];
-  return [rear, front];
+  A.two = clamp(two, 0, 1);
+  A.foot = [rear[0] - X[0] * u * kx, rear[1] - X[1] * u * kx, rear[2] - X[2] * u * kz];
+  return [rear, left];
 }
-// the Fire Chief in 3D: his body posed as the street's dead are (poseZombie), his hands and his axe by chiefArms. False
-// if he can't be: his picture draws
-export const chief3DOn = () => fig3dOn() && !!FIG.models && !!FIG.models.chief;
-export function drawChief3D(e) {
-  if (!chief3DOn()) return false;
-  e.c3d = true;
+// a giant in 3D (GIANT3D): his body posed as the street's dead are (poseZombie), his hands and what he carries by
+// chiefArms. False if he can't be: his picture draws
+export const giant3DOn = bt => fig3dOn() && !!FIG.models && !!GIANT3D[bt] && !!FIG.models[GIANT3D[bt].model];
+export function drawGiant3D(e) {
+  const G = GIANT3D[e.btype];
+  if (!G || !giant3DOn(e.btype)) return false;
+  e.c3d = G.model;
   if (e.id === undefined) e.id = 12000 + Math.floor(Math.random() * 999);
   // once a frame: the time since the last (his springs), and the way he faces, turned on a spring of its own (so a snap
   // round to a new line is a quick turn, not a jump)
@@ -3541,19 +3591,19 @@ export function drawChief3D(e) {
     A.dt = clamp(GS.time - A.t, 0, 0.05);
     A.t = GS.time;
     const to = e.face ?? e.a ?? 0,
-      kq = e.st === 'rush' || e.st === 'charge' || e.st === 'chop' ? 14 : 7;
+      kq = e.st === 'rush' || e.st === 'charge' || e.st === 'chop' || e.st === 'sprint' ? 14 : 7;
     A.yaw += angDiff(A.yaw, to) * (1 - Math.exp(-kq * A.dt));
   } else A.dt = 0;
   if (e._f3 === frame) e._f3 = -1;
   if (!drawFig3D(e)) return false;
-  if (FIG.models.axe && A.X && !(e.dying > 0.2)) {
-    const s = FIGK * 1.5,
+  if (FIG.models[G.prop] && A.X && !(e.dying > 0.2) && (!G.has || G.has(e))) {
+    const s = FIGK * G.k,
       X = A.X,
       Z = A.Z,
       Y = [Z[1] * X[2] - Z[2] * X[1], Z[2] * X[0] - Z[0] * X[2], Z[0] * X[1] - Z[1] * X[0]],
       R = [X[0], Y[0], Z[0], X[1], Y[1], Z[1], X[2], Y[2], Z[2]],
       E = e._axeE || (e._axeE = { id: e.id + 1 });
-    drawPick3D(E, 'axe', R, A.foot[0], A.foot[1], A.foot[2], s, s, 1, 99);
+    drawPick3D(E, G.prop, R, A.foot[0], A.foot[1], A.foot[2], s, s, 1, 99);
   }
   return true;
 }
@@ -3596,7 +3646,7 @@ export function drawHero3D(p) {
   return true;
 }
 export function is3D(e) {
-  if (e.__std || e.c3d || !fig3dOn()) return false; // (the Fire Chief goes his own way: drawChief3D, from his picture's sums)
+  if (e.__std || e.c3d || !fig3dOn()) return false; // (a giant goes his own way: drawGiant3D)
   const m = modelOf(e);
   return !!m && !!FIG.models[m];
 }

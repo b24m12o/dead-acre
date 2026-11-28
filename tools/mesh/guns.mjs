@@ -167,8 +167,54 @@ void attrs(vec3 p){ gPart=0; gU=0.5; gReg=head(p)<handle(p)?(p.z>4.0?38:39):45; 
   ONE: true,
   MRES: 0.35,
 };
+// Roadkill's STOP sign, torn up out of the street with its post: the post a galvanised square tube from the lump of
+// concrete it was set in (the origin) along +x to the plate, the octagon on its end in the x-y plane, its face to -z
+// (held, the face is up: you read it from above), red, a white rim, STOP across it in white. Painted corner by corner
+const SIGN = {
+  BONES,
+  BOUNDS: [
+    [-3.6, -14.2, -3],
+    [56, 14.2, 3],
+  ],
+  GLSL:
+    LIB +
+    `
+int gCo; vec3 gCol;
+float octo(vec2 q, float r){ q=abs(q); return max(max(q.x,q.y),(q.x+q.y)*0.70711)-r; }
+float plate(vec3 p){ vec2 q=p.xy-vec2(42.0,0.0); return max(octo(q,11.4),abs(p.z+0.9)-0.32); }
+float post(vec3 p){ return bx(p,vec3(22.0,0.0,0.0),vec3(22.0,0.7,0.7),0.12); }
+float lump(vec3 p){ return sdSph(p,vec3(-0.6,0.0,0.0),2.6)+0.5*fbm(p.xz*0.9+p.y); }
+float model(vec3 p){ return min(min(plate(p),post(p)),lump(p)); }
+float bx2(vec2 v, vec2 s){ vec2 b=abs(v)-s; return length(max(b,0.0))+min(max(b.x,b.y),0.0); }
+float stopTxt(vec2 q){ /* S T O P, in strokes: q in the plate's own (x along the word, y up the letters) */
+  float d=1e3, w=0.55;
+  vec2 o=q-vec2(-6.0,0.0);
+  float st=max(abs(length(o-vec2(0.0,1.3))-1.3)-w*0.5,-bx2(o-vec2(1.1,0.75),vec2(1.0,0.7))); /* S: the top loop open at its lower right */
+  float sb=max(abs(length(o+vec2(0.0,1.3))-1.3)-w*0.5,-bx2(o-vec2(-1.1,-0.75),vec2(1.0,0.7))); /* and the bottom one at its upper left */
+  d=min(d,min(st,sb));
+  o=q-vec2(-2.0,0.0); d=min(d,min(max(abs(o.x)-1.4,abs(o.y-2.4)-w*0.5),max(abs(o.x)-w*0.5,abs(o.y)-2.6)));
+  o=q-vec2(2.2,0.0); d=min(d,abs(length(o*vec2(1.0,0.7))-1.65)-w*0.5);
+  o=q-vec2(6.0,0.0); d=min(d,min(max(abs(o.x+1.2)-w*0.5,abs(o.y)-2.6),abs(length(o-vec2(-0.6,1.2))-1.15)-w*0.5));
+  return d; }
+void attrs(vec3 p){ gPart=0; gU=0.5; gReg=99;
+  float pl=plate(p), po=post(p), lu=lump(p);
+  if(lu<min(pl,po)) gCol=hx(0x8a8680)*(0.8+0.3*fbm(p.xz*1.3));
+  else if(po<pl) gCol=hx(0x7c8282)*(0.85+0.2*fbm(p.xz*2.0+3.0));
+  else { vec2 q=vec2(p.x-42.0,p.y); float o=octo(q,11.4);
+    if(p.z>-0.75) gCol=hx(0x9aa0a0)*(0.85+0.2*fbm(q*1.5)); /* its back: bare aluminium */
+    else if(o>-1.1) gCol=hx(0xe8e6dc); /* the white rim */
+    else gCol=stopTxt(vec2(-q.y,q.x)*1.25)<0.0?hx(0xeceae0):hx(0xa8160e)*(0.85+0.25*fbm(q*0.6)); }
+  gCol=mix(gCol,hx(0x2a2420),clamp((fbm(p.xz*0.35+7.0)-0.6)*1.6,0.0,0.45)); } /* road grime */
+`,
+  REGION,
+  SCALE: 1,
+  RIGID: true,
+  ONE: true,
+  MRES: 0.38,
+};
 export const GUNS = {
   axe: AXE,
+  stopsign: SIGN,
   rifle: gun('rifle', [
     [-10, -1.6, -2.3],
     [23, 1.6, 4.4],

@@ -552,6 +552,20 @@ export const MODELS = {
     scale: 1.25,
     mres: 1.6,
   }), // the bloater: a sack of rot on legs
+  // Roadkill (a boss): a huge man run down on Route 9 and up again, shirtless, all neck and shoulders, bald
+  roadkill: humanoid({
+    tw: 1.46,
+    td: 1.36,
+    sw: 1.5,
+    lt: 1.5,
+    al: 1.12,
+    ll: 0.92,
+    hs: 0.88,
+    neck: 0.95,
+    hulk: 0.8,
+    scale: 1.7,
+    mres: 1.35,
+  }),
   // the Fire Chief (a boss): a big man gone bigger, in his turnout gear, the breathing set still on his back
   chief: humanoid({
     tw: 1.32,

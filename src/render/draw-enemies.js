@@ -9,7 +9,7 @@ import { dust, part } from './effects.js';
 import { shieldUp } from '../game/combat.js';
 import { queenTail, toWorld } from '../actors/projectiles.js';
 import { drawBoss3D } from './boss3d.js';
-import { chief3DOn, drawChief3D, drawFig3D, figFlush, is3D, setShirts } from './fig3d.js';
+import { drawFig3D, drawGiant3D, figFlush, giant3DOn, is3D, setShirts } from './fig3d.js';
 import { drawBody } from './draw-bodies.js';
 export const ZSKIN = [
     [0.6, 0.66, 0.5],
@@ -859,7 +859,7 @@ function drawEnemy0(e) {
     }
     case 'queen': {
       if (e.giant) {
-        if (e.btype === 'chief' && chief3DOn() && drawChief3D(e)) break; // in 3D, his own (fig3d.js)
+        if (giant3DOn(e.btype) && drawGiant3D(e)) break; // in 3D, his own (fig3d.js GIANT3D)
         drawGiant(e, fl, em, ta);
         break;
       }
