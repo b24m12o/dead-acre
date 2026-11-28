@@ -878,7 +878,7 @@ function poseZombie(e, D, o) {
     H = r[0][2] * k[1], // its hips' height, standing
     hipT = 3.6 * kw * (fat ? 1.7 : 1), // ... and lying, on its front or its back (on its gut, if it has one)
     D3 = (b, R, J) => bone(D, o, b, mul3(R, k), J, r[b]);
-  let yaw = e.a || 0,
+  let yaw = e.c3d && e._ax ? e._ax.yaw : e.a || 0,
     Rp, // the hips' turn
     Jp, // where they are
     chestBend = 0,
@@ -1251,10 +1251,7 @@ function poseZombie(e, D, o) {
       [24 - Math.sin(ph) * 6, 9],
     ]; // down on the ground ahead of it, hand over hand
   raise = rear * 18 + scrm * 8 + swl * 6;
-  if (e.c3d && e.__hd2) {
-    hd2 = e.__hd2;
-    raise = e.__raise || 0;
-  } // the Fire Chief: his hands where the fight puts them (draw-enemies.js drawGiant's, moved on to his body)
+  const CH = e.c3d && !ground ? chiefArms(e, Jc, yaw, k) : null; // the Fire Chief: both hands on the axe
   for (const sd of [1, -1]) {
     const h2 = hd2[sd > 0 ? 1 : 0],
       ub = sd > 0 ? 4 : 6,
@@ -1285,6 +1282,7 @@ function poseZombie(e, D, o) {
       const g0 = hands[sd > 0 ? 0 : 1];
       hand = [0, 1, 2].map(i => lerp(g0[i], hand[i], uprightK));
     }
+    if (CH) hand = CH[sd > 0 ? 0 : 1]; // (right on the foot of the handle, left along it)
     const pole = nrm(add(mul(rt, sd * 0.6), [0, 0, -0.8]));
     // the riot cop's shield arm: the forearm upright before its chest, the shield's face to the front
     if (riot && sd < 0 && e.shield && !dead && !(e.stag > 0) && !ground) {
@@ -3467,33 +3465,95 @@ export function modelOf(e) {
 // the ground, missing an arm or its head, and painted into the street once they lie still
 // you (or a survivor) in 3D, with your gun: when the meshes are in, and you're on your feet (rolling, down or riding
 // out, the pictures still draw)
-// the Fire Chief in 3D: his body posed as the street's dead are (poseZombie), his hands where the fight puts them, the
-// axe between them, head to the fore, blade to the swing. False if he can't be: his picture draws
+// ---- the Fire Chief's axe: what he does with it, as a few numbers on springs ----
+// where his right hand holds the foot of the handle (f ahead of his chest, s to his right, h up from it), the handle's
+// pitch (p: up from level, ahead; past a right angle it's over his shoulder) and its turn off his facing (az: to his
+// left as it goes negative), and how far along it his left hand is (g). Every move of his is a set of these, and they
+// go from one to the next on springs: a carry is loose, the chop's blow stiff. His hands and the axe follow them, so
+// they always agree with each other and nothing jumps (all in his own units, scaled by his build)
+const AXP = ['f', 's', 'h', 'p', 'az', 'g'];
+function chiefTarget(e, t) {
+  const st = e.dying !== undefined ? 'dead' : e.st,
+    stride = (e.stride || 0) * Math.PI * 2;
+  if (e.stunT > 0) return [[7, 6, -20, -0.6, -0.4, 10], 60];
+  if (st === 'rear' || st === 'roar') return [[2, -1, 14, 0.15, -1.45, 14], 70]; // raised over his head, crossways
+  if (st === 'brace') return [[8, 6, -7, 0.25, -0.95, 14], 110]; // down across him, set to go
+  if (st === 'rush' || st === 'charge') return [[10, 5, -9, 0.2, -0.35, 13], 120]; // out ahead, low, as he comes
+  if (st === 'chop') {
+    if (e.stT > 0.15) return [[-1, 3, 7, 2.25, 0.1, 4], 150]; // back over his right shoulder
+    return [[14, 1, -12, -0.5, 0, 4], 1100]; // and down: into the street ahead of him
+  }
+  if (e.stuckT > 0) return [[15, 1, -14, -0.55 + Math.sin(t * 15) * 0.04 * (e.stuckT > 0.35 ? 1 : 0), 0, 5], 160]; // stuck: he hauls at it
+  if ((e.claw || 0) > 0) {
+    const c = e.claw;
+    return [[10, 4, -4, 0.15, lerp(1.4, -1.45, c), 4], 700]; // swung through, side to side
+  }
+  if ((e.wind || 0) > 0) return [[2, 8, 0, 0.45, 1.5 * e.wind, 4], 140]; // drawn back to his right
+  if (e.recT > 0.25) return [[8, 4, -18, -0.2, -0.2, 12], 60]; // spent: the head down by his knees
+  return [[6, 5, -14 + Math.sin(stride * 2) * 0.8, 0.85, -0.75, 13], 70]; // carried at port: across him, the head by his left shoulder
+}
+function chiefArms(e, Jc, yaw, k) {
+  const A = e._ax,
+    [T, K] = chiefTarget(e, GS.time);
+  if (!A.v) {
+    A.v = T.slice();
+    A.d = T.map(() => 0);
+  }
+  const dt = A.dt || 0,
+    n = Math.max(1, Math.ceil(dt / 0.008)),
+    h = dt / n,
+    c = 2 * Math.sqrt(K);
+  for (let j = 0; j < n; j++)
+    for (let i = 0; i < AXP.length; i++) {
+      A.d[i] += ((T[i] - A.v[i]) * K - A.d[i] * c) * h;
+      A.v[i] += A.d[i] * h;
+    }
+  const [f, s, hh, p, az, g] = A.v,
+    F = [Math.cos(yaw), Math.sin(yaw)],
+    Rt = [-Math.sin(yaw), Math.cos(yaw)],
+    kx = k[0],
+    kz = k[1],
+    rear = [Jc[0] + (F[0] * f + Rt[0] * s) * kx, Jc[1] + (F[1] * f + Rt[1] * s) * kx, Jc[2] + hh * kz],
+    a2 = yaw + az,
+    cp = Math.cos(p),
+    sp = Math.sin(p),
+    X = [cp * Math.cos(a2), cp * Math.sin(a2), sp],
+    // the blade to the swing: up and ahead wound back over the shoulder, down into what it's chopping
+    Z = [sp * Math.cos(a2), sp * Math.sin(a2), -cp],
+    front = [rear[0] + X[0] * g * kx, rear[1] + X[1] * g * kx, rear[2] + X[2] * g * kz];
+  A.X = X;
+  A.Z = Z;
+  A.foot = [rear[0] - X[0] * 2 * kx, rear[1] - X[1] * 2 * kx, rear[2] - X[2] * 2 * kz];
+  return [rear, front];
+}
+// the Fire Chief in 3D: his body posed as the street's dead are (poseZombie), his hands and his axe by chiefArms. False
+// if he can't be: his picture draws
 export const chief3DOn = () => fig3dOn() && !!FIG.models && !!FIG.models.chief;
 export function drawChief3D(e) {
   if (!chief3DOn()) return false;
   e.c3d = true;
   if (e.id === undefined) e.id = 12000 + Math.floor(Math.random() * 999);
+  // once a frame: the time since the last (his springs), and the way he faces, turned on a spring of its own (so a snap
+  // round to a new line is a quick turn, not a jump)
+  const A = e._ax || (e._ax = { t: GS.time, yaw: e.face ?? e.a ?? 0 });
+  if (A.f !== frame) {
+    A.f = frame;
+    A.dt = clamp(GS.time - A.t, 0, 0.05);
+    A.t = GS.time;
+    const to = e.face ?? e.a ?? 0,
+      kq = e.st === 'rush' || e.st === 'charge' || e.st === 'chop' ? 14 : 7;
+    A.yaw += angDiff(A.yaw, to) * (1 - Math.exp(-kq * A.dt));
+  } else A.dt = 0;
   if (e._f3 === frame) e._f3 = -1;
   if (!drawFig3D(e)) return false;
-  const H = e._hw;
-  if (FIG.models.axe && H && !(e.dying > 0.35)) {
+  if (FIG.models.axe && A.X && !(e.dying > 0.2)) {
     const s = FIGK * 1.5,
-      dx = H[1][0] - H[0][0],
-      dy = H[1][1] - H[0][1],
-      dz = H[1][2] - H[0][2],
-      l = Math.hypot(dx, dy, dz) || 1,
-      X = [dx / l, dy / l, dz / l],
-      a = e.a || 0,
-      v = [Math.cos(a), Math.sin(a), 1], // (the blade's edge to the swing: up when it's carried level, ahead when it's raised)
-      vd = v[0] * X[0] + v[1] * X[1] + v[2] * X[2],
-      zr = [v[0] - X[0] * vd, v[1] - X[1] * vd, v[2] - X[2] * vd],
-      zl = Math.hypot(zr[0], zr[1], zr[2]) || 1,
-      Z = [zr[0] / zl, zr[1] / zl, zr[2] / zl],
+      X = A.X,
+      Z = A.Z,
       Y = [Z[1] * X[2] - Z[2] * X[1], Z[2] * X[0] - Z[0] * X[2], Z[0] * X[1] - Z[1] * X[0]],
       R = [X[0], Y[0], Z[0], X[1], Y[1], Z[1], X[2], Y[2], Z[2]],
-      A = e._axeE || (e._axeE = { id: e.id + 1 });
-    drawPick3D(A, 'axe', R, H[0][0] - X[0] * 2 * s, H[0][1] - X[1] * 2 * s, H[0][2] - X[2] * 2 * s, s, s, 1, 99);
+      E = e._axeE || (e._axeE = { id: e.id + 1 });
+    drawPick3D(E, 'axe', R, A.foot[0], A.foot[1], A.foot[2], s, s, 1, 99);
   }
   return true;
 }
