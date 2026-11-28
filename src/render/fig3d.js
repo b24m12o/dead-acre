@@ -711,6 +711,19 @@ const DRESSED = { zombie: 1, lean: 1, gaunt: 1, bloat: 1 },
 // e's look for this model, worked out once: its pattern or outfit, sleeves, trousers, hair, what it wears on its head
 function lookOf(e, name, id) {
   if (e._lk && e._lk.m === name) return e._lk;
+  if (name === 'chief')
+    return (e._lk = {
+      m: name,
+      kits: ['fire'],
+      pat: 15, // his turnout coat: the yellow and silver bands (DRESS 5)
+      slv: 2,
+      pa: [0.46, 0.38, 0.22], // the turnout trousers, bands at the shins
+      paw: 1.1,
+      ha: [0.16, 0.13, 0.1],
+      bald: true,
+      sty: 0,
+      hat: 6 + 16 * 3, // a chief's white helmet
+    });
   const kd = e.kind,
     v = e.v || 0,
     // the head to go with a uniform: the biker's bandana, the trucker's cap, combed for the funeral, the groundskeeper's cap
@@ -1238,6 +1251,10 @@ function poseZombie(e, D, o) {
       [24 - Math.sin(ph) * 6, 9],
     ]; // down on the ground ahead of it, hand over hand
   raise = rear * 18 + scrm * 8 + swl * 6;
+  if (e.c3d && e.__hd2) {
+    hd2 = e.__hd2;
+    raise = e.__raise || 0;
+  } // the Fire Chief: his hands where the fight puts them (draw-enemies.js drawGiant's, moved on to his body)
   for (const sd of [1, -1]) {
     const h2 = hd2[sd > 0 ? 1 : 0],
       ub = sd > 0 ? 4 : 6,
@@ -1291,7 +1308,18 @@ function poseZombie(e, D, o) {
       for (let i = 0; i < 3; i++)
         for (let j = 0; j < 3; j++) R[i * 3 + j] = A[0][i] * Bm[0][j] + A[1][i] * Bm[1][j] + A[2][i] * Bm[2][j];
       D3(7, R, M);
-    } else limb(D, o, ub, ub + 1, Rc, sh, hand, pole, k);
+    } else {
+      const [, wr] = limb(D, o, ub, ub + 1, Rc, sh, hand, pole, k);
+      if (e.c3d) {
+        const H =
+          e._hw ||
+          (e._hw = [
+            [0, 0, 0],
+            [0, 0, 0],
+          ]);
+        H[sd > 0 ? 1 : 0] = [wr[0], wr[1], wr[2]];
+      } // (where his hands are: the axe goes in them)
+    }
   }
   // what it has lost goes: those bones shrink to nothing at their joints (the skin round them closes into the stump)
   if (lost)
@@ -1332,11 +1360,13 @@ function poseZombie(e, D, o) {
           ? [0.36, 0.33, 0.38]
           : brute
             ? [0.3, 0.24, 0.2]
-            : hop
-              ? [0.27, 0.33, 0.39]
-              : riot || name === 'armored'
-                ? [0.2, 0.24, 0.32] // a uniform under the gear
-                : (SHIRTS && SHIRTS[e.v || 0]) || [0.36, 0.44, 0.52]
+            : name === 'chief'
+              ? [0.78, 0.64, 0.38] // tan turnout cloth, sooted
+              : hop
+                ? [0.27, 0.33, 0.39]
+                : riot || name === 'armored'
+                  ? [0.2, 0.24, 0.32] // a uniform under the gear
+                  : (SHIRTS && SHIRTS[e.v || 0]) || [0.36, 0.44, 0.52]
     ).map(x => x * 0.72),
     tc = e.tc || [1, 1, 1],
     LK = lookOf(e, name, id),
@@ -3396,6 +3426,7 @@ let POSE = poseFig;
 // the model each of the dead is drawn with: by its type, its special kind or its elite trait
 export function modelOf(e) {
   if (e.pk3d) return e.pk3d;
+  if (e.c3d) return 'chief'; // the Fire Chief, in 3D (drawChief3D)
   if (e.veh3d) return e.veh3d;
   if (e.hero3d) return 'hero';
   if (e.holder) return e.gm;
@@ -3436,6 +3467,36 @@ export function modelOf(e) {
 // the ground, missing an arm or its head, and painted into the street once they lie still
 // you (or a survivor) in 3D, with your gun: when the meshes are in, and you're on your feet (rolling, down or riding
 // out, the pictures still draw)
+// the Fire Chief in 3D: his body posed as the street's dead are (poseZombie), his hands where the fight puts them, the
+// axe between them, head to the fore, blade to the swing. False if he can't be: his picture draws
+export const chief3DOn = () => fig3dOn() && !!FIG.models && !!FIG.models.chief;
+export function drawChief3D(e) {
+  if (!chief3DOn()) return false;
+  e.c3d = true;
+  if (e.id === undefined) e.id = 12000 + Math.floor(Math.random() * 999);
+  if (e._f3 === frame) e._f3 = -1;
+  if (!drawFig3D(e)) return false;
+  const H = e._hw;
+  if (FIG.models.axe && H && !(e.dying > 0.35)) {
+    const s = FIGK * 1.5,
+      dx = H[1][0] - H[0][0],
+      dy = H[1][1] - H[0][1],
+      dz = H[1][2] - H[0][2],
+      l = Math.hypot(dx, dy, dz) || 1,
+      X = [dx / l, dy / l, dz / l],
+      a = e.a || 0,
+      v = [Math.cos(a), Math.sin(a), 1], // (the blade's edge to the swing: up when it's carried level, ahead when it's raised)
+      vd = v[0] * X[0] + v[1] * X[1] + v[2] * X[2],
+      zr = [v[0] - X[0] * vd, v[1] - X[1] * vd, v[2] - X[2] * vd],
+      zl = Math.hypot(zr[0], zr[1], zr[2]) || 1,
+      Z = [zr[0] / zl, zr[1] / zl, zr[2] / zl],
+      Y = [Z[1] * X[2] - Z[2] * X[1], Z[2] * X[0] - Z[0] * X[2], Z[0] * X[1] - Z[1] * X[0]],
+      R = [X[0], Y[0], Z[0], X[1], Y[1], Z[1], X[2], Y[2], Z[2]],
+      A = e._axeE || (e._axeE = { id: e.id + 1 });
+    drawPick3D(A, 'axe', R, H[0][0] - X[0] * 2 * s, H[0][1] - X[1] * 2 * s, H[0][2] - X[2] * 2 * s, s, s, 1, 99);
+  }
+  return true;
+}
 export function drawHero3D(p) {
   if (!FIG.models) return false; // (the meshes come in after the title is up: the picture until then)
   // (he falls as recorded; so does one of your people, downed)
@@ -3475,7 +3536,7 @@ export function drawHero3D(p) {
   return true;
 }
 export function is3D(e) {
-  if (e.__std || !fig3dOn()) return false;
+  if (e.__std || e.c3d || !fig3dOn()) return false; // (the Fire Chief goes his own way: drawChief3D, from his picture's sums)
   const m = modelOf(e);
   return !!m && !!FIG.models[m];
 }

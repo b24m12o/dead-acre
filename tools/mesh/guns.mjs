@@ -143,7 +143,32 @@ const mag = (name, B, reg) => ({
   ONE: true,
   MRES: 0.35,
 });
+// the Fire Chief's axe, in its owner's hands (fig3d.js): a long hickory handle from the hand at its foot (the origin),
+// along +x to the head: the red-painted steel, the blade's edge up (+z) ground bright, the pick down
+const AXE = {
+  BONES,
+  BOUNDS: [
+    [-2.4, -1.2, -6],
+    [27.4, 1.2, 6.4],
+  ],
+  GLSL:
+    LIB +
+    `
+float handle(vec3 p){ return sdCap(p,vec3(-1.8,0.0,0.0),vec3(23.6,0.0,0.0),0.62,0.5); }
+float head(vec3 p){ float d=bx(p,vec3(24.2,0.0,0.4),vec3(1.5,0.62,1.9),0.25);
+  float b=smin(bx(p,vec3(24.2,0.0,2.9),vec3(1.9,0.32,1.4),0.12),bx(p,vec3(24.2,0.0,4.3),vec3(2.9,0.22,0.5),0.1),0.7); d=smin(d,b,0.3); /* the blade, flaring to its edge */
+  d=min(d,sdCap(p,vec3(24.2,0.0,-1.0),vec3(23.6,0.0,-5.2),0.62,0.16)); return d; }
+float model(vec3 p){ return min(handle(p),head(p)); }
+void attrs(vec3 p){ gPart=0; gU=0.5; gReg=head(p)<handle(p)?(p.z>4.0?38:39):45; }
+`,
+  REGION,
+  SCALE: 1,
+  RIGID: true,
+  ONE: true,
+  MRES: 0.35,
+};
 export const GUNS = {
+  axe: AXE,
   rifle: gun('rifle', [
     [-10, -1.6, -2.3],
     [23, 1.6, 4.4],

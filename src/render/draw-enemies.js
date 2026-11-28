@@ -1,7 +1,7 @@
 /* Dead Acre · Copyright (c) 2026 b24m12o. All rights reserved. See LICENSE. */
 import { GS } from '../core/gs.js';
 import { TAU, angDiff, clamp, lerp, rand } from '../core/util.js';
-import { RIM, figTilt, lineQ, quad, scaled, setH, setRim } from './sprites.js';
+import { RIM, figTilt, lineQ, quad, quadsOff, scaled, setH, setRim } from './sprites.js';
 import { figK } from '../core/scale.js';
 import { R } from './atlas.js';
 import { drawLegs, ik2 } from '../actors/legs.js';
@@ -9,7 +9,7 @@ import { dust, part } from './effects.js';
 import { shieldUp } from '../game/combat.js';
 import { queenTail, toWorld } from '../actors/projectiles.js';
 import { drawBoss3D } from './boss3d.js';
-import { drawFig3D, figFlush, is3D, setShirts } from './fig3d.js';
+import { chief3DOn, drawChief3D, drawFig3D, figFlush, is3D, setShirts } from './fig3d.js';
 import { drawBody } from './draw-bodies.js';
 export const ZSKIN = [
     [0.6, 0.66, 0.5],
@@ -859,6 +859,24 @@ function drawEnemy0(e) {
     }
     case 'queen': {
       if (e.giant) {
+        if (e.btype === 'chief' && chief3DOn()) {
+          // in 3D: his picture's own sums (its planted boots, its hands on their springs) run with nothing drawn, and
+          // his body takes them up (fig3d.js)
+          quadsOff(true);
+          drawGiant(e, fl, em, ta);
+          quadsOff(false);
+          const G = GIANT.chief,
+            st = e.st;
+          e.__hd2 = e.hd ? e.hd.map(h => [(h[0] / G.reach) * 26, (h[1] / G.sh) * 11]) : null;
+          const f = st === 'chop' ? (e.stT > 0.15 ? 0 : 1 - e.stT / 0.15) : 0;
+          e.__raise =
+            st === 'chop'
+              ? lerp(30, -16, f) // up over the helmet, then down into the street
+              : e.stuckT > 0
+                ? -16
+                : (e.wind || 0) * 18 + (st === 'brace' ? 4 : 0);
+          if (drawChief3D(e)) break;
+        }
         drawGiant(e, fl, em, ta);
         break;
       }

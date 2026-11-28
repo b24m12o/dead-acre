@@ -213,6 +213,7 @@ export function humanoid(P0 = {}) {
     neck: 1,
     gear: null,
     pack: 0,
+    tank: 0,
     kit: 0,
     dress: 0,
     scale: 1,
@@ -369,6 +370,19 @@ float kitD(vec3 p){ vec3 q=vec3(p.x,p.y,p.z-ZU);
 float helmKit(vec3 p){ return 1e3; }
 `
     : '') +
+  (P.tank
+    ? `// a firefighter's breathing set on the back: the air cylinder upright in its frame, the valve at its foot, the
+// harness straps over the shoulders
+float tankC(vec3 p){ vec3 q=vec3(p.x,p.y,p.z-ZU);
+  float c=sdCap(q,vec3(-6.6*TD,0.0,30.5),vec3(-6.6*TD,0.0,44.0),2.35,2.35);
+  c=min(c,sdCap(q,vec3(-6.6*TD,0.0,29.0),vec3(-6.6*TD,0.0,30.6),0.9,0.9));
+  return c; }
+float tankS(vec3 q0){ vec3 q=vec3(q0.x,abs(q0.y),q0.z-ZU);
+  float s=sdBox(q,vec3(-5.0*TD,1.9,37.0),vec3(0.5,0.5,8.0),0.3);
+  s=min(s,sdBox(q,vec3(-1.0,2.6*TW,46.0),vec3(3.6*TD,0.65,0.35),0.25));
+  return s; }
+`
+    : '') +
   (P.pack
     ? `// a small backpack high on the back
 float pack(vec3 p){ vec3 q=vec3(p.x,p.y,p.z-ZU);
@@ -400,6 +414,7 @@ float model(vec3 p){
   d=smin(d,leg(p,1.0,t,s,ft),1.6); d=smin(d,leg(p,-1.0,t,s,ft),1.6);
   ${P.gear ? 'd=min(d,vest(p)); d=min(d,helmet(p));' : ''}
   ${P.pack ? 'd=min(d,pack(p));' : ''}
+  ${P.tank ? 'd=min(d,min(tankC(p),tankS(p)));' : ''}
   ${P.kit ? 'd=min(d,kitD(p)); d=min(d,helmKit(p));' : ''}
   return d;
 }
@@ -428,6 +443,7 @@ void attrs(vec3 p){
         if(f.x>L*0.72) gReg=43; } } } // the toe cap, scuffed
   ${P.gear ? 'if(vest(p)<best+0.05){ best=vest(p); gPart=2; gReg=14; gU=0.5; } if(helmet(p)<best+0.05){ best=helmet(p); gPart=3; gReg=15; gU=0.5; }' : ''}
   ${P.pack ? 'if(pack(p)<best+0.05){ best=pack(p); gPart=2; gReg=24; gU=0.5; }' : ''}
+  ${P.tank ? 'if(tankC(p)<best+0.05){ best=tankC(p); gPart=2; gReg=38; gU=0.5; } if(tankS(p)<best+0.05){ best=tankS(p); gPart=2; gReg=32; gU=0.5; }' : ''}
   ${P.kit ? 'if(kitD(p)<best+0.05){ best=kitD(p); gPart=p.z-ZU<18.0?(p.y>0.0?9:12):p.z-ZU<26.0?(p.y>0.0?8:11):p.z-ZU>40.0?2:0; gReg=14; gU=0.5; } if(helmKit(p)<best+0.05){ best=helmKit(p); gPart=3; gReg=15; gU=0.5; }' : ''}
   ${P.kit ? 'for(int k=0;k<2;k++){ float s=k==0?1.0:-1.0; float u,f,hh; arm(p,s,u,f,hh); if(hh<best+0.04&&gReg==8){ gReg=29; } }' : ''}
 }
@@ -536,4 +552,20 @@ export const MODELS = {
     scale: 1.25,
     mres: 1.6,
   }), // the bloater: a sack of rot on legs
+  // the Fire Chief (a boss): a big man gone bigger, in his turnout gear, the breathing set still on his back
+  chief: humanoid({
+    tw: 1.32,
+    td: 1.28,
+    sw: 1.32,
+    lt: 1.42,
+    al: 1.06,
+    ll: 0.96,
+    hs: 0.94,
+    neck: 0.75,
+    hulk: 0.45,
+    tank: 1,
+    dress: 1,
+    scale: 1.5,
+    mres: 1.3,
+  }),
 };

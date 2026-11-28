@@ -192,7 +192,11 @@ let FT = 0;
 export const figTilt = on => (FT = on ? TILT / 0.3 : 0);
 export let RIM = 0;
 export const setRim = k => (RIM = k);
+// (muted: a figure whose picture's sums are wanted, not its drawing: the Fire Chief in 3D, draw-enemies.js)
+let QOFF = false;
+export const quadsOff = v => (QOFF = v);
 export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
+  if (QOFF) return;
   if (PK !== 1 && !inPK) {
     inPK = true;
     quad(r, PX + (x - PX) * PK, PY + (y - PY) * PK, rot, sx * PK, sy * PK, tr, tg, tb, ta, er, eg, eb, ef);
@@ -310,6 +314,7 @@ export function quad(r, x, y, rot, sx, sy, tr, tg, tb, ta, er, eg, eb, ef) {
   GS.qn++;
 }
 export function lineQ(x0, y0, x1, y1, w, tr, tg, tb, ta, er, eg, eb, ef, reg) {
+  if (QOFF) return;
   const r = reg || R.limb,
     dx = x1 - x0,
     dy = y1 - y0,
