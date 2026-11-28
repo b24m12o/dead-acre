@@ -332,6 +332,151 @@ function walkOut(e, ang, t, sp, roar, fn, dark = 1, lit = 0.8) {
   return e;
 }
 const toYou = (x, y) => Math.atan2(GS.P.y - y, GS.P.x - x);
+// the Fire Chief's engine: a stopping place in sight, and a clear straight run of road up to it (across the screen
+// if it can: you see it come), long enough for it to come out of the dark; null if there's none
+function engineRoute() {
+  const P = GS.P,
+    HL = 62,
+    HW = 25,
+    L = 420 * GK + 260,
+    clear = (x, y, a, hl = HL) => {
+      const c = Math.cos(a),
+        s = Math.sin(a);
+      for (let u = -hl; u <= hl; u += 14)
+        for (let v = -HW; v <= HW; v += 12.5) if (blockPt(x + u * c - v * s, y + u * s + v * c)) return false;
+      return true;
+    };
+  let best = null;
+  for (let k = 0; k < 40; k++) {
+    const [x, y] = stageSpot(520, 660);
+    if (Math.hypot(x - P.x, y - P.y) < 150 * GK) continue;
+    for (let j = 0; j < 8; j++) {
+      const a = (j / 8) * TAU + rand(-0.15, 0.15),
+        c = Math.cos(a),
+        s = Math.sin(a);
+      if (!clear(x, y, a)) continue;
+      let ok = true;
+      for (let u = 40; u <= L && ok; u += 40) ok = clear(x - c * u, y - s * u, a, 40); // the road it comes up
+      if (!ok) continue;
+      const sc = Math.abs(c) + rand(0, 0.25); // (across the screen: the screen is wider than tall)
+      if (!best || sc > best.sc) best = { x, y, a, L, sc };
+    }
+    if (best && best.sc > 0.9) break;
+  }
+  return best;
+}
+function engineIn(bt) {
+  const R0 = engineRoute();
+  if (!R0) return false;
+  const { x, y, a, L } = R0,
+    c = Math.cos(a),
+    s = Math.sin(a),
+    DRV = 2.0, // driving in
+    T = {
+      x: x - c * L,
+      y: y - s * L,
+      a,
+      truck: true,
+      tint: [0.62, 0.09, 0.06], // engine red, under the soot
+      col: '#9e1e12',
+      lights: true,
+      hp: 520,
+      max: 520,
+      dead: false,
+      fire: 0,
+      hasAlarm: false,
+      alarmUsed: true,
+      rig: false,
+      tanker: false,
+      engine: true,
+    };
+  GS.vehIn = [T]; // (drawn while it drives in: it joins the street's cars, solid, when it stops)
+  let parked = false,
+    smk = 0;
+  const steps = [
+    [0.1, () => sfx.siren(x, y, 2.4)],
+    [DRV - 0.35, () => noise(0.5, 0.07, 1400, 500, 'bandpass')], // the brakes
+  ];
+  // the driver's door, by the cab on its left: it steps down out of it
+  const door = [x + c * 30 + s * (25 + 18), y + s * 30 - c * (25 + 18)],
+    tR = DRV + 0.45;
+  steps.push([DRV + 0.25, () => noise(0.14, 0.09, 420, 140, 'lowpass')]); // the cab door
+  let scr = 0;
+  steps.push([
+    tR,
+    () =>
+      walkOut(
+        bossArrive(door[0], door[1], true),
+        toYou(door[0], door[1]),
+        2.4,
+        70,
+        1.2,
+        (e, dt) => {
+          const sa = e.a + Math.PI * 0.75,
+            ax = e.x + Math.cos(sa) * e.r * 1.1,
+            ay = e.y + Math.sin(sa) * e.r * 1.1;
+          if (Math.random() < dt * 14) sparks(ax, ay, [1, 0.8, 0.45], 3, 140); // the axe head on the concrete
+          if ((scr -= dt) <= 0) {
+            scr = 0.45;
+            sfx.scrape(ax, ay);
+          }
+        },
+        0.2,
+        1.3
+      ),
+  ]);
+  const place = t => {
+    const u = Math.min(1, t / DRV),
+      k = 1 - (1 - u) * (1 - u); // braking as it comes
+    T.x = x - c * L * (1 - k);
+    T.y = y - s * L * (1 - k);
+    if (u >= 1 && !parked) {
+      parked = true;
+      GS.vehIn = [];
+      cars.push(T); // stopped: one of the street's cars now, as solid as any (and as able to burn)
+      dust(x - c * 50, y - s * 50, 8, 70, 1.2, 1);
+      shake(0.1);
+    }
+  };
+  const tick = t => {
+    place(t);
+    const on = Math.floor(t * 6) % 2,
+      fx = T.x + c * 40,
+      fy = T.y + s * 40;
+    flashLight(fx + (on ? s : -s) * 16, fy - (on ? c : -c) * 16, 260, [1.6, 0.12, 0.06], 0.09); // its lights, strobing red
+    if (parked && (smk -= 1 / 60) <= 0) {
+      smk = 0.12;
+      part({
+        k: 2,
+        x: T.x + rand(-30, 30),
+        y: T.y + rand(-14, 14),
+        vx: rand(-8, 8),
+        vy: rand(-26, -12),
+        life: rand(1.8, 2.6),
+        max: 2.6,
+        size: rand(0.8, 1.3),
+        grow: 1.8,
+        drag: 0.6,
+        rot: rand(0, TAU),
+        vr: rand(-1, 1),
+        c: [0.2, 0.19, 0.19],
+      }); // smoke off it: the crew that rode it never came back
+    }
+  };
+  cinePlay({
+    x: (x + door[0]) / 2,
+    y: (y + door[1]) / 2,
+    steps,
+    reveal: tR,
+    end: tR + 3.4,
+    key: bt,
+    name: bossName(),
+    sub: SUB[bt] || '',
+    onTick: tick,
+    onEnd: () => place(99),
+  });
+  return true;
+}
 function stage(bt, x, y, steps, reveal, end) {
   cinePlay({ x, y, steps, reveal, end, key: bt, name: bossName(), sub: SUB[bt] || '' });
 }
@@ -660,8 +805,11 @@ const ENTRANCE = {
     stage(bt, x, y, steps, tR, tR + 2.8);
   },
   chief(bt) {
-    // a siren winds up, the street catches fire in a ring, its radio crackles, and it walks out through the flames
-    // dragging its axe on the concrete
+    // away from its station: it comes in its fire engine, siren going and its lights strobing red down the street; the
+    // engine brakes, the cab door bangs open and it climbs down and comes for you, the axe dragging (engineIn)
+    if (!placeStage('chief') && engineIn(bt)) return;
+    // at the Starlite (or with no road for an engine): a siren winds up, the street catches fire in a ring, its radio
+    // crackles, and it walks out through the flames dragging its axe on the concrete
     const [x, y] = placeStage('chief') || stageSpot(520, 660), // at the Starlite, out of the burnt fire station
       steps = [[0.2, () => sfx.siren(x, y, 2)]];
     ringFires(x, y, 7, 60, 100, 18, 0.5, steps);

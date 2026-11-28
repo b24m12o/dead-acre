@@ -378,6 +378,7 @@ export function drawCasters() {
   const vis = (x, y, m = 130) =>
     x > GS.camX - m && x < GS.camX + viewW + m && y > GS.camY - m && y < GS.camY + viewH + m * 1.4;
   for (const c of cars) if (vis(c.x, c.y)) push(carKey(c), drawCar, c); // (one blown up: its burnt-out shell)
+  for (const c of GS.vehIn || []) if (vis(c.x, c.y, 300)) push(carKey(c), drawCar, c); // (one still driving in: the Fire Chief's engine)
   if (GS.truck && GS.truck.driver && !GS.truck.driver.in && GS.truck.garage && GS.truck.garage.open && !GS.NOHERO)
     push(GS.truck.driver.y, drawRanger, GS.truck.driver); // the driver, by his cab, once the door is up
   if (GS.truck && !GS.truck.gone && vis(GS.truck.x, GS.truck.y, 200)) push(carKey(GS.truck), drawCar, GS.truck); // the convoy truck come for you
